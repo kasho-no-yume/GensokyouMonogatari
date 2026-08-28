@@ -1,0 +1,7 @@
+﻿{
+  "mode": "decompose",
+  "ingredient": { "item": "minecraft:iron_block" },
+  "result": { "id": "minecraft:raw_iron", "count": 12 },
+  "spCost": 100,
+  "timeTicks": 200
+}

@@ -1,0 +1,14 @@
+﻿{
+  "id": "gensokyou:relay_circle",
+  "anchorKey": "C",
+  "palette": {
+    "C": "gensokyou:ritual_core",
+    "P": "gensokyou:ritual_pedestal"
+  },
+  "levels": [
+    { "level": 1, "blocks": [
+      { "key": "C", "x": 0, "y": 0, "z": 0 },
+      { "key": "P", "x": 0, "y": 0, "z": 1 }
+    ] }
+  ]
+}

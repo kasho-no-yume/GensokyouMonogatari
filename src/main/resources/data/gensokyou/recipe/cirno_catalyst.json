@@ -1,0 +1,13 @@
+﻿{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "gensokyou:summon_catalyst" },
+    { "item": "minecraft:snowball" },
+    { "item": "gensokyou:bpoint" }
+  ],
+  "result": {
+    "id": "gensokyou:cirno_catalyst",
+    "count": 1
+  }
+}

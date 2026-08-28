@@ -1,0 +1,34 @@
+# barrier-break-ritual Specification
+
+## Purpose
+TBD - created by archiving change phase-c-gensokyo-gate. Update Purpose after archive.
+## Requirements
+### Requirement: 结界引爆仪式
+右键仪式核心 SHALL 尝试激活：从玩家与相邻电容扣除 barrierSpCost 灵力，成功后在核心上方生成隙间方块；激活标志持久化，重复激活不再扣费。灵力不足时提示且零消耗。
+
+#### Scenario: 激活
+- **WHEN** 灵力充足的玩家右键完整结界仪式核心
+- **THEN** 扣除配置灵力，核心上方出现隙间方块
+
+#### Scenario: 二次激活免费
+- **WHEN** 已激活后再次右键
+- **THEN** 无任何消耗，隙间维持
+
+### Requirement: 隙间门生命周期
+结构有效期间隙间方块 MUST 存在；任一结构方块被破坏导致匹配失效 → 隙间自动移除；重建结构 → 免费重新生成。隙间方块本身不可被破坏。
+
+#### Scenario: 拆环消门
+- **WHEN** 移除外圈任一仪式石
+- **THEN** 20 tick 内隙间方块消失
+
+#### Scenario: 重建复现
+- **WHEN** 补回仪式石恢复结构
+- **THEN** 隙间免费重现
+
+### Requirement: 隙间传送
+实体接触隙间 SHALL 被传送：玩家不在幻想乡 → 传至幻想乡 (0, 地表, 0)；已在幻想乡 → 传回主世界出生点；传送后短冷却防连触。
+
+#### Scenario: 双向传送
+- **WHEN** 主世界玩家接触隙间后再接触幻想乡侧的隙间
+- **THEN** 第一次进入幻想乡，第二次返回主世界
+

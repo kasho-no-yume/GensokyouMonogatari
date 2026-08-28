@@ -1,0 +1,24 @@
+package com.bitsson.gensokyou.registry;
+
+import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
+import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
+
+import java.util.Set;
+
+public final class ModBlockEntities {
+    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
+            DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, Gensokyou.MODID);
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RitualCoreBlockEntity>> RITUAL_CORE =
+            BLOCK_ENTITIES.register("ritual_core", () -> new BlockEntityType<>(
+                    RitualCoreBlockEntity::new, Set.of(ModBlocks.RITUAL_CORE.get()), null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RitualPedestalBlockEntity>> RITUAL_PEDESTAL =
+            BLOCK_ENTITIES.register("ritual_pedestal", () -> new BlockEntityType<>(
+                    RitualPedestalBlockEntity::new, Set.of(ModBlocks.RITUAL_PEDESTAL.get()), null));
+}

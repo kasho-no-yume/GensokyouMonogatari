@@ -1,0 +1,18 @@
+﻿{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SPS",
+    "PDP",
+    "SPS"
+  ],
+  "key": {
+    "S": { "item": "gensokyou:ritual_stone" },
+    "P": { "item": "gensokyou:ppoint" },
+    "D": { "item": "minecraft:diamond" }
+  },
+  "result": {
+    "id": "gensokyou:ritual_core",
+    "count": 1
+  }
+}

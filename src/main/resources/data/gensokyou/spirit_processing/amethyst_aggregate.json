@@ -1,0 +1,7 @@
+﻿{
+  "mode": "aggregate",
+  "ingredient": { "item": "minecraft:amethyst_shard" },
+  "result": { "id": "minecraft:emerald", "count": 1 },
+  "spCost": 200,
+  "timeTicks": 300
+}

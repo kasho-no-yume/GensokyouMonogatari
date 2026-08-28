@@ -1,0 +1,17 @@
+﻿{
+  "id": "gensokyou:processing_circle",
+  "anchorKey": "C",
+  "palette": {
+    "C": "gensokyou:ritual_core",
+    "S": "#gensokyou:ritual_stones",
+    "P": "gensokyou:ritual_pedestal"
+  },
+  "levels": [
+    { "level": 1, "blocks": [
+      { "key": "C", "x": 0, "y": 0, "z": 0 },
+      { "key": "S", "x": 0, "y": 0, "z": 1 },
+      { "key": "S", "x": 1, "y": 0, "z": 1 },
+      { "key": "P", "x": 0, "y": 0, "z": 2 }
+    ] }
+  ]
+}

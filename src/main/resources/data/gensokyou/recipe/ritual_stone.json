@@ -1,0 +1,17 @@
+﻿{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "###",
+    "#P#",
+    "###"
+  ],
+  "key": {
+    "#": { "item": "minecraft:cobblestone" },
+    "P": { "item": "gensokyou:ppoint" }
+  },
+  "result": {
+    "id": "gensokyou:ritual_stone",
+    "count": 8
+  }
+}

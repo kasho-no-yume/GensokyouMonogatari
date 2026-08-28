@@ -1,0 +1,17 @@
+{
+  "type": "gensokyou:gensokyo",
+  "generator": {
+    "type": "minecraft:noise",
+    "settings": "gensokyou:gensokyo",
+    "biome_source": {
+      "type": "minecraft:multi_noise",
+      "biomes": [
+        { "biome": "gensokyou:sanzu_river", "parameters": { "offset": 0.0, "temperature": 0.0, "humidity": 0.0, "continentalness": [-1.0, -0.55], "erosion": 0.0, "weirdness": 0.0, "depth": 0.0 } },
+        { "biome": "gensokyou:misty_bamboo_grove", "parameters": { "offset": 0.0, "temperature": 0.0, "humidity": 0.0, "continentalness": [-0.55, -0.15], "erosion": 0.0, "weirdness": 0.0, "depth": 0.0 } },
+        { "biome": "gensokyou:misty_lake", "parameters": { "offset": 0.0, "temperature": 0.0, "humidity": 0.0, "continentalness": [-0.15, 0.2], "erosion": 0.0, "weirdness": 0.0, "depth": 0.0 } },
+        { "biome": "gensokyou:magic_forest", "parameters": { "offset": 0.0, "temperature": 0.0, "humidity": 0.0, "continentalness": [0.2, 0.55], "erosion": 0.0, "weirdness": 0.0, "depth": 0.0 } },
+        { "biome": "gensokyou:moriya_mountain", "parameters": { "offset": 0.0, "temperature": 0.0, "humidity": 0.0, "continentalness": [0.55, 1.0], "erosion": 0.0, "weirdness": 0.0, "depth": 0.0 } }
+      ]
+    }
+  }
+}

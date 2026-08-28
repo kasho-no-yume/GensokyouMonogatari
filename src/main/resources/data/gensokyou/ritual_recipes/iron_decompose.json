@@ -1,0 +1,7 @@
+{
+  "pattern": "gensokyou:processing_circle",
+  "mode": "passive",
+  "ingredients": [ { "item": "minecraft:iron_block", "count": 1 } ],
+  "result": { "item": "minecraft:raw_iron", "count": 12 },
+  "spCost": 100
+}

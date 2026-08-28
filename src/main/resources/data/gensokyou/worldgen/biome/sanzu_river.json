@@ -1,0 +1,31 @@
+﻿{
+  "has_precipitation": true,
+  "temperature": 0.5,
+  "downfall": 0.5,
+  "carvers": { "air": [] },
+  "effects": {
+    "fog_color": 11587199,
+    "sky_color": 6838521,
+    "water_color": 5321509,
+    "water_fog_color": 1874718
+  },
+  "spawners": {
+    "monster": [
+      { "type": "gensokyou:fairy", "weight": 12, "minCount": 1, "maxCount": 2 },
+      { "type": "gensokyou:big_fairy", "weight": 1, "minCount": 1, "maxCount": 1 }
+    ],
+    "creature": [],
+    "ambient": [],
+    "axolotls": [],
+    "underground_water_creature": [],
+    "water_creature": [],
+    "water_ambient": [],
+    "misc": []
+  },
+  "spawn_costs": {},
+  "features": [
+    [], [], [], [], [], [], [], [], [],
+    ["minecraft:seagrass_simple", "minecraft:disk_sand"],
+    []
+  ]
+}

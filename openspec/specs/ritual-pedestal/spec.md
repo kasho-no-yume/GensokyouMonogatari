@@ -1,0 +1,19 @@
+# ritual-pedestal Specification
+
+## Purpose
+TBD - created by archiving change ritual-system-normalization. Update Purpose after archive.
+## Requirements
+### Requirement: 祭品台存取
+祭品台方块 SHALL 支持右键放入单个物品手中物品、空手右键取回；内容随方块实体持久化。
+
+#### Scenario: 放置与取回
+- **WHEN** 手持一组物品右键祭品台后空手再右键
+- **THEN** 物品先被收纳、后被完整取回
+
+### Requirement: 悬浮渲染
+祭品台上的物品 SHALL 由方块实体渲染器绘制：悬浮于台面上方并缓慢自转，亮度取环境光照。
+
+#### Scenario: 视觉验证
+- **WHEN** 向祭品台放入物品
+- **THEN** 物品模型悬浮显示且随时间旋转浮动，破坏方块后不再渲染
+

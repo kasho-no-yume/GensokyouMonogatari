@@ -1,0 +1,19 @@
+# gensokyo-dimension Specification
+
+## Purpose
+TBD - created by archiving change phase-c-gensokyo-gate. Update Purpose after archive.
+## Requirements
+### Requirement: 维度与群系布局
+SHALL 存在维度 gensokyou:gensokyo，地形生成复用主世界噪声；群系由自定义 BiomeSource 按固定布局绘制：岛外环绕三途川（海功能），岛内四地各出现恰好一次——迷雾竹林、雾之湖、守矢山（占地最大）、魔法森林。
+
+#### Scenario: 布局确定性
+- **WHEN** 多次生成新世界并检查相同坐标的群系
+- **THEN** 同一位置的群系类型恒定，且五种群系在岛域内各仅有一片
+
+### Requirement: 群系内容主题
+五群系 SHALL 各自配置主题植被与视觉：竹林顶面遍生竹子；雾之湖密植黑橡树；三途川沙质水岸+主题水色；守矢山云杉疏林；魔法森林丛林树+大小蘑菇覆盖且无竹子。妖精生态在各陆地群系延续。
+
+#### Scenario: 主题抽查
+- **WHEN** 分别抵达四个陆地块区域
+- **THEN** 植被构成与各自主题一致
+

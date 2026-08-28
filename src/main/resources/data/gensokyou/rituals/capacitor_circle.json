@@ -1,0 +1,14 @@
+﻿{
+  "id": "gensokyou:capacitor_circle",
+  "anchorKey": "C",
+  "palette": {
+    "C": "gensokyou:ritual_core",
+    "S": "#gensokyou:ritual_stones"
+  },
+  "levels": [
+    { "level": 1, "blocks": [
+      { "key": "C", "x": 0, "y": 0, "z": 0 },
+      { "key": "S", "x": 2, "y": 0, "z": 2 }
+    ] }
+  ]
+}
