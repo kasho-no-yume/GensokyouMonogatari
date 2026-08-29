@@ -28,10 +28,38 @@ import java.util.Set;
  * <p>双端约定：渲染与运动学所需的数据全部通过 {@link SynchedEntityData} 下发，
  * 客户端与服务端各自按相同规则推进，因此不依赖高频位置同步。
  * 伤害与命中判定仅在服务端生效。
+ *
+ * <p><b>四种弹幕的生成示例：</b>
+ *
+ * <pre>{@code
+ * // 球型（0 = 随机色，服务端取色后同步）
+ * SphereDanmaku sphere = new SphereDanmaku(level, owner, 4.0F, 0, 0.4F, DanmakuWhitelists.FAIRY);
+ * sphere.shoot(dir.x, dir.y, dir.z, 1.0F, 0F);
+ *
+ * // 飞刀（穿透实体，每个目标只判伤一次，无发光）
+ * KnifeDanmaku knife = new KnifeDanmaku(level, owner, 3.0F, DanmakuWhitelists.FAIRY);
+ * knife.shoot(dir.x, dir.y, dir.z, 1.5F, 0F);
+ *
+ * // 灵符（追踪目标；灵敏度 = 每秒可偏转角度）
+ * TalismanDanmaku talisman = new TalismanDanmaku(level, owner, 4.0F, 0xFF0000, target, 90.0, whitelist);
+ * talisman.shoot(dir.x, dir.y, dir.z, 0.8F, 0F);
+ *
+ * // 激光（延迟 1 秒警告线，持续 3 秒，激活期每 5 tick 判伤）
+ * LaserDanmaku laser = new LaserDanmaku(level, origin, dir, 2.0F, 0x00FFFF,
+ *         20.0, 0.25, 1.0, 3.0, owner, whitelist);
+ * level.addFreshEntity(laser);
+ * }</pre>
+ *
+ * <p>飞行途中改向（弹幕阵列编排）示例：
+ * <pre>{@code bullet.setVelocity(newDirection.scale(newSpeed)); }</pre>
+ * 注意用 {@code setVelocity} 而非 {@code setDeltaMovement}：前者会把速度变更同步给客户端。
  */
 public abstract class AbstractDanmakuProjectile extends Projectile {
     /** 最大存活时间：60 秒。 */
     protected static final int MAX_LIFETIME_TICKS = 1200;
+
+    /** 存活时间，发射方可按核覆写（散弹等短射程行为）。 */
+    private int lifetimeTicks = MAX_LIFETIME_TICKS;
 
     /**
      * 位置纠偏阈值（平方）。双端运动学一致时误差极小，
@@ -69,7 +97,7 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     public void tick() {
         super.tick();
 
-        if (this.tickCount > MAX_LIFETIME_TICKS) {
+        if (this.tickCount > this.lifetimeTicks) {
             this.discard();
             return;
         }
@@ -149,10 +177,20 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     // 速度 / 方向变更接口（用于编排弹幕阵列）
     // ---------------------------------------------------------------
 
-    /** 直接设置速度向量。 */
+    /**
+     * 直接设置速度向量。
+     *
+     * <p>客户端在独立模拟运动学，服务端若静默改速，客户端会按旧方向继续飞，
+     * 直到位置误差超阈值被硬拽——表现为「先错后跳」。
+     * 设置 hurtMarked 让原版在下个 tick 下发运动包，客户端立刻对齐。
+     *
+     * <p>注意：实体内部每 tick 的转向（如灵符追踪）应直接调 setDeltaMovement，
+     * 不要走本接口，否则会每 tick 发一次运动包。
+     */
     public void setVelocity(Vec3 velocity) {
         this.setDeltaMovement(velocity);
         this.updateRotationFromVelocity();
+        this.hurtMarked = true;
     }
 
     /** 设置方向与速率，方向会被归一化。 */
@@ -199,6 +237,11 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
 
     public void setDamage(float damage) {
         this.damage = damage;
+    }
+
+    /** 覆写存活时间（tick），用于短射程发射行为。 */
+    public void setLifetimeTicks(int ticks) {
+        this.lifetimeTicks = Math.max(1, ticks);
     }
 
     public int getColor() {

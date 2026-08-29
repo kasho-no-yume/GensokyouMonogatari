@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import com.bitsson.gensokyou.registry.ModCreativeTabs;
+import com.bitsson.gensokyou.registry.ModDataComponents;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import com.bitsson.gensokyou.registry.ModItems;
 import com.bitsson.gensokyou.registry.ModMenus;
@@ -35,6 +36,7 @@ public class Gensokyou {
         ModAttachments.ATTACHMENTS.register(modEventBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModMenus.MENUS.register(modEventBus);
+        ModDataComponents.DATA_COMPONENTS.register(modEventBus);
         modContainer.registerConfig(ModConfig.Type.COMMON, GensokyouConfig.SPEC);
     }
 }

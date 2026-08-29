@@ -371,3 +371,26 @@ If critical issues found post-merge:
 ## Open Questions
 
 None currently. All technical decisions have been made with clear rationale. If implementation reveals edge cases, document them here and update design accordingly.
+
+## Implementation Amendments（实现期修订）
+
+以下决策在实现与评审后对上文有所修正或补充：
+
+1. **灵符目标同步用 entity network id，非 UUID。** UUID 查询（`getEntity(UUID)`）仅服务端可用，客户端无法解析；network id 经 `level.getEntity(int)` 双端可用。附带影响：target 不写入 NBT（重载世界后目标丢失，弹幕 60 秒寿命内可接受）。灵敏度一并走 SynchedEntityData，客户端执行相同偏转计算。
+
+2. **速度变更接口带同步。** 外部调用 `setVelocity()` 时置 `hurtMarked = true`，由原版机制下发运动包，客户端立即对齐——否则弹幕阵列编排会「先错后跳」。实体内部每 tick 的转向（灵符追踪）直接调 `setDeltaMovement`，不触发同步包。位置纠偏采用阈值策略（误差 > 1 格才硬纠正），双端一致模拟下的微小误差不予处理，换取完全平滑的轨迹。
+
+3. **发光层采用加法混合（SRC_ALPHA, ONE）自定义 RenderType。** 原版实体渲染类型均为 alpha 混合，弹幕重叠时辉光相互覆盖而非叠加，达不到表现要求。自定义层只写颜色不写深度，深度测试保留（不透墙）。这是「方案 b → shader bloom」之间的中间档，先落地观察表现，不达标再上 shader bloom。
+
+4. **激光判伤过滤 `canBeHitByProjectile()`。** 避免射线捞到掉落物/经验球等非目标实体造成边角 bug。命中判定用实体碰撞箱与射线求交（AABB.clip），比中心点距离判定对大体型实体更公平。
+
+5. **旧 DanmakuProjectile 保留为存档兼容薄壳。** 继承 SphereDanmaku，保留实体 id 与 "Damage" NBT 键，旧存档在飞的弹幕无缝转入新行为。新代码禁用该类。
+
+### 远期架构备忘：高密度弹幕的规模天花板
+
+当前「每发弹幕一个实体」方案在约 200+ 并发时，服务端实体管理与客户端实体渲染开销都会显著上升（东方正作同屏 300~500 发是常态）。若将来需要高密度符卡，迁移方向是**混合架构**：
+
+- 有判伤意义的弹 → 保持实体（现状）
+- 纯视觉的密集弹 → 服务端只计算轨迹，用一个批量自定义 payload 周期下发全部弹位，客户端绘制且不判伤；判伤由服务端对图案做粗粒度体积检测
+
+本备忘仅为远期设计记录，当前范围不实施。

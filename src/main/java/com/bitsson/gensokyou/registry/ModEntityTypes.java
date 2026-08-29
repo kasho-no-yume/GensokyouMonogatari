@@ -36,6 +36,7 @@ public final class ModEntityTypes {
                     .sized(0.4F, 0.4F)
                     .clientTrackingRange(8)
                     .updateInterval(2)
+                    .fireImmune()
                     .build("sphere_danmaku"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<KnifeDanmaku>> KNIFE_DANMAKU =
@@ -44,6 +45,7 @@ public final class ModEntityTypes {
                     .sized(0.2F, 1.5F)
                     .clientTrackingRange(8)
                     .updateInterval(2)
+                    .fireImmune()
                     .build("knife_danmaku"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<TalismanDanmaku>> TALISMAN_DANMAKU =
@@ -52,6 +54,7 @@ public final class ModEntityTypes {
                     .sized(0.5F, 0.5F)
                     .clientTrackingRange(8)
                     .updateInterval(2)
+                    .fireImmune()
                     .build("talisman_danmaku"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<LaserDanmaku>> LASER_DANMAKU =
@@ -60,6 +63,7 @@ public final class ModEntityTypes {
                     .sized(0.5F, 0.5F)
                     .clientTrackingRange(10)
                     .updateInterval(1)
+                    .fireImmune()
                     .build("laser_danmaku"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<OrbitYinYangOrb>> ORBIT_YIN_YANG_ORB =

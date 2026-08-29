@@ -33,6 +33,19 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.RITUAL_CORE_ITEM.get());
                         output.accept(ModItems.RITUAL_PEDESTAL_ITEM.get());
                         output.accept(ModItems.RITUAL_WAND.get());
+                        output.accept(ModItems.DANMAKU_WEAPON.get());
+                        output.accept(ModItems.CORE_SPHERE_SINGLE.get());
+                        output.accept(ModItems.CORE_SPHERE_SHOTGUN.get());
+                        output.accept(ModItems.CORE_KNIFE.get());
+                        output.accept(ModItems.CORE_TALISMAN.get());
+                        output.accept(ModItems.CORE_LASER_GUN.get());
+                        output.accept(ModItems.CORE_LASER_CANNON.get());
+                        output.accept(ModItems.WEAPON_CORE_LV1.get());
+                        output.accept(ModItems.WEAPON_CORE_LV2.get());
+                        output.accept(ModItems.WEAPON_CORE_LV3.get());
+                        output.accept(ModItems.AMP_CORE_T1.get());
+                        output.accept(ModItems.AMP_CORE_T2.get());
+                        output.accept(ModItems.AMP_CORE_T3.get());
                     })
                     .build());
 }

@@ -124,5 +124,29 @@
   "msg.gensokyou.wand_need_first": "请先左键方块设定角点 A",
   "msg.gensokyou.wand_too_large": "区域超出尺寸上限（单边 ≤ %s）",
   "msg.gensokyou.wand_captured": "骨架已捕获（%s 个方块，%s 处冲突）",
-  "msg.gensokyou.wand_saved": "已保存：%s"
+  "msg.gensokyou.wand_saved": "已保存：%s",
+
+  "item.gensokyou.danmaku_weapon": "弹幕主武器（占位）",
+  "item.gensokyou.core_sphere_single": "弹幕核：单发玉",
+  "item.gensokyou.core_sphere_shotgun": "弹幕核：散弹玉",
+  "item.gensokyou.core_knife": "弹幕核：飞刀",
+  "item.gensokyou.core_talisman": "弹幕核：灵符",
+  "item.gensokyou.core_laser_gun": "弹幕核：激光机枪",
+  "item.gensokyou.core_laser_cannon": "弹幕核：激光炮",
+  "item.gensokyou.weapon_core_lv1": "武器等级核（Lv.1）",
+  "item.gensokyou.weapon_core_lv2": "武器等级核（Lv.2）",
+  "item.gensokyou.weapon_core_lv3": "武器等级核（Lv.3）",
+  "item.gensokyou.amp_core_t1": "增幅核（T1）",
+  "item.gensokyou.amp_core_t2": "增幅核（T2）",
+  "item.gensokyou.amp_core_t3": "增幅核（T3）",
+
+  "container.gensokyou.weapon_core": "弹幕主武器 · 核槽",
+  "tooltip.gensokyou.core_requires_level": "需要武器 Lv.%s",
+  "tooltip.gensokyou.weapon_level_core": "武器等级：%s",
+  "tooltip.gensokyou.amp_core_tier": "增幅核品阶：%s",
+  "affix.gensokyou.damage_pct": "伤害 +%s%%",
+  "affix.gensokyou.attack_rate_pct": "攻速 +%s%%",
+  "affix.gensokyou.spirit_cost_pct": "灵力消耗 %s%%",
+  "msg.gensokyou.weapon_no_sp": "灵力不足：需要 %s",
+  "msg.gensokyou.weapon_core_dropped": "背包已满——核掉落在地面"
 }

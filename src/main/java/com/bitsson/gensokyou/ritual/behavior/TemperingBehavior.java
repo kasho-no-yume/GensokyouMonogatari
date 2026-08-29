@@ -90,7 +90,8 @@ public class TemperingBehavior implements RitualBehavior {
             player.getOffhandItem().shrink(1);
         }
         ModAttachments.set(player, ModAttachments.get(player).withTemperUp(
-                GensokyouConfig.MAX_SP_GAIN_PER_TEMPER.get().floatValue(), 0F));
+                GensokyouConfig.MAX_SP_GAIN_PER_TEMPER.get().floatValue(),
+                GensokyouConfig.SPIRIT_DAMAGE_PER_TEMPER.get().floatValue(), 0F));
         level.playSound(null, player.blockPosition(),
                 SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 1F, 1.2F);
         player.displayClientMessage(Component.translatable("msg.gensokyou.temper_success",

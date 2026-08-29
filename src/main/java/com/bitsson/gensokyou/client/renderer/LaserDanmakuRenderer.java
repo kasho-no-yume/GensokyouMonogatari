@@ -219,8 +219,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         if (radius <= 0.0F || a <= 0) {
             return;
         }
-        VertexConsumer consumer = bufferSource.getBuffer(
-                net.minecraft.client.renderer.RenderType.entityTranslucentEmissive(CAP_TEXTURE));
+        VertexConsumer consumer = bufferSource.getBuffer(DanmakuRenderTypes.additiveGlow(CAP_TEXTURE));
 
         this.emitCap(poseStack, consumer, 0.0F, radius, r, g, b, a);
         this.emitCap(poseStack, consumer, length, radius, r, g, b, a);

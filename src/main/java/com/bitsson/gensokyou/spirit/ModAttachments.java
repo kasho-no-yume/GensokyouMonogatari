@@ -56,6 +56,11 @@ public final class ModAttachments {
         return player.getData(SKILL_STATE.get());
     }
 
+    /** playerSpiritDamage 统一读取入口（伤害公式唯一数据来源）。 */
+    public static float spiritDamage(ServerPlayer player) {
+        return get(player).spiritDamage();
+    }
+
     public static void setSkills(ServerPlayer player, SkillStateData data) {
         player.setData(SKILL_STATE.get(), data);
         syncSkills(player);
@@ -103,7 +108,7 @@ public final class ModAttachments {
         SpiritPowerData old = event.getOriginal().getData(SPIRIT_POWER.get());
         if (event.isWasDeath()) {
             event.getEntity().setData(SPIRIT_POWER.get(),
-                    new SpiritPowerData(0F, old.max(), old.temperLevel(), 0F));
+                    new SpiritPowerData(0F, old.max(), old.temperLevel(), 0F, old.spiritDamage()));
         }
     }
 

@@ -38,11 +38,11 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
     }
 
     /**
-     * 发光层渲染用：半透明 + 自发光，双面。
-     * 用 entityTranslucentEmissive 而非 eyes()，因为后者会忽略顶点 alpha。
+     * 发光层渲染用：加法混合 + 自发光，双面。
+     * 加法混合使重叠弹幕的辉光亮度叠加，这是东方风格弹幕的关键表现。
      */
     protected RenderType glowRenderType() {
-        return RenderType.entityTranslucentEmissive(this.texture);
+        return DanmakuRenderTypes.additiveGlow(this.texture);
     }
 
     protected static int red(int color) {

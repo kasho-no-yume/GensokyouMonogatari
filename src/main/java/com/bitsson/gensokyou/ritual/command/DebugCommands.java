@@ -64,8 +64,12 @@ public final class DebugCommands {
                                     float baseMax = GensokyouConfig.BASE_MAX_SP.get().floatValue();
                                     float gain = GensokyouConfig.MAX_SP_GAIN_PER_TEMPER.get().floatValue();
                                     float newMax = baseMax + gain * level;
+                                    float baseDamage = GensokyouConfig.BASE_SPIRIT_DAMAGE.get().floatValue();
+                                    float damageGain = GensokyouConfig.SPIRIT_DAMAGE_PER_TEMPER.get().floatValue();
+                                    float newDamage = baseDamage + damageGain * level;
                                     ModAttachments.set(player, new SpiritPowerData(
-                                            Math.min(data.current(), newMax), newMax, level, data.regenBuffer()));
+                                            Math.min(data.current(), newMax), newMax, level, data.regenBuffer(),
+                                            newDamage));
                                     feedback(player, "debug_temper_set", level,
                                             String.format("%.1f", newMax));
                                     return 1;
@@ -93,7 +97,8 @@ public final class DebugCommands {
             newCurrent = (float) Math.max(0D, add ? newCurrent + value : value);
         }
         newCurrent = Math.min(newCurrent, newMax);
-        ModAttachments.set(player, new SpiritPowerData(newCurrent, newMax, data.temperLevel(), data.regenBuffer()));
+        ModAttachments.set(player, new SpiritPowerData(newCurrent, newMax, data.temperLevel(), data.regenBuffer(),
+                data.spiritDamage()));
         feedback(player, "debug_spirit_set", String.format("%.1f", newCurrent), String.format("%.1f", newMax));
         return 1;
     }

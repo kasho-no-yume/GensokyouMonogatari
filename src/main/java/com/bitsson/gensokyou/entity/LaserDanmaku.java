@@ -137,7 +137,8 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
 
         double radius = this.getRadius();
         for (Entity entity : candidates) {
-            if (this.isWhitelisted(entity) || !entity.isAlive()) {
+            // 只对可被投射物命中的实体判伤，避免误伤掉落物/经验球等
+            if (!entity.canBeHitByProjectile() || this.isWhitelisted(entity) || !entity.isAlive()) {
                 continue;
             }
             // 用实体碰撞箱做距离判定，比用中心点公平

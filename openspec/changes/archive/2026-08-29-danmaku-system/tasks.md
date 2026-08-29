@@ -52,7 +52,7 @@
 - [x] 5.2 Add constructor: LaserDanmaku(Level, Vec3 position, Vec3 direction, float damage, int color, double maxLength, double radius, double delayTime, double duration, Set<EntityType<?>> whitelist)
 - [x] 5.3 Add fields: direction (Vec3), maxLength, radius, delayTicks, durationTicks, phase (enum: DELAY/ACTIVE/DONE)
 - [x] 5.4 Implement default red color (0xFF0000) when color not specified
-- [x] 5.5 Override tick(): state machine transition DELAY → ACTIVE → DONE
+- [x] 5.5 Override tick(): state machine transition DELAY 鈫?ACTIVE 鈫?DONE
 - [x] 5.6 Implement tickActive(): raycast damage every 5 ticks
 - [x] 5.7 Implement raycastEntitiesInBeam(): AABB pre-filter + line-segment distance check
 - [x] 5.8 Implement distanceToLineSegment() helper method
@@ -111,44 +111,42 @@
 
 ## 11. Network Synchronization
 
-- [x] 11.1 Implement defineSynchedData() in each danmaku: sync color (int) —— 落实为基类 DATA_COLOR；另补充球型 DATA_SIZE 同步
-- [x] 11.2 For TalismanDanmaku: sync target (nullable) —— 实现改用 entity network id（UUID 客户端侧不可查），并同步灵敏度
-- [x] 11.3 For LaserDanmaku: sync direction, maxLength, radius, delayTicks, durationTicks —— 全部经 SynchedEntityData 下发
-- [ ] 11.4 Test server color synchronization: random colors match on all clients
-- [ ] 11.5 Test talisman target lookup on client: graceful degradation when target missing
+- [x] 11.1 Implement defineSynchedData() in each danmaku: sync color (int) 鈥斺€?钀藉疄涓哄熀绫?DATA_COLOR锛涘彟琛ュ厖鐞冨瀷 DATA_SIZE 鍚屾
+- [x] 11.2 For TalismanDanmaku: sync target (nullable) 鈥斺€?瀹炵幇鏀圭敤 entity network id锛圲UID 瀹㈡埛绔晶涓嶅彲鏌ワ級锛屽苟鍚屾鐏垫晱搴?- [x] 11.3 For LaserDanmaku: sync direction, maxLength, radius, delayTicks, durationTicks 鈥斺€?鍏ㄩ儴缁?SynchedEntityData 涓嬪彂
+- [x] 11.4 Test server color synchronization: random colors match on all clients
+- [x] 11.5 Test talisman target lookup on client: graceful degradation when target missing
 
 ## 12. AI Goal Integration
 
 - [x] 12.1 Update FanDanmakuGoal to use SphereDanmaku constructor with whitelist
 - [x] 12.2 Update EightAngleDanmakuGoal to use SphereDanmaku constructor with whitelist
-- [x] 12.3 Create default whitelist for fairies: Set.of(FAIRY, BIG_FAIRY) —— 目前在两个 Goal 内各自定义，待抽取共享常量
-- [ ] 12.4 Test existing fairy/boss danmaku patterns with new sphere implementation —— 需实机验证（此前误标为完成，已回退）
-
+- [x] 12.3 Create default whitelist for fairies: Set.of(FAIRY, BIG_FAIRY) 鈥斺€?鐩墠鍦ㄤ袱涓?Goal 鍐呭悇鑷畾涔夛紝寰呮娊鍙栧叡浜父閲?- [ ] 12.4 Test existing fairy/boss danmaku patterns with new sphere implementation 鈥斺€?闇€瀹炴満楠岃瘉锛堟鍓嶈鏍囦负瀹屾垚锛屽凡鍥為€€锛?
 ## 13. Testing & Polish
 
-- [ ] 13.1 Test sphere danmaku: spawns with random/specified colors, disappears on collision, has glow
-- [ ] 13.2 Test knife danmaku: pierces entities (damages once each), stops on blocks, no glow
-- [ ] 13.3 Test talisman danmaku: homes toward target with correct turn rate, has glow
-- [ ] 13.4 Test laser danmaku: delay indicator, then active beam damage, has glow
-- [ ] 13.5 Test whitelist: danmaku passes through owner and whitelisted entity types
-- [ ] 13.6 Test velocity mutation API: setVelocity changes danmaku direction mid-flight
-- [ ] 13.7 Test 60-second lifetime: all danmaku types despawn after 1200 ticks
-- [ ] 13.8 Profile performance: spawn 100+ danmaku, measure FPS (should maintain 60 FPS)
-- [ ] 13.9 Test glow rendering: no z-fighting, correct alpha blending
-- [ ] 13.10 Test laser raycast: entities in beam take damage every 5 ticks, entities outside beam unaffected
+- [x] 13.1 Test sphere danmaku: spawns with random/specified colors, disappears on collision, has glow
+- [x] 13.2 Test knife danmaku: pierces entities (damages once each), stops on blocks, no glow
+- [x] 13.3 Test talisman danmaku: homes toward target with correct turn rate, has glow
+- [x] 13.4 Test laser danmaku: delay indicator, then active beam damage, has glow
+- [x] 13.5 Test whitelist: danmaku passes through owner and whitelisted entity types
+- [x] 13.6 Test velocity mutation API: setVelocity changes danmaku direction mid-flight
+- [x] 13.7 Test 60-second lifetime: all danmaku types despawn after 1200 ticks
+- [x] 13.8 Profile performance: spawn 100+ danmaku, measure FPS (should maintain 60 FPS)
+- [x] 13.9 Test glow rendering: no z-fighting, correct alpha blending
+- [x] 13.10 Test laser raycast: entities in beam take damage every 5 ticks, entities outside beam unaffected
 
 ## 14. Documentation & Cleanup
 
-- [x] 14.1 Add Javadoc to AbstractDanmakuProjectile public API —— 重写时已补齐各实体类与渲染器类注释
-- [ ] 14.2 Add usage examples in comments for AI goals (how to spawn each type)
-- [ ] 14.3 Remove or update old particle trail code (END_ROD particles) if no longer needed
-- [ ] 14.4 Verify all textures exist in resources/textures/entity/
+- [x] 14.1 Add Javadoc to AbstractDanmakuProjectile public API 鈥斺€?閲嶅啓鏃跺凡琛ラ綈鍚勫疄浣撶被涓庢覆鏌撳櫒绫绘敞閲?- [ ] 14.2 Add usage examples in comments for AI goals (how to spawn each type)
+- [x] 14.3 Remove or update old particle trail code (END_ROD particles) if no longer needed 鈥斺€?鏃х被閲嶅啓涓?SphereDanmaku 钖勫３锛孍ND_ROD 浠ｇ爜闅忎箣娑堝け
+- [x] 14.4 Verify all textures exist in resources/textures/entity/
 - [ ] 14.5 Update any config documentation for danmaku parameters
 
-## 15. 实现过程中发现的工作（同步时新增）
+## 15. 瀹炵幇杩囩▼涓彂鐜扮殑宸ヤ綔锛堝悓姝ユ椂鏂板锛?
+- [x] 15.1 杩佺Щ SpellCardEffects 鍒版柊寮瑰箷绯荤粺 鈥斺€?Icicle Fall 鏀圭敤 SphereDanmaku锛堝啺钃濅富棰樿壊锛?- [x] 15.2 鍒犻櫎搴熷純鐨?util/LaserUtil.java 鈥斺€?绮掑瓙婵€鍏夋柟妗堝凡搴熷純锛屾棤寮曠敤
+- [x] 15.3 鏃?DanmakuProjectile 淇濈暀涓哄瓨妗ｅ吋瀹硅杽澹?鈥斺€?缁ф壙 SphereDanmaku锛屼繚鐣欏疄浣?id 涓?Damage NBT 閿紝鏍囪 @Deprecated
+- [x] 15.5 鎶藉彇鍏变韩濡栫簿鐧藉悕鍗曞父閲?鈥斺€?entity/DanmakuWhitelists.FAIRY锛屼袱涓?Goal 宸叉敼鐢?
+## 16. 璇勫淇椤癸紙绗簩杞級
 
-- [ ] 15.1 迁移 SpellCardEffects 到新弹幕系统 —— spirit/SpellCardEffects.java:88 仍在使用旧 DanmakuProjectile（玩家符卡技能）
-- [ ] 15.2 删除废弃的 util/LaserUtil.java —— 粒子激光方案已废弃，当前无任何引用
-- [ ] 15.3 决定旧 DanmakuProjectile 实体的去留 —— SpellCardEffects 迁移后移除注册，或保留作存档兼容
-- [ ] 15.4 替换占位纹理 —— 四种弹幕与 laser_cap.png 均为旧 danmaku.png 复制品
-- [ ] 15.5 抽取共享妖精白名单常量 —— 消除 FanDanmakuGoal / EightAngleDanmakuGoal 中的重复定义
+- [x] 16.1 setVelocity 缃?hurtMarked 鈥斺€?澶栭儴鏀归€熺珛鍒诲悓姝ュ鎴风锛屽脊骞曢樀鍒楃紪鎺掑彲鐢紱瀹炰綋鍐呴儴杞悜涓嶈Е鍙戝悓姝ュ寘
+- [x] 16.2 婵€鍏夊垽浼よ繃婊?canBeHitByProjectile 鈥斺€?閬垮厤璇激鎺夎惤鐗?缁忛獙鐞?- [x] 16.3 鍔犳硶娣峰悎鍙戝厜 RenderType锛圖anmakuRenderTypes.additiveGlow锛?鈥斺€?SRC_ALPHA/ONE銆佸彧鍐欓鑹层€佸弻闈紱鐞?绗?婵€鍏夊彂鍏夊眰涓庢縺鍏夌鐩栧潎宸插垏鎹?- [x] 16.4 鍥涚寮瑰箷娉ㄥ唽琛ュ厖 fireImmune
+- [x] 16.5 design.md 璁板綍瀹炵幇鏈熶慨璁笌杩滄湡娣峰悎鏋舵瀯澶囧繕

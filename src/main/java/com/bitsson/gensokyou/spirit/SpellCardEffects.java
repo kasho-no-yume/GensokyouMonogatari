@@ -2,8 +2,8 @@ package com.bitsson.gensokyou.spirit;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.config.GensokyouConfig;
-import com.bitsson.gensokyou.entity.DanmakuProjectile;
 import com.bitsson.gensokyou.entity.OrbitYinYangOrb;
+import com.bitsson.gensokyou.entity.SphereDanmaku;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
@@ -85,7 +85,12 @@ public final class SpellCardEffects {
         for (int i = 0; i < count; i++) {
             double offset = Math.toRadians((i - (count - 1) / 2.0D) * 12D);
             Vec3 dir = com.bitsson.gensokyou.entity.goal.FanDanmakuGoal.rotateAroundY(look, offset);
-            DanmakuProjectile projectile = new DanmakuProjectile(level, player, damage);
+            SphereDanmaku projectile = new SphereDanmaku(
+                    level, player, damage,
+                    0x8FD8FF,       // 冰锥主题色
+                    0.4F,
+                    java.util.Set.of() // 空白名单：仅 owner 免疫
+            );
             projectile.moveTo(player.getX(), player.getEyeY(), player.getZ(),
                     player.getYRot(), player.getXRot());
             projectile.shoot(dir.x, dir.y, dir.z, (float) speed, 0F);

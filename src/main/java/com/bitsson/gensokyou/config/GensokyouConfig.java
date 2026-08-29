@@ -2,6 +2,8 @@ package com.bitsson.gensokyou.config;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
 
+import java.util.List;
+
 public class GensokyouConfig {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
@@ -45,6 +47,8 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue BASE_MAX_SP;
     public static final ModConfigSpec.DoubleValue BASE_REGEN_PER_SECOND;
     public static final ModConfigSpec.DoubleValue MAX_SP_GAIN_PER_TEMPER;
+    public static final ModConfigSpec.DoubleValue BASE_SPIRIT_DAMAGE;
+    public static final ModConfigSpec.DoubleValue SPIRIT_DAMAGE_PER_TEMPER;
     public static final ModConfigSpec.DoubleValue TEMPER_SP_COST_BASE;
     public static final ModConfigSpec.DoubleValue TEMPER_SP_COST_GROWTH;
     public static final ModConfigSpec.IntValue CAPACITOR_CAPACITY;
@@ -65,6 +69,50 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue SKILL_MUSOU_COOLDOWN;
     public static final ModConfigSpec.IntValue SKILL_ICICLE_SP_COST;
     public static final ModConfigSpec.IntValue SKILL_ICICLE_COOLDOWN;
+
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> WEAPON_LEVEL_MULT;
+    public static final ModConfigSpec.DoubleValue WEAPON_TALISMAN_PICK_RANGE;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> RUNE_AFFIX_POOL;
+    public static final ModConfigSpec.IntValue RUNE_AFFIX_COUNT;
+    public static final ModConfigSpec.DoubleValue CORE_SPHERE_MULT;
+    public static final ModConfigSpec.IntValue CORE_SPHERE_SP_COST;
+    public static final ModConfigSpec.IntValue CORE_SPHERE_RATE;
+    public static final ModConfigSpec.IntValue CORE_SPHERE_REQ_TIER;
+    public static final ModConfigSpec.DoubleValue CORE_SHOTGUN_MULT;
+    public static final ModConfigSpec.IntValue CORE_SHOTGUN_SP_COST;
+    public static final ModConfigSpec.IntValue CORE_SHOTGUN_RATE;
+    public static final ModConfigSpec.IntValue CORE_SHOTGUN_REQ_TIER;
+    public static final ModConfigSpec.IntValue CORE_SHOTGUN_COUNT;
+    public static final ModConfigSpec.DoubleValue CORE_SHOTGUN_SPREAD;
+    public static final ModConfigSpec.DoubleValue CORE_SHOTGUN_SPEED;
+    public static final ModConfigSpec.DoubleValue CORE_SHOTGUN_LIFETIME;
+    public static final ModConfigSpec.DoubleValue CORE_KNIFE_MULT;
+    public static final ModConfigSpec.IntValue CORE_KNIFE_SP_COST;
+    public static final ModConfigSpec.IntValue CORE_KNIFE_RATE;
+    public static final ModConfigSpec.IntValue CORE_KNIFE_REQ_TIER;
+    public static final ModConfigSpec.DoubleValue CORE_KNIFE_SPEED;
+    public static final ModConfigSpec.DoubleValue CORE_TALISMAN_MULT;
+    public static final ModConfigSpec.IntValue CORE_TALISMAN_SP_COST;
+    public static final ModConfigSpec.IntValue CORE_TALISMAN_RATE;
+    public static final ModConfigSpec.IntValue CORE_TALISMAN_REQ_TIER;
+    public static final ModConfigSpec.DoubleValue CORE_TALISMAN_SPEED;
+    public static final ModConfigSpec.DoubleValue CORE_TALISMAN_SENSITIVITY;
+    public static final ModConfigSpec.DoubleValue CORE_LASER_GUN_MULT;
+    public static final ModConfigSpec.IntValue CORE_LASER_GUN_SP_COST;
+    public static final ModConfigSpec.IntValue CORE_LASER_GUN_RATE;
+    public static final ModConfigSpec.IntValue CORE_LASER_GUN_REQ_TIER;
+    public static final ModConfigSpec.DoubleValue CORE_LASER_GUN_LENGTH;
+    public static final ModConfigSpec.DoubleValue CORE_LASER_GUN_RADIUS;
+    public static final ModConfigSpec.DoubleValue CORE_LASER_GUN_DELAY;
+    public static final ModConfigSpec.DoubleValue CORE_LASER_GUN_DURATION;
+    public static final ModConfigSpec.DoubleValue CORE_LASER_CANNON_MULT;
+    public static final ModConfigSpec.IntValue CORE_LASER_CANNON_SP_COST;
+    public static final ModConfigSpec.IntValue CORE_LASER_CANNON_RATE;
+    public static final ModConfigSpec.IntValue CORE_LASER_CANNON_REQ_TIER;
+    public static final ModConfigSpec.DoubleValue CORE_LASER_CANNON_LENGTH;
+    public static final ModConfigSpec.DoubleValue CORE_LASER_CANNON_RADIUS;
+    public static final ModConfigSpec.DoubleValue CORE_LASER_CANNON_DELAY;
+    public static final ModConfigSpec.DoubleValue CORE_LASER_CANNON_DURATION;
 
     public static final ModConfigSpec SPEC;
 
@@ -116,6 +164,10 @@ public class GensokyouConfig {
         BASE_MAX_SP = BUILDER.defineInRange("baseMaxSP", 100D, 1D, 1000000D);
         BASE_REGEN_PER_SECOND = BUILDER.defineInRange("baseRegenPerSecond", 2D, 0D, 1000D);
         MAX_SP_GAIN_PER_TEMPER = BUILDER.defineInRange("maxSPGainPerTemper", 25D, 1D, 10000D);
+        BUILDER.push("spiritDamage").comment("Player spirit damage attribute (grows with tempering)");
+        BASE_SPIRIT_DAMAGE = BUILDER.defineInRange("baseSpiritDamage", 5D, 0D, 1000000D);
+        SPIRIT_DAMAGE_PER_TEMPER = BUILDER.defineInRange("spiritDamagePerTemper", 1D, 0D, 1000000D);
+        BUILDER.pop();
         TEMPER_SP_COST_BASE = BUILDER.defineInRange("temperSpCostBase", 200D, 0D, 1000000D);
         TEMPER_SP_COST_GROWTH = BUILDER.comment("cost(level) = floor(base * growth^(level-1))").defineInRange("temperSpCostGrowth", 1.4D, 1D, 5D);
         CAPACITOR_CAPACITY = BUILDER.defineInRange("capacitorCapacity", 10000, 1, 100000000);
@@ -141,6 +193,71 @@ public class GensokyouConfig {
         SKILL_MUSOU_COOLDOWN = BUILDER.defineInRange("musouFuuinCooldownTicks", 200, 1, 120000);
         SKILL_ICICLE_SP_COST = BUILDER.defineInRange("icicleSpCost", 15, 0, 10000);
         SKILL_ICICLE_COOLDOWN = BUILDER.defineInRange("icicleCooldownTicks", 100, 1, 120000);
+        BUILDER.pop();
+
+        BUILDER.push("weapon").comment("Danmaku main weapon (danmaku-weapon); placeholder values, dev phase");
+        WEAPON_LEVEL_MULT = BUILDER.comment("Damage multiplier per weapon level (index = level-1)")
+                .defineListAllowEmpty("weaponLevelMult", List.of(1.0D, 1.5D, 2.25D), o -> o instanceof Double);
+        WEAPON_TALISMAN_PICK_RANGE = BUILDER.comment("Talisman core target raytrace range (blocks)")
+                .defineInRange("talismanPickRange", 40D, 4D, 128D);
+        RUNE_AFFIX_POOL = BUILDER.comment("Affix pool entries: id,min,max,weight,minTier; id in {damage_pct,attack_rate_pct,spirit_cost_pct} (others ignored)")
+                .defineListAllowEmpty("runeAffixPool",
+                        List.of("damage_pct,0.05,0.15,10,1", "damage_pct,0.10,0.25,5,2",
+                                "attack_rate_pct,0.05,0.15,8,1", "spirit_cost_pct,-0.15,-0.05,8,1"),
+                        o -> o instanceof String);
+        RUNE_AFFIX_COUNT = BUILDER.comment("Affixes rolled onto one amp core")
+                .defineInRange("runeAffixCount", 2, 1, 6);
+        BUILDER.push("coreSphere");
+        CORE_SPHERE_MULT = BUILDER.defineInRange("coreBaseMult", 1.0D, 0D, 100D);
+        CORE_SPHERE_SP_COST = BUILDER.defineInRange("spiritCost", 2, 0, 10000);
+        CORE_SPHERE_RATE = BUILDER.comment("Attack cooldown ticks per shot").defineInRange("attackRateTicks", 8, 1, 12000);
+        CORE_SPHERE_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
+        BUILDER.pop();
+        BUILDER.push("coreShotgun");
+        CORE_SHOTGUN_MULT = BUILDER.defineInRange("coreBaseMult", 0.45D, 0D, 100D);
+        CORE_SHOTGUN_SP_COST = BUILDER.defineInRange("spiritCost", 8, 0, 10000);
+        CORE_SHOTGUN_RATE = BUILDER.defineInRange("attackRateTicks", 24, 1, 12000);
+        CORE_SHOTGUN_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
+        CORE_SHOTGUN_COUNT = BUILDER.defineInRange("pelletCount", 5, 1, 32);
+        CORE_SHOTGUN_SPREAD = BUILDER.comment("Total fan angle in degrees").defineInRange("spreadAngleDeg", 25D, 0D, 180D);
+        CORE_SHOTGUN_SPEED = BUILDER.defineInRange("projectileSpeed", 0.8D, 0.05D, 4D);
+        CORE_SHOTGUN_LIFETIME = BUILDER.comment("Pellet lifetime in seconds (short range)").defineInRange("lifetimeSeconds", 0.8D, 0.05D, 60D);
+        BUILDER.pop();
+        BUILDER.push("coreKnife");
+        CORE_KNIFE_MULT = BUILDER.defineInRange("coreBaseMult", 1.4D, 0D, 100D);
+        CORE_KNIFE_SP_COST = BUILDER.defineInRange("spiritCost", 4, 0, 10000);
+        CORE_KNIFE_RATE = BUILDER.defineInRange("attackRateTicks", 12, 1, 12000);
+        CORE_KNIFE_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
+        CORE_KNIFE_SPEED = BUILDER.defineInRange("projectileSpeed", 1.2D, 0.05D, 4D);
+        BUILDER.pop();
+        BUILDER.push("coreTalisman");
+        CORE_TALISMAN_MULT = BUILDER.defineInRange("coreBaseMult", 1.2D, 0D, 100D);
+        CORE_TALISMAN_SP_COST = BUILDER.defineInRange("spiritCost", 6, 0, 10000);
+        CORE_TALISMAN_RATE = BUILDER.defineInRange("attackRateTicks", 16, 1, 12000);
+        CORE_TALISMAN_REQ_TIER = BUILDER.defineInRange("requiredTier", 2, 1, 10);
+        CORE_TALISMAN_SPEED = BUILDER.defineInRange("projectileSpeed", 0.7D, 0.05D, 4D);
+        CORE_TALISMAN_SENSITIVITY = BUILDER.comment("Max turn rate, degrees per second").defineInRange("sensitivity", 90D, 0D, 720D);
+        BUILDER.pop();
+        BUILDER.push("coreLaserGun");
+        CORE_LASER_GUN_MULT = BUILDER.defineInRange("coreBaseMult", 0.5D, 0D, 100D);
+        CORE_LASER_GUN_SP_COST = BUILDER.defineInRange("spiritCost", 3, 0, 10000);
+        CORE_LASER_GUN_RATE = BUILDER.defineInRange("attackRateTicks", 10, 1, 12000);
+        CORE_LASER_GUN_REQ_TIER = BUILDER.defineInRange("requiredTier", 2, 1, 10);
+        CORE_LASER_GUN_LENGTH = BUILDER.defineInRange("maxLength", 16D, 1D, 128D);
+        CORE_LASER_GUN_RADIUS = BUILDER.defineInRange("radius", 0.2D, 0.05D, 4D);
+        CORE_LASER_GUN_DELAY = BUILDER.comment("Delay phase seconds").defineInRange("delaySeconds", 0.15D, 0D, 10D);
+        CORE_LASER_GUN_DURATION = BUILDER.comment("Active phase seconds").defineInRange("durationSeconds", 0.5D, 0.05D, 30D);
+        BUILDER.pop();
+        BUILDER.push("coreLaserCannon");
+        CORE_LASER_CANNON_MULT = BUILDER.defineInRange("coreBaseMult", 2.5D, 0D, 100D);
+        CORE_LASER_CANNON_SP_COST = BUILDER.defineInRange("spiritCost", 30, 0, 10000);
+        CORE_LASER_CANNON_RATE = BUILDER.defineInRange("attackRateTicks", 60, 1, 12000);
+        CORE_LASER_CANNON_REQ_TIER = BUILDER.defineInRange("requiredTier", 3, 1, 10);
+        CORE_LASER_CANNON_LENGTH = BUILDER.defineInRange("maxLength", 40D, 1D, 128D);
+        CORE_LASER_CANNON_RADIUS = BUILDER.defineInRange("radius", 0.6D, 0.05D, 4D);
+        CORE_LASER_CANNON_DELAY = BUILDER.comment("Delay phase seconds").defineInRange("delaySeconds", 1.0D, 0D, 10D);
+        CORE_LASER_CANNON_DURATION = BUILDER.comment("Active phase seconds").defineInRange("durationSeconds", 3.0D, 0.05D, 30D);
+        BUILDER.pop();
         BUILDER.pop();
         BUILDER.pop();
 
