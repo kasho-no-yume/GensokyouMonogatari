@@ -1,12 +1,20 @@
 package com.bitsson.gensokyou.entity.goal;
 
-import com.bitsson.gensokyou.entity.DanmakuProjectile;
+import com.bitsson.gensokyou.entity.SphereDanmaku;
+import com.bitsson.gensokyou.registry.ModEntityTypes;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.Set;
+
 public class EightAngleDanmakuGoal extends Goal {
     private static final int RING_COUNT = 8;
+    private static final Set<EntityType<?>> FAIRY_WHITELIST = Set.of(
+            ModEntityTypes.FAIRY.get(),
+            ModEntityTypes.BIG_FAIRY.get()
+    );
 
     private final Mob mob;
     private final int intervalTicks;
@@ -31,7 +39,16 @@ public class EightAngleDanmakuGoal extends Goal {
         for (int i = 0; i < RING_COUNT; i++) {
             double angle = Math.PI / 4D * i;
             Vec3 dir = new Vec3(Math.cos(angle), 0.1D, Math.sin(angle)).normalize();
-            DanmakuProjectile projectile = new DanmakuProjectile(mob.level(), mob, damage);
+            
+            // Use new SphereDanmaku with whitelist and random color
+            SphereDanmaku projectile = new SphereDanmaku(
+                    mob.level(), 
+                    mob, 
+                    damage, 
+                    0,  // color=0 means random color
+                    0.4F,  // size
+                    FAIRY_WHITELIST
+            );
             projectile.moveTo(origin.x, origin.y, origin.z, mob.getYRot(), 0F);
             projectile.shoot(dir.x, dir.y, dir.z, (float) speed, 0F);
             mob.level().addFreshEntity(projectile);

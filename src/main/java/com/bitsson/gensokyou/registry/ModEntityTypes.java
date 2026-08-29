@@ -7,7 +7,11 @@ import com.bitsson.gensokyou.entity.DanmakuProjectile;
 import com.bitsson.gensokyou.entity.FairyEntity;
 import com.bitsson.gensokyou.entity.FakeFlandreEntity;
 import com.bitsson.gensokyou.entity.FlandreEntity;
+import com.bitsson.gensokyou.entity.KnifeDanmaku;
+import com.bitsson.gensokyou.entity.LaserDanmaku;
 import com.bitsson.gensokyou.entity.OrbitYinYangOrb;
+import com.bitsson.gensokyou.entity.SphereDanmaku;
+import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -25,6 +29,38 @@ public final class ModEntityTypes {
                     .clientTrackingRange(4)
                     .updateInterval(10)
                     .build("danmaku"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<SphereDanmaku>> SPHERE_DANMAKU =
+            ENTITY_TYPES.register("sphere_danmaku", () -> EntityType.Builder
+                    .<SphereDanmaku>of(SphereDanmaku::new, MobCategory.MISC)
+                    .sized(0.4F, 0.4F)
+                    .clientTrackingRange(8)
+                    .updateInterval(2)
+                    .build("sphere_danmaku"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<KnifeDanmaku>> KNIFE_DANMAKU =
+            ENTITY_TYPES.register("knife_danmaku", () -> EntityType.Builder
+                    .<KnifeDanmaku>of(KnifeDanmaku::new, MobCategory.MISC)
+                    .sized(0.2F, 1.5F)
+                    .clientTrackingRange(8)
+                    .updateInterval(2)
+                    .build("knife_danmaku"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<TalismanDanmaku>> TALISMAN_DANMAKU =
+            ENTITY_TYPES.register("talisman_danmaku", () -> EntityType.Builder
+                    .<TalismanDanmaku>of(TalismanDanmaku::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .clientTrackingRange(8)
+                    .updateInterval(2)
+                    .build("talisman_danmaku"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<LaserDanmaku>> LASER_DANMAKU =
+            ENTITY_TYPES.register("laser_danmaku", () -> EntityType.Builder
+                    .<LaserDanmaku>of(LaserDanmaku::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
+                    .build("laser_danmaku"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<OrbitYinYangOrb>> ORBIT_YIN_YANG_ORB =
             ENTITY_TYPES.register("orbit_yin_yang_orb", () -> EntityType.Builder

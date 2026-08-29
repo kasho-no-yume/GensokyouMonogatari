@@ -4,6 +4,10 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.renderer.BillboardRenderer;
 import com.bitsson.gensokyou.client.renderer.SkinMobRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualPedestalRenderer;
+import com.bitsson.gensokyou.client.renderer.SphereDanmakuRenderer;
+import com.bitsson.gensokyou.client.renderer.KnifeDanmakuRenderer;
+import com.bitsson.gensokyou.client.renderer.TalismanDanmakuRenderer;
+import com.bitsson.gensokyou.client.renderer.LaserDanmakuRenderer;
 import com.bitsson.gensokyou.client.screen.RitualCoreScreen;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
@@ -24,6 +28,14 @@ public final class GensokyouClient {
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntityTypes.DANMAKU.get(),
                 context -> new BillboardRenderer<>(context, 0.4F, GensokyouTextures.DANMAKU));
+        event.registerEntityRenderer(ModEntityTypes.SPHERE_DANMAKU.get(),
+                SphereDanmakuRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.KNIFE_DANMAKU.get(),
+                KnifeDanmakuRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.TALISMAN_DANMAKU.get(),
+                TalismanDanmakuRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.LASER_DANMAKU.get(),
+                LaserDanmakuRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.ORBIT_YIN_YANG_ORB.get(),
                 context -> new BillboardRenderer<>(context, 0.7F, GensokyouTextures.ORBIT_ORB));
         event.registerEntityRenderer(ModEntityTypes.FAIRY.get(),
