@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.registry;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
+import com.bitsson.gensokyou.block.entity.SukimaBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -21,4 +22,8 @@ public final class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<RitualPedestalBlockEntity>> RITUAL_PEDESTAL =
             BLOCK_ENTITIES.register("ritual_pedestal", () -> new BlockEntityType<>(
                     RitualPedestalBlockEntity::new, Set.of(ModBlocks.RITUAL_PEDESTAL.get()), null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SukimaBlockEntity>> SUKIMA =
+            BLOCK_ENTITIES.register("sukima", () -> new BlockEntityType<>(
+                    SukimaBlockEntity::new, Set.of(ModBlocks.SUKIMA.get()), null));
 }

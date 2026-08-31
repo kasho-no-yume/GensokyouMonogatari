@@ -14,6 +14,7 @@ public final class GensokyouTextures {
     public static final ResourceLocation FAIRY = entity("fairy");
     public static final ResourceLocation BIG_FAIRY = entity("big_fairy");
     public static final ResourceLocation FLANDRE = entity("flandre");
+    public static final ResourceLocation SUKIMA = entity("sukima");
 
     private GensokyouTextures() {
     }

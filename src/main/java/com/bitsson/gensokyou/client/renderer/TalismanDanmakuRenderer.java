@@ -1,6 +1,5 @@
 package com.bitsson.gensokyou.client.renderer;
 
-import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -8,15 +7,24 @@ import com.mojang.math.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 
 /**
- * 灵符渲染器：扁平长方体，面向摄像机，带外发光。
+ * 灵符渲染器：扁平长方体纸片，带外发光。
+ *
+ * <p>纸面<b>放平</b>（水平面），长边沿飞行方向（镖式前指，符首朝敌）、
+ * 短边横置——一短边朝向射手、对面短边朝向敌人。射手看到的是朝向自己的短边；
+ * 纸面随弹道俯仰，但不随视角转动（非 billboard）。
+ *
+ * <p>UV 约定：u 沿短边横轴（局部 X），v 沿飞行轴（0=符首在前朝敌，1=尾端朝射手）。
  */
 public class TalismanDanmakuRenderer extends AbstractDanmakuRenderer<TalismanDanmaku> {
     private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/entity/talisman_danmaku.png");
+            ResourceLocation.fromNamespaceAndPath(com.bitsson.gensokyou.Gensokyou.MODID, "textures/entity/talisman_danmaku.png");
 
+    /** 短边（沿飞行轴）。 */
     private static final float WIDTH = 0.34F;
+    /** 长边（竖直）。 */
     private static final float HEIGHT = 0.52F;
 
     public TalismanDanmakuRenderer(EntityRendererProvider.Context context) {
@@ -28,9 +36,13 @@ public class TalismanDanmakuRenderer extends AbstractDanmakuRenderer<TalismanDan
                        PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
         poseStack.pushPose();
 
-        poseStack.translate(0.0D, HEIGHT * 0.5D, 0.0D);
-        poseStack.mulPose(this.entityRenderDispatcher.cameraOrientation());
-        poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
+        // 与飞刀一致：局部 +Z 对准飞行方向（yaw 正值 + pitch 取负）
+        float yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
+        float pitch = Mth.lerp(partialTick, entity.xRotO, entity.getXRot());
+
+        poseStack.translate(0.0D, 0.05D, 0.0D);
+        poseStack.mulPose(Axis.YP.rotationDegrees(yaw));
+        poseStack.mulPose(Axis.XP.rotationDegrees(-pitch));
 
         int color = entity.getColor();
         VertexConsumer consumer = bufferSource.getBuffer(this.baseRenderType());
@@ -47,12 +59,14 @@ public class TalismanDanmakuRenderer extends AbstractDanmakuRenderer<TalismanDan
     protected void renderShape(TalismanDanmaku entity, PoseStack poseStack, VertexConsumer consumer,
                                 int r, int g, int b, int a, int light) {
         PoseStack.Pose pose = poseStack.last();
-        float halfWidth = WIDTH * 0.5F;
-        float halfHeight = HEIGHT * 0.5F;
+        float halfL = HEIGHT * 0.5F;   // 长边：沿飞行轴（局部 Z，符首朝敌）
+        float halfS = WIDTH * 0.5F;    // 短边：横置（局部 X）
 
-        this.vertex(consumer, pose, -halfWidth, -halfHeight, 0.0F, 0.0F, 1.0F, r, g, b, a, light);
-        this.vertex(consumer, pose, halfWidth, -halfHeight, 0.0F, 1.0F, 1.0F, r, g, b, a, light);
-        this.vertex(consumer, pose, halfWidth, halfHeight, 0.0F, 1.0F, 0.0F, r, g, b, a, light);
-        this.vertex(consumer, pose, -halfWidth, halfHeight, 0.0F, 0.0F, 0.0F, r, g, b, a, light);
+        // 纸面放平：位于局部 X-Z 水平面（y=0），noCull 双面可见
+        // u 沿 X（短边横轴），v 沿 Z（0=符首在前朝敌，1=尾端朝射手）
+        this.vertex(consumer, pose, -halfS, 0.0F, -halfL, 0.0F, 1.0F, r, g, b, a, light);
+        this.vertex(consumer, pose, halfS, 0.0F, -halfL, 1.0F, 1.0F, r, g, b, a, light);
+        this.vertex(consumer, pose, halfS, 0.0F, halfL, 1.0F, 0.0F, r, g, b, a, light);
+        this.vertex(consumer, pose, -halfS, 0.0F, halfL, 0.0F, 0.0F, r, g, b, a, light);
     }
 }

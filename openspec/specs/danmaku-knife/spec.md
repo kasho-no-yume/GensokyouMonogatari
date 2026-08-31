@@ -4,18 +4,18 @@
 飞刀型弹幕：长端朝向速度方向、穿透实体且每目标单次判伤、碰方块才消失、无外发光。
 ## Requirements
 ### Requirement: Knife danmaku spawning
-The system SHALL allow spawning knife-shaped danmaku projectiles that render as elongated boxes aligned to their velocity direction.
+The system SHALL allow spawning knife-shaped danmaku projectiles that render as a kunai model (tapered diamond-section blade, guard and wrapped handle) aligned to their velocity direction, with the model geometry matching the texture atlas.
 
 #### Scenario: Spawn knife with damage
 - **WHEN** knife danmaku is spawned with damage 6.0f
-- **THEN** danmaku is created as an elongated box entity that deals 6.0 damage per hit
+- **THEN** danmaku is created as a kunai-model entity that deals 6.0 damage per hit
 
 #### Scenario: Knife orientation
 - **WHEN** knife danmaku velocity direction changes
 - **THEN** knife's long axis immediately rotates to align with the new velocity vector
 
 ### Requirement: Knife piercing behavior
-Knife danmaku SHALL pierce through all entities, damaging each entity exactly once, and only disappear when hitting a block.
+Knife danmaku SHALL pierce through all entities, damaging each entity exactly once; on hitting a block it SHALL stick in the wall like an arrow instead of vanishing (unless disabled by config).
 
 #### Scenario: Pierce multiple entities
 - **WHEN** knife danmaku travels through three entities in sequence
@@ -29,31 +29,17 @@ Knife danmaku SHALL pierce through all entities, damaging each entity exactly on
 - **WHEN** knife danmaku pierces through its owner or whitelisted entity
 - **THEN** danmaku passes through without dealing damage and continues flying
 
-#### Scenario: Stop on block collision
+#### Scenario: Stick on block collision
 - **WHEN** knife danmaku collides with a solid block
-- **THEN** danmaku disappears immediately
+- **THEN** the knife freezes with its blade tip embedded in the block face, aligned to its incoming flight direction, and stops dealing damage
 
-### Requirement: Knife lifetime
-Knife danmaku SHALL automatically disappear after 60 seconds (1200 ticks) if it has not collided with a block.
+### Requirement: Knife wall-stuck duration
+A stuck knife danmaku SHALL remain visible for a configurable duration (`knifeStickTicks`, default 100 ticks; 0 = legacy vanish) and then despawn; the stuck state and remaining ticks SHALL persist across save/reload.
 
-#### Scenario: Lifetime expiration
-- **WHEN** knife danmaku has existed for 1200 ticks without hitting a block
-- **THEN** danmaku disappears automatically
+#### Scenario: Despawn after duration
+- **WHEN** a knife has been stuck for the configured tick count
+- **THEN** it is removed from the world on both sides
 
-### Requirement: Knife visual appearance
-Knife danmaku SHALL render as an elongated rectangular box without any glow effect.
-
-#### Scenario: No glow rendering
-- **WHEN** knife danmaku is rendered on client
-- **THEN** system renders only the base knife shape with no additional glow layers
-
-#### Scenario: Box dimensions
-- **WHEN** knife danmaku is rendered
-- **THEN** knife appears as a box approximately 1.5 blocks long and 0.2 blocks wide/tall
-
-### Requirement: Knife velocity mutation
-Knife danmaku SHALL provide methods to dynamically change velocity and direction during flight, with orientation automatically updating.
-
-#### Scenario: Change velocity updates orientation
-- **WHEN** code calls `setVelocity(Vec3)` on a knife danmaku
-- **THEN** knife immediately adopts the new velocity and rotates its long axis to match the new direction
+#### Scenario: Disabled by config
+- **WHEN** `knifeStickTicks` is set to 0
+- **THEN** knives vanish immediately on block hit (legacy behavior)

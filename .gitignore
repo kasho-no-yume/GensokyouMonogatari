@@ -60,3 +60,6 @@ gradle-app.setting
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+
+# gen_tex.py previews
+tools/textures/_preview/

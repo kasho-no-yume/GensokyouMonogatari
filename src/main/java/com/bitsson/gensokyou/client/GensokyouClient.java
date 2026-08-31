@@ -8,6 +8,7 @@ import com.bitsson.gensokyou.client.renderer.SphereDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.KnifeDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.TalismanDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.LaserDanmakuRenderer;
+import com.bitsson.gensokyou.client.renderer.SukimaPortalRenderer;
 import com.bitsson.gensokyou.client.screen.RitualCoreScreen;
 import com.bitsson.gensokyou.client.screen.WeaponCoreScreen;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
@@ -50,6 +51,7 @@ public final class GensokyouClient {
         event.registerEntityRenderer(ModEntityTypes.CIRNO.get(),
                 context -> new SkinMobRenderer<>(context, 0.45F, 1.15F, GensokyouTextures.FAIRY));
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_PEDESTAL.get(), RitualPedestalRenderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.SUKIMA.get(), SukimaPortalRenderer::new);
     }
 
     @SubscribeEvent

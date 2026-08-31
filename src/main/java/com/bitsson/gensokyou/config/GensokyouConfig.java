@@ -91,6 +91,8 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue CORE_KNIFE_RATE;
     public static final ModConfigSpec.IntValue CORE_KNIFE_REQ_TIER;
     public static final ModConfigSpec.DoubleValue CORE_KNIFE_SPEED;
+    /** 飞刀插墙持续 tick（0 = 命中方块立即消失）。 */
+    public static final ModConfigSpec.IntValue KNIFE_STICK_TICKS;
     public static final ModConfigSpec.DoubleValue CORE_TALISMAN_MULT;
     public static final ModConfigSpec.IntValue CORE_TALISMAN_SP_COST;
     public static final ModConfigSpec.IntValue CORE_TALISMAN_RATE;
@@ -229,6 +231,8 @@ public class GensokyouConfig {
         CORE_KNIFE_RATE = BUILDER.defineInRange("attackRateTicks", 12, 1, 12000);
         CORE_KNIFE_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
         CORE_KNIFE_SPEED = BUILDER.defineInRange("projectileSpeed", 1.2D, 0.05D, 4D);
+        KNIFE_STICK_TICKS = BUILDER.comment("Ticks a knife danmaku stays stuck in a wall after hitting it (0 = vanish immediately)")
+                .defineInRange("knifeStickTicks", 100, 0, 12000);
         BUILDER.pop();
         BUILDER.push("coreTalisman");
         CORE_TALISMAN_MULT = BUILDER.defineInRange("coreBaseMult", 1.2D, 0D, 100D);
