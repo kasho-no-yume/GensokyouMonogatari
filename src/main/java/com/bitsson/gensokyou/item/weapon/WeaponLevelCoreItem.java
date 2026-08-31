@@ -5,6 +5,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import com.bitsson.gensokyou.registry.TierPalette;
 
 import java.util.List;
 import java.util.function.IntSupplier;
@@ -21,6 +22,11 @@ public class WeaponLevelCoreItem extends Item {
 
     public int tier() {
         return this.tier.getAsInt();
+    }
+
+    @Override
+    public Component getName(ItemStack stack) {
+        return TierPalette.tintName(super.getName(stack), this.tier());
     }
 
     @Override

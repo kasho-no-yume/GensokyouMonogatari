@@ -1,5 +1,10 @@
-﻿{
+{
   "variants": {
-    "": { "model": "gensokyou:block/ritual_core" }
+    "tier=0": { "model": "gensokyou:block/ritual_core_0" },
+    "tier=1": { "model": "gensokyou:block/ritual_core_1" },
+    "tier=2": { "model": "gensokyou:block/ritual_core_2" },
+    "tier=3": { "model": "gensokyou:block/ritual_core_3" },
+    "tier=4": { "model": "gensokyou:block/ritual_core_4" },
+    "tier=5": { "model": "gensokyou:block/ritual_core_5" }
   }
 }

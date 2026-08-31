@@ -281,6 +281,10 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 RitualBehaviors.get(core.activeMatch.patternId())
                         .ifPresent(behavior -> behavior.onFormed(serverLevel, pos, core.activeMatch));
             }
+            // 品阶视觉随仪式等级（结构内石/台最高品阶）；结构失效回落 0 级灰。
+            // 仅在值变化时写块（重扫幂等，无循环）；setBlock 触发的邻居更新不参与重扫。
+            writeTier(serverLevel, pos,
+                    core.activeMatch == null ? 0 : core.activeMatch.ritualTier());
         }
         if (core.activeMatch == null) {
             if (previous != null) {
@@ -309,6 +313,15 @@ public class RitualCoreBlockEntity extends BlockEntity {
         Optional<RitualBehavior> behavior =
                 RitualBehaviors.get(core.activeMatch.patternId());
         behavior.ifPresent(value -> value.serverTick(serverLevel, pos, core.activeMatch, core));
+    }
+
+    /** 将核心方块的 tier 属性更新为指定品阶（仅在变化时 setBlock，避免重扫循环）。 */
+    private static void writeTier(ServerLevel level, BlockPos pos, int tier) {
+        BlockState state = level.getBlockState(pos);
+        if (state.getBlock() instanceof com.bitsson.gensokyou.block.RitualCoreBlock
+                && state.getValue(com.bitsson.gensokyou.block.RitualCoreBlock.TIER) != tier) {
+            level.setBlock(pos, state.setValue(com.bitsson.gensokyou.block.RitualCoreBlock.TIER, tier), 3);
+        }
     }
 
     /** 持续型配方循环：成型即可运行（不受 enabled 门控），成功一条即结束本周期。 */

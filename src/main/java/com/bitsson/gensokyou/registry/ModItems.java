@@ -9,6 +9,7 @@ import com.bitsson.gensokyou.item.GuideBookItem;
 import com.bitsson.gensokyou.item.LaevateinTier;
 import com.bitsson.gensokyou.item.RitualWandItem;
 import com.bitsson.gensokyou.item.SummonCatalystItem;
+import com.bitsson.gensokyou.item.TieredBlockItem;
 import com.bitsson.gensokyou.item.spellcard.IcicleFallCardItem;
 import com.bitsson.gensokyou.item.spellcard.LightReflectCardItem;
 import com.bitsson.gensokyou.item.spellcard.MusouFuuinCardItem;
@@ -29,6 +30,8 @@ import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.function.DoubleSupplier;
 import java.util.function.IntSupplier;
@@ -68,12 +71,24 @@ public final class ModItems {
     public static final DeferredItem<IcicleFallCardItem> ICICLE_FALL =
             ITEMS.register("icicle_fall", () -> new IcicleFallCardItem(new Item.Properties()));
 
-    public static final DeferredItem<BlockItem> RITUAL_STONE_ITEM =
-            ITEMS.registerSimpleBlockItem("ritual_stone", ModBlocks.RITUAL_STONE);
     public static final DeferredItem<BlockItem> RITUAL_CORE_ITEM =
             ITEMS.registerSimpleBlockItem("ritual_core", ModBlocks.RITUAL_CORE);
-    public static final DeferredItem<BlockItem> RITUAL_PEDESTAL_ITEM =
-            ITEMS.registerSimpleBlockItem("ritual_pedestal", ModBlocks.RITUAL_PEDESTAL);
+    /** 仪式石物品（品阶 0-5，名字染品阶色）。 */
+    public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_ITEMS = new ArrayList<>();
+    /** 祭品台物品（品阶 0-5，名字染品阶色）。 */
+    public static final List<DeferredItem<TieredBlockItem>> RITUAL_PEDESTAL_ITEMS = new ArrayList<>();
+
+    static {
+        for (int i = 0; i < ModBlocks.TIER_COUNT; i++) {
+            final int tier = i;
+            RITUAL_STONE_ITEMS.add(ITEMS.register("ritual_stone_" + i,
+                    () -> new TieredBlockItem(ModBlocks.RITUAL_STONES.get(tier).get(),
+                            new Item.Properties(), tier)));
+            RITUAL_PEDESTAL_ITEMS.add(ITEMS.register("ritual_pedestal_" + i,
+                    () -> new TieredBlockItem(ModBlocks.RITUAL_PEDESTALS.get(tier).get(),
+                            new Item.Properties(), tier)));
+        }
+    }
     public static final DeferredItem<RitualWandItem> RITUAL_WAND =
             ITEMS.register("ritual_wand", () -> new RitualWandItem(
                     new Item.Properties().stacksTo(1)));

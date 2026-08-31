@@ -29,6 +29,13 @@ public final class ModDataComponents {
                     .networkSynchronized(RuneAffix.STREAM_CODEC.apply(ByteBufCodecs.list()))
                     .build());
 
+    /** 增幅核晶石随机色（ARGB，首次获取时掷定，随物品持久化并同步客户端供 tint 使用）。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> CRYSTAL_COLOR =
+            DATA_COMPONENTS.register("crystal_color", () -> DataComponentType.<Integer>builder()
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .build());
+
     private ModDataComponents() {
     }
 }

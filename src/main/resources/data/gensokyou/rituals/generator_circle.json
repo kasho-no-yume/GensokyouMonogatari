@@ -1,10 +1,10 @@
-﻿{
+{
   "id": "gensokyou:generator_circle",
   "anchorKey": "C",
   "palette": {
     "C": "gensokyou:ritual_core",
     "S": "#gensokyou:ritual_stones",
-    "P": "gensokyou:ritual_pedestal"
+    "P": "#gensokyou:ritual_pedestals"
   },
   "levels": [
     { "level": 1, "blocks": [

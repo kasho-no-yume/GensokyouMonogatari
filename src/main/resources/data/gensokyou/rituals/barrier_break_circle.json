@@ -1,11 +1,11 @@
-﻿{
+{
   "id": "gensokyou:barrier_break_circle",
   "anchorKey": "C",
   "toggleable": true,
   "palette": {
     "C": "gensokyou:ritual_core",
     "S": "#gensokyou:ritual_stones",
-    "P": "gensokyou:ritual_pedestal"
+    "P": "#gensokyou:ritual_pedestals"
   },
   "levels": [
     { "level": 1, "blocks": [

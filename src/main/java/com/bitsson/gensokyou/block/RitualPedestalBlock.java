@@ -18,8 +18,16 @@ import net.minecraft.world.phys.BlockHitResult;
 
 public class RitualPedestalBlock extends Block implements EntityBlock {
 
-    public RitualPedestalBlock(Properties properties) {
+    private final int tier;
+
+    public RitualPedestalBlock(Properties properties, int tier) {
         super(properties);
+        this.tier = tier;
+    }
+
+    /** 品阶（0-5），由注册身份静态确定；供仪式等级推导使用。 */
+    public int tier() {
+        return this.tier;
     }
 
     @Override

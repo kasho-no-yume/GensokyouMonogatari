@@ -1,6 +1,6 @@
-# ritual_blocks.py - 仪式石 + 仪式核(基础+_0.._5) + 仪式基座(基础+_0.._5)
-# 基础图与 _0（灰版）逐像素相同；变体仅换品阶色相（§5.4 配色环）
-# 品阶色只作用于晶石字符 h/m/d；石质/金属字符全变体共用
+# ritual_blocks.py - 仪式石(_0.._5) + 仪式核(基础+_0.._5) + 仪式基座(_0.._5)
+# 品阶方块族（石/台）只有 _0.._5，无无后缀基础版；核心保留基础图（= _0 同图，spec 约定）
+# 品阶色只作用于品阶字符 m/h/d；石质/金属字符全变体共用
 # 行用表达式拼装保证 16 宽
 
 TIERS = [
@@ -29,7 +29,7 @@ STONE = {
 
 TEXES = {}
 
-# ---- 仪式石：石砖（错缝）+ 中心暗刻符文（无品阶，单张）----
+# ---- 仪式石（_0.._5）：石砖（错缝）+ 中心隙间眼形符文（品阶色 m 外缘 + h 瞳）----
 _stone = []
 for _band in range(4):
     for _r in range(4):
@@ -46,9 +46,10 @@ _stone[1] = _stone[1].replace("g", "G")
 _stone[14] = _stone[14].replace("g", "s")
 _stone[15] = _stone[15].replace("g", "s")
 for _y, _x in ((6, 7), (7, 6), (7, 9), (8, 5), (8, 10), (9, 6), (9, 9), (10, 7), (10, 8)):
-    _stone[_y] = _stone[_y][:_x] + "s" + _stone[_y][_x + 1:]   # 中心符文（隙间眼形暗刻）
-TEXES["block/ritual_stone"] = _stone
-PAL_block_ritual_stone = dict(STONE)
+    _stone[_y] = _stone[_y][:_x] + "m" + _stone[_y][_x + 1:]   # 眼形符文外缘（品阶主色）
+for _y, _x in ((8, 7), (8, 8)):
+    _stone[_y] = _stone[_y][:_x] + "h" + _stone[_y][_x + 1:]   # 瞳（品阶高光）
+STONE_ROWS = _stone
 
 # ---- 仪式核：石台 + 铜箍，中央菱形晶石（h/m/d 品阶色）----
 _C = "Gkgk"          # 核室左右壁
@@ -140,10 +141,15 @@ PEDESTAL_BOTTOM_ROWS = (
 for _suffix, _main, _hi, _dark in TIERS:
     _p = dict(STONE)
     _p.update({'m': _main, 'h': _hi, 'd': _dark})
-    for _name, _rows in (("block/ritual_core" + _suffix, CORE_ROWS),):
-        TEXES[_name] = _rows
-        globals()["PAL_" + _name.replace("/", "_")] = _p
-    for _part, _rows in (("", PEDESTAL_ROWS), ("_top", PEDESTAL_TOP_ROWS), ("_bottom", PEDESTAL_BOTTOM_ROWS)):
-        _name = "block/ritual_pedestal" + _part + _suffix
+    # 仪式核：基础 + _0.._5（基础图与 _0 同图，保留无后缀版）
+    _name = "block/ritual_core" + _suffix
+    TEXES[_name] = CORE_ROWS
+    globals()["PAL_" + _name.replace("/", "_")] = _p
+    if _suffix == "":
+        continue  # 石/台为品阶方块族，不产无后缀基础版
+    for _name, _rows in (("block/ritual_stone" + _suffix, STONE_ROWS),
+                         ("block/ritual_pedestal" + _suffix, PEDESTAL_ROWS),
+                         ("block/ritual_pedestal_top" + _suffix, PEDESTAL_TOP_ROWS),
+                         ("block/ritual_pedestal_bottom" + _suffix, PEDESTAL_BOTTOM_ROWS)):
         TEXES[_name] = _rows
         globals()["PAL_" + _name.replace("/", "_")] = _p

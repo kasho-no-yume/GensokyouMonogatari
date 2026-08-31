@@ -23,6 +23,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 import javax.annotation.Nullable;
@@ -35,11 +37,23 @@ import javax.annotation.Nullable;
  * - 结构不匹配或结构无注册行为（如召唤环）→ 返回 PASS，把交互让给手中物品
  *   （这样催化剂等物品的 useOn 才有机会执行）
  * - 结构有行为 → 行为结果即为最终结果
+ *
+ * 品阶视觉：tier 属性（0-5）随仪式等级（结构内石/台最高品阶）由
+ * RitualCoreBlockEntity 服务端写入，驱动 blockstate 切换 ritual_core_0..5 模型。
  */
 public class RitualCoreBlock extends Block implements EntityBlock {
 
+    /** 仪式等级驱动的品阶视觉属性。 */
+    public static final IntegerProperty TIER = IntegerProperty.create("tier", 0, 5);
+
     public RitualCoreBlock(Properties properties) {
         super(properties);
+        registerDefaultState(this.stateDefinition.any().setValue(TIER, 0));
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(TIER);
     }
 
     @Override

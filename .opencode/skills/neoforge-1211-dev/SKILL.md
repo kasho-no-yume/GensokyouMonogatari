@@ -41,6 +41,9 @@ metadata:
 | Player.hasPlayedBefore() | 不存在，自行判断 |
 | ByteBufCodecs.BOOL_ARRAY / VAR_INT_ARRAY | 不存在；composite 最多 6 参，逐字段 BOOL/VAR_INT |
 | `new BlockEntityType<>(f, block)` | 三参构造 `(factory, Set.of(blocks), null)` |
+| `TextColor.fromArgb(int)` | 不存在，用 `TextColor.fromRgb(int)`（只取低 24 位） |
+| 物品 tint 色带 alpha=0 → 染层隐形 | 1.21.1 `ItemRenderer.renderQuadList` 提取 tint 色 alpha 乘入顶点色；ItemColor 返回值必须带 `0xFF000000`（原版 DyeColor 均为 0xFFxxxxxx），返回 0x00RRGGBB 会让该层整层透明（现象：物品只有未染色层可见） |
+| blockstate 空 variant 键生成 | 用程序写（python json.dump）；PowerShell 反引号转义拼 JSON 易产生 `"""` 三引号坏键（报 "missing model for variant" 且方块紫黑） |
 | Registry.register(BuiltInRegistries.BIOME_SOURCE,...) 在 mod ctor | **报 already frozen**——内建世界生成注册表（biome_source/density_function_type/multi_noise 参数表等）mod 期不可写，只能数据包 |
 
 其他确定项：`SoundEvents.WITHER_SPAWN`、`EXPERIENCE_ORB_PICKUP` 是裸 SoundEvent（部分新音效才是 Holder，

@@ -9,8 +9,16 @@ import net.minecraft.world.level.Level;
 
 public class SpellCardItem extends Item {
 
-    public SpellCardItem(Properties properties) {
+    /** 对应 SpellCardEffects 注册 id（驱动主题色染色）。 */
+    private final String cardId;
+
+    public SpellCardItem(Properties properties, String cardId) {
         super(properties.stacksTo(1));
+        this.cardId = cardId;
+    }
+
+    public String cardId() {
+        return this.cardId;
     }
 
     @Override

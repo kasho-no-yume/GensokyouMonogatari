@@ -1,6 +1,8 @@
 package com.bitsson.gensokyou.registry;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.item.weapon.AmpCoreItem;
+import com.bitsson.gensokyou.item.weapon.RuneGenerator;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
@@ -29,9 +31,9 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.LAEVATEIN.get());
                         output.accept(ModItems.SUMMON_CATALYST.get());
                         output.accept(ModItems.CIRNO_CATALYST.get());
-                        output.accept(ModItems.RITUAL_STONE_ITEM.get());
+                        ModItems.RITUAL_STONE_ITEMS.forEach(item -> output.accept(item.get()));
                         output.accept(ModItems.RITUAL_CORE_ITEM.get());
-                        output.accept(ModItems.RITUAL_PEDESTAL_ITEM.get());
+                        ModItems.RITUAL_PEDESTAL_ITEMS.forEach(item -> output.accept(item.get()));
                         output.accept(ModItems.RITUAL_WAND.get());
                         output.accept(ModItems.DANMAKU_WEAPON.get());
                         output.accept(ModItems.CORE_SPHERE_SINGLE.get());
@@ -43,9 +45,14 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.WEAPON_CORE_LV1.get());
                         output.accept(ModItems.WEAPON_CORE_LV2.get());
                         output.accept(ModItems.WEAPON_CORE_LV3.get());
-                        output.accept(ModItems.AMP_CORE_T1.get());
-                        output.accept(ModItems.AMP_CORE_T2.get());
-                        output.accept(ModItems.AMP_CORE_T3.get());
+                        // 增幅核：预生成词条+晶石随机色，创造栏即所见即所得
+                        for (AmpCoreItem amp : new AmpCoreItem[]{
+                                ModItems.AMP_CORE_T1.get(), ModItems.AMP_CORE_T2.get(),
+                                ModItems.AMP_CORE_T3.get()}) {
+                            ItemStack core = new ItemStack(amp);
+                            RuneGenerator.ensureGenerated(core, amp.tier());
+                            output.accept(core);
+                        }
                     })
                     .build());
 }

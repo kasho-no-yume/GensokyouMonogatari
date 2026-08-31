@@ -1,8 +1,0 @@
-﻿{
-  "parent": "minecraft:block/cube_bottom_top",
-  "textures": {
-    "top": "gensokyou:block/ritual_pedestal_top",
-    "bottom": "gensokyou:block/ritual_pedestal_bottom",
-    "side": "gensokyou:block/ritual_pedestal"
-  }
-}

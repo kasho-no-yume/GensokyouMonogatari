@@ -1,7 +1,9 @@
 package com.bitsson.gensokyou.ritual;
 
+import com.bitsson.gensokyou.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,37 +32,44 @@ public final class RitualMatcher {
     }
 
     private static Optional<RitualMatch> tryPattern(Level level, BlockPos anchorPos,
-                                                    RitualPattern pattern) {
+                                                     RitualPattern pattern) {
         List<RitualPattern.LevelSlice> tiers = pattern.levels();
         for (int tierIndex = tiers.size() - 1; tierIndex >= 0; tierIndex--) {
             RitualPattern.LevelSlice tier = tiers.get(tierIndex);
             for (int rotation = 0; rotation < 4; rotation++) {
-                Map<Character, List<BlockPos>> keyed = verifyTier(level, anchorPos, pattern, tier, rotation);
-                if (keyed != null) {
+                VerifyResult result = verifyTier(level, anchorPos, pattern, tier, rotation);
+                if (result != null) {
                     return Optional.of(new RitualMatch(pattern.id(), tier.level(),
-                            anchorPos.immutable(), keyed));
+                            anchorPos.immutable(), result.keyed(), result.maxTier()));
                 }
             }
         }
         return Optional.empty();
     }
 
-    /** 校验一个层级在给定旋转下是否成立；成功返回键位坐标表（规范序），失败返回 null。 */
-    private static Map<Character, List<BlockPos>> verifyTier(Level level, BlockPos anchorWorld,
-                                                             RitualPattern pattern,
-                                                             RitualPattern.LevelSlice tier,
-                                                             int rotation) {
+    /** 校验结果：键位坐标表（规范序）+ 结构内品阶方块（石/台）的最高品阶。 */
+    private record VerifyResult(Map<Character, List<BlockPos>> keyed, int maxTier) {
+    }
+
+    /** 校验一个层级在给定旋转下是否成立；成功返回校验结果，失败返回 null。 */
+    private static VerifyResult verifyTier(Level level, BlockPos anchorWorld,
+                                           RitualPattern pattern,
+                                           RitualPattern.LevelSlice tier,
+                                           int rotation) {
         Map<Character, List<BlockPos>> keyed = new HashMap<>();
+        int maxTier = -1;
         for (RitualPattern.BlockEntry block : tier.blocks()) {
             long offset = orient(block.x(), block.z(), rotation);
             BlockPos target = anchorWorld.offset((int) (offset >> 32), block.y(), (int) offset);
             RitualPattern.Predicate predicate = pattern.palette().get(block.key());
-            if (predicate == null || !predicate.test(level.getBlockState(target))) {
+            BlockState state = level.getBlockState(target);
+            if (predicate == null || !predicate.test(state)) {
                 return null;
             }
+            maxTier = Math.max(maxTier, ModBlocks.tierOf(state.getBlock()));
             keyed.computeIfAbsent(block.key(), k -> new ArrayList<>()).add(target);
         }
-        return keyed;
+        return new VerifyResult(keyed, Math.max(maxTier, 0));
     }
 
     /** 偏移的旋转变换，返回打包的 (dx << 32 | dz)。 */

@@ -36,7 +36,7 @@ public class RitualRecipeCategory implements IRecipeCategory<RitualRecipeCardWra
     public RitualRecipeCategory(IJeiHelpers helpers) {
         IGuiHelper guiHelper = helpers.getGuiHelper();
         this.icon = guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK,
-                new ItemStack(ModItems.RITUAL_PEDESTAL_ITEM.get()));
+                new ItemStack(ModItems.RITUAL_PEDESTAL_ITEMS.get(0).get()));
         this.slotBg = guiHelper.getSlotDrawable();
     }
 

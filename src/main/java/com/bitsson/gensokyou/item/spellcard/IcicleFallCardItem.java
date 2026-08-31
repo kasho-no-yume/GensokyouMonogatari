@@ -8,7 +8,7 @@ import net.minecraft.world.phys.Vec3;
 public class IcicleFallCardItem extends SpellCardItem {
 
     public IcicleFallCardItem(Properties properties) {
-        super(properties);
+        super(properties, SpellCardEffects.ICICLE_FALL);
     }
 
     @Override

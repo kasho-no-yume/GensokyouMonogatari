@@ -5,6 +5,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import com.bitsson.gensokyou.registry.TierPalette;
 
 import java.util.List;
 
@@ -26,6 +27,12 @@ public class BulletCoreItem extends Item {
 
     public CoreStats stats() {
         return this.stats;
+    }
+
+    /** 弹幕核名字按 requiredTier 染品阶色（与贴图定色规则同源，0 级不染）。 */
+    @Override
+    public Component getName(ItemStack stack) {
+        return TierPalette.tintName(super.getName(stack), this.stats.requiredTier().getAsInt());
     }
 
     @Override

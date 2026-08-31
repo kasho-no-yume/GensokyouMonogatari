@@ -7,7 +7,7 @@ import net.minecraft.world.level.Level;
 public class MusouFuuinCardItem extends SpellCardItem {
 
     public MusouFuuinCardItem(Properties properties) {
-        super(properties);
+        super(properties, SpellCardEffects.MUSOU_FUUIN);
     }
 
     @Override

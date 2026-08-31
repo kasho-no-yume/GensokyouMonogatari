@@ -21,8 +21,10 @@
 | 路径 | 状态 | 占位来源 |
 |---|---|---|
 | textures/item/guide_book.png | TODO | 海洋之心 |
-| textures/item/musou_fuuin.png | TODO | 旗帜图案 |
-| textures/item/light_reflect.png | TODO | 旗帜图案 |
+| textures/item/spellcard_frame.png | DONE(gen_tex 新绘·白纸卡框，不染层，全符卡共享) | 旗帜图案 |
+| textures/item/spellcard_emblem.png | DONE(gen_tex 新绘·灰度法阵染层，按卡主题色 tint，全符卡共享) | 旗帜图案 |
+| textures/item/musou_fuuin.png | 已移除（改共享 spellcard_frame/emblem 双层染色） | 旗帜图案 |
+| textures/item/light_reflect.png | 已移除（改共享 spellcard_frame/emblem 双层染色） | 旗帜图案 |
 | textures/item/ppoint.png | DONE(旧仓库复制 point/ppoint.png) | 海洋之心 |
 | textures/item/bpoint.png | DONE(旧仓库复制 point/bpoint.png) | 海洋之心 |
 | textures/item/spellcard_star.png | DONE(旧仓库复制 spellcard/spellcardstar.png) | 海洋之心 |
@@ -30,7 +32,7 @@
 | textures/item/yen.png | TODO | 海洋之心 |
 | textures/item/laevatein.png | TODO | 三叉戟 |
 | textures/item/summon_catalyst.png | TODO | 海洋之心 |
-| textures/item/icicle_fall.png | TODO | 海洋之心 |
+| textures/item/icicle_fall.png | 已移除（改共享 spellcard_frame/emblem 双层染色） | 海洋之心 |
 | textures/item/cirno_catalyst.png | TODO | 海洋之心 |
 | textures/item/ritual_wand.png | TODO | 海洋之心 |
 | textures/item/danmaku_weapon.png | DONE(gen_tex 新绘「灵装发射器·雏」) | 三叉戟 |
@@ -43,9 +45,9 @@
 | textures/item/weapon_core_lv1.png | DONE(gen_tex 新绘·六角棱镜绿·1刻痕) | 海洋之心 |
 | textures/item/weapon_core_lv2.png | DONE(gen_tex 新绘·六角棱镜蓝·2刻痕) | 海洋之心 |
 | textures/item/weapon_core_lv3.png | DONE(gen_tex 新绘·六角棱镜金·3刻痕) | 海洋之心 |
-| textures/item/amp_core_t1.png | TODO(增幅核程序化生成，本轮未动) | 海洋之心 |
-| textures/item/amp_core_t2.png | TODO(增幅核程序化生成，本轮未动) | 海洋之心 |
-| textures/item/amp_core_t3.png | TODO(增幅核程序化生成，本轮未动) | 海洋之心 |
+| textures/item/amp_core.png | DONE(gen_tex 新绘·金属托座不染层) | 海洋之心 |
+| textures/item/amp_core_dye.png | DONE(gen_tex 新绘·灰度晶石染层，运行期按品阶 tint) | 海洋之心 |
+| textures/item/amp_core_t1/2/3.png | 已移除（t1..t3 共享 amp_core+amp_core_dye 双层染色） | 海洋之心 |
 
 ## 方块贴图（目标：正式方块材质）
 
@@ -56,9 +58,9 @@
 | textures/block/spirit_relay.png | TODO | 钻石块 |
 | textures/block/processing_core.png | TODO | 钻石块 |
 | textures/block/tempering_altar.png | TODO | 钻石块 |
-| textures/block/ritual_core.png | DONE(gen_tex 新绘；另备 `_0.._5` 品阶变体，基础图=`_0` 灰版) | 钻石块 |
-| textures/block/ritual_pedestal.png | DONE(gen_tex 新绘；另备 `_0.._5` 品阶变体，基础图=`_0` 灰版) | 钻石块 |
-| textures/block/ritual_stone.png | DONE(gen_tex 新绘石砖+暗符文) | 钻石块 |
+| textures/block/ritual_core.png | DONE(gen_tex 新绘；另备 `_0.._5` 品阶变体，基础图=`_0` 灰版；单方块 tier 属性切变体) | 钻石块 |
+| textures/block/ritual_pedestal_0..5.png | DONE(gen_tex 新绘；每品阶独立方块，另备 `_top/_bottom_N` 分面变体，无无后缀基础版) | 钻石块 |
+| textures/block/ritual_stone_0..5.png | DONE(gen_tex 新绘石砖+品阶色眼形符文；每品阶独立方块，无无后缀基础版) | 钻石块 |
 | textures/block/sukima.png | 已移除（传送门视觉改 BER 渲染，见 entity/sukima.png；方块模型为空） | 钻石块 |
 
 ## 实体贴图（目标：角色皮肤；模型当前统一为史蒂夫人形占位）

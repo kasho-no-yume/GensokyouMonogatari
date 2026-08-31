@@ -1,4 +1,4 @@
-﻿{
+{
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
@@ -11,7 +11,7 @@
     "P": { "item": "gensokyou:ppoint" }
   },
   "result": {
-    "id": "gensokyou:ritual_stone",
+    "id": "gensokyou:ritual_stone_0",
     "count": 8
   }
 }

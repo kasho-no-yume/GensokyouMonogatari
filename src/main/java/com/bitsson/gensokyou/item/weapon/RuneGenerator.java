@@ -52,13 +52,33 @@ public final class RuneGenerator {
         }
     }
 
-    /** 首次获得增幅核时懒生成（creative/合成/掉落统一覆盖）。 */
+    /** 首次获得增幅核时懒生成（creative/合成/掉落统一覆盖）：词条 + 晶石随机色，各掷一次。 */
     public static void ensureGenerated(ItemStack core, int tier) {
-        if (core.isEmpty() || core.has(ModDataComponents.RUNE_AFFIXES.get())) {
+        if (core.isEmpty()) {
             return;
         }
-        core.set(ModDataComponents.RUNE_AFFIXES.get(),
-                roll(tier, RandomSource.create()));
+        if (!core.has(ModDataComponents.RUNE_AFFIXES.get())) {
+            core.set(ModDataComponents.RUNE_AFFIXES.get(),
+                    roll(tier, RandomSource.create()));
+        }
+        if (!core.has(ModDataComponents.CRYSTAL_COLOR.get())) {
+            core.set(ModDataComponents.CRYSTAL_COLOR.get(), rollCrystalColor(RandomSource.create()));
+        }
+    }
+
+    /**
+     * 晶石随机色：全 RGB（2^24）均匀随机，仅拒绝过暗样本
+     * （乘法 tint 下近黑色会让晶石在托座里不可辨）。ARGB，alpha=0xFF。
+     */
+    public static int rollCrystalColor(RandomSource random) {
+        int r, g, b;
+        do {
+            int rgb = random.nextInt(1 << 24);
+            r = (rgb >> 16) & 0xFF;
+            g = (rgb >> 8) & 0xFF;
+            b = rgb & 0xFF;
+        } while (Math.max(r, Math.max(g, b)) < 72);
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
     }
 
     public static List<RuneAffix> roll(int tier, RandomSource random) {

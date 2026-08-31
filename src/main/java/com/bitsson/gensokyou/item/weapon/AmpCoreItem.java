@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.item.weapon;
 
 import com.bitsson.gensokyou.registry.ModDataComponents;
+import com.bitsson.gensokyou.registry.TierPalette;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
@@ -22,6 +23,11 @@ public class AmpCoreItem extends Item {
 
     public int tier() {
         return this.tier.getAsInt();
+    }
+
+    @Override
+    public Component getName(ItemStack stack) {
+        return TierPalette.tintName(super.getName(stack), this.tier());
     }
 
     @Override
