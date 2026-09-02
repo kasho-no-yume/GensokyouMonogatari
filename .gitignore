@@ -63,3 +63,4 @@ gradle-app.setting
 
 # gen_tex.py previews
 tools/textures/_preview/
+__pycache__/

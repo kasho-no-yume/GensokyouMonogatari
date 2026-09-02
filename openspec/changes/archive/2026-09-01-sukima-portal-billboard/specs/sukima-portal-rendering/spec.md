@@ -1,29 +1,13 @@
-# sukima-portal-rendering Specification
+# Delta: sukima-portal-rendering
 
-## Purpose
-隙间传送门的视觉渲染：斜 10° 眼形封闭棱壳由 BlockEntity 渲染器绘制，内景用原版末地门渲染类型呈现视角无关的静止星空；方块本体视觉不可见，传送机制不变。
-## Requirements
-### Requirement: 方块本体视觉不可见
-隙间方块对应的模型 SHALL 为空模型（不输出任何几何面），传送门视觉完全由 BER 呈现；方块的碰撞/选择框与破坏保护 SHALL 保持不变。
+## REMOVED Requirements
 
-#### Scenario: 无立方体贴图
-- **WHEN** 玩家观察隙间方块
-- **THEN** 看不到任何 cube 面（无旧占位/黑曜石样式面），仅看到 BER 绘制的传送门
+### Requirement: 隙间传送门为眼形棱壳 + 末地门式静态内景
 
-#### Scenario: 选择框仍可用
-- **WHEN** 玩家准星指向隙间方块
-- **THEN** 仍显示方块轮廓且可交互（右键行为维持现状），创造/生存下仍不可破坏
+**Reason**: 美术方向改为正式隙间素材（眼睛虚空图）；封闭棱壳几何（约 90 行）与末地门渲染类型耦合，侧壁不利于复用；末地门着色器无法呈现自定义贴图素材。
+**Migration**: 由新需求「隙间传送门为眼形窗（billboard 框 + 末地门虚空内景）」替代——保留末地门渲染类型于内景（其屏幕投影锚定效果即「窗」质感的来源），改为 0 厚度 + 眼形几何 + billboard 朝向；传送机制、方块不可见性需求不变。
 
-### Requirement: 传送机制零改动
-引入 BlockEntity 与 BER SHALL NOT 改变隙间方块的任何既有机制：`entityInside` 维度传送规则、传送冷却（portalCooldown）、放置/维持/移除逻辑均保持现状。
-
-#### Scenario: 传送行为回归
-- **WHEN** 玩家实体进入隙间方块碰撞范围
-- **THEN** 按既有规则传送（主世界→幻想乡 (0,地表,0)，幻想乡→主世界出生点）且冷却期间不重复触发
-
-#### Scenario: 结界维持逻辑回归
-- **WHEN** 仪式结构失效或重建
-- **THEN** 隙间方块按既有逻辑移除或免费重建，与变更前一致
+## ADDED Requirements
 
 ### Requirement: 隙间传送门为眼形窗（billboard 框 + 末地门虚空内景）
 隙间方块（SukimaBlock）SHALL 挂接一个 BlockEntity，其视觉由 BlockEntityRenderer 渲染为**眼形窗**：整体 **billboard——每帧正对玩家相机**（相机四元数 + Y 轴 180° 翻转），并绕视线轴倾斜 10°。框与内景 SHALL 分离呈现：
@@ -61,4 +45,3 @@ billboard quad 绘制（几何、UV、贴图、光照、透明度）SHALL 收敛
 #### Scenario: 技能复用入口
 - **WHEN** 未来技能需要在世界中绘制临时传送门（任意尺寸、贴图、朝向或滚动）
 - **THEN** 经 EntityRenderer 接线后仅以不同参数调用该工具即可，无需新增几何代码
-

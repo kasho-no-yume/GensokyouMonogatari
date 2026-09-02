@@ -9,16 +9,23 @@ import com.bitsson.gensokyou.client.renderer.KnifeDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.TalismanDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.LaserDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.SukimaPortalRenderer;
+import com.bitsson.gensokyou.client.renderer.SukimaPortalRenderTypes;
 import com.bitsson.gensokyou.client.screen.RitualCoreScreen;
 import com.bitsson.gensokyou.client.screen.WeaponCoreScreen;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import com.bitsson.gensokyou.registry.ModMenus;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.RegisterShadersEvent;
+import net.minecraft.client.renderer.ShaderInstance;
+
+import java.io.IOException;
 
 @EventBusSubscriber(modid = Gensokyou.MODID, value = Dist.CLIENT)
 public final class GensokyouClient {
@@ -52,6 +59,16 @@ public final class GensokyouClient {
                 context -> new SkinMobRenderer<>(context, 0.45F, 1.15F, GensokyouTextures.FAIRY));
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_PEDESTAL.get(), RitualPedestalRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.SUKIMA.get(), SukimaPortalRenderer::new);
+    }
+
+    @SubscribeEvent
+    public static void onRegisterShaders(RegisterShadersEvent event) throws IOException {
+        // 隙间虚空着色器（克隆原版 end portal 机理，黑红调色板 + 低层密度）
+        event.registerShader(
+                new ShaderInstance(event.getResourceProvider(),
+                        ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "sukima_portal"),
+                        DefaultVertexFormat.POSITION),
+                shader -> SukimaPortalRenderTypes.sukimaVoidShader = shader);
     }
 
     @SubscribeEvent
