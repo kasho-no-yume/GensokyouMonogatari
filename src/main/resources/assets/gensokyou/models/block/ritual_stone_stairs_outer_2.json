@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/outer_stairs",
+  "textures": {
+    "bottom": "gensokyou:block/ritual_stone_2",
+    "top": "gensokyou:block/ritual_stone_2",
+    "side": "gensokyou:block/ritual_stone_2"
+  }
+}

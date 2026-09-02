@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "building",
+  "key": {
+    "X": {
+      "item": "gensokyou:ritual_stone_5"
+    }
+  },
+  "pattern": [
+    "X  ",
+    "XX ",
+    "XXX"
+  ],
+  "result": {
+    "count": 4,
+    "id": "gensokyou:ritual_stone_stairs_5"
+  }
+}

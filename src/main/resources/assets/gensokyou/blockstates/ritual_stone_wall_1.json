@@ -1,0 +1,90 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "up": "true"
+      },
+      "apply": {
+        "model": "gensokyou:block/ritual_stone_wall_post_1"
+      }
+    },
+    {
+      "when": {
+        "north": "low"
+      },
+      "apply": {
+        "model": "gensokyou:block/ritual_stone_wall_side_1",
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "east": "low"
+      },
+      "apply": {
+        "model": "gensokyou:block/ritual_stone_wall_side_1",
+        "uvlock": true,
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "south": "low"
+      },
+      "apply": {
+        "model": "gensokyou:block/ritual_stone_wall_side_1",
+        "uvlock": true,
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "west": "low"
+      },
+      "apply": {
+        "model": "gensokyou:block/ritual_stone_wall_side_1",
+        "uvlock": true,
+        "y": 270
+      }
+    },
+    {
+      "when": {
+        "north": "tall"
+      },
+      "apply": {
+        "model": "gensokyou:block/ritual_stone_wall_side_tall_1",
+        "uvlock": true
+      }
+    },
+    {
+      "when": {
+        "east": "tall"
+      },
+      "apply": {
+        "model": "gensokyou:block/ritual_stone_wall_side_tall_1",
+        "uvlock": true,
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "south": "tall"
+      },
+      "apply": {
+        "model": "gensokyou:block/ritual_stone_wall_side_tall_1",
+        "uvlock": true,
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "west": "tall"
+      },
+      "apply": {
+        "model": "gensokyou:block/ritual_stone_wall_side_tall_1",
+        "uvlock": true,
+        "y": 270
+      }
+    }
+  ]
+}

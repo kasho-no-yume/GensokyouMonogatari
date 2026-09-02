@@ -77,6 +77,10 @@ public final class ModItems {
     public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_ITEMS = new ArrayList<>();
     /** 祭品台物品（品阶 0-5，名字染品阶色）。 */
     public static final List<DeferredItem<TieredBlockItem>> RITUAL_PEDESTAL_ITEMS = new ArrayList<>();
+    /** 仪式石装饰变种物品（台阶/楼梯/墙 × 品阶 0-5，名字染品阶色）。 */
+    public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_SLAB_ITEMS = new ArrayList<>();
+    public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_STAIRS_ITEMS = new ArrayList<>();
+    public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_WALL_ITEMS = new ArrayList<>();
 
     static {
         for (int i = 0; i < ModBlocks.TIER_COUNT; i++) {
@@ -86,6 +90,15 @@ public final class ModItems {
                             new Item.Properties(), tier)));
             RITUAL_PEDESTAL_ITEMS.add(ITEMS.register("ritual_pedestal_" + i,
                     () -> new TieredBlockItem(ModBlocks.RITUAL_PEDESTALS.get(tier).get(),
+                            new Item.Properties(), tier)));
+            RITUAL_STONE_SLAB_ITEMS.add(ITEMS.register("ritual_stone_slab_" + tier,
+                    () -> new TieredBlockItem(ModBlocks.RITUAL_STONE_SLABS.get(tier).get(),
+                            new Item.Properties(), tier)));
+            RITUAL_STONE_STAIRS_ITEMS.add(ITEMS.register("ritual_stone_stairs_" + tier,
+                    () -> new TieredBlockItem(ModBlocks.RITUAL_STONE_STAIRS.get(tier).get(),
+                            new Item.Properties(), tier)));
+            RITUAL_STONE_WALL_ITEMS.add(ITEMS.register("ritual_stone_wall_" + tier,
+                    () -> new TieredBlockItem(ModBlocks.RITUAL_STONE_WALLS.get(tier).get(),
                             new Item.Properties(), tier)));
         }
     }

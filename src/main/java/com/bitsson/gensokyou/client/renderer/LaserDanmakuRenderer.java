@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -73,6 +74,16 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         super(context, BEAM_TEXTURE);
     }
 
+    /**
+     * 激光的主体类层走「加法混合 + 写深度」：实体缓冲先于半透明地形（水）冲刷，
+     * 写深度后身后的水被深度剔除，修复"激光在水面之前却被水覆盖"的问题。
+     * 外发光层保持不写深度（见 renderActiveBeam），避免在水面凿出光晕形大洞。
+     */
+    @Override
+    protected RenderType glowRenderType() {
+        return DanmakuRenderTypes.additiveSolid(this.texture);
+    }
+
     @Override
     public void render(LaserDanmaku entity, float entityYaw, float partialTick,
                        PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
@@ -138,11 +149,14 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
             return;
         }
 
-        VertexConsumer emissive = bufferSource.getBuffer(this.glowRenderType());
-
-        // 外发光（最先画，位于最外层）
-        this.emitBeam(poseStack, emissive, length, radius * OUTER_GLOW_RADIUS_RATIO * envelope,
+        // 外发光走不写深度的加法层：保持现有观感，也不在身后的水面上凿洞。
+        // 注意 immediate 缓冲的别名规则：请求不同 RenderType 会立刻结束上一批，
+        // 因此必须先写完外发光，再取主体/亮核的 consumer，禁止交叉写入。
+        VertexConsumer glow = bufferSource.getBuffer(DanmakuRenderTypes.additiveGlow(BEAM_TEXTURE));
+        this.emitBeam(poseStack, glow, length, radius * OUTER_GLOW_RADIUS_RATIO * envelope,
                 r, g, b, (int) (OUTER_GLOW_ALPHA * envelope), FULL_BRIGHT);
+
+        VertexConsumer emissive = bufferSource.getBuffer(this.glowRenderType());
 
         // 主体
         this.emitBeam(poseStack, emissive, length, radius * envelope,
@@ -219,7 +233,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         if (radius <= 0.0F || a <= 0) {
             return;
         }
-        VertexConsumer consumer = bufferSource.getBuffer(DanmakuRenderTypes.additiveGlow(CAP_TEXTURE));
+        VertexConsumer consumer = bufferSource.getBuffer(DanmakuRenderTypes.additiveSolid(CAP_TEXTURE));
 
         this.emitCap(poseStack, consumer, 0.0F, radius, r, g, b, a);
         this.emitCap(poseStack, consumer, length, radius, r, g, b, a);

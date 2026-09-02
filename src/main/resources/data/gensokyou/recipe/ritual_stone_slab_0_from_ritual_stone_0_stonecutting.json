@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": {
+    "item": "gensokyou:ritual_stone_0"
+  },
+  "result": {
+    "count": 1,
+    "id": "gensokyou:ritual_stone_slab_0"
+  }
+}

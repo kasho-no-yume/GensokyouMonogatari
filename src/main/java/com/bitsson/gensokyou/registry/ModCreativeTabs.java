@@ -32,6 +32,9 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.SUMMON_CATALYST.get());
                         output.accept(ModItems.CIRNO_CATALYST.get());
                         ModItems.RITUAL_STONE_ITEMS.forEach(item -> output.accept(item.get()));
+                        ModItems.RITUAL_STONE_SLAB_ITEMS.forEach(item -> output.accept(item.get()));
+                        ModItems.RITUAL_STONE_STAIRS_ITEMS.forEach(item -> output.accept(item.get()));
+                        ModItems.RITUAL_STONE_WALL_ITEMS.forEach(item -> output.accept(item.get()));
                         output.accept(ModItems.RITUAL_CORE_ITEM.get());
                         ModItems.RITUAL_PEDESTAL_ITEMS.forEach(item -> output.accept(item.get()));
                         output.accept(ModItems.RITUAL_WAND.get());

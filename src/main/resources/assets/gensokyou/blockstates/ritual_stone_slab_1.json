@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "gensokyou:block/ritual_stone_slab_1"
+    },
+    "type=top": {
+      "model": "gensokyou:block/ritual_stone_slab_top_1"
+    },
+    "type=double": {
+      "model": "gensokyou:block/ritual_stone_1"
+    }
+  }
+}

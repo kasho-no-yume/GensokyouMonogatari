@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "X": {
+      "item": "gensokyou:ritual_stone_0"
+    }
+  },
+  "pattern": [
+    "XXX",
+    "XXX"
+  ],
+  "result": {
+    "count": 6,
+    "id": "gensokyou:ritual_stone_wall_0"
+  }
+}
