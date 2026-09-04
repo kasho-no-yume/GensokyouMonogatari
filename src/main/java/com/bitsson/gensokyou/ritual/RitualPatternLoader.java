@@ -82,8 +82,23 @@ public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
             }
         }
         boolean toggleable = GsonHelper.getAsBoolean(json, "toggleable", false);
+        List<Integer> tiers = RitualPattern.ALL_TIERS;
+        if (json.has("tiers")) {
+            List<Integer> parsed = new ArrayList<>();
+            for (JsonElement t : GsonHelper.getAsJsonArray(json, "tiers")) {
+                int tier = t.getAsInt();
+                if (tier < 0 || tier > 5) {
+                    throw new IllegalArgumentException("tier out of range 0..5: " + tier);
+                }
+                parsed.add(tier);
+            }
+            if (parsed.isEmpty()) {
+                throw new IllegalArgumentException("tiers array must not be empty");
+            }
+            tiers = List.copyOf(parsed);
+        }
         return new RitualPattern(id, anchorKey, Map.copyOf(palette), List.copyOf(levels),
-                List.copyOf(requirements), toggleable);
+                List.copyOf(requirements), toggleable, tiers);
     }
 
     /** 解析并展开一个层级的方块表：仅存规范四分之一，输出全量并按 (y,z,x) 规范序排序。 */

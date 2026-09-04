@@ -111,13 +111,15 @@ public class RitualCoreBlock extends Block implements EntityBlock {
         return InteractionResult.PASS;
     }
 
-    /** 成型 → 打开 UI 返回 true；未成型 → 提示并返回 false。 */
+    /** 成型 → 打开 UI 返回 true；未成型 → 提示并返回 false（玩家手持构建器时静默让位，由其 useOn 接手）。 */
     private boolean openOrHint(net.minecraft.server.level.ServerPlayer serverPlayer,
                                ServerLevel level, BlockPos pos, Player player) {
         var match = RitualMatcher.matchAt(level, pos);
         if (match.isEmpty()) {
-            serverPlayer.displayClientMessage(
-                    Component.translatable("msg.gensokyou.ritual_incomplete"), true);
+            if (!holdsBuilder(player)) {
+                serverPlayer.displayClientMessage(
+                        Component.translatable("msg.gensokyou.ritual_incomplete"), true);
+            }
             return false;
         }
         serverPlayer.openMenu(new net.minecraft.world.SimpleMenuProvider(
@@ -126,6 +128,14 @@ public class RitualCoreBlock extends Block implements EntityBlock {
                 pos);
         ModNetworking.sendRitualInfo(serverPlayer, level, pos, core(level, pos), "");
         return true;
+    }
+
+    /** 玩家任一主/副手是否持有仪式构建器（用于抑制"结构不完整"提示，交给构建器接手）。 */
+    private static boolean holdsBuilder(Player player) {
+        return player.getItemInHand(InteractionHand.MAIN_HAND)
+                       .getItem() instanceof com.bitsson.gensokyou.item.RitualBuilderItem
+                || player.getItemInHand(InteractionHand.OFF_HAND)
+                       .getItem() instanceof com.bitsson.gensokyou.item.RitualBuilderItem;
     }
 
     private InteractionResult dispatchUse(ServerLevel level, BlockPos pos, Player player,

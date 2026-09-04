@@ -23,18 +23,18 @@
 
 ## Decisions
 
-### D1 死亡语义：玩家攻击 = 「非正常死亡」触发器（解读 B）
+### D1 死亡语义：仅「将死或真死」触发（无敌优先）
 
-`hurt(DamageSource, amount)` 拦截：
+`hurt(DamageSource, amount)` 拦截（血量永不减少 ⇒ 将死 ≡ 一击致死）：
 
 ```
-玩家来源（直接实体为 Player，或弹射物 owner 归因到 Player）──▶ abnormalDeath(source)，return true
-虚空(fell_out_of_world) / generic_kill(/kill)          ──▶ abnormalDeath(source)，无归因不计数
-其余一切（怪物、环境、摔落、岩浆、箭矢…）                ──▶ return false（完全免伤）
+玩家归因 且 amount ≥ 满血（一击致死） ──▶ 计数 + abnormalDeath(source)，return true
+其余一切（非致死玩家攻击、怪物、环境、/kill、虚空） ──▶ return false（静默拒绝）
+die() 被绕过真死（hack 级秒杀）      ──▶ abnormalDeath 兜底，可归因则计数
 ```
 
-「不能受到伤害」落实为**永不真正损失**：血量不变、无掉落、无经验、无死亡动画、秒重生。玩家视角是"杀得死但杀不掉"。
-备选（否决）：解读 A（对玩家也完全免伤，仅创造/指令能杀）——三振逐出几乎不可触发，惩罚机制形同虚设。
+真无敌做不到（mod 存在秒杀圈怪谈），尽力而为：常规手段、指令、环境伤害全部杀不掉；不与 hack 对抗，die() 兜底保证 NPC 永远回来。
+备选（否决）：每次攻击计数——AOE 溅射误伤会连刷计数，且用户明确拍板只记将死/真死。
 
 ### D2 非正常死亡流程：hurt 拦截，不走 die()
 

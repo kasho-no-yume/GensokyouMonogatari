@@ -10,6 +10,8 @@ import com.bitsson.gensokyou.client.renderer.TalismanDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.LaserDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.SukimaPortalRenderer;
 import com.bitsson.gensokyou.client.renderer.SukimaPortalRenderTypes;
+import com.bitsson.gensokyou.client.screen.RitualBuilderScreen;
+import com.bitsson.gensokyou.client.screen.RitualBuilderScreen;
 import com.bitsson.gensokyou.client.screen.RitualCoreScreen;
 import com.bitsson.gensokyou.client.screen.WeaponCoreScreen;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
@@ -75,5 +77,6 @@ public final class GensokyouClient {
     public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
         event.register(ModMenus.RITUAL_CORE.get(), RitualCoreScreen::new);
         event.register(ModMenus.WEAPON_CORE.get(), WeaponCoreScreen::new);
+        event.register(ModMenus.RITUAL_BUILDER.get(), RitualBuilderScreen::new);
     }
 }

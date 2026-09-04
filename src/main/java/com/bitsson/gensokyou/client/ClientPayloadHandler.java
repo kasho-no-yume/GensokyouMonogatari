@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client;
 
+import com.bitsson.gensokyou.network.RitualConflictPayload;
 import com.bitsson.gensokyou.network.RitualInfoPayload;
 import com.bitsson.gensokyou.network.SkillSyncPayload;
 import com.bitsson.gensokyou.network.SpiritPowerSyncPayload;
@@ -21,5 +22,9 @@ public final class ClientPayloadHandler {
 
     public static void handleRitualInfo(RitualInfoPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> ClientRitualState.update(payload));
+    }
+
+    public static void handleRitualConflict(RitualConflictPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> ClientRitualConflictState.update(payload.positions()));
     }
 }

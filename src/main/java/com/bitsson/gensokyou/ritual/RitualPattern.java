@@ -25,7 +25,16 @@ public record RitualPattern(ResourceLocation id, char anchorKey,
                             Map<Character, Predicate> palette,
                             List<LevelSlice> levels,
                             List<Offering> requirements,
-                            boolean toggleable) {
+                            boolean toggleable,
+                            List<Integer> tiers) {
+
+    /** 全品阶 0-5（图案未显式声明 tiers 时的缺省，保持向后兼容）。 */
+    public static final List<Integer> ALL_TIERS = List.of(0, 1, 2, 3, 4, 5);
+
+    /** 该仪式是否含受品阶影响的格位（标签谓词）——决定构建器是否显示品阶选择。 */
+    public boolean hasTieredSlots() {
+        return palette.values().stream().anyMatch(p -> p.kind() == Kind.TAG);
+    }
 
     public enum Kind { EXACT, TAG, AIR, IGNORE }
 

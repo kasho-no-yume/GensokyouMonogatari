@@ -64,6 +64,7 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue ICICLE_SPEED;
     public static final ModConfigSpec.IntValue BARRIER_SP_COST;
     public static final ModConfigSpec.IntValue WAND_MAX_DIMENSION;
+    public static final ModConfigSpec.IntValue RITUAL_BUILDER_OUTLINE_SECONDS;
     public static final ModConfigSpec.IntValue PASSIVE_CYCLE_TICKS;
     public static final ModConfigSpec.IntValue SKILL_MUSOU_SP_COST;
     public static final ModConfigSpec.IntValue SKILL_MUSOU_COOLDOWN;
@@ -188,6 +189,7 @@ public class GensokyouConfig {
         BUILDER.pop();
         BUILDER.push("ritual");
         WAND_MAX_DIMENSION = BUILDER.comment("Max AABB dimension (blocks) the ritual wand can capture").defineInRange("wandMaxDimension", 16, 1, 64);
+        RITUAL_BUILDER_OUTLINE_SECONDS = BUILDER.comment("How long the red conflict outline lingers after a blocked ritual build (seconds)").defineInRange("ritualBuilderOutlineSeconds", 15, 1, 60);
         PASSIVE_CYCLE_TICKS = BUILDER.comment("Cycle ticks for passive ritual recipe processing").defineInRange("passiveCycleTicks", 40, 1, 12000);
         BUILDER.pop();
         BUILDER.push("skills").comment("Learned spell card slots");

@@ -38,6 +38,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.RITUAL_CORE_ITEM.get());
                         ModItems.RITUAL_PEDESTAL_ITEMS.forEach(item -> output.accept(item.get()));
                         output.accept(ModItems.RITUAL_WAND.get());
+                        output.accept(ModItems.RITUAL_BUILDER.get());
                         output.accept(ModItems.DANMAKU_WEAPON.get());
                         output.accept(ModItems.CORE_SPHERE_SINGLE.get());
                         output.accept(ModItems.CORE_SPHERE_SHOTGUN.get());

@@ -7,6 +7,7 @@ import com.bitsson.gensokyou.entity.SphereDanmaku;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import com.bitsson.gensokyou.item.GuideBookItem;
 import com.bitsson.gensokyou.item.LaevateinTier;
+import com.bitsson.gensokyou.item.RitualBuilderItem;
 import com.bitsson.gensokyou.item.RitualWandItem;
 import com.bitsson.gensokyou.item.SummonCatalystItem;
 import com.bitsson.gensokyou.item.TieredBlockItem;
@@ -104,6 +105,9 @@ public final class ModItems {
     }
     public static final DeferredItem<RitualWandItem> RITUAL_WAND =
             ITEMS.register("ritual_wand", () -> new RitualWandItem(
+                    new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<RitualBuilderItem> RITUAL_BUILDER =
+            ITEMS.register("ritual_builder", () -> new RitualBuilderItem(
                     new Item.Properties().stacksTo(1)));
 
     // ---------------- 弹幕主武器与三槽核 ----------------

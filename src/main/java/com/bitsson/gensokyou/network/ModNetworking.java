@@ -3,6 +3,10 @@ package com.bitsson.gensokyou.network;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.client.ClientPayloadHandler;
+import com.bitsson.gensokyou.item.BuilderSelection;
+import com.bitsson.gensokyou.item.RitualBuilderItem;
+import com.bitsson.gensokyou.registry.ModDataComponents;
+import com.bitsson.gensokyou.ritual.RitualPatternLoader;
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.bitsson.gensokyou.spirit.SkillStateData;
 import com.bitsson.gensokyou.spirit.SpellCardEffects;
@@ -10,6 +14,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -36,6 +42,38 @@ public final class ModNetworking {
                 ModNetworking::handleCastSkill);
         registrar.playToServer(RitualTogglePayload.TYPE, RitualTogglePayload.STREAM_CODEC,
                 ModNetworking::handleRitualToggle);
+        registrar.playToServer(RitualSelectPayload.TYPE, RitualSelectPayload.STREAM_CODEC,
+                ModNetworking::handleRitualSelect);
+        registrar.playToClient(RitualConflictPayload.TYPE, RitualConflictPayload.STREAM_CODEC,
+                ClientPayloadHandler::handleRitualConflict);
+    }
+
+    /** 下发冲突坐标供客户端红框渲染。 */
+    public static void sendRitualConflicts(ServerPlayer player, java.util.List<BlockPos> positions) {
+        PacketDistributor.sendToPlayer(player, new RitualConflictPayload(positions));
+    }
+
+    /** C2S 选择：校验图案存在 + 品阶合法后写回手上构建器组件。 */
+    private static void handleRitualSelect(RitualSelectPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)) {
+                return;
+            }
+            var patternOpt = RitualPatternLoader.byId(payload.patternId());
+            if (patternOpt.isEmpty() || !patternOpt.get().tiers().contains(payload.tier())) {
+                player.displayClientMessage(
+                        Component.translatable("msg.gensokyou.builder_pattern_gone"), true);
+                return;
+            }
+            for (InteractionHand hand : InteractionHand.values()) {
+                ItemStack stack = player.getItemInHand(hand);
+                if (stack.getItem() instanceof RitualBuilderItem) {
+                    stack.set(ModDataComponents.RITUAL_BUILDER_SELECTION.get(),
+                            new BuilderSelection(payload.patternId(), payload.tier()));
+                    return;
+                }
+            }
+        });
     }
 
     /** 服务端权威启停处理：距离/存在性校验后执行，并回推最新界面信息。 */

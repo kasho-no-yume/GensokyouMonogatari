@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.registry;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.menu.RitualBuilderMenu;
 import com.bitsson.gensokyou.menu.RitualCoreMenu;
 import com.bitsson.gensokyou.menu.WeaponCoreMenu;
 import net.minecraft.core.registries.Registries;
@@ -23,6 +24,11 @@ public final class ModMenus {
     public static final DeferredHolder<MenuType<?>, MenuType<WeaponCoreMenu>> WEAPON_CORE =
             MENUS.register("weapon_core", () -> new MenuType<>(
                     (IContainerFactory<WeaponCoreMenu>) WeaponCoreMenu::new,
+                    FeatureFlags.VANILLA_SET));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<RitualBuilderMenu>> RITUAL_BUILDER =
+            MENUS.register("ritual_builder", () -> new MenuType<>(
+                    (IContainerFactory<RitualBuilderMenu>) RitualBuilderMenu::new,
                     FeatureFlags.VANILLA_SET));
 
     private ModMenus() {
