@@ -145,7 +145,7 @@ public class RitualBuilderItem extends Item {
         Player holder = null;
         Level level = context.level();
         if (level != null && level.isClientSide) {
-            holder = net.minecraft.client.Minecraft.getInstance().player;
+            holder = ClientProbe.player();
         }
         for (RitualBuilderPlacement.Requirement req : RitualBuilderPlacement.requirements(pattern, selection.tier())) {
             ItemStack probe = new ItemStack(req.block());
@@ -161,5 +161,15 @@ public class RitualBuilderItem extends Item {
         return Component.translatableWithFallback(
                 "jei." + pattern.id().getNamespace() + ".ritual." + pattern.id().getPath(),
                 pattern.id().getPath().replace('_', ' '));
+    }
+
+    /**
+     * 客户端专属探针。独立嵌套类使 {@code Minecraft.player}（→ LocalPlayer）的引用
+     * 只在真正调用时惰性解析；专用服务端 {@code isClientSide} 恒 false，永不加载本类。
+     */
+    private static final class ClientProbe {
+        static Player player() {
+            return net.minecraft.client.Minecraft.getInstance().player;
+        }
     }
 }

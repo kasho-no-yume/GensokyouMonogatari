@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client;
 
+import com.bitsson.gensokyou.network.DialogSyncPayload;
 import com.bitsson.gensokyou.network.RitualConflictPayload;
 import com.bitsson.gensokyou.network.RitualInfoPayload;
 import com.bitsson.gensokyou.network.SkillSyncPayload;
@@ -26,5 +27,10 @@ public final class ClientPayloadHandler {
 
     public static void handleRitualConflict(RitualConflictPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> ClientRitualConflictState.update(payload.positions()));
+    }
+
+    /** 对话同步：委托客户端专属类处理（服务端不加载 DialogScreen/Minecraft）。 */
+    public static void handleDialogSync(DialogSyncPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> ClientDialog.handle(payload));
     }
 }

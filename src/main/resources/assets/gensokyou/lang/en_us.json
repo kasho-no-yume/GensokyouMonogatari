@@ -190,5 +190,18 @@
   "msg.gensokyou.wand_need_first": "Left-click a block to set corner A first",
   "msg.gensokyou.wand_too_large": "Region exceeds max dimension (<= %s)",
   "msg.gensokyou.wand_captured": "Skeleton captured (%s blocks, %s conflicts)",
-  "msg.gensokyou.wand_saved": "Saved to: %s"
+  "msg.gensokyou.wand_saved": "Saved to: %s",
+
+  "entity.gensokyou.rinnosuke": "Rinnosuke Morichika",
+  "gui.gensokyou.dialog.title": "Conversation",
+  "gui.gensokyou.dialog.page": "%1$s/%2$s",
+  "dialogue.gensokyou.rinnosuke.greet": "Ah, a customer. I am Rinnosuke Morichika, keeper of the Kourindou.\nThough my shop sits at the edge of Gensokyo, most of my wares are oddities scavenged from the outside world.\nYoukai, humans, gods... I have long since stopped being surprised by anyone.\nIf you have some object you cannot make sense of, bring it to me -- for the right price, I can tell you its origin.\nOf course, if it is the kind of object that invites trouble, that is an entirely different matter.",
+  "dialogue.gensokyou.rinnosuke.wares": "Curious about my stock?\nYen, gold coins, fragments of spell cards... anything rare enough from the outside world, and I likely have one or two hidden away.\nBut a warning: prices are fixed, no haggling, and if you break something you pay full price.\nThe barrier has been unstable lately, and outside objects grow scarcer by the day -- buy while you can.",
+  "dialogue.gensokyou.rinnosuke.opt.wares": "Show me your stock",
+  "dialogue.gensokyou.rinnosuke.opt.trade": "Trade",
+  "dialogue.gensokyou.rinnosuke.opt.farewell": "Perhaps another time",
+  "dialogue.gensokyou.rinnosuke.opt.back": "Back to the topic",
+  "msg.gensokyou.npc_warning": "You harmed a resident of Gensokyo! Warning %1$s/%2$s -- one more and you will be cast out.",
+  "msg.gensokyou.npc_exiled": "Gensokyo refuses such a violent intruder.",
+  "chat.gensokyou.npc_exiled": "%1$s was cast out of Gensokyo for repeatedly harming its residents."
 }

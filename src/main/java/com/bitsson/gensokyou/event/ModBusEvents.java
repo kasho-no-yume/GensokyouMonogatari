@@ -6,6 +6,7 @@ import com.bitsson.gensokyou.entity.CirnoEntity;
 import com.bitsson.gensokyou.entity.FairyEntity;
 import com.bitsson.gensokyou.entity.FakeFlandreEntity;
 import com.bitsson.gensokyou.entity.FlandreEntity;
+import com.bitsson.gensokyou.entity.TouhouNpcEntity;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
@@ -35,6 +36,7 @@ public final class ModBusEvents {
         event.put(ModEntityTypes.FAIRY.get(), FairyEntity.createAttributes().build());
         event.put(ModEntityTypes.BIG_FAIRY.get(), FairyEntity.createAttributes().build());
         event.put(ModEntityTypes.CIRNO.get(), FairyEntity.createAttributes().build());
+        event.put(ModEntityTypes.RINNOSUKE.get(), TouhouNpcEntity.createAttributes().build());
     }
 
     @SubscribeEvent

@@ -10,6 +10,7 @@ import com.bitsson.gensokyou.entity.FlandreEntity;
 import com.bitsson.gensokyou.entity.KnifeDanmaku;
 import com.bitsson.gensokyou.entity.LaserDanmaku;
 import com.bitsson.gensokyou.entity.OrbitYinYangOrb;
+import com.bitsson.gensokyou.entity.RinnosukeEntity;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import net.minecraft.core.registries.Registries;
@@ -109,4 +110,11 @@ public final class ModEntityTypes {
                     .sized(0.7F, 1.6F)
                     .clientTrackingRange(10)
                     .build("cirno"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<RinnosukeEntity>> RINNOSUKE =
+            ENTITY_TYPES.register("rinnosuke", () -> EntityType.Builder
+                    .<RinnosukeEntity>of(RinnosukeEntity::new, MobCategory.CREATURE)
+                    .sized(0.6F, 1.9F)
+                    .clientTrackingRange(10)
+                    .build("rinnosuke"));
 }

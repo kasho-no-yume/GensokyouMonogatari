@@ -1,0 +1,14 @@
+## 1. NPC 閸╄櫣琚€圭偘缍?
+- [x] 1.1 `entity/TouhouNpcEntity.java`閿涙瓪extends PathfinderMob`閿涘本妫ょ粔璇插З AI閿涘牅绮?LookAt/RandomLook閿涘鈧梗isPushable=false`閵嗕梗setNoGravity(true)`閵嗕梗removeWhenFarAway=false`閵嗕椒绗夐崣顖涘缂佺偨鈧竼REATURE 缁崵娲扮仦鐐粹偓褎鐎鐚寸礄`createAttributes`閿?- [x] 1.2 閺冪姵鏅稉搴划婢跺秵瀚ら幋顏庣窗`hurt()` 閹?design D1閿涘牏甯虹€硅泛缍婇崶鐘辩瑬 amount閳儲寮х悰鈧?閳?鐠佲剝鏆?abnormalDeath閿涙稑鍙炬担娆庣瀵?return false 闂堟瑩绮幏鎺旂卜閿涘绱濈憰鍡楀晸 `die()` 閸忔粌绨抽惇鐔割劥閿涘牅绗夌拫?super閿涘绱盽abnormalDeath()`閿涙氨浼犻懝鑼煈鐎涙劧绱橶ITCH + DustParticleOptions閿涘本鏆熼柌蹇氳泲 config閿涘鍟?`discard()` 閳?**閸樼喎娼楅弽?*閸掗攱鏌婃径宥呭煑娴ｆ搫绱檂saveWithoutMetadata`閳妶load` 鐠囶厺绠熸径宥呭煑閿?- [x] 1.3 閸戠粯娼冪拋鈩冩殶闂勫嫪娆㈤敍姝歂pcOffenseData(int count)` record + Codec閿涘本鏁為崘宀冪箻 `ModAttachments`閿涘潉copyOnDeath`閿?- [x] 1.4 瑜版帒娲滄稉搴濈瑏閹割垽绱癭source.getEntity()` 娑?Player 閻╁瓨甯寸拋鈽呯礄1.21.1 瀵懓鐨犻悧?owner 瀹歌尙鏁遍崢鐔哄婵夘偄鍙嗛敍灞炬￥闂団偓 Projectile fallback閿涘绱辨潏?`GensokyouConfig.NPC_KICK_THRESHOLD`閿涘牓绮拋?3閿涘妞傞崷?`gensokyou:gensokyo` 缂佹潙瀹虫导鐘烩偓浣峰瘜娑撴牜鏅潻婊咁伂闂呭繑婧€閻愮櫢绱檟/z 閳?[50000,150000]閿涘瘔 姒涙顓?500閿? 閹绢厽濮?+ 濞撳懘娴傞敍灞肩瑝閸︺劌鍨禒鍛闂嗚绱?/2 濞嗏€冲絺 actionbar 鐠€锕€鎲?- [x] 1.5 `GensokyouConfig` 閺傛澘顤冮敍姝侾C_KICK_THRESHOLD閵嗕胶鐭戠€涙劖鏆熼柌蹇嬧偓渚€鈧劕鍤拃鐣屽仯閸欏倹鏆熼敍鍧?z 閼煎啫娲块妴浜傞敍?
+## 2. 娴溿倖妲楅幒銉ュ弳
+
+- [x] 2.1 閸╄櫣琚弳鎾苟 `Merchant` 鐎圭偟骞囬柦鈺佺摍閿涘潵ffers 娓氭稓绮?+ `openTradingScreen` 鐠嬪啰鏁?+ `setTradingPlayer` 閻㈢喎鎳￠崨銊︽埂閿涘绱漙mobInteract` 閸掑棗褰傞敍姘唉閺勬挸鐎?/ 鐎电鐦介崹?/ 閺?
+## 3. 鐎电鐦界化鑽ょ埠
+
+- [x] 3.1 `dialogue/`閿涙瓪DialogueGraph`/`DialogueNode`/`DialogueOption` record + Codec閿涘潉next` 缁?缂佹挻娼敍娌榗tion 閺嬫矮濡?OPEN_TRADE/CLOSE閿?- [x] 3.2 閺堝秴濮熺粩顖欑窗鐠囨繄顓搁悶鍡礄per-player Session閿涘苯绱戦崥?閹恒劏绻?婢惰鲸鏅ラ敍? `network/DialogSyncPayload`(S2C)閵嗕梗DialogActionPayload`(C2S)閵嗕梗DialogClosePayload`(C2S) 濞夈劌鍞芥潻?`ModNetworking`閿涘瓔2S 閺嶏繝鐛欐导姘崇樈娑撳海鍌ㄥ鏇炴値濞夋洘鈧嶇礉閸忔娊妫撮崠鍛墡妤?npcId 閸栧綊鍘ら崥搴ㄦ敘娴兼俺鐦?- [x] 3.3 `client/screen/DialogScreen.java`閿涙碍鏋冮張顒佸床鐞涘苯鍨庢い?+ 濠婃艾濮╅妴渚€鈧銆嶉幐澶愭尦閵嗕笒SC 閸忔娊妫?- [x] 3.4 閸斻劋缍旈幍褑顢戦敍姝凱EN_TRADE 閳?闁库偓娴兼俺鐦介獮?`startTrading`閿涙稑顕拠婵嗗彠闂?鏉╂粎顬?NPC 娴兼俺鐦芥径杈ㄦ櫏
+
+## 4. 閸楃姳缍呯憴鎺曞閿涙碍锛庢潻鎴︽箳娑斿濮敍鍧甶nnosuke閿?
+- [x] 4.1 `ModEntityTypes` 濞夈劌鍞?`rinnosuke`閿?.6鑴?.9閿涘绱漙GensokyouClient` 濞夈劌鍞?`SkinMobRenderer` 閹广垼鍋嗛敍宀€姣婇懖銈呭窗娴ｅ秷鍒涢崶鎯у弳 `textures/entity/`閿涘牐顔囬崡鐘辩秴濞撳懎宕熼敍?- [x] 4.2 缁€杞扮伐娴溿倖妲楃悰顭掔礄闂堟瑦鈧?offers閿? 缁€杞扮伐鐎电鐦介崶鎾呯礄鐟曞棛娲婇梹鎸庢瀮閺堫剙鍨庢い鐐光偓渚€鈧銆嶉崚鍡樻暜閵嗕副PEN_TRADE 鐞涙梹甯撮崥鍕殾鐏?1 婢跺嫸绱?- [x] 4.3 lang 閺夛紕娲伴敍鍫濈杽娴ｆ挸鎮?鐎电鐦介弬鍥ㄦ拱缂堟槒鐦ч柨顕嗙礉zh_cn + en_us閿?
+## 5. 妤犲矁鐦?
+- [x] 5.1 `gradlew.bat runServer`閿涙atest.log `Done (`閿涘本妫?`Errors in registry`閿涘牓妾禒?payload/鐎圭偘缍嬪▔銊ュ斀閸忋劏绻冮敍?- [x] 5.2 `runClient` 閺冪姵鏅崶鐐茬秺閿涙碍鈧亞澧?瀹€鈺傜ギ/閹芥棁鎯?妤犵兘鐝旂粻?`/kill`/閾忔氨鈹栫€?NPC 閸忋劑鍎撮棃娆撶帛閺冪姵鏅ラ敍鍫熸￥濠曟柨鍤妴浣风瑝鐠佲剝鏆熼敍澶涚幢闂堢偠鍤у鑽ゅ负鐎硅埖鏁鹃崙璇叉倱閺嶇兘娼ゆ妯诲珕缂?- [x] 5.3 `runClient` 閹垹顦查梻顓犲箚閿涙氨甯虹€规湹绔撮崙鏄忓毀濮?閳?缁鳖偉澹婄划鎺戠摍 + 閸樼喎娼楅弽鍥╃仜闂傛潙顦查崚鏈电秼 + 閺冪姵甯€閽€鏂ょ幢鏉╃偟鐢?3 濞嗏€虫倵閻溾晛顔嶇悮顐＄炊閼峰厖瀵屾稉鏍櫕鏉╂粎顏梾蹇旀簚閻愬箍鈧浇顓搁弫鐗堢闂嗚翰鈧焦婀佺拃锕€鎲℃稉搴㈡尡閹?- [x] 5.4 `runClient` 娴溿倓绨伴梻顓犲箚閿涙艾褰搁柨顕€婀掓稊瀣И 閳?鐎电鐦介敍鍫㈢倳妞?濠婃艾濮?闁銆?娴碱亪鈧姴瀵橀幏鎺旂卜閿涘鍟?鐎电鐦介崘鍛版祮娴溿倖妲?閳?娴溿倖妲楁稊鏉垮礌濮濓絽鐖堕敍娑滅箼缁?NPC 娴兼俺鐦芥径杈ㄦ櫏
+- [x] 5.5 鐎涙ɑ銆傞崶鐐茬秺閿涙瓊PC 閸栧搫娼￠崡姝屾祰闁插秷娴囨禒宥呮躬閸樼喍缍呴敍娑滎吀閺佹媽娉曞璁抽/闁插秶娅ユ穱婵囧瘮

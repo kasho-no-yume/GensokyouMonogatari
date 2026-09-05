@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.network;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.client.ClientPayloadHandler;
+import com.bitsson.gensokyou.dialogue.DialogueManager;
 import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
 import com.bitsson.gensokyou.registry.ModDataComponents;
@@ -46,6 +47,30 @@ public final class ModNetworking {
                 ModNetworking::handleRitualSelect);
         registrar.playToClient(RitualConflictPayload.TYPE, RitualConflictPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleRitualConflict);
+        registrar.playToClient(DialogSyncPayload.TYPE, DialogSyncPayload.STREAM_CODEC,
+                ClientPayloadHandler::handleDialogSync);
+        registrar.playToServer(DialogActionPayload.TYPE, DialogActionPayload.STREAM_CODEC,
+                ModNetworking::handleDialogAction);
+        registrar.playToServer(DialogClosePayload.TYPE, DialogClosePayload.STREAM_CODEC,
+                ModNetworking::handleDialogClose);
+    }
+
+    /** C2S 对话选项：服务端权威校验后推进。 */
+    private static void handleDialogAction(DialogActionPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player) {
+                DialogueManager.handleAction(player, payload.entityId(), payload.choiceIndex());
+            }
+        });
+    }
+
+    /** C2S 对话关闭：校验 npcId 匹配后销会话。 */
+    private static void handleDialogClose(DialogClosePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player) {
+                DialogueManager.handleClose(player, payload.entityId());
+            }
+        });
     }
 
     /** 下发冲突坐标供客户端红框渲染。 */

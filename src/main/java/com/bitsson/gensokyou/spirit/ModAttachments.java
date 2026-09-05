@@ -34,6 +34,13 @@ public final class ModAttachments {
                     .copyOnDeath()
                     .build());
 
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<NpcOffenseData>> NPC_OFFENSE =
+            ATTACHMENTS.register("npc_offense", () -> AttachmentType
+                    .<NpcOffenseData>builder(NpcOffenseData::initial)
+                    .serialize(NpcOffenseData.CODEC)
+                    .copyOnDeath()
+                    .build());
+
     private ModAttachments() {
     }
 

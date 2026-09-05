@@ -117,9 +117,25 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue CORE_LASER_CANNON_DELAY;
     public static final ModConfigSpec.DoubleValue CORE_LASER_CANNON_DURATION;
 
+    public static final ModConfigSpec.IntValue NPC_KICK_THRESHOLD;
+    public static final ModConfigSpec.DoubleValue NPC_MAX_HEALTH;
+    public static final ModConfigSpec.IntValue NPC_DEATH_PARTICLE_COUNT;
+    public static final ModConfigSpec.IntValue NPC_KICK_XZ_MIN;
+    public static final ModConfigSpec.IntValue NPC_KICK_XZ_MAX;
+    public static final ModConfigSpec.IntValue NPC_KICK_Y;
+
     public static final ModConfigSpec SPEC;
 
     static {
+        BUILDER.push("npc").comment("Touhou NPC base class (touhou-npc capability)");
+        NPC_KICK_THRESHOLD = BUILDER.comment("Malicious lethal hits on NPCs before ejection from Gensokyo").defineInRange("npcKickThreshold", 3, 1, 100);
+        NPC_MAX_HEALTH = BUILDER.comment("NPC health; also the 'one-shot lethal' threshold that triggers the offense counter").defineInRange("npcMaxHealth", 20D, 1D, 1024D);
+        NPC_DEATH_PARTICLE_COUNT = BUILDER.comment("Purple particle burst size on abnormal death").defineInRange("npcDeathParticleCount", 120, 0, 2000);
+        NPC_KICK_XZ_MIN = BUILDER.comment("Ejection landing: overworld x/z lower bound").defineInRange("npcKickXzMin", 50000, 0, 29999999);
+        NPC_KICK_XZ_MAX = BUILDER.comment("Ejection landing: overworld x/z upper bound").defineInRange("npcKickXzMax", 150000, 1, 30000000);
+        NPC_KICK_Y = BUILDER.comment("Ejection landing height (above build limit by design; falling is part of the punishment)").defineInRange("npcKickY", 500, -64, 10000);
+        BUILDER.pop();
+
         BUILDER.push("boss").comment("Flandre Scarlet boss stats (legacy 1.12.2 baseline)");
         FLANDRE_MAX_HEALTH = BUILDER.defineInRange("flandreMaxHealth", 500D, 1D, 4096D);
         FLANDRE_ATTACK_DAMAGE = BUILDER.defineInRange("flandreAttackDamage", 60D, 0D, 1024D);
