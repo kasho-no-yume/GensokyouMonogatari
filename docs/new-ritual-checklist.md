@@ -60,3 +60,30 @@ JEI 条目与祭品配方卡均由 rituals JSON 自动派生，无需改动任�
   摆放顺序与台位无关
 - 歧义规则：同仪式同模式原料表完全相同的两条配方，后者拒载
 - 加工环已迁移为配方驱动（spirit_processing 旧目录作废）
+
+## 6. 多层级累积结构（多级仪式）
+
+`generator_circle.json` 为范例（L1~L5 累积）。
+
+- **完整重写约定**：loader 不做层间继承合并，`levels[N].blocks[]` 必须**照抄上级全部条目再追加本级新增**
+  （每级都是完整展开表；"level N-1 ⊆ level N" 由校验器强制，缺失/变键即报错）
+- **渐进搭建语义**：匹配自高向低逐级尝试，玩家逐级补建即可升级；
+  已满足格位在补建时自动跳过（构建器不重复扣料）
+- **off-axis 轨道双向必列**：off-axis 展开只镜像符号不换轴，环上 (a,b) 与 (b,a) 是两个格位——
+  规范四分之一里两个方向都要显式列出（generator 的 L3 石环 44 格即此例）
+- 轴上格子（x=0 或 z=0）加载时自动四方成套（含坐标互换），无需手动补
+- 临时装饰方块可先用原版替代（palette 是数据，后续替换专属方块零代码）
+- 编写后必跑：`python tools/validate_ritual_pattern.py`（层级累积超集 / 品阶下限 / 跨 pattern 劫持三项检查，
+  `--render DIR` 可出各层俯视预览图）
+
+## 7. 品阶下限标签（`*_N_plus`）与构建器联动
+
+- 目录：`data/gensokyou/tags/block/`，`ritual_stones_{1..5}_plus`、`ritual_pedestals_{2..5}_plus`
+- 语义：`N_plus` = N 阶至 5 阶全体成员，表达"该格位**必须 N 级以上**"的下限约束；
+  第 N 级**新增**环的仪式石/祭品台 palette 应引用对应 `N_plus` 标签（继承自低级层的格位不受限）
+- 无后缀 `ritual_stones` / `ritual_pedestals` = 全品阶 0..5，旧仪式与不限阶格位用
+- **注意**：标签字典键必须带命名空间（`gensokyou:ritual_stones_1_plus`），
+  缺命名空间时标签成员加载为空、校验被静默跳过
+- 与构建器联动：`RitualBuilderPlacement.resolveBlock` 按"标签成员中 tierOf==所选品阶"实例化——
+  品阶选 2 时 1..5 环全变 2 级石（合法，因为 2 阶满足所有 `N≤2_plus` 的下限）；
+  跨级渐进搭建时逐级选品阶即可，已满足格位自动跳过不重复扣料（现有逻辑天然支持）

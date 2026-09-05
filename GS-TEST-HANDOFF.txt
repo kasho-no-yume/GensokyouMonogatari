@@ -1,0 +1,91 @@
+发电机仪式 1~5 级结构 —— 会话交接笔记（2026-09-05）
+=============================================================
+
+【任务背景】
+按用户提供的"五级多方块召唤祭坛"概念图，将其改编为【发电机仪式】的 1~5 级多方块结构。
+要求：石砖→对应品阶仪式石（仅附加结构）；第 N 级新增环状结构的仪式石必须 N 级以上；
+继承自低级层的格位仍允许低品阶。拟造装饰方块暂用原版方块替代（后续会实现专属装饰方块）。
+
+【当前状态：主目标已完成并大部分验证通过，剩 1 个测试 bug 待修 + 少量收尾】
+
+一、已完成的改动（全部为数据/工具，零 Java 代码改动）
+1. src/main/resources/data/gensokyou/rituals/generator_circle.json —— 整体重写为 5 级累积结构
+   - 展开（按 loader 四重对称）各级方块数：L1=25, L2=65, L3=133, L4=209, L5=305（含核心）
+   - "toggleable": true（顺带修复：原发电机没有启动按钮且行为受 enabled 门控，根本无法启动）
+   - palette 键（anchorKey=C）：
+     C=ritual_core | D=紫玻璃(导流槽) | 1..5=ritual_stones_N_plus 标签 | P/Q/R=祭品台(2/3/4_plus)
+     E=ritual_stone_wall_2(核心支柱) | W=wall_3(方位柱) | G=wall_4(栏杆+角柱)
+     L=soul_lantern | O=dark_oak_log | H=dark_oak_fence(鸟居) | A=amethyst_block | B=purple_banner
+   - 设计布局（y=0 平台为主，核心在原点）：
+     L1 半径3圆盘（24×1级仪式石），核心四邻位 (±1,0),(0,±1) 留空 = 电容接入端口（原图"四方能量导管"）
+     L2 紫玻璃导流槽(r²=10,8格) + 2级石环(r²=13..17,20格) + P祭品台(±3,±3) + E支柱(0,±2),(±2,0) y1-2
+     L3 3级石环(r²=20..34,44格) + Q祭品台(±4,±4) + W八方位柱(axis5+对角(4,3),各2高) + A紫水晶(3,4)y1
+     L4 4级石环(r²=36..45,36格) + G栏杆(±6,±1..3 与 ±1..3,±6 y1) + G角柱(±5,±4,y1-2) + L灯笼(y3) + R祭品台(±5,±5)
+     L5 5级石环(r²≈49..72,48格,切角八角环) + 4座鸟居(深色橡木柱(±1,±8)/(±8,±1) 3高 + 栏栅貫/笠木) + A冠顶紫水晶(0,±8),(±8,0) y4 + B紫旗(0,±7),(±7,0) y1
+2. 9 个新方块标签 data/gensokyou/tags/block/：ritual_stones_{1..5}_plus、ritual_pedestals_{2..5}_plus
+   （N_plus = N 阶到 5 阶全体成员，实现"必须 N 级以上"的下限语义）
+3. 顺手修复：capacitor_circle.json 与 summon_circle.json 有 UTF-8 BOM（MC 的 Gson 会拒载），已去 BOM
+4. tools/validate_ritual_pattern.py —— 离线校验器（与 RitualPatternLoader 同展开规则）：
+   锚点/冲突/层级累积超集/品阶下限规则(警告级)/跨 pattern 劫持检查（方向=B的建筑被更具体的A认领）
+   支持 --render DIR（俯视预览图，已生成 tools/_preview/ritual_generator/）与 --test-out DIR（生成服务器测试数据包）
+   注意：曾踩坑——标签字典键必须带命名空间（gensokyou:ritual_stones_1_plus），否则成员为空、检查全被静默跳过
+5. run/world/datapacks/gs_ritual_test/ —— 服务器端到端测试数据包（load 标签自动触发，见下）
+
+二、验证结果（runServer 已跑过一轮）
+通过 ✔：
+  - "Loaded 7 ritual patterns"（无 Rejected）
+  - T1_OK：L1 建成后核心 tier=1（匹配到 level1）
+  - T2_OK：A1 原地升级 L2（只补新增格）→ tier=2（渐进升级 + 已满足格跳过 均验证）
+  - NEG_OK：全 1 级仪式石无法形成 L2 环 → 回退 level1（品阶下限标签生效）
+未通过 ✘（待修）：
+  - T3_OK / T5_OK 没输出 → 原因已定位：tools/validate_ritual_pattern.py 的 place_commands
+    默认 only_additions=True，setup_t3/setup_t5 在全新锚点上只放了"新增环"，缺整个内盘 → 无法匹配任何级。
+    修法：生成 setup_t3/setup_t5 时传 only_additions=False（setup_neg 已是 False，正确）。
+    然后重新 --test-out 生成数据包重跑。
+  - 发电数值验证缺失：check 函数里的 `data get block X Y Z StoredSpiritPower 1` 输出不进日志。
+    建议改成函数内取值再判断：
+      execute store result score $sp gs run data get block <x> <y> <z> StoredSpiritPower 1
+      execute if score $sp gs matches 1.. run say [GS-TEST] SP_OK:<nan>...
+    （需先 scoreboard objectives add gs dummy；T1 的发电机制本身未验证到数值）
+
+三、环境坑（重要！）
+1. run/mods 里的 forgematica-0.4.2 / mafglib-0.4.3 是客户端 mod：
+   其 mixin（LevelChunk.redirectIsRemote 引用 LocalPlayer）在 dedicated server 上，
+   一旦世界 tick 走到 setBlockState 该路径（如树叶计划刻衰减）就 FATAL 崩溃
+   （崩溃报告：run/crash-reports/crash-2026-09-05_14.54.46-server.txt）。
+   临时方案已内置于 tools/_run_ritual_test.ps1：跑服前把两个 jar 挪到 tools/_mod_stash，finally 恢复。
+   长期方案待用户决策（如标记 client-only / 移到其他目录 / forge 端禁用）。
+2. 测试服务器进程可能残留：先 `netstat -ano | findstr 25565` 再 Stop-Process（上次已手动清理 PID 5772）。
+3. run/ 为 runClient/runServer 共用目录；gs_ritual_test 数据包的 load 标签【每次世界加载都会自动
+   setblock 四个测试结构（y=100 天空）】——验证通过后务必删除该数据包。
+4. gradle 长命令按项目约定重定向到文件再读：cmd /c "gradlew.bat runServer --console=plain < run\stdin.txt > build_out.txt 2>&1"
+
+四、新会话待办清单
+1. 修 tools/validate_ritual_pattern.py：setup_t3/setup_t5 的 place_commands 传 only_additions=False
+2. 重新生成测试包：python tools/validate_ritual_pattern.py --test-out run\world\datapacks\gs_ritual_test
+   （先确认 25565 无残留进程；确认 run/world/datapacks/gs_ritual_test 被 --test-out 覆盖刷新）
+3. 把 check_t1/check_t5 的 data get 改为 scoreboard 判分 + say（见二），或干脆先用 execute if data + say
+4. powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1 （自动 stash mods→跑服→恢复→尝试杀服）
+   期望输出：T1_OK/T2_OK/T3_OK/T5_OK/NEG_OK/ALL_DONE + SP>0
+5. 若 T3/T5 仍失败：查 build_out.txt 窗口期日志；可用 /execute if block 逐格排查缺失方块
+   （数据包函数都是纯 setblock，可人工核对 run/world/datapacks/gs_ritual_test/data/gs_test/function/*.mcfunction）
+6. 全部通过后收尾：
+   - 删除 run/world/datapacks/gs_ritual_test（重要！load 标签会重复搭结构）
+   - 删除/清空 run/stdin.txt（内含 function gs_test:run_all）
+   - 删除 tools/_run_ritual_test.ps1、build_out.txt（或归档）
+   - 保留 tools/validate_ritual_pattern.py 与 tools/_preview/ritual_generator/*.png（预览图可给用户看）
+7. 文档更新：docs/new-ritual-checklist.md 增补两节：
+   - 多层级累积编写约定（每级必须包含全部低级格位；注意 off-axis 轨道 (a,b)≠(b,a)，双向都要列）
+   - 品阶下限标签约定 ritual_stones_N_plus / ritual_pedestals_N_plus 及其与构建器品阶选择的联动
+     （构建器 resolveBlock 按"标签内 tierOf==所选品阶"实例化：品阶选 2 时 1..5 环全变 2 级石，
+       跨级选品阶可渐进搭建，已满足格自动跳过不重复扣料——RitualBuilderPlacement 现有逻辑天然支持）
+8. 可选（用户此前提过）：若用户满意结构设计，下一步是实现自定义装饰方块（鸟居柱/灵力灯笼/符文地砖等）
+   并替换 palette 中的原版替代品（palette 是数据，替换零代码）。
+
+五、快速参考
+- 校验：python tools\validate_ritual_pattern.py （--render tools\_preview\ritual_generator 可重出图）
+- 测试链时序：run_all(load标签/控制台触发) → forceload(-16,-16~112,32) → setup_t1(1s) → check_t1(3s)
+  → setup_t2 → check_t2 → setup_t3(锚点44,100,4) → check_t3 → setup_t5(锚点64,100,4,含电容) → check_t5
+  → setup_neg(锚点84,100,4) → check_neg → ALL_DONE（全程约 30s）
+- 测试锚点：A1=(4,100,4) 电容核心在其正上方(4,101,4)+石(6,101,6)；A5 电容(64,101,4)+石(66,101,6)
+- 概念图与设计的对应：L1祭坛基座 L2能量基座 L3封印之环 L4灵力回廊 L5神域之冠（每级对应图一级）
