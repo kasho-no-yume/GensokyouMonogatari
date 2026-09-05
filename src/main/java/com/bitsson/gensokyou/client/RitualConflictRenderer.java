@@ -27,7 +27,8 @@ import java.util.OptionalDouble;
 @EventBusSubscriber(modid = Gensokyou.MODID, value = Dist.CLIENT)
 public final class RitualConflictRenderer {
 
-    private static final RenderType OVERLAY_LINES = RenderType.create(
+    /** 冲突红框线渲染类型（ RitualPreviewRenderer 的 AIR 冲突红框复用同一实例）。 */
+    static final RenderType OVERLAY_LINES = RenderType.create(
             "ritual_conflict_overlay_lines",
             DefaultVertexFormat.POSITION_COLOR_NORMAL,
             VertexFormat.Mode.LINES,

@@ -38,11 +38,17 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
     private static final int TIER_Y = 26;
     private static final int TIER_SIZE = 18;
     private static final int MAT_Y = 60;
+    /** 材料视口：MAT_Y .. 面板底-4；可视行数 = 视口高/18 向下取整。 */
+    private static final int MAT_VIEW_H = PANEL_HEIGHT - 4 - MAT_Y;
+    private static final int MAT_ROWS = MAT_VIEW_H / 18;
+    private static final int MAT_BAR_X = PANEL_WIDTH - 10;
     private static final int COLOR_TEXT = 0xFF404040;
     private static final int COLOR_OK = 0xFF2E8B57;
     private static final int COLOR_BAD = 0xFFB22222;
 
     private int scroll;
+    /** 右列材料需求区滚动偏移（与左列 scroll 同款机制）。 */
+    private int matScroll;
     /**
      * 客户端乐观选择态：打开时从物品组件初始化，点击时立即更新并照常发 C2S。
      * 零槽菜单不同步手持 stack，故不能每帧回读组件（否则点了不刷新）；
@@ -117,7 +123,8 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
             }
             graphics.drawString(this.font, patternName(pattern), LIST_X + 20, y + 6, COLOR_TEXT, false);
         }
-        renderScrollbar(graphics, list.size(), maxScroll);
+        renderScrollbar(graphics, LIST_X + LIST_W + 2, LIST_Y - 2, LIST_ROWS * ROW_H,
+                list.size(), LIST_ROWS, this.scroll);
 
         // 右侧：品阶按钮 + 材料需求（均针对当前选中图案）
         RitualPattern selected = currentId == null ? null
@@ -144,15 +151,19 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
                         x + 6, TIER_Y + 6, 0xFFFFFFFF, true);
             }
         }
-        // 材料需求对比
+        // 材料需求对比（溢出滚动：可视行数 = MAT_ROWS，渲染/悬浮共用"可视下标 + matScroll"映射）
         graphics.drawString(this.font, Component.translatable("gui.gensokyou.builder.materials"),
                 RIGHT_X, MAT_Y - 11, COLOR_TEXT, false);
-        int y = MAT_Y;
-        for (RitualBuilderPlacement.Requirement req :
-                RitualBuilderPlacement.requirements(selected, currentTier)) {
+        List<RitualBuilderPlacement.Requirement> reqs =
+                RitualBuilderPlacement.requirements(selected, currentTier);
+        int matMaxScroll = Math.max(0, reqs.size() - MAT_ROWS);
+        this.matScroll = Math.max(0, Math.min(this.matScroll, matMaxScroll));
+        for (int i = 0; i < MAT_ROWS && i + matScroll < reqs.size(); i++) {
+            RitualBuilderPlacement.Requirement req = reqs.get(i + matScroll);
             ItemStack probe = new ItemStack(req.block());
             int have = this.minecraft.player.getInventory().countItem(req.block().asItem());
             boolean enough = have >= req.count();
+            int y = MAT_Y + i * 18;
             graphics.renderItem(probe, RIGHT_X, y);
             graphics.drawString(this.font,
                     Component.translatable("gui.gensokyou.builder.material_count",
@@ -162,8 +173,8 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
                     && mouseY >= topPos + y && mouseY < topPos + y + 16) {
                 this.hoveredMaterial = probe.getHoverName();
             }
-            y += 18;
         }
+        renderScrollbar(graphics, MAT_BAR_X, MAT_Y, MAT_ROWS * 18, reqs.size(), MAT_ROWS, matScroll);
     }
 
     @Override
@@ -216,26 +227,31 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        // 左列图案列表区
         if (mouseX >= leftPos + LIST_X && mouseX <= leftPos + LIST_X + LIST_W
                 && mouseY >= topPos + LIST_Y && mouseY <= topPos + LIST_Y + LIST_ROWS * ROW_H) {
             this.scroll += scrollY > 0 ? -1 : 1;
             return true;
         }
+        // 右列材料需求区（互不串扰：区域按 x 分流）
+        if (mouseX >= leftPos + RIGHT_X
+                && mouseY >= topPos + MAT_Y && mouseY <= topPos + MAT_Y + MAT_VIEW_H) {
+            this.matScroll += scrollY > 0 ? -1 : 1;
+            return true;
+        }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
-    /** 列表溢出时绘制右侧滚动条轨道+滑块，提示可滚动。 */
-    private void renderScrollbar(GuiGraphics graphics, int total, int maxScroll) {
+    /** 列表溢出时绘制右侧滚动条轨道+滑块，提示可滚动（x/top/h 相对面板左上角）。 */
+    private void renderScrollbar(GuiGraphics graphics, int x, int top, int h, int total, int visible, int scroll) {
+        int maxScroll = Math.max(0, total - visible);
         if (maxScroll <= 0) {
             return;
         }
-        int trackX = LIST_X + LIST_W + 2;
-        int trackTop = LIST_Y - 2;
-        int trackH = LIST_ROWS * ROW_H;
-        graphics.fill(trackX, trackTop, trackX + 4, trackTop + trackH, 0xFFC0C0C0);
-        int thumbH = Math.max(12, trackH * LIST_ROWS / total);
-        int thumbY = trackTop + (int) ((trackH - thumbH) * (scroll / (float) maxScroll));
-        graphics.fill(trackX, thumbY, trackX + 4, thumbY + thumbH, 0xFF707070);
+        graphics.fill(x, top, x + 4, top + h, 0xFFC0C0C0);
+        int thumbH = Math.max(12, h * visible / total);
+        int thumbY = top + (int) ((h - thumbH) * (scroll / (float) maxScroll));
+        graphics.fill(x, thumbY, x + 4, thumbY + thumbH, 0xFF707070);
     }
 
     private static Component patternName(RitualPattern pattern) {

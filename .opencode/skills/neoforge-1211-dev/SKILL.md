@@ -76,6 +76,14 @@ metadata:
   `registerBlockEntityRenderer`（方块实体，注意不是 registerBlockRenderer）。
 - **主仪式方块点击分发**：无匹配结构或无行为的 pattern 必须**返回 PASS** 让物品 useOn 有机会执行
   （否则催化剂等物品永远收不到点击——已踩坑）。范例：`block/RitualCoreBlock.java`。
+- **自定义核心着色器**：json 里 `vertex`/`fragment` 必须**带 mod 命名空间**（`"gensokyou:ritual_ghost"`）——
+  裸名默认解析到 `minecraft:` 命名空间（原版文件就是这么写的），结果 FileNotFound，
+  RegisterShadersEvent 抛异常卡死资源重载、进不去游戏（日志特征：`minecraft:shaders/core/xxx.vsh` FileNotFoundException）。
+  BLOCK 顶点格式 shader 克隆 `rendertype_translucent` 三件套即可（vsh 不声明 UV1 属正常，json 无 attributes 段）；
+  `RenderStateShard` 各状态分片的 `setupState` 是 **public final Runnable 字段、不可覆写**——
+  双 RenderType 各喂不同 uniform 的正确姿势：共用一个 ShaderInstance，渲染器在每批 `endBatch` 前
+  `shader.getUniform("Tint").set(...)`（脏标记延迟到 apply 时上传，各批取值正确）。
+  仓内范例：`client/renderer/RitualGhostRenderTypes.java` + `RitualPreviewRenderer`。
 
 ## 数据包格式陷阱（worldgen 等）
 

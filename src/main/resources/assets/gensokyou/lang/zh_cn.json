@@ -140,6 +140,7 @@
   "msg.gensokyou.builder_placed": "已放置 %s / %s 格",
   "msg.gensokyou.builder_incomplete": "材料不足，结构未完全成型",
   "msg.gensokyou.builder_nothing": "无需放置（已成型）",
+  "msg.gensokyou.builder_preview_confirm": "再次右键核心确认建造",
   "gui.gensokyou.ritual.start": "▶ 启动",
   "gui.gensokyou.ritual.stop": "■ 停止",
   "gui.gensokyou.ritual.running": "运行中",

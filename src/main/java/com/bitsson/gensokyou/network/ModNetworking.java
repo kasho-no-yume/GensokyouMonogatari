@@ -8,6 +8,7 @@ import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
 import com.bitsson.gensokyou.registry.ModDataComponents;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
+import com.bitsson.gensokyou.ritual.RitualPreviewState;
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.bitsson.gensokyou.spirit.SkillStateData;
 import com.bitsson.gensokyou.spirit.SpellCardEffects;
@@ -47,6 +48,8 @@ public final class ModNetworking {
                 ModNetworking::handleRitualSelect);
         registrar.playToClient(RitualConflictPayload.TYPE, RitualConflictPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleRitualConflict);
+        registrar.playToClient(RitualPreviewPayload.TYPE, RitualPreviewPayload.STREAM_CODEC,
+                ClientPayloadHandler::handleRitualPreview);
         registrar.playToClient(DialogSyncPayload.TYPE, DialogSyncPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleDialogSync);
         registrar.playToServer(DialogActionPayload.TYPE, DialogActionPayload.STREAM_CODEC,
@@ -76,6 +79,12 @@ public final class ModNetworking {
     /** 下发冲突坐标供客户端红框渲染。 */
     public static void sendRitualConflicts(ServerPlayer player, java.util.List<BlockPos> positions) {
         PacketDistributor.sendToPlayer(player, new RitualConflictPayload(positions));
+    }
+
+    /** 下发构建器预览态（有值置入/替换，空清除）。 */
+    public static void sendRitualPreview(ServerPlayer player,
+                                         java.util.Optional<RitualPreviewState> preview) {
+        PacketDistributor.sendToPlayer(player, new RitualPreviewPayload(preview));
     }
 
     /** C2S 选择：校验图案存在 + 品阶合法后写回手上构建器组件。 */

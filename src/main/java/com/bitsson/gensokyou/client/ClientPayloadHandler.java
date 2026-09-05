@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.client;
 import com.bitsson.gensokyou.network.DialogSyncPayload;
 import com.bitsson.gensokyou.network.RitualConflictPayload;
 import com.bitsson.gensokyou.network.RitualInfoPayload;
+import com.bitsson.gensokyou.network.RitualPreviewPayload;
 import com.bitsson.gensokyou.network.SkillSyncPayload;
 import com.bitsson.gensokyou.network.SpiritPowerSyncPayload;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -27,6 +28,10 @@ public final class ClientPayloadHandler {
 
     public static void handleRitualConflict(RitualConflictPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> ClientRitualConflictState.update(payload.positions()));
+    }
+
+    public static void handleRitualPreview(RitualPreviewPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> ClientRitualPreviewState.update(payload.preview()));
     }
 
     /** 对话同步：委托客户端专属类处理（服务端不加载 DialogScreen/Minecraft）。 */

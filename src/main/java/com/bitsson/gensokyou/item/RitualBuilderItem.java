@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.item;
 
 import com.bitsson.gensokyou.menu.RitualBuilderMenu;
+import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.registry.ModDataComponents;
 import com.bitsson.gensokyou.registry.ModMenus;
@@ -8,6 +9,8 @@ import com.bitsson.gensokyou.registry.TierPalette;
 import com.bitsson.gensokyou.ritual.RitualBuilderPlacement;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
+import com.bitsson.gensokyou.ritual.RitualPreviewState;
+import com.bitsson.gensokyou.spirit.ModAttachments;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -58,7 +61,7 @@ public class RitualBuilderItem extends Item {
                     Component.translatable("msg.gensokyou.builder_core_only"), true);
             return InteractionResult.FAIL;
         }
-        return doBuild(player, context.getHand(), context.getClickedPos());
+        return handleBuild(player, context.getHand(), context.getClickedPos());
     }
 
     @Override
@@ -83,6 +86,39 @@ public class RitualBuilderItem extends Item {
                 (id, inventory, p) -> new RitualBuilderMenu(id, inventory, hand),
                 Component.translatable("gui.gensokyou.builder.title")),
                 buf -> buf.writeByte(hand.ordinal()));
+    }
+
+    /**
+     * 两段式确认（服务端权威）：预览态与"此核心 + 手上选择 + 当前维度"全等 →
+     * 执行 {@link #doBuild} 并清态（成功/失败均清）；否则置入/替换预览态并 S2C 下发，
+     * 不放置任何方块、不消耗材料。成型核心走不到这里（行为分发先截获开 UI）。
+     */
+    private InteractionResult handleBuild(ServerPlayer player, InteractionHand hand, BlockPos corePos) {
+        ItemStack stack = player.getItemInHand(hand);
+        BuilderSelection selection = stack.get(ModDataComponents.RITUAL_BUILDER_SELECTION.get());
+        if (selection == null) {
+            player.displayClientMessage(
+                    Component.translatable("msg.gensokyou.builder_select_first"), true);
+            return InteractionResult.FAIL;
+        }
+        if (RitualPatternLoader.byId(selection.patternId()).isEmpty()) {
+            player.displayClientMessage(
+                    Component.translatable("msg.gensokyou.builder_pattern_gone"), true);
+            return InteractionResult.FAIL;
+        }
+        RitualPreviewState preview = player.getData(ModAttachments.RITUAL_PREVIEW.get());
+        if (preview != null && preview.matches(corePos, selection, player.level().dimension())) {
+            player.removeData(ModAttachments.RITUAL_PREVIEW.get());
+            ModNetworking.sendRitualPreview(player, Optional.empty());
+            return doBuild(player, hand, corePos);
+        }
+        RitualPreviewState next = new RitualPreviewState(
+                selection.patternId(), selection.tier(), corePos, player.level().dimension());
+        player.setData(ModAttachments.RITUAL_PREVIEW.get(), next);
+        ModNetworking.sendRitualPreview(player, Optional.of(next));
+        player.displayClientMessage(
+                Component.translatable("msg.gensokyou.builder_preview_confirm"), true);
+        return InteractionResult.SUCCESS;
     }
 
     private InteractionResult doBuild(ServerPlayer player, InteractionHand hand, BlockPos corePos) {

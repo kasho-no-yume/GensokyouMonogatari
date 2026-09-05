@@ -10,6 +10,7 @@ import com.bitsson.gensokyou.client.renderer.TalismanDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.LaserDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.SukimaPortalRenderer;
 import com.bitsson.gensokyou.client.renderer.SukimaPortalRenderTypes;
+import com.bitsson.gensokyou.client.renderer.RitualGhostRenderTypes;
 import com.bitsson.gensokyou.client.screen.RitualBuilderScreen;
 import com.bitsson.gensokyou.client.screen.RitualBuilderScreen;
 import com.bitsson.gensokyou.client.screen.RitualCoreScreen;
@@ -73,6 +74,15 @@ public final class GensokyouClient {
                         ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "sukima_portal"),
                         DefaultVertexFormat.POSITION),
                 shader -> SukimaPortalRenderTypes.sukimaVoidShader = shader);
+        // 仪式投影幽灵着色器（克隆原版 rendertype_translucent，fsh 乘 Tint uniform）
+        event.registerShader(
+                new ShaderInstance(event.getResourceProvider(),
+                        ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "ritual_ghost"),
+                        DefaultVertexFormat.BLOCK),
+                shader -> {
+                    RitualGhostRenderTypes.ritualGhostShader = shader;
+                    RitualGhostRenderTypes.tintUniform = shader.getUniform("Tint");
+                });
     }
 
     @SubscribeEvent

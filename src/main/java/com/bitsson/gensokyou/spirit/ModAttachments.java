@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.SkillSyncPayload;
 import com.bitsson.gensokyou.network.SpiritPowerSyncPayload;
+import com.bitsson.gensokyou.ritual.RitualPreviewState;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -38,7 +39,12 @@ public final class ModAttachments {
             ATTACHMENTS.register("npc_offense", () -> AttachmentType
                     .<NpcOffenseData>builder(NpcOffenseData::initial)
                     .serialize(NpcOffenseData.CODEC)
-                    .copyOnDeath()
+                    .build());
+
+    /** 构建器预览态：会话级 transient（无 serialize/copyOnDeath），默认 null = 无预览。 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<RitualPreviewState>> RITUAL_PREVIEW =
+            ATTACHMENTS.register("ritual_preview", () -> AttachmentType
+                    .<RitualPreviewState>builder(() -> null)
                     .build());
 
     private ModAttachments() {

@@ -12,6 +12,7 @@ import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -42,6 +43,19 @@ public final class RitualBuilderPlacement {
 
     /** 一条材料需求：具体方块 + 全图案所需总数。 */
     public record Requirement(Block block, int count) {
+    }
+
+    /**
+     * 格位三分类：pending 待放置条目、conflicts 被非目标方块占据（含朝向不符）、
+     * airConflicts AIR 谓词格被占（投影画红框、搭建同样零容忍）。
+     */
+    public record Classification(List<RitualPattern.BlockEntry> pending,
+                                 List<Conflict> conflicts,
+                                 List<Conflict> airConflicts) {
+    }
+
+    /** 冲突格：世界坐标 + 对应格位条目（坐标供红框下发，条目供投影解析目标态渲染红幽灵）。 */
+    public record Conflict(BlockPos pos, RitualPattern.BlockEntry entry) {
     }
 
     /** 取图案最高 level 的切片（当前图案均只有 level 1）。 */
@@ -81,26 +95,21 @@ public final class RitualBuilderPlacement {
     }
 
     /**
-     * 执行一键搭建。调用方保证 {@code selection} 对应图案存在（{@link #build} 内二次防御）。
+     * 格位三分类纯函数（服务端搭建预检与客户端投影渲染共用的单一事实源，纯读）：
+     * 已满足谓词（含朝向）的格不入任何列表；空格入 pending；
+     * 被非目标方块占据的格按谓词种类分流——AIR 谓词格入 airConflicts，其余入 conflicts。
      *
      * @param anchorPos 仪式核心坐标（图案锚点/原点）
      */
-    public static Result build(ServerLevel level, BlockPos anchorPos,
-                               ServerPlayer player, BuilderSelection selection) {
-        Optional<RitualPattern> patternOpt = RitualPatternLoader.byId(selection.patternId());
-        if (patternOpt.isEmpty()) {
-            return Result.empty();
-        }
-        RitualPattern pattern = patternOpt.get();
+    public static Classification classify(Level level, BlockPos anchorPos,
+                                          RitualPattern pattern, int tier) {
         RitualPattern.LevelSlice slice = topSlice(pattern);
         if (slice == null) {
-            return Result.empty();
+            return new Classification(List.of(), List.of(), List.of());
         }
-        int tier = selection.tier();
-
-        // 1. 冲突预检：区分"已满足（跳过）""待放置""被非目标方块占据（冲突）"
         List<RitualPattern.BlockEntry> pending = new ArrayList<>();
-        List<BlockPos> conflicts = new ArrayList<>();
+        List<Conflict> conflicts = new ArrayList<>();
+        List<Conflict> airConflicts = new ArrayList<>();
         for (RitualPattern.BlockEntry entry : slice.blocks()) {
             RitualPattern.Predicate predicate = pattern.palette().get(entry.key());
             if (predicate == null || predicate.kind() == RitualPattern.Kind.IGNORE) {
@@ -113,12 +122,37 @@ public final class RitualBuilderPlacement {
             }
             if (state.isAir()) {
                 pending.add(entry); // 空格，待放置
+            } else if (predicate.kind() == RitualPattern.Kind.AIR) {
+                airConflicts.add(new Conflict(target.immutable(), entry)); // AIR 谓词格被占：投影画红框
             } else {
-                conflicts.add(target.immutable()); // 被占且不满足谓词（含朝向不符）
+                conflicts.add(new Conflict(target.immutable(), entry)); // 被占且不满足谓词（含朝向不符）
             }
         }
+        return new Classification(pending, conflicts, airConflicts);
+    }
+
+    /**
+     * 执行一键搭建。调用方保证 {@code selection} 对应图案存在（{@link #build} 内二次防御）。
+     *
+     * @param anchorPos 仪式核心坐标（图案锚点/原点）
+     */
+    public static Result build(ServerLevel level, BlockPos anchorPos,
+                               ServerPlayer player, BuilderSelection selection) {
+        Optional<RitualPattern> patternOpt = RitualPatternLoader.byId(selection.patternId());
+        if (patternOpt.isEmpty()) {
+            return Result.empty();
+        }
+        RitualPattern pattern = patternOpt.get();
+        int tier = selection.tier();
+
+        // 1. 冲突预检（共用三分类；Result.conflicts 取并集，保持 AIR 占位格红框现状）
+        Classification classification = classify(level, anchorPos, pattern, tier);
+        List<RitualPattern.BlockEntry> pending = classification.pending();
+        List<BlockPos> conflicts = new ArrayList<>();
+        classification.conflicts().forEach(c -> conflicts.add(c.pos()));
+        classification.airConflicts().forEach(c -> conflicts.add(c.pos()));
         if (!conflicts.isEmpty()) {
-            return new Result(pending.size(), 0, true, conflicts);
+            return new Result(pending.size(), 0, true, List.copyOf(conflicts));
         }
 
         // 2. 规范序尽力放置（slice.blocks() 已按 (y,z,x) 排序，pending 保序）
