@@ -57,8 +57,8 @@ public record RitualPattern(ResourceLocation id, char anchorKey,
         }
     }
 
-    /** 单个必需方块：相对锚点的完整偏移（已展开）。 */
-    public record BlockEntry(char key, int x, int y, int z) {
+    /** 单个必需方块：相对锚点的完整偏移（已展开）。orientation 为 {@link Orientation} 常量 id，null = 无朝向要求。 */
+    public record BlockEntry(char key, int x, int y, int z, @Nullable Integer orientation) {
     }
 
     /** 一个层级（等级）：blocks 为展开并排序后的全量偏移表。 */

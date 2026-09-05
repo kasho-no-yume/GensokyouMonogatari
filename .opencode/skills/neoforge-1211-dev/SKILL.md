@@ -20,6 +20,10 @@ metadata:
    `run/eula.txt` 写 `eula=true` → `gradlew.bat runServer --console=plain` → 看 `run/logs/latest.log`
    是否出现 `Done (`；注册表错误在日志开头 `Errors in registry` 区块，**详细 Caused by 在 debug.log 同位置**。
 3. **注意**：`runClient` 与 `runServer` 共用 `run/` 目录，同时开两个实例会互抢 latest.log 与 25565 端口。
+   杀 runServer 要连 java 子进程一起杀（shell 会话终止 ≠ java 退出），否则残留进程持 world/region 的
+   DirectoryLock 与 latest.log 句柄，下一次启动直接崩在锁上。控制台 stdin 经包装层不可靠，
+   无头验证优先走"启动期日志断言"而非交互命令。另：run/mods 里的 Forgematica 在专用服务端有
+   蜂巢 tick 崩溃（mixin 引 LocalPlayer），服务端回归日志里见到属环境噪声、非本 mod 问题。
 4. 原版参考 JSON / 贴图提取：客户端 jar 在 `neoformruntime/artifacts/minecraft_1.21.1_client.jar`；
    提取脚本模板见 `tools/extract_placeholder_assets.ps1`。
 
@@ -45,6 +49,8 @@ metadata:
 | 物品 tint 色带 alpha=0 → 染层隐形 | 1.21.1 `ItemRenderer.renderQuadList` 提取 tint 色 alpha 乘入顶点色；ItemColor 返回值必须带 `0xFF000000`（原版 DyeColor 均为 0xFFxxxxxx），返回 0x00RRGGBB 会让该层整层透明（现象：物品只有未染色层可见） |
 | blockstate 空 variant 键生成 | 用程序写（python json.dump）；PowerShell 反引号转义拼 JSON 易产生 `"""` 三引号坏键（报 "missing model for variant" 且方块紫黑） |
 | Registry.register(BuiltInRegistries.BIOME_SOURCE,...) 在 mod ctor | **报 already frozen**——内建世界生成注册表（biome_source/density_function_type/multi_noise 参数表等）mod 期不可写，只能数据包 |
+| `BlockStateProperties.HORIZONTAL_ROTATION`（旗帜旋转） | 1.21.1 叫 `ROTATION_16`（IntegerProperty "rotation" 0-15）；且段值已是罗盘序 **北0/东4/南8/西12**（`RotationSegment` 常量），旧教程"0=南"是 1.20.5 前约定 |
+| 在 sources jar 里找 StairsBlock/LogBlock | 找不到——`sourcesAndCompiledWithNeoForge_*.jar` **只含 NeoForge 补丁过的类**；未补丁类（楼梯/原木等）的存在性与字段用行为测试或反编译 class 验证，勿因缺文件臆造 API |
 
 其他确定项：`SoundEvents.WITHER_SPAWN`、`EXPERIENCE_ORB_PICKUP` 是裸 SoundEvent（部分新音效才是 Holder，
 拿不准就查源码字段类型）；ThrowableProjectile 重力覆写 `getDefaultGravity()` 返回 double；

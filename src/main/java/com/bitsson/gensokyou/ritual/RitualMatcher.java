@@ -66,6 +66,10 @@ public final class RitualMatcher {
             if (predicate == null || !predicate.test(state)) {
                 return null;
             }
+            if (block.orientation() != null
+                    && !Orientation.matches(state, Orientation.rotateBy(block.orientation(), rotation))) {
+                return null;
+            }
             maxTier = Math.max(maxTier, ModBlocks.tierOf(state.getBlock()));
             keyed.computeIfAbsent(block.key(), k -> new ArrayList<>()).add(target);
         }

@@ -108,13 +108,13 @@ public final class RitualBuilderPlacement {
             }
             BlockPos target = anchorPos.offset(entry.x(), entry.y(), entry.z());
             BlockState state = level.getBlockState(target);
-            if (predicate.test(state)) {
+            if (predicate.test(state) && orientationSatisfied(entry, state)) {
                 continue; // 已满足（含锚点核心、已摆对的石/台、AIR 位为空气）
             }
             if (state.isAir()) {
                 pending.add(entry); // 空格，待放置
             } else {
-                conflicts.add(target.immutable()); // 被占且不满足谓词
+                conflicts.add(target.immutable()); // 被占且不满足谓词（含朝向不符）
             }
         }
         if (!conflicts.isEmpty()) {
@@ -126,22 +126,47 @@ public final class RitualBuilderPlacement {
         Inventory inventory = player.getInventory();
         int placed = 0;
         for (RitualPattern.BlockEntry entry : pending) {
-            RitualPattern.Predicate predicate = pattern.palette().get(entry.key());
-            Block block = resolveBlock(predicate, tier);
-            if (block == null) {
-                continue; // 非品阶标签，无法实例化，跳过
+            BlockState desired = resolveState(pattern, entry, tier);
+            if (desired == null) {
+                continue; // 无法实例化（非品阶标签或方块不支持朝向常量），跳过该格
             }
             BlockPos target = anchorPos.offset(entry.x(), entry.y(), entry.z());
-            if (!infinite && !consumeOne(inventory, block)) {
+            if (!infinite && !consumeOne(inventory, desired.getBlock())) {
                 continue; // 缺料，跳过该格
             }
-            level.setBlockAndUpdate(target, block.defaultBlockState());
-            level.playSound(null, target, block.defaultBlockState()
+            level.setBlockAndUpdate(target, desired);
+            level.playSound(null, target, desired
                     .getSoundType()
                     .getPlaceSound(), SoundSource.BLOCKS, 1.0F, 1.0F);
             placed++;
         }
         return new Result(pending.size(), placed, false, List.of());
+    }
+
+    /**
+     * 解析格位的目标 BlockState（种类 + 品阶 + 朝向一次到位）：
+     * EXACT 用固定方块、TAG 按品阶实例化，条目带朝向常量时应用之。
+     * 无法解析（谓词缺失/标签无对应品阶成员/方块不支持常量）返回 null。
+     */
+    @Nullable
+    public static BlockState resolveState(RitualPattern pattern,
+                                          RitualPattern.BlockEntry entry, int tier) {
+        Block block = resolveBlock(pattern.palette().get(entry.key()), tier);
+        if (block == null) {
+            return null;
+        }
+        BlockState state = block.defaultBlockState();
+        Integer orientation = entry.orientation();
+        if (orientation == null) {
+            return state;
+        }
+        return Orientation.supports(state, orientation)
+                ? Orientation.apply(state, orientation) : null;
+    }
+
+    /** 条目无朝向要求恒满足；有则世界状态须满足期望常量（构建器旋转恒 0）。 */
+    private static boolean orientationSatisfied(RitualPattern.BlockEntry entry, BlockState state) {
+        return entry.orientation() == null || Orientation.matches(state, entry.orientation());
     }
 
     /** 解析格位应放置的具体方块：EXACT 用固定 block；TAG 取标签内 tierOf==tier 的方块。 */

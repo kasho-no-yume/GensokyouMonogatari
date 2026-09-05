@@ -1,5 +1,9 @@
-## ADDED Requirements
+# ritual-stone-shapes Specification
 
+## Purpose
+仪式石的品阶装饰变种（台阶/楼梯/墙）：完整继承原版放置与连接行为，纯装饰定位——不参与仪式结构语义，不新增贴图。
+
+## Requirements
 ### Requirement: 形态变种族注册
 SHALL 按品阶独立注册 3 族共 18 个装饰方块：`ritual_stone_slab_0..5`（台阶，`SlabBlock`）、`ritual_stone_stairs_0..5`（楼梯，`StairBlock`，基态为同品阶 `ritual_stone_N`）、`ritual_stone_wall_0..5`（墙，`WallBlock`），复用 `ritual_stone_N` 贴图，不新增贴图。
 
