@@ -1,6 +1,6 @@
 ---
 name: ritual-design
-description: 仪式多方块结构（data/gensokyou/rituals/*.json）设计手册。需要新增、修改或重设计任何仪式 pattern、调整仪式层级/外形/材料时必读——含纯文字无效果图设计流程、坐标展开规则、"升级=纯增量不加不改"硬性不变量、离线校验/预览/测试数据包工具链与全部实测陷阱。
+description: 仪式多方块结构（data/gensokyou/rituals/*.json）设计手册。需要新增、修改或重设计任何仪式 pattern、调整仪式层级/外形/材料时必读——含纯文字无效果图设计流程、坐标展开规则、"升级=纯增量不加不改"硬性不变量与逐级生长设计准则、离线校验/预览/测试数据包工具链与全部实测陷阱。
 metadata:
   author: bitsson
   version: "1.0"
@@ -15,11 +15,11 @@ metadata:
 
 | 工具 | 用途 |
 |---|---|
-| `tools/validate_ritual_pattern.py` | 离线校验全部 pattern（展开冲突/累积断链/品阶下限/跨 pattern 劫持）；`--render DIR` 出各层级俯视 PNG；`--test-out DIR` 重新生成服务器测试数据包 |
+| `tools/validate_ritual_pattern.py` | 离线校验全部 pattern（展开冲突/累积断链/品阶下限/跨 pattern 劫持）；`--test-out DIR` 重新生成服务器测试数据包 |
 | `tools/gen_generator_circle.py` | **生成器模板**：canon/put/slab/pillar 骨架 + 冲突自检，新仪式照抄改蓝图即可，禁止手写大 JSON |
 | `tools/_run_ritual_test.ps1` | 实机端到端测试启动器（**由用户运行**，agent 不启动服务器） |
 | `run/world/datapacks/gs_ritual_test` | `--test-out` 生成的测试包，每次改 pattern 后必须重建 |
-| `tools/_preview/ritual_<name>/` | 各层级俯视预览图（新 palette exact 键需在 KEY_COLORS 补色，tag 键自动用品阶色） |
+| `tools/gen_tex.py` | 方块/物品/实体贴图生成（ASCII + 调色板，见 gen-textures skill） |
 | `.opencode/skills/neoforge-1211-dev` | 写任何 NeoForge 代码（新 behavior 等）前必读 |
 
 ## Pattern 格式
@@ -42,6 +42,7 @@ metadata:
 ## 硬性设计不变量（违反即返工）
 
 1. **升级 = 纯增量**：level N-1 的全部格位（含 key）必须是 level N 的子集。玩家从低级升高级**只在原建筑上加方块，绝不替换/拆除任何已有方块**。校验器强制此项。
+   设计面：把 level N-1 成品当作基座规划增量，新增方块与之共同构成同一座更高等级建筑（生长手法完全自由），不得把增量当成无视既有建筑的另起结构。
 2. **锚点唯一**：`anchorKey`（C）在每层恰好出现一次、位于 (0,0,0)。
 3. **缺席格 = 不限制**（任意方块均可）。用留空做功能槽位：核心四向港口 orbit(0,1)@y0、**核心正上方 (0,1,0)**（测试把电容核心叠在这里）、电容槽 orbit(2,2)@y1（电容四石位）。
 4. **品阶下限**：key 首现层级 L ⇒ 标签下限 ≥ L（"N"环用 `ritual_stones_N_plus`；P≥2、Q≥3、R≥4）。新增环必须是该层的"新"key。
@@ -51,12 +52,11 @@ metadata:
 ## 纯文字设计工作流（无效果图）
 
 1. 确认：仪式 id、用途与行为类型（复用已有 behavior 还是新写）、层级数（默认 5）、用户材料偏好。
-2. 设计逐层剪影：逐层**增量**列表（每层只写"新增"什么：新石环半径、柱/塔/门/装饰、材料），装饰材料随品阶递进（末地石→紫珀→深橡木→樱花木等原版块可自由混用）。
+2. 设计逐层剪影：逐层**增量**列表（每层只写"新增"什么：新石环半径、柱/塔/门/装饰、材料），装饰材料随品阶递进（末地石→紫珀→深橡木→樱花木等原版块可自由混用）。以低级成品为基座规划增量，形体手法自由发挥。
 3. 蓝图文字稿给用户确认（层级表：层 / 新增结构 / 材料 / 半径）。
 4. 写 `tools/gen_<ritual>_circle.py`（抄 gen_generator_circle.py 骨架）：canon(轴上格一律化为 (0,d))、put(lv,key,x,**y**,z 带冲突自检)、slab(环盘)、pillar(柱)。运行只打印每层格数摘要。
-5. `python tools/validate_ritual_pattern.py --render tools/_preview/ritual_<name> --test-out run/world/datapacks/gs_ritual_test`——有 ERROR 就改蓝图重跑。
-6. 新 palette exact 键在 `validate_ritual_pattern.py` 的 `KEY_COLORS` 补色后重跑 `--render`。
-7. 预览图路径汇报给用户；实机验证交用户跑 `powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1`。
+5. `python tools/validate_ritual_pattern.py --test-out run/world/datapacks/gs_ritual_test`——有 ERROR 就改蓝图重跑（俯视预览图已废除：美观评审进游戏实地看）。
+6. 实机验证交用户跑 `powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1`。
 
 ## 测试数据包约定（发电机 harness）
 

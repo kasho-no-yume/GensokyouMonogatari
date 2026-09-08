@@ -3,8 +3,9 @@
 
 用法：
   python tools/validate_ritual_pattern.py                 # 校验 rituals/ 下全部 pattern
-  python tools/validate_ritual_pattern.py --render DIR    # 额外输出俯视预览图
   python tools/validate_ritual_pattern.py --test-out DIR  # 额外生成服务器测试 mcfunction
+
+输出约定（给 AI 消费）：ERROR/WARN 一律单行 `ERROR: <pattern> <定位>: <原因>`，最先输出。
 
 校验项：
   1. 锚点唯一且位于原点；展开后无位置冲突（与 loader 同规则拒载）
@@ -22,19 +23,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'src' / 'main' / 'resources' / 'data' / 'gensokyou'
-PALETTE_TIER_COLORS = {
-    -1: (150, 150, 150), 0: (158, 158, 158), 1: (76, 175, 80), 2: (33, 150, 243),
-    3: (255, 193, 7), 4: (244, 67, 54), 5: (156, 39, 176),
-}
-KEY_COLORS = {
-    'C': (235, 190, 255), 'D': (205, 175, 245), 'E': (21, 101, 192),
-    'W': (184, 134, 11), 'G': (183, 28, 28), 'L': (255, 245, 157),
-    'O': (78, 52, 46), 'H': (109, 76, 65), 'A': (126, 87, 194),
-    'B': (206, 147, 216), 'P': (144, 202, 249), 'Q': (255, 224, 130),
-    'R': (255, 171, 145), 'X': (232, 232, 189), 'U': (191, 155, 203),
-    'J': (72, 72, 78), 'K': (81, 58, 42), 'T': (228, 150, 170),
-    'Y': (247, 197, 208),
-}
 
 
 def expand(key, x, y, z):
@@ -90,7 +78,10 @@ def parse_pattern(raw, tags):
     for level in raw['levels']:
         expanded, seen = [], {}
         for entry in level['blocks']:
-            key, x, y, z = entry['key'], entry['x'], entry['y'], entry['z']
+            if isinstance(entry, dict):     # {"key","x","y","z"} 或 ["key",x,y,z]（与 loader 双格式一致）
+                key, x, y, z = entry['key'], entry['x'], entry['y'], entry['z']
+            else:
+                key, x, y, z = entry[0], entry[1], entry[2], entry[3]
             for item in expand(key, x, y, z):
                 k2, x2, y2, z2 = item
                 pos = (x2, y2, z2)
@@ -103,17 +94,6 @@ def parse_pattern(raw, tags):
         levels.append({'level': level['level'], 'expanded': expanded})
     return {'id': raw['id'], 'anchor': raw['anchorKey'], 'palette': palette,
             'min_tiers': min_tiers, 'levels': levels, 'raw': raw}
-
-
-def key_color(key, palette, min_tiers=None):
-    if key in KEY_COLORS:
-        return KEY_COLORS[key]
-    if min_tiers is not None and min_tiers.get(key) in PALETTE_TIER_COLORS:
-        return PALETTE_TIER_COLORS[min_tiers[key]]
-    kind = palette[key][0]
-    if kind == 'TAG':
-        return (120, 120, 120)
-    return (200, 200, 200)
 
 
 def validate_pattern(pattern, errors, warnings):
@@ -171,48 +151,6 @@ def cross_pattern_hazards(patterns, errors, warnings):
                 if covered:
                     errors.append(f'劫持: {b_pattern["id"]} 的建筑会被先尝试的 '
                                   f'{a_pattern["id"]} (level {level["level"]}) 认领')
-
-
-def render_pattern(pattern, out_dir):
-    from PIL import Image, ImageDraw
-    out_dir.mkdir(parents=True, exist_ok=True)
-    for level in pattern['levels']:
-        cells = {}
-        for key, x, y, z in level['expanded']:
-            prev = cells.get((x, z))
-            if prev is None or y >= prev[0]:
-                cells[(x, z)] = (y, key)
-        if not cells:
-            continue
-        xs = [p[0] for p in cells] + [0]
-        zs = [p[1] for p in cells] + [0]
-        lo_x, hi_x = min(xs) - 1, max(xs) + 1
-        lo_z, hi_z = min(zs) - 1, max(zs) + 1
-        scale, margin = 14, 20
-        width = (hi_x - lo_x + 1) * scale + margin * 2
-        height = (hi_z - lo_z + 1) * scale + margin * 2
-        image = Image.new('RGB', (width, height), (24, 24, 28))
-        draw = ImageDraw.Draw(image)
-        for (x, z), (y, key) in cells.items():
-            color = key_color(key, pattern['palette'], pattern['min_tiers'])
-            px = margin + (x - lo_x) * scale
-            pz = margin + (z - lo_z) * scale
-            draw.rectangle([px, pz, px + scale - 2, pz + scale - 2], fill=color)
-            if (x, z) == (0, 0):
-                draw.rectangle([px + 2, pz + 2, px + scale - 4, pz + scale - 4],
-                               outline=(255, 255, 255), width=2)
-        for gx in range(lo_x, hi_x + 1):
-            if gx % 5 == 0:
-                px = margin + (gx - lo_x) * scale
-                draw.text((px, height - margin + 4), str(gx), fill=(160, 160, 160))
-        for gz in range(lo_z, hi_z + 1):
-            if gz % 5 == 0:
-                pz = margin + (gz - lo_z) * scale
-                draw.text((2, pz), str(gz), fill=(160, 160, 160))
-        name = pattern['id'].split(':')[1]
-        path = out_dir / f'{name}_level{level["level"]}.png'
-        image.save(path)
-    return out_dir
 
 
 # ---- 服务器端到端测试函数生成（发电机仪式专用场景） ----
@@ -341,7 +279,6 @@ def generator_test_functions(pattern, out_dir):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--render', metavar='DIR', help='输出各层级俯视预览图')
     parser.add_argument('--test-out', metavar='DIR', help='生成发电机仪式服务器测试数据包')
     args = parser.parse_args()
 
@@ -360,6 +297,20 @@ def main():
     if len(valid) == len(patterns):
         cross_pattern_hazards(patterns, errors, warnings)
 
+    if args.test_out:
+        generator = next((p for p in patterns if p['id'].endswith('generator_circle')), None)
+        if generator is None:
+            errors.append('未找到 generator_circle，无法生成测试包')
+        else:
+            generator_test_functions(generator, Path(args.test_out))
+            print(f'测试数据包: {args.test_out}')
+    # 错误/警告最先输出（单行，供 AI 直接消费），摘要其次
+    for warning in warnings:
+        print(f'WARN: {warning}')
+    for error in errors:
+        print(f'ERROR: {error}')
+    if errors:
+        sys.exit(1)
     for pattern in patterns:
         pid = pattern['id']
         total = sum(len(l['expanded']) for l in pattern['levels'])
@@ -370,24 +321,6 @@ def main():
                 by_key[key] = by_key.get(key, 0) + 1
             detail = ', '.join(f'{k}×{v}' for k, v in sorted(by_key.items()))
             print(f'   level {level["level"]}: {len(level["expanded"])} 格  [{detail}]')
-    if args.render:
-        for pattern in patterns:
-            target = Path(args.render)
-            render_pattern(pattern, target)
-            print(f'预览图: {target}/{pattern["id"].split(":")[1]}_level*.png')
-    if args.test_out:
-        generator = next((p for p in patterns if p['id'].endswith('generator_circle')), None)
-        if generator is None:
-            errors.append('未找到 generator_circle，无法生成测试包')
-        else:
-            generator_test_functions(generator, Path(args.test_out))
-            print(f'测试数据包: {args.test_out}')
-    for warning in warnings:
-        print(f'WARN: {warning}')
-    for error in errors:
-        print(f'ERROR: {error}')
-    if errors:
-        sys.exit(1)
     print('\n全部 pattern 校验通过')
 
 
