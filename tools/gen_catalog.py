@@ -105,23 +105,28 @@ def pattern_summaries():
         j = read_json(p)
         pid = j["id"]
         anchor = j["anchorKey"]
-        levels = j.get("levels", [])
+        levels = sorted(j.get("levels", []), key=lambda lv: lv["level"])
         lv_rows = []
         total = 0
+        cumulative = {}  # (x,y,z) -> key，逐级增量累积的规范四分之一格（v5；v4 blocks 快照兼容）
         for lv in levels:
-            blocks = lv.get("blocks", [])
-            cnt = 0
-            rmax = 0
-            ys = {}
-            for b in blocks:
+            adds = lv.get("adds")
+            if adds is None:
+                adds = lv.get("blocks", [])
+            for b in adds:
                 if isinstance(b, dict):
                     key, x, y, z = b["key"], b["x"], b["y"], b["z"]
                 else:
                     key, x, y, z = b[0], b[1], b[2], b[3]
+                cumulative[(x, y, z)] = key
+            cnt = 0
+            rmax = 0
+            ys = {}
+            for x, y, z in cumulative:
                 cnt += expand_count(x, z)
                 rmax = max(rmax, x * x + z * z)
                 ys[y] = ys.get(y, 0) + 1
-            lv_rows.append((lv["level"], len(blocks), cnt, rmax, ys))
+            lv_rows.append((lv["level"], len(cumulative), cnt, rmax, ys))
             total += cnt
         pal = j.get("palette", {})
 
@@ -178,7 +183,7 @@ def gen_patterns_md(out_dir):
     for pid, anchor, toggle, lv_rows, total, pal_s in pattern_summaries():
         name = pid.split(":")[1]
         L.append("## %s\n" % pid)
-        L.append("- 锚点 key：`%s`（每层唯一，位于 (0,0,0)）· toggleable=%s · 优先级 %d" % (anchor, str(toggle).lower(), total))
+        L.append("- 锚点 key：`%s`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=%s · 优先级 %d" % (anchor, str(toggle).lower(), total))
         L.append("- palette：`%s`" % pal_s)
         L.append("")
         L.append("| 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |")

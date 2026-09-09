@@ -7,7 +7,7 @@
     "P": "#gensokyou:ritual_pedestals"
   },
   "levels": [
-    { "level": 1, "blocks": [
+    { "level": 1, "adds": [
       ["C",0,0,0],
       ["S",0,0,1],
       ["S",1,0,1],

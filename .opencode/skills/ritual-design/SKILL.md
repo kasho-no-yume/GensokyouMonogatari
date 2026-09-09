@@ -1,73 +1,122 @@
 ---
 name: ritual-design
-description: 仪式多方块结构（data/gensokyou/rituals/*.json）设计手册。需要新增、修改或重设计任何仪式 pattern、调整仪式层级/外形/材料时必读——含纯文字无效果图设计流程、坐标展开规则、"升级=纯增量不加不改"硬性不变量与逐级生长设计准则、离线校验/预览/测试数据包工具链与全部实测陷阱。
+description: 仪式设计手册。需要新增、修改或重设计任何仪式结构 pattern（data/gensokyou/rituals/*.json）、调整仪式阶级/外形/材料时必读——含角色定位（只设计不读码）、v5 pattern 增量格式与四重对称展开、自定义仪式方块说明、选材规则（仪式石硬性+其余皆建议）、硬性设计不变量、美感优先的设计工作流与离线校验/测试工具链。
 metadata:
   author: bitsson
-  version: "1.0"
+  version: "2.1"
 ---
 
-# 仪式多方块结构设计（rituals/*.json）
+# 仪式结构设计（rituals/*.json）
 
-权威参考：展开/拒载逻辑见 `src/main/java/com/bitsson/gensokyou/ritual/RitualPatternLoader.java`，
-行为注册见 `ritual/RitualBehaviors.java`，行为实现见 `ritual/behavior/*.java`。
+## 0. 角色定位（先读）
 
-## 可复用工具清单
+- **你是仪式设计者，不是程序员。** 产出物只有：设计蓝图（文字稿）、结构 pattern JSON、（可选）生成脚本、给用户的需求说明。配方 JSON 与一切 Java/模组编码都归用户/程序侧。
+- **禁止读代码。** Java 源码（loader/matcher/behavior 等）与工具脚本内部实现都不读。本文件、`.opencode/skills/astra-design/` 下的 `BLOCKS.md` / `PATTERNS.md`（机器生成的目录文档）、以及 pattern JSON 本身，就是你全部的事实来源。
+- 确实必须靠代码才能回答的问题：**停下，向用户申请**——由用户回答，或明确授权后再看用户指定的最小片段。
+- 你不要去考虑任何程序侧的需求或实现，你要做的只有设计并产出符合规则的多方块结构。
+- **现有仪式全是早期占位设计，无参考性**：只把它们当"存在什么"的清单（看 PATTERNS.md 即可），禁止照抄其结构手法、选材套路或格式细节；将随正式设计替换或删除（4 条现行配方挂靠 processing_circle，删除前须先迁移配方）。
+- **遇到问题不要长思考**：优先向用户询问进行确认。
+
+## 1. Pattern 结构知识与基础设定
+
+pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务器启动与 reload 时加载。id 惯例 `gensokyou:<用途>_circle`。
+
+### JSON 格式（v5，唯一合法格式）
+
+```json
+{
+  "id": "gensokyou:xxx_circle",
+  "anchorKey": "C",
+  "palette": { "C": "gensokyou:ritual_core",
+               "S": "#gensokyou:ritual_stones" },
+  "levels": [
+    { "level": 0, "adds": [
+      ["C",0,0,0],
+      ["S",0,3,0]
+    ] }
+  ]
+}
+```
+
+- 方块条目是**位置数组** `[key,x,y,z]` 或 `[key,x,y,z,朝向]`。**对象格式 `{"key":...,"x":...}` 是被淘汰的 v3：loader 与校验器都直接拒载**（永远写数组）。层级字段用 `adds`；**v4 的全量快照字段 `blocks` 已废弃，出现即拒载**（日志给迁移指引）。
+- `anchorKey`：锚点键名，即**仪式核心**对应的 palette 键（惯例 `C` → `gensokyou:ritual_core`）。一个仪式全文件只有**唯一一个核心**：`["C",0,0,0]` 条目**只写在最低阶（level 0）的增量里**，loader 全文件校验"恰好出现一次、位于 (0,0,0)（含 y=0）"——写漏、写重、挪到更高阶增量都拒载。核心在最低阶就已就位，高阶增量不再重复声明，仪式即在对应阶运作。
+- **levels 是逐级增量，不是全量快照**：每个 level 的 adds 只写该级**新增**的格位，低级格位绝不重复登记。加载期 loader 四重展开后逐级**累积**成全量切片，匹配/构建等下游照旧消费全量语义；"升级=纯增量"由**构造性校验**保证——某级增量与低级累积切片任意格位相交（含同 key 重复登记）即拒载，日志报明冲突格位与来源层级。
+- 落 JSON 时**只写每层新增**：脚本的累积字典（`levels[i] = dict(levels[i-1])`）照旧用于冲突自检，但输出段取每级差分（gen_generator_circle 骨架已内置）；手写则逐层只写新增条目——别把低级格位复制进高级增量。
+- 可选顶层字段：`toggleable`（默认 false，切换型仪式开关）；`tiers`（本仪式可用的方块品阶集合，**默认 0..5**，非空、取值 0..5）——**它就是构建器 UI 品阶按钮的唯一来源**（不写死 0-5）。⚠️ **必须显式写 `tiers` 并与阶级范围对齐**：0~3 阶仪式写 `"tiers": [0,1,2,3]`；省略则缺省 0..5，构建器会凭空多出本仪式根本没有的高品阶按钮（"0~3 阶仪式却读到 0~5"）。注意 0 档（灰阶）只对全阶标签格位有效：选 0 碰 `_N_plus` 格位解析不出方块、放置时跳过（`_N_plus` 成员里没有灰阶）。**不要写 `requirements`**（供品机制归程序侧的历史兼容字段）。
+- palette 值四种谓词：
+  - 纯方块 id → 该格必须精确是这个方块；
+  - `#gensokyou:标签` → 标签内任一方块均可（palette 含任一标签谓词时，构建器 UI 会显示品阶选择）；
+  - `air` → 该格必须为空（被占会红框、搭建零容忍）；
+  - `_ignore` → 不限制、不追踪（与"缺席"等效，用于显式占位）。
+  - **禁止带 `[状态后缀]`**；树叶会凋谢 → 用原木/花瓣替代。
+- 朝向（第 5 元素）：写名字串 `"north"/"east"/"south"/"west"`、`"north_top"`…`"west_top"`、`"up"/"down"`、`"r0".."r15"`（十六段旋转，如旗帜/罗盘类）。锚点、AIR、IGNORE 不得带朝向；EXACT 方块必须支持该朝向（loader 校验）。**只需给出规范格自身的朝向**，四重展开时的朝向变换 loader 自动完成。
+
+### 四重对称展开（坐标=四分之一规范形，x≥0、z≥0，y 为相对锚点高度）
+
+- **核心格固定写 `["C",0,0,0]`**：loader 强制核心位于 (0,0,0)（x/y/z 全 0），y≠0 直接拒载（否则匹配器会去核心上方找"另一个核心"而永不匹配）。
+- **"核心在原点"只是参考系，不代表核心在建筑最底层**：其余格位的 y 相对核心、正负皆可。核心悬在建筑中部/顶部时，下方基座/塔身用负 y 表达；整个仪式建筑在世界里可以垫在任何高度。
+- `(0,0)` 单格，仅锚点可用（全文件恰 1 次、位于 (0,0,0)、且只写在最低阶增量）。
+- 轴上 `(0,d)` → 展开为 `(0,±d),(±d,0)` 四格（**含坐标互换**）；同一 orbit 绝不能再写 `(d,0)`，写了就重复冲突拒载。
+- off-axis `(a,b)` → `(±a,±b)` 四格（**不互换**）；`(a,b)` 与 `(b,a)` 是不同 orbit，两个都要就必须双列。
+- **level 号 = 阶级号，起点由设计定**：仪式的最低阶级可以是 0~5 中任意一档（高阶专属仪式直接从 3 阶起步就写 level 3,4,5），从起点起**连续、不跳号**，逐阶只增不改。核心只写在编号最小的增量里；loader 只强制 level 号不重复、锚点在编号最小的层，起点选择靠自己。核心界面/构建杖读到的"阶级"即 `match.level()`——levels 写 3,4,5，界面就显示 3~5 阶。§3 的品阶下限、`tiers` 字段都以这个真实编号为准。
+
+### 匹配与层级语义
+
+- 一个层级成立 = 该层全部格位在锚点偏移处满足各自谓词（4 个旋转内任一成立）。**缺席格完全不限**——pattern 不声明的地方放什么都不影响。设计上常用"留空"给未来功能方块（港口、上方槽位等）预留位置，不写进 pattern 的格位永远自由。
+- 尝试优先级 = 全层级展开格数总和，大者先试、先中先得。纯增量层级天然配套：建筑越大，越高级 pattern 越先被尝试，同一建筑随扩建自动"升级"为更高级仪式。
+- **大 pattern 不得劫持小仪式的建筑**（A 某层是 B 顶级结构的子集即危险，校验器有专查）。
+
+## 2. 自定义仪式方块
+
+品阶 0~5 色系：0灰 / 1绿 / 2蓝 / 3琥珀 / 4红 / 5紫。
+
+- `gensokyou:ritual_core` 仪式核心：**唯一锚点方块**（anchorKey 专用）。带 GUI（仪式核心界面），玩家在此查看/启动仪式；贴图随品阶状态切换（`ritual_core_0..5`）。仪式的"心脏"，设计时需注意至少要四周和顶面漏出来其中一个面，不要全包围了。
+- `gensokyou:ritual_stone_0..5` 仪式石：品阶主体方块。标签 `#gensokyou:ritual_stones_N_plus`（≥N，N=1..5）、`#gensokyou:ritual_stones`（0..5 全含，**0 阶格位就用它**——等效 `_0_plus`，故没有 `_0_plus`）。
+- `ritual_stone_slab_N` / `ritual_stone_stairs_N` / `ritual_stone_wall_N`（N=0..5）仪式石台阶/楼梯/墙：纯装饰变体，复用仪式石贴图，**不在任何品阶标签里**——品阶语义上等同于普通方块。
+
+## 3. 选材规则：仪式石硬性，其余全是建议
+
+- **硬性材料约束**：第 N 阶**新增**结构的仪式石/祭品台，palette 下限**必须恰好 = N**——用 `#ritual_stones_N_plus`；新增结构必须是该阶的新 key。**不要下标越级**（如 2 阶新环用 `3_plus`）：构建器把 TAG 格**精确实例化**为玩家所选品阶的那一档方块，下限一旦高于本阶编号，玩家按"本阶级"选品阶搭建时该格解析不出方块、被静默跳过，结构永远建不全，只能整体换更高品阶重建——这正是"升级=换装"假象的病根。品阶标签无 1 阶版（`ritual_pedestals_2_plus` 起），1 阶新增台最低用 `_2_plus`（下限 2 > 1，属数据缺口的被迫越级，非设计递进）。
+- **除此之外一切方块（含仪式石台阶/楼梯/墙变体与全部原版装饰块）材质上只做建议，没有品阶递进关系**。旧的"末地石→紫珀→深橡木→樱花木逐级递进"作废：每层用什么材料完全由美感决定，同级混用、越级使用、重复使用都允许。**但**——仪式石满块与其 slab/stairs/wall 变种同属"仪式石族"，计入 §4.8 的 30% 占比预算，不能拿"变种不算品阶石"来规避装饰占比要求；真正撑起美感的是**普通原版方块**。
+- 原版选材速记（紫色系基准）：purpur_block / purpur_pillar、amethyst_block、end_stone(_bricks)、deepslate(_bricks)、blackstone、basalt(_polished)、dark_oak_planks/log、cherry_log/planks、purple_stained_glass、magenta_stained_glass、crying_obsidian、soul_lantern、purple_banner、pink_petals、iron_bars、chain、cobweb、quartz_block、oxidized_copper、sea_lantern、glowstone、moss_block。完整目录见 `astra-design/BLOCKS.md`。
+- **为美感新增方块/新材质：允许，但不建议。** 流程：先向用户说明设计理由（贴图方向、用在哪几层）→ 用户同意才立项；贴图走 gen-textures skill，注册由程序侧做。能不开新方块就不开，优先用现有方块的组合达成效果。
+- **装饰花**：建议不要直接使用花，而是使用盆栽。
+
+## 4. 硬性设计不变量（违反即返工）
+
+1. **升级 = 纯增量**：level N 的 adds 只声明该级**新增**格位；与低级累积切片任意格位相交（含同 key 重复登记）即拒载——构造性校验，不再是事后子集比对。玩家升级只在原建筑上加方块，绝不替换/拆除。**level 号就是阶级号**：以本仪式的最低阶级为起点连续编号（0~5 皆可为起点），禁止"显示阶级↔level号"随意换算偏移——编号错位会让 §3 下限与品阶选择对不上（如把 0 阶写成 level 1，功能环就被 `_1_plus` 堵死灰阶，制造换装升级）。
+2. **锚点唯一**：anchorKey 条目全文件恰一次、位于 (0,0,0)（含 y=0）、且只写在最低阶增量中；写漏/写重/挪级都拒载。
+3. **展开合法**：遵守 §1 展开规则，展开后无位置冲突（层内重复与跨级相交都算），否则 loader 拒载。
+4. **品阶下限**：仅对仪式石/祭品台标签 key 生效（见 §3），设计上按硬约束执行。
+5. **不得劫持小仪式**：见 §1。
+6. **v5 增量格式**：条目一律位置数组 `[key,x,y,z(,o)?]`、层级字段用 `adds`；v3 对象条目、v4 `blocks` 快照字段都拒载（校验器与 loader 同规则，无宽容陷阱）。
+7. **先文字蓝图后动工**：口头概念≠成品，先出逐层蓝图交用户确认，再落坐标。
+8. **仪式石占比 ≤30%（每阶累积口径）**：任何一阶的累积全量切片里，仪式石族格位（`#gensokyou:ritual_stones*` 标签格 + EXACT 的 `ritual_stone_N` 满块与 slab/stairs/wall 变种）总数必须 ≤ 该阶总格数的 30%。**仪式石/祭品台只是骨架与功能件，绝不允许整建筑全由它们拼成**；每阶新增里必须布置足量普通方块（原版装饰 EXACT）撑起轮廓与细节。祭品台格不计入 30% 分子（功能必需），但同样禁止"只有台和石"。落盘后按校验摘要逐阶核对：`石族格数 ÷ 总格数 ≤ 0.3`。
+
+## 5. 设计工作流（美感最优先）
+
+1. 确认：仪式名字（id自拟）、仪式用途背景（用于确定设计风格）、**阶级范围**（最低阶~最高阶，直接决定 levels 编号、`"tiers"` 字段与 §3 各阶功能环下限）、用户材料偏好（仅当建议）。
+2. 设计逐层剪影：逐层**增量**文字稿（每层只写"新增"什么结构/材料/半径/高度），把低级成品当基座规划增量，共同构成同一座更高等级建筑。此阶段自由发挥，不受任何材料约束。
+3. 蓝图文字稿交用户确认。
+4. 落坐标。**美感第一，token 节约其次**：
+   - **pattern 就是构建器的一键成品**：构建器只会放置你写进切片的格位，缺席格它不会替你补装饰。所以美感必须靠 pattern 内的格位表达——**每一阶的新增里都要有非功能性的装饰 EXACT 格**（灯/柱/门框/冠顶/参道石等），只堆仪式石 + 祭品台 = 没设计，一律返工。功能环用 `#ritual_stones` / `#ritual_pedestals`（含全部装饰变体以外的满块），装饰用具体方块 id（不受品阶体系约束）。
+   - 蓝图一经用户确认，**逐条落实**（台数/环数/高度/轮廓），落盘后对照蓝图自查有无缩水；要改动设计先回去找用户，不许静默简化。
+   - 大面积规则形体（环、盘、柱）可用生成脚本省力（canon/put/slab/pillar 骨架，见 §6）；
+   - **为保美感逐方块手写坐标是完全正当的路径**——装饰细节、标志性轮廓、不对称点缀等直接手写 JSON 条目，不必为了"用上工具"而扭曲设计；
+   - 两法可混用：脚本出骨架、手写补细节。
+   - 无论哪条路径，落盘的 levels 只含**每级新增**（低级格位不再复制进高级增量）；脚本骨架的累积字典照旧自检，输出段已内置差分，见 §1。
+5. 校验：`python tools/validate_ritual_pattern.py --test-out run/world/datapacks/gs_ritual_test`——新 pattern 要求 0 ERROR、0 WARN；每次改 pattern 后必须重建测试包。存量占位仪式是 1 基编号的历史产物，勿效仿。如果有问题建议让用户检查。
+6. 实机验证由用户运行 `powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1`（agent 不启动服务器）。美观评审进游戏实地看。现有测试 harness 只认 generator_circle 形状的仪式——新仪式的自动化实机测试需程序侧扩展 harness，需求说明中写清测试锚点坐标与期望输出。
+
+## 6. 工具清单
 
 | 工具 | 用途 |
 |---|---|
-| `tools/validate_ritual_pattern.py` | 离线校验全部 pattern（展开冲突/累积断链/品阶下限/跨 pattern 劫持）；`--test-out DIR` 重新生成服务器测试数据包 |
-| `tools/gen_generator_circle.py` | **生成器模板**：canon/put/slab/pillar 骨架 + 冲突自检，新仪式照抄改蓝图即可，禁止手写大 JSON |
-| `tools/_run_ritual_test.ps1` | 实机端到端测试启动器（**由用户运行**，agent 不启动服务器） |
+| `tools/validate_ritual_pattern.py` | 离线校验全部 pattern（锚点/展开冲突/纯增量/品阶下限/劫持）；`--test-out DIR` 重建服务器测试数据包。**唯一必跑工具** |
+| `tools/gen_generator_circle.py` | 生成脚本骨架（canon/put/slab/pillar + 冲突自检），照抄骨架改蓝图。**输出已是 v5 增量格式（逐级差分），重跑即可直接落盘** |
 | `run/world/datapacks/gs_ritual_test` | `--test-out` 生成的测试包，每次改 pattern 后必须重建 |
-| `tools/gen_tex.py` | 方块/物品/实体贴图生成（ASCII + 调色板，见 gen-textures skill） |
-| `.opencode/skills/neoforge-1211-dev` | 写任何 NeoForge 代码（新 behavior 等）前必读 |
+| `tools/_run_ritual_test.ps1` | 实机端到端测试启动器（**由用户运行**，agent 不启动服务器） |
+| `tools/gen_tex.py` | 像素贴图生成（仅当用户批准新方块时用，见 gen-textures skill） |
+| `astra-design/BLOCKS.md` / `PATTERNS.md` | 机器生成的方块目录 / 现有 pattern 一览（后者仅当清单，勿模仿其结构） |
 
-## Pattern 格式
 
-```json
-{ "id": "gensokyou:xxx_circle", "anchorKey": "C", "toggleable": true,
-  "palette": { "C": "gensokyou:ritual_core", "1": "#gensokyou:ritual_stones_1_plus",
-               "E": "gensokyou:ritual_stone_wall_2", ... },
-  "levels": [ { "level": 1, "blocks": [ {"key":"C","x":0,"y":0,"z":0}, ... ] } ] }
-```
-
-- 坐标为**四分之一规范形**（x≥0, z≥0，y 为相对锚点高度），loader 四重对称展开：
-  - `(0,0)` 单格，仅锚点可用
-  - 轴上 `(0,d)` → 展开为 `(0,±d),(±d,0)` 四格（**含坐标互换**）；**绝不能写 `(d,y,0)`**，同一 orbit 写两种会重复冲突拒载
-  - off-axis `(a,b)` → `(±a,±b)` 四格（**不互换**）；`(a,b)` 与 `(b,a)` 是不同 orbit，都需要时**必须双列**
-- palette 值：`#gensokyou:标签` 或纯方块 id。**禁止带 `[状态后缀]`**（树叶会凋谢 → 用原木/花瓣替代）。
-- 可用自定义方块：`gensokyou:ritual_core`（锚点）、`ritual_stone_0..5`、`ritual_pedestal_*`、`ritual_stone_wall_2/3`（wall_4 存在但基本不用）。
-- 标签：`ritual_stones_{1..5}_plus`（stone_N..5）、`ritual_pedestals_{2..5}_plus`、基础标签 `ritual_stones`/`ritual_pedestals`（0-5 全含）。tag 文件读时用 utf-8-sig（有 BOM），写 JSON 用纯 utf-8。
-
-## 硬性设计不变量（违反即返工）
-
-1. **升级 = 纯增量**：level N-1 的全部格位（含 key）必须是 level N 的子集。玩家从低级升高级**只在原建筑上加方块，绝不替换/拆除任何已有方块**。校验器强制此项。
-   设计面：把 level N-1 成品当作基座规划增量，新增方块与之共同构成同一座更高等级建筑（生长手法完全自由），不得把增量当成无视既有建筑的另起结构。
-2. **锚点唯一**：`anchorKey`（C）在每层恰好出现一次、位于 (0,0,0)。
-3. **缺席格 = 不限制**（任意方块均可）。用留空做功能槽位：核心四向港口 orbit(0,1)@y0、**核心正上方 (0,1,0)**（测试把电容核心叠在这里）、电容槽 orbit(2,2)@y1（电容四石位）。
-4. **品阶下限**：key 首现层级 L ⇒ 标签下限 ≥ L（"N"环用 `ritual_stones_N_plus`；P≥2、Q≥3、R≥4）。新增环必须是该层的"新"key。
-5. **优先级/劫持**：尝试优先级 = 全层级展开格数总和，大者先试。大仪式不能把小仪式的建筑认领掉（校验器有劫持检查）。
-6. **先给文字蓝图再动工**：口头概念≠成品。先产出"逐层级蓝图文字稿"（每层新增什么结构/材料/半径高度范围）让用户确认，再写生成脚本——避免"缩水/需求不对"整轮返工。
-
-## 纯文字设计工作流（无效果图）
-
-1. 确认：仪式 id、用途与行为类型（复用已有 behavior 还是新写）、层级数（默认 5）、用户材料偏好。
-2. 设计逐层剪影：逐层**增量**列表（每层只写"新增"什么：新石环半径、柱/塔/门/装饰、材料），装饰材料随品阶递进（末地石→紫珀→深橡木→樱花木等原版块可自由混用）。以低级成品为基座规划增量，形体手法自由发挥。
-3. 蓝图文字稿给用户确认（层级表：层 / 新增结构 / 材料 / 半径）。
-4. 写 `tools/gen_<ritual>_circle.py`（抄 gen_generator_circle.py 骨架）：canon(轴上格一律化为 (0,d))、put(lv,key,x,**y**,z 带冲突自检)、slab(环盘)、pillar(柱)。运行只打印每层格数摘要。
-5. `python tools/validate_ritual_pattern.py --test-out run/world/datapacks/gs_ritual_test`——有 ERROR 就改蓝图重跑（俯视预览图已废除：美观评审进游戏实地看）。
-6. 实机验证交用户跑 `powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1`。
-
-## 测试数据包约定（发电机 harness）
-
-- `generator_test_functions` 只认 id 以 `generator_circle` 结尾的 pattern；给其他仪式做同款测试需扩展该函数（锚点 A1=(4,100,4)、A3=(44,100,4)、A5=(64,100,4)、NEG=(84,100,4)，forceload -16,-16,112,32）。
-- 电容堆叠：cap1/cap2=(4/64,101,4) 叠在发电机核心正上方，capacitor_circle L1 = C + S@(2,0,2)（展开为 ±(2,2) 四石）→ pattern **不得**要求 (0,1,0) 与 orbit(2,2)@y1。
-- `MIXED_TIERS={'1':1..'5':5,'P':2,'Q':3,'R':4}`：新 tag key 必须登记，否则测试里该格被跳过。
-- 期望聊天栏输出：T1_OK→T2_OK→T3_OK→T5_OK→NEG_OK→ALL_DONE + SP_OK:cap1/cap2；`scoreboard objectives add gs` 重复加载报错无害。
-
-## 实测陷阱
-
-- **4.5MB 工具输出上限会杀会话**（已发生两次）：大 JSON/长 mcfunction 只落盘不打印；控制台只出摘要；不 cat 整个 JSON。
-- `put()` 参数顺序 (lv,key,x,y,z)——y 与 z 写反是真实发生过的 bug，全靠冲突自检拦截，所以新格位永远走 put()，别绕过。
-- 升级测试链：setup_t2 用 only_additions=True（只 setblock 新增格，验证纯增量升级）；setup_t3/t5/NEG 用 False（异锚点全量搭建）。
-- 新增行为代码前读 neoforge-1211-dev skill；行为注册在 `RitualBehaviors.java`（REGISTRY：pattern id → behavior）。

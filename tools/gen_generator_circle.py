@@ -1,21 +1,25 @@
 #!/usr/bin/env python3
-"""程序化生成忠实版 generator_circle.json（五级累积，四重对称四分之一规范形）。
+"""程序化生成忠实版 generator_circle.json（v5 逐级增量，四重对称四分之一规范形）。
 
 层级蓝图（外半径以 r² 计，坐标为四分之一规范形；轴上格一律写作 (0,y,d)）：
   L1 y0  末地石底盘 r²≤152 + "1"内嵌环(8..13)；四向港口 orbit(0,1) 留空
   L2 y1  末地石台面 r²≤120（核心顶列(0,0,0)/电容槽(2,2)/鸟居脚(1,10)(10,1) 留空）
-     y2  紫珀平台 r²≤45（轴上刻槽(0,1)(0,2)）+ "2"环(46..53) + 紫/玻璃导流槽(54..85)
-         E柱(0,2) y2-3 + A帽 y4；J柱(0,6)(4,4) y3-4 + A帽 y5；P台(3,3)
+      y2  紫珀平台 r²≤45（轴上刻槽(0,1)(0,2)）+ "2"环(46..53) + 紫/玻璃导流槽(54..85)
+          E柱(0,2) y2-3 + A帽 y4；J柱(0,6)(4,4) y3-4 + A帽 y5；P台(3,3)
   L3 y3  紫珀内台 r²≤12（去(0,1)(0,2)）+ "3"环(13..21，去P(3,3))；A镶嵌(2,2) y4
-         Q台(5,3)(3,5)；W八方位柱(0,9)(7,6) y2-3
+          Q台(5,3)(3,5)；W八方位柱(0,9)(7,6) y2-3
   L4 y3  "4"回廊(58..85，去W柱)；y2 K深橡木外道(86..116，去鸟居脚)
-         角楼 J(7,7) y3-6 + K顶 y7 + L y8；R台(6,6)y4；B旗(8,3)y4；L灯(0,9)y4
+          角楼 J(7,7) y3-6 + K顶 y7 + L y8；R台(6,6)y4；B旗(8,3)y4；L灯(0,9)y4
   L5 y3  "5"环(86..116，去鸟居/樱花/角楼/花瓣位)；y4 栏杆H(106..116)
-         巨鸟居 O柱(1,10)(10,1) y1-7 + 貫H(0,10)y5 + 横木O y8 + B旗y6
-         樱花柱 T(9,4)(4,9) y3-5；灯柱 J(8,8) y1-3 + A y4 + L y5；花瓣Y(5,8)(8,5)
+          巨鸟居 O柱(1,10)(10,1) y1-7 + 貫H(0,10)y5 + 横木O y8 + B旗y6
+          樱花柱 T(9,4)(4,9) y3-5；灯柱 J(8,8) y1-3 + A y4 + L y5；花瓣Y(5,8)(8,5)
 """
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import validate_ritual_pattern as v5  # noqa: E402  复用 v5 levels 排版序列化器
 
 OUT = (Path(__file__).resolve().parents[1] / 'src' / 'main' / 'resources'
        / 'data' / 'gensokyou' / 'rituals' / 'generator_circle.json')
@@ -148,19 +152,23 @@ doc = {
     'anchorKey': 'C',
     'toggleable': True,
     'palette': PALETTE,
-    'levels': [
-        {'level': i + 1,
-         'blocks': [{'key': k, 'x': x, 'y': y, 'z': z}
-                    for (x, y, z), k in sorted(levels[i].items())]}
-        for i in range(5)
-    ],
 }
-OUT.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + '\n',
-               encoding='utf-8')
+# v5 增量：逐级取与低级累积字典的差集（规范格（|x|,|z|)+y 唯一确定展开轨道，格差=轨差）
+levels_json = [{'level': i + 1} for i in range(5)]
+adds_per_level = []
+for i in range(5):
+    prev = levels[i - 1] if i else {}
+    adds_per_level.append([(k, x, y, z)
+                           for (x, y, z), k in sorted(levels[i].items())
+                           if (x, y, z) not in prev])
+text = (json.dumps(doc, indent=2, ensure_ascii=False)[:-1].rstrip()
+        + ',\n  "levels": ' + v5.serialize_levels_v5(levels_json, adds_per_level)
+        + '\n}\n')
+OUT.write_text(text, encoding='utf-8')
 for i, cells in enumerate(levels):
     by_key = {}
     for k in cells.values():
         by_key[k] = by_key.get(k, 0) + 1
     detail = ', '.join(f'{k}x{v}' for k, v in sorted(by_key.items()))
-    print(f'level {i + 1}: {len(cells)} 格 [{detail}]')
+    print(f'level {i + 1}: 累积 {len(cells)} 格（新增 {len(adds_per_level[i])} 条目）[{detail}]')
 print(f'写入 {OUT} ({OUT.stat().st_size} 字节)')

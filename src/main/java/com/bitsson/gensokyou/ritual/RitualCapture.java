@@ -15,7 +15,7 @@ import java.util.Map;
 
 /**
  * 仪式捕获管线：扫描 AABB → 以区域内唯一祭仪核心为锚点原点 →
- * 按对称类归并（同类不同字符即违规）→ 输出规范四分之一的稀疏偏移 JSON 骨架（v4 数组条目）。
+ * 按对称类归并（同类不同字符即违规）→ 输出规范四分之一的稀疏偏移 JSON 骨架（v5 增量数组条目）。
  * 带朝向属性的方块反推为 {@link Orientation} 常量：规范槽位为代表输出第 5 位，
  * 成员按展开分支期望常量做 matches 校验，不满足即对称违规。构造仗与 /gs_ritual_capture 共用。
  */
@@ -131,7 +131,7 @@ public final class RitualCapture {
                 + "  \"id\": \"" + Gensokyou.MODID + ":" + name + "\",\n"
                 + "  \"anchorKey\": \"C\",\n"
                 + "  \"palette\": {" + palette + "\n  },\n"
-                + "  \"levels\": [\n    { \"level\": 1, \"blocks\": [\n" + blocksBuilder
+                + "  \"levels\": [\n    { \"level\": 1, \"adds\": [\n" + blocksBuilder
                 + "\n    ] }\n  ]\n}";
         return new Result(json, List.copyOf(violations), Math.max(0, effective));
     }

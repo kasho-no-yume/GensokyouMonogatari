@@ -18,9 +18,11 @@ import net.minecraft.world.level.block.Block;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
     private static final Gson GSON = new Gson();
@@ -70,13 +72,45 @@ public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
             throw new IllegalArgumentException("palette lacks anchorKey '" + anchorKey + "'");
         }
         List<RitualPattern.LevelSlice> levels = new ArrayList<>();
+        // v5 增量语义：逐级 adds 四重展开后累积为全量切片；增量与低级累积切片任意相交 / level 号重复即拒载
+        Map<Pos, RitualPattern.BlockEntry> cumulative = new HashMap<>();
+        Map<Pos, Integer> origins = new HashMap<>();
+        List<int[]> anchorHits = new ArrayList<>();
+        Set<Integer> levelNumbers = new HashSet<>();
         for (JsonElement levelElement : GsonHelper.getAsJsonArray(json, "levels")) {
             JsonObject levelJson = GsonHelper.convertToJsonObject(levelElement, "level");
             int levelNumber = GsonHelper.getAsInt(levelJson, "level");
-            levels.add(new RitualPattern.LevelSlice(levelNumber,
-                    parseBlocks(anchorKey, levelNumber, palette,
-                            GsonHelper.getAsJsonArray(levelJson, "blocks"))));
+            if (!levelNumbers.add(levelNumber)) {
+                throw new IllegalArgumentException("level " + levelNumber + " appears more than once");
+            }
+            if (levelJson.has("blocks")) {
+                throw new IllegalArgumentException("level " + levelNumber
+                        + ": v4 全量快照字段 \"blocks\" 已废弃，请运行迁移工具 "
+                        + "(python tools/validate_ritual_pattern.py --convert-v4) 转为 v5 增量 \"adds\"");
+            }
+            List<RitualPattern.BlockEntry> delta = new ArrayList<>();
+            mergeAdds(anchorKey, levelNumber, palette,
+                    GsonHelper.getAsJsonArray(levelJson, "adds"), cumulative, origins, delta, anchorHits);
+            List<RitualPattern.BlockEntry> full = new ArrayList<>(cumulative.values());
+            full.sort(RitualPatternLoader::compareCanonical);
+            levels.add(new RitualPattern.LevelSlice(levelNumber, List.copyOf(full)));
         }
+        // 锚点全文件级校验：恰一次、位于原点 (0,0,0)、且只写在最低级增量
+        if (anchorHits.size() != 1) {
+            throw new IllegalArgumentException("anchorKey appears " + anchorHits.size()
+                    + " times in the whole file (must be exactly 1, lowest level only)");
+        }
+        int[] anchor = anchorHits.get(0);
+        if (anchor[1] != 0 || anchor[2] != 0 || anchor[3] != 0) {
+            throw new IllegalArgumentException("anchorKey must sit at origin (0,0,0), got ("
+                    + anchor[1] + "," + anchor[2] + "," + anchor[3] + ") in level " + anchor[0]);
+        }
+        int lowest = levels.stream().mapToInt(RitualPattern.LevelSlice::level).min().orElseThrow();
+        if (anchor[0] != lowest) {
+            throw new IllegalArgumentException("anchorKey may only be declared in the lowest level ("
+                    + lowest + ") increment, found in level " + anchor[0]);
+        }
+        levels.sort(java.util.Comparator.comparingInt(RitualPattern.LevelSlice::level));
         List<RitualPattern.Offering> requirements = new ArrayList<>();
         if (json.has("requirements")) {
             for (JsonElement element : GsonHelper.getAsJsonArray(json, "requirements")) {
@@ -103,21 +137,33 @@ public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
                 List.copyOf(requirements), toggleable, tiers);
     }
 
-    /** 解析并展开一个层级的方块表（v4 位置式数组条目）：仅存规范四分之一，输出全量并按 (y,z,x) 规范序排序。 */
-    private static List<RitualPattern.BlockEntry> parseBlocks(char anchorKey, int levelNumber,
-                                                              Map<Character, RitualPattern.Predicate> palette,
-                                                              JsonArray blocksJson) {
+    /** 累积注册表键：全量格位。 */
+    private record Pos(int x, int y, int z) {
+    }
+
+    /** 解析一层级的 v5 增量条目（位置式数组）并四重展开并入累积注册表；
+     *  增量与已累积切片任意格位相交（含同 key 重复登记）即拒载，报明冲突格位与来源层级。 */
+    private static void mergeAdds(char anchorKey, int levelNumber,
+                                  Map<Character, RitualPattern.Predicate> palette,
+                                  JsonArray addsJson,
+                                  Map<Pos, RitualPattern.BlockEntry> cumulative,
+                                  Map<Pos, Integer> origins,
+                                  List<RitualPattern.BlockEntry> deltaOut,
+                                  List<int[]> anchorHits) {
         List<RitualPattern.BlockEntry> expanded = new ArrayList<>();
-        int anchorEntries = 0;
-        for (JsonElement element : blocksJson) {
-            JsonArray entry = GsonHelper.convertToJsonArray(element, "block");
+        for (JsonElement element : addsJson) {
+            if (!element.isJsonArray()) {
+                throw new IllegalArgumentException("level " + levelNumber
+                        + ": block entry must be an array [key,x,y,z(,o)?]（v3 对象式条目不再接受）");
+            }
+            JsonArray entry = element.getAsJsonArray();
             if (entry.size() < 4 || entry.size() > 5) {
-                throw new IllegalArgumentException("tier " + levelNumber
+                throw new IllegalArgumentException("level " + levelNumber
                         + ": block entry must be [key,x,y,z,o?] (4 or 5 elements), got " + entry.size());
             }
             String keyToken = entry.get(0).getAsString();
             if (keyToken.length() != 1) {
-                throw new IllegalArgumentException("tier " + levelNumber
+                throw new IllegalArgumentException("level " + levelNumber
                         + ": block key must be a single character: '" + keyToken + "'");
             }
             char key = keyToken.charAt(0);
@@ -129,31 +175,29 @@ public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
                 validateOrientation(anchorKey, levelNumber, palette, key, x, y, z, orientation);
             }
             if (key == anchorKey) {
-                anchorEntries++;
-                if (x != 0 || z != 0) {
-                    throw new IllegalArgumentException(
-                            "tier " + levelNumber + ": anchor must sit at x=0,z=0");
-                }
+                anchorHits.add(new int[]{levelNumber, x, y, z});
             }
+            expanded.clear();
             expandInto(key, x, y, z, orientation, expanded);
-        }
-        if (anchorEntries != 1) {
-            throw new IllegalArgumentException("tier " + levelNumber + ": anchorKey appears "
-                    + anchorEntries + " times (must be exactly 1)");
-        }
-        record Pos(int x, int y, int z) {
-        }
-        Map<Pos, Character> seen = new HashMap<>();
-        for (RitualPattern.BlockEntry block : expanded) {
-            Character previous = seen.put(new Pos(block.x(), block.y(), block.z()), block.key());
-            if (previous != null) {
-                throw new IllegalArgumentException("tier " + levelNumber
-                        + ": conflicting/duplicate block at (" + block.x() + "," + block.y()
-                        + "," + block.z() + "): '" + previous + "' vs '" + block.key() + "'");
+            for (RitualPattern.BlockEntry block : expanded) {
+                Pos pos = new Pos(block.x(), block.y(), block.z());
+                RitualPattern.BlockEntry previous = cumulative.get(pos);
+                if (previous != null) {
+                    if (origins.get(pos) == levelNumber) {
+                        throw new IllegalArgumentException("level " + levelNumber
+                                + ": duplicate/conflicting block at (" + block.x() + "," + block.y()
+                                + "," + block.z() + "): '" + previous.key() + "' vs '" + block.key() + "'");
+                    }
+                    throw new IllegalArgumentException("level " + levelNumber
+                            + ": adds conflict with cumulative slice of level " + origins.get(pos)
+                            + " at (" + block.x() + "," + block.y() + "," + block.z() + "): '"
+                            + previous.key() + "' vs '" + block.key() + "'（增量须只声明该级新增格位）");
+                }
+                cumulative.put(pos, block);
+                origins.put(pos, levelNumber);
+                deltaOut.add(block);
             }
         }
-        expanded.sort(RitualPatternLoader::compareCanonical);
-        return List.copyOf(expanded);
     }
 
     /** 解析条目第 5 位（可选）：int id 或字符串名双解析；非法值拒载。 */

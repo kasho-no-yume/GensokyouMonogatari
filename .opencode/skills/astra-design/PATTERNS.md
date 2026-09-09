@@ -6,7 +6,7 @@
 
 ## gensokyou:barrier_break_circle
 
-- 锚点 key：`C`（每层唯一，位于 (0,0,0)）· toggleable=true · 优先级 17
+- 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=true · 优先级 17
 - palette：`C=gensokyou:ritual_core · P=#gensokyou:ritual_pedestals · S=#gensokyou:ritual_stones`
 
 | 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |
@@ -15,7 +15,7 @@
 
 ## gensokyou:capacitor_circle
 
-- 锚点 key：`C`（每层唯一，位于 (0,0,0)）· toggleable=false · 优先级 5
+- 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=false · 优先级 5
 - palette：`C=gensokyou:ritual_core · S=#gensokyou:ritual_stones`
 
 | 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |
@@ -24,7 +24,7 @@
 
 ## gensokyou:generator_circle
 
-- 锚点 key：`C`（每层唯一，位于 (0,0,0)）· toggleable=true · 优先级 5897
+- 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=true · 优先级 5897
 - palette：`1=#gensokyou:ritual_stones_1_plus · 2=#gensokyou:ritual_stones_2_plus · 3=#gensokyou:ritual_stones_3_plus · 4=#gensokyou:ritual_stones_4_plus · 5=#gensokyou:ritual_stones_5_plus · A=minecraft:amethyst_block · B=minecraft:purple_banner · C=gensokyou:ritual_core · D=minecraft:purple_stained_glass · E=gensokyou:ritual_stone_wall_2 · H=minecraft:dark_oak_fence · J=minecraft:basalt · K=minecraft:dark_oak_planks · L=minecraft:soul_lantern · O=minecraft:dark_oak_log · P=#gensokyou:ritual_pedestals_2_plus · Q=#gensokyou:ritual_pedestals_3_plus · R=#gensokyou:ritual_pedestals_4_plus · T=minecraft:cherry_log · U=minecraft:purpur_block · W=gensokyou:ritual_stone_wall_3 · X=minecraft:end_stone · Y=minecraft:pink_petals`
 
 | 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |
@@ -37,7 +37,7 @@
 
 ## gensokyou:processing_circle
 
-- 锚点 key：`C`（每层唯一，位于 (0,0,0)）· toggleable=false · 优先级 13
+- 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=false · 优先级 13
 - palette：`C=gensokyou:ritual_core · P=#gensokyou:ritual_pedestals · S=#gensokyou:ritual_stones`
 
 | 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |
@@ -46,7 +46,7 @@
 
 ## gensokyou:relay_circle
 
-- 锚点 key：`C`（每层唯一，位于 (0,0,0)）· toggleable=false · 优先级 5
+- 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=false · 优先级 5
 - palette：`C=gensokyou:ritual_core · P=#gensokyou:ritual_pedestals`
 
 | 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |
@@ -55,7 +55,7 @@
 
 ## gensokyou:summon_circle
 
-- 锚点 key：`C`（每层唯一，位于 (0,0,0)）· toggleable=false · 优先级 9
+- 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=false · 优先级 9
 - palette：`C=gensokyou:ritual_core · S=#gensokyou:ritual_stones`
 
 | 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |
@@ -64,7 +64,7 @@
 
 ## gensokyou:tempering_circle
 
-- 锚点 key：`C`（每层唯一，位于 (0,0,0)）· toggleable=false · 优先级 17
+- 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=false · 优先级 17
 - palette：`C=gensokyou:ritual_core · P=#gensokyou:ritual_pedestals · S=#gensokyou:ritual_stones`
 
 | 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |

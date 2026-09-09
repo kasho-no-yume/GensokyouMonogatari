@@ -16,10 +16,11 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 仪式结构定义（schema v3，稀疏偏移格式）。
- * 每层级仅存对称规范四分之一的方块偏移，加载期展开为全量：
+ * 仪式结构定义（schema v5：JSON 按 `{level, adds}` 逐级增量存储，加载期累积为全量切片）。
+ * 每层增量仅存对称规范四分之一的方块偏移，加载期四重展开并入累积快照：
  * off-axis (x,z) → (±x,y,±z)；axis (0,d) → (0,±d) 与 (±d,0)。
- * 锚点核心即原点；展开条目按 (y,z,x) 排序，该顺序即祭品台 slot 寻址的规范序。
+ * 内存中 LevelSlice.blocks 仍为全量切片；锚点核心即原点；
+ * 展开条目按 (y,z,x) 排序，该顺序即祭品台 slot 寻址的规范序。
  */
 public record RitualPattern(ResourceLocation id, char anchorKey,
                             Map<Character, Predicate> palette,
