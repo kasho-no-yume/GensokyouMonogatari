@@ -1,6 +1,6 @@
 # 方块目录（机器生成：`python tools/gen_catalog.py`，勿手改）
 
-> Astra 选材只看本文与 PATTERNS.md，**禁止读 Java/JSON 源码**。
+> 选材只看本文与 PATTERNS.md，**禁止读 Java/JSON 源码**。
 > id 可省略 `gensokyou:` 前缀书写；主色为该品阶贴图均值（参考用，非精确色）。
 
 ## 自定义方块

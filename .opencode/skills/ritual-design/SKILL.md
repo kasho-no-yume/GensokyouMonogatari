@@ -11,7 +11,7 @@ metadata:
 ## 0. 角色定位（先读）
 
 - **你是仪式设计者，不是程序员。** 产出物只有：设计蓝图（文字稿）、结构 pattern JSON、（可选）生成脚本、给用户的需求说明。配方 JSON 与一切 Java/模组编码都归用户/程序侧。
-- **禁止读代码。** Java 源码（loader/matcher/behavior 等）与工具脚本内部实现都不读。本文件、`.opencode/skills/astra-design/` 下的 `BLOCKS.md` / `PATTERNS.md`（机器生成的目录文档）、以及 pattern JSON 本身，就是你全部的事实来源。
+- **禁止读代码。** Java 源码（loader/matcher/behavior 等）与工具脚本内部实现都不读。本文件与同目录的 `BLOCKS.md` / `PATTERNS.md`（机器生成的目录文档）、以及 pattern JSON 本身，就是你全部的事实来源。
 - 确实必须靠代码才能回答的问题：**停下，向用户申请**——由用户回答，或明确授权后再看用户指定的最小片段。
 - 你不要去考虑任何程序侧的需求或实现，你要做的只有设计并产出符合规则的多方块结构。
 - **现有仪式全是早期占位设计，无参考性**：只把它们当"存在什么"的清单（看 PATTERNS.md 即可），禁止照抄其结构手法、选材套路或格式细节；将随正式设计替换或删除（4 条现行配方挂靠 processing_circle，删除前须先迁移配方）。
@@ -49,6 +49,7 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
   - `air` → 该格必须为空（被占会红框、搭建零容忍）；
   - `_ignore` → 不限制、不追踪（与"缺席"等效，用于显式占位）。
   - **禁止带 `[状态后缀]`**；树叶会凋谢 → 用原木/花瓣替代。
+  - **id 书写**：本项目方块可省略 `gensokyou:` 前缀；**原版方块必须写全 `minecraft:`**、标签必须写全 `#gensokyou:`，不可省略。
 - 朝向（第 5 元素）：写名字串 `"north"/"east"/"south"/"west"`、`"north_top"`…`"west_top"`、`"up"/"down"`、`"r0".."r15"`（十六段旋转，如旗帜/罗盘类）。锚点、AIR、IGNORE 不得带朝向；EXACT 方块必须支持该朝向（loader 校验）。**只需给出规范格自身的朝向**，四重展开时的朝向变换 loader 自动完成。
 
 ### 四重对称展开（坐标=四分之一规范形，x≥0、z≥0，y 为相对锚点高度）
@@ -63,6 +64,7 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
 ### 匹配与层级语义
 
 - 一个层级成立 = 该层全部格位在锚点偏移处满足各自谓词（4 个旋转内任一成立）。**缺席格完全不限**——pattern 不声明的地方放什么都不影响。设计上常用"留空"给未来功能方块（港口、上方槽位等）预留位置，不写进 pattern 的格位永远自由。
+- **核心功能留空位（务必别用仪式石占死，留给程序侧 GUI/粒子/港口扩展）**：核心四向 orbit `(0,1)`@y0、核心正上方 `(0,1,0)`（火柱/光效通道）；电容类槽位 orbit `(2,2)`@y1。这些格子**刻意不写进 pattern**（写了反而约束死程序侧），保持缺席=自由。
 - 尝试优先级 = 全层级展开格数总和，大者先试、先中先得。纯增量层级天然配套：建筑越大，越高级 pattern 越先被尝试，同一建筑随扩建自动"升级"为更高级仪式。
 - **大 pattern 不得劫持小仪式的建筑**（A 某层是 B 顶级结构的子集即危险，校验器有专查）。
 
@@ -78,9 +80,10 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
 
 - **硬性材料约束**：第 N 阶**新增**结构的仪式石/祭品台，palette 下限**必须恰好 = N**——用 `#ritual_stones_N_plus`；新增结构必须是该阶的新 key。**不要下标越级**（如 2 阶新环用 `3_plus`）：构建器把 TAG 格**精确实例化**为玩家所选品阶的那一档方块，下限一旦高于本阶编号，玩家按"本阶级"选品阶搭建时该格解析不出方块、被静默跳过，结构永远建不全，只能整体换更高品阶重建——这正是"升级=换装"假象的病根。品阶标签无 1 阶版（`ritual_pedestals_2_plus` 起），1 阶新增台最低用 `_2_plus`（下限 2 > 1，属数据缺口的被迫越级，非设计递进）。
 - **除此之外一切方块（含仪式石台阶/楼梯/墙变体与全部原版装饰块）材质上只做建议，没有品阶递进关系**。旧的"末地石→紫珀→深橡木→樱花木逐级递进"作废：每层用什么材料完全由美感决定，同级混用、越级使用、重复使用都允许。**但**——仪式石满块与其 slab/stairs/wall 变种同属"仪式石族"，计入 §4.8 的 30% 占比预算，不能拿"变种不算品阶石"来规避装饰占比要求；真正撑起美感的是**普通原版方块**。
-- 原版选材速记（紫色系基准）：purpur_block / purpur_pillar、amethyst_block、end_stone(_bricks)、deepslate(_bricks)、blackstone、basalt(_polished)、dark_oak_planks/log、cherry_log/planks、purple_stained_glass、magenta_stained_glass、crying_obsidian、soul_lantern、purple_banner、pink_petals、iron_bars、chain、cobweb、quartz_block、oxidized_copper、sea_lantern、glowstone、moss_block。完整目录见 `astra-design/BLOCKS.md`。
+- 原版选材速记（紫色系基准）：purpur_block / purpur_pillar、amethyst_block、end_stone(_bricks)、deepslate(_bricks)、blackstone、basalt(_polished)、dark_oak_planks/log、cherry_log/planks、purple_stained_glass、magenta_stained_glass、crying_obsidian、soul_lantern、purple_banner、pink_petals、iron_bars、chain、cobweb、quartz_block、oxidized_copper、sea_lantern、glowstone、moss_block。完整目录见本目录 `BLOCKS.md`。
 - **为美感新增方块/新材质：允许，但不建议。** 流程：先向用户说明设计理由（贴图方向、用在哪几层）→ 用户同意才立项；贴图走 gen-textures skill，注册由程序侧做。能不开新方块就不开，优先用现有方块的组合达成效果。
 - **装饰花**：建议不要直接使用花，而是使用盆栽。
+- **东方意象词库**（和风/神社轮廓元件，起形先从这里找）：鸟居 / 石灯籠 / 旗帜 / 花瓣 / 窗格 / 回廊 / 角楼 / 参道 / 注连绳（铁链代）。
 
 ## 4. 硬性设计不变量（违反即返工）
 
@@ -96,7 +99,17 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
 ## 5. 设计工作流（美感最优先）
 
 1. 确认：仪式名字（id自拟）、仪式用途背景（用于确定设计风格）、**阶级范围**（最低阶~最高阶，直接决定 levels 编号、`"tiers"` 字段与 §3 各阶功能环下限）、用户材料偏好（仅当建议）。
-2. 设计逐层剪影：逐层**增量**文字稿（每层只写"新增"什么结构/材料/半径/高度），把低级成品当基座规划增量，共同构成同一座更高等级建筑。此阶段自由发挥，不受任何材料约束。
+2. 设计逐层剪影：逐层**增量**文字稿（每层只写"新增"什么结构/材料/半径/高度），把低级成品当基座规划增量，共同构成同一座更高等级建筑。此阶段自由发挥，不受任何材料约束。**规模对齐下表**（口径：该阶成形后的**累积总格数**，含低阶全部格；半径为该阶 footprint 建议带，高度不设限，均为建议值，美感可越界）：
+
+   | 阶级 | 建议半径 | 该阶累积总格数上限 |
+   |---|---|---|
+   | 0 | 3~6 | ≤200 |
+   | 1 | 6~10 | ≤600 |
+   | 2 | 6~14 | ≤1200 |
+   | 3 | 10~18 | ≤2000 |
+   | 4 | 14~22 | ≤3000 |
+   | 5 | 18~30 | ≤4800 |
+
 3. 蓝图文字稿交用户确认。
 4. 落坐标。**美感第一，token 节约其次**：
    - **pattern 就是构建器的一键成品**：构建器只会放置你写进切片的格位，缺席格它不会替你补装饰。所以美感必须靠 pattern 内的格位表达——**每一阶的新增里都要有非功能性的装饰 EXACT 格**（灯/柱/门框/冠顶/参道石等），只堆仪式石 + 祭品台 = 没设计，一律返工。功能环用 `#ritual_stones` / `#ritual_pedestals`（含全部装饰变体以外的满块），装饰用具体方块 id（不受品阶体系约束）。
@@ -117,6 +130,37 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
 | `run/world/datapacks/gs_ritual_test` | `--test-out` 生成的测试包，每次改 pattern 后必须重建 |
 | `tools/_run_ritual_test.ps1` | 实机端到端测试启动器（**由用户运行**，agent 不启动服务器） |
 | `tools/gen_tex.py` | 像素贴图生成（仅当用户批准新方块时用，见 gen-textures skill） |
-| `astra-design/BLOCKS.md` / `PATTERNS.md` | 机器生成的方块目录 / 现有 pattern 一览（后者仅当清单，勿模仿其结构） |
+| 本目录 `BLOCKS.md` / `PATTERNS.md` | 机器生成的方块目录 / 现有 pattern 一览（后者仅当清单，勿模仿其结构）；重生成 `python tools/gen_catalog.py` |
+
+## 7. 建筑结构（.nbt）工作流（自 astra-design 并入）
+
+仪式 pattern 之外的"实体建筑/装饰结构"设计走这条线（产物是 `.nbt` 结构，不是 rituals JSON）。同样只出数据、不碰 Java；贴图仍归 gen-textures skill。
+
+交付目录固定：`design/astra/<name>/`（blueprint.md 蓝图 → 用户确认 → gen_<name>.py → 编译）。
+
+| 工具 | 用途 |
+|---|---|
+| `tools/struct_compile.py` | 建筑编译：`put/slab/box` + `save_structure` → .nbt + 游戏内预览函数 |
+| `tools/gen_building_template.py` | 建筑 gen 脚本骨架（照抄） |
+| `design/astra/min_test/` | struct_compile 最小可运行示例 |
+
+流程与实测坑：
+1. `blueprint.md` 逐段增量描述（体块/材料/开口/装饰）。**确认关口不在文字蓝图**（实测：纯文字用户无法评审）——写完直接进第 2 步，真正确认在第 4 步实机预览。
+2. 写 `gen_<name>.py`（抄 `tools/gen_building_template.py`）：全 XYZ 直接放（**建筑不需要对称**）；`minecraft:air` = 挖空（/place 会清地形）。
+3. `save_structure(name, cells)` 一次产出 `.nbt`（原点=包围盒最小角）与测试函数。
+4. 编译器把 `.nbt` 副本写入测试包 + 单人存档 `generated/gensokyou/structures/`（存档回退目录用**复数** structures/），并把 gs_ritual_test 数据包同步进存档 datapacks/。用户重进存档（或 /reload）后 `/place template gensokyou:<name>` 实地评审；看效果先传测试区 (104,100,20)。定稿 `.nbt` 交程序侧接 worldgen。
+
+红线坑（都真实踩过）：
+- **nbtlib 写 .nbt 必须 `File(root, gzipped=True)`**：`File({"": root})` 会把 payload 再包一层空名 compound → 原版解析后根里无 palette/blocks，`/place` 只报"放置模板失败"且**零日志**。gen 脚本只调 save_structure，不直接碰 nbtlib。
+- **命令失败反馈只进聊天栏不进控制台**：排查 /place /function 先看 `run/logs/latest.log` 的 `[CHAT]` 行（GBK，按 cp936 读）。
+- **楼梯 facing 指"高侧"**（原版模型凸起半块在东、facing=east 零旋转）："阶面朝外"=低侧朝外 → facing 取反向：低侧朝北(-z)→`facing=south`、南→north、西(-x)→east、东→west。
+- **/place 不触发邻块更新**：墙块连排必须显式写连接属性（中段 `[north=low,south=low]`、端头只留靠内侧一段），否则落成一根根独立柱。
+- 站立旗帜 rotation 是罗盘序：0=南、4=西、8=北、12=东。
+
+## 8. 输出纪律
+
+- 工具大输出只落盘不打印，控制台只留摘要（4.5MB 输出上限会杀会话，发生过多次）。
+- 校验/编译报错都是单行 `ERROR ...`：按行修，不要整条流水线重跑猜错。
+- 新踩的坑必须回写本文件对应小节，保持手册即事实来源。
 
 

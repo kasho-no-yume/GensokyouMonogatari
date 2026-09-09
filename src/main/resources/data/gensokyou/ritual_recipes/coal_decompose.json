@@ -1,7 +1,0 @@
-{
-  "pattern": "gensokyou:processing_circle",
-  "mode": "passive",
-  "ingredients": [ { "item": "minecraft:coal_block", "count": 1 } ],
-  "result": { "item": "minecraft:coal", "count": 12 },
-  "spCost": 50
-}

@@ -1,7 +1,7 @@
 # design/astra — Astra 美术设计交付区
 
 Astra（gpt6，opencode 子代理 `.opencode/agent/astra-artist.md`）的全部产出按任务落在
-`design/astra/<name>/`，交付契约见 `.opencode/skills/astra-design/SKILL.md`。
+`design/astra/<name>/`，交付契约见 `.opencode/skills/ritual-design/SKILL.md`（§7 建筑工作流）。
 
 ## 目录结构
 

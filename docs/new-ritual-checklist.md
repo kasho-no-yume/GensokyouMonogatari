@@ -5,10 +5,9 @@
 > **格式与设计语义的唯一规范来源是 `.opencode/skills/ritual-design/SKILL.md`（schema v5）**，
 > 本文不重复定义格式，只列工程与运营侧事项。
 >
-> 现有 7 个仪式 JSON 均为早期占位设计，无参考价值，仅当"存在什么"的清单看待
-> （见 `astra-design/PATTERNS.md`），将随正式设计替换或删除；编号仍为 1 基旧约定，勿效仿。
-> 注意：4 条现行配方（iron/gold/coal 分解、紫水晶聚合）挂靠 `processing_circle`，
-> 删除占位仪式前须先迁移配方。
+> 占位仪式与其 4 条配方（iron/gold/coal 分解、紫水晶聚合，原挂 `processing_circle`）
+> 已于 2026-09-09 全部删除，当前 rituals/ 与 ritual_recipes/ 为空；
+> 新设计一律直接按 SKILL 规范（0 基阶级）从零起。
 
 JEI 条目与祭品配方卡均由 rituals JSON 自动派生，无需改动任何集成代码。
 

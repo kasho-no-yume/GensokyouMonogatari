@@ -12,7 +12,7 @@
 硬规则（违反即返工）：
 - 方块 id 必须带命名空间（minecraft:xxx / gensokyou:xxx），带属性写 [k=v,...]；
 - 新格位一律走 put/slab/box（自带冲突自检），禁止手写坐标循环绕过；
-- 可用方块清单看 .opencode/skills/astra-design/BLOCKS.md；
+- 可用方块清单看 .opencode/skills/ritual-design/BLOCKS.md；
 - minecraft:air = 挖空（/place 会清地形）。
 """
 import sys

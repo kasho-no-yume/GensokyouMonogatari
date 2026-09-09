@@ -1,7 +1,0 @@
-{
-  "pattern": "gensokyou:processing_circle",
-  "mode": "passive",
-  "ingredients": [ { "item": "minecraft:amethyst_shard", "count": 4 } ],
-  "result": { "item": "minecraft:emerald", "count": 1 },
-  "spCost": 200
-}

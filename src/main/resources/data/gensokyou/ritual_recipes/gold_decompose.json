@@ -1,7 +1,0 @@
-{
-  "pattern": "gensokyou:processing_circle",
-  "mode": "passive",
-  "ingredients": [ { "item": "minecraft:gold_block", "count": 1 } ],
-  "result": { "item": "minecraft:raw_gold", "count": 12 },
-  "spCost": 150
-}

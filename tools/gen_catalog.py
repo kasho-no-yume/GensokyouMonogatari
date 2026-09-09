@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""生成 Astra 知识目录 BLOCKS.md / PATTERNS.md。
+"""生成仪式设计知识目录 BLOCKS.md / PATTERNS.md。
 
 只扫数据事实源（blockstates/tags/rituals JSON + 贴图 PNG），不解析任何 Java。
 目录文件是唯一可再生成物：改了注册数据后重跑 `python tools/gen_catalog.py` 即可。
-输出默认 `.opencode/skills/astra-design/`（--out 可覆盖）。
+输出默认 `.opencode/skills/ritual-design/`（--out 可覆盖）。
 """
 import argparse
 import json
@@ -143,7 +143,7 @@ def gen_blocks_md(out_dir):
     tex_fams, var_fams = collect_custom_blocks()
     L = []
     L.append("# 方块目录（机器生成：`python tools/gen_catalog.py`，勿手改）\n")
-    L.append("> Astra 选材只看本文与 PATTERNS.md，**禁止读 Java/JSON 源码**。")
+    L.append("> 选材只看本文与 PATTERNS.md，**禁止读 Java/JSON 源码**。")
     L.append("> id 可省略 `gensokyou:` 前缀书写；主色为该品阶贴图均值（参考用，非精确色）。\n")
 
     L.append("## 自定义方块\n")
@@ -197,7 +197,7 @@ def gen_patterns_md(out_dir):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(ROOT / ".opencode" / "skills" / "astra-design"))
+    ap.add_argument("--out", default=str(ROOT / ".opencode" / "skills" / "ritual-design"))
     args = ap.parse_args()
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
