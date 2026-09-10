@@ -4,11 +4,11 @@
 TBD - created by archiving change ritual-builder-preview. Update Purpose after archive.
 ## Requirements
 ### Requirement: 两段式预览确认流
-手持已选仪式的构建器非潜行右键未成型核心：当服务端预览态与"该核心坐标 + 当前选择（图案+品阶）"**全等**时 SHALL 执行实际搭建并清除预览态；否则 SHALL 仅置入/替换预览态并经 S2C 下发，SHALL NOT 放置任何方块、SHALL NOT 消耗任何材料。菜单内更改选择 SHALL NOT 影响已存在的预览态。预览态为服务端 per-player 会话级状态（transient），登出/换维度即失效。
+手持已选仪式的构建器非潜行右键**未成型核心，或已通过升级分发校验的成型核心**（成型核心分支见 `ritual-builder-upgrade`）：当服务端预览态与"该核心坐标 + 当前选择（图案+品阶即目标阶级）"**全等**时 SHALL 执行实际搭建并清除预览态；否则 SHALL 仅置入/替换预览态并经 S2C 下发，SHALL NOT 放置任何方块、SHALL NOT 消耗任何材料。菜单内更改选择 SHALL NOT 影响已存在的预览态。预览态为服务端 per-player 会话级状态（transient），登出/换维度即失效。
 
 #### Scenario: 第一击只出预览
 - **WHEN** 玩家持选中仪式的构建器首次右键裸核心
-- **THEN** 无任何方块被放置，核心周围出现该仪式结构的半透明投影，回显"再次右键确认建造"
+- **THEN** 无任何方块被放置，核心周围出现该仪式对应阶级切片的半透明投影，回显"再次右键确认建造"
 
 #### Scenario: 同核心同选择第二击建造
 - **WHEN** 预览中，玩家对同一核心再次右键且选择未变
@@ -16,11 +16,15 @@ TBD - created by archiving change ritual-builder-preview. Update Purpose after a
 
 #### Scenario: 换选择后右键是替换而非建造
 - **WHEN** 核心 A 预览中，玩家开菜单改选另一仪式后右键核心 A
-- **THEN** 预览替换为新仪式的投影，仍不放置方块
+- **THEN** 预览替换为新选择的投影，仍不放置方块
 
 #### Scenario: 预览不随菜单刷新
 - **WHEN** 核心 A 预览中，玩家开菜单改选择后直接关闭菜单（不再右键）
-- **THEN** 投影保持原仪式不变
+- **THEN** 投影保持原选择不变
+
+#### Scenario: 升级预览只显增量
+- **WHEN** 阶级 0 已成型的核心上选中阶级 1 首击
+- **THEN** 仅阶级 1 切片的差量格出现白幽灵；已成型格位（含低阶旧方块）不渲染任何幽灵或红框
 
 ### Requirement: 实地半透明结构投影
 预览态存在且玩家主/副手持构建器物品、核心方块仍在场、图案仍可解析时，客户端 SHALL 每帧在真实世界中渲染结构投影：待放置格以**正确位置、正确朝向**的目标 BlockState 渲染为半透明幽灵（自定义 shader：方块图集 × tint，alpha 恒定；深度测试开、深度写入关）；已满足格 SHALL NOT 渲染；被非目标方块占据的格 SHALL 以红色调渲染同一幽灵；AIR 谓词格被占据 SHALL 渲染红色线框；锚点格 SHALL NOT 渲染。投影渲染 SHALL NOT 依赖外部 mod。

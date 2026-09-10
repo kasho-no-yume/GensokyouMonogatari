@@ -70,6 +70,10 @@ metadata:
   `Packet<ClientGamePacketListener>`，用 `ClientboundBlockEntityDataPacket.create(this)`）。
   范例：`block/entity/RitualPedestalBlockEntity.java`。
 - **交互入口**：持物走 `useItemOn`→ItemInteractionResult；空手走 `useWithoutItem`→InteractionResult。
+  **主手 `useItemOn` 返回 `PASS_TO_DEFAULT_BLOCK_INTERACTION` 并不会直接跳到物品 `useOn`**——
+  `ServerPlayerGameMode.useItemOn` 会先补调一次 `useWithoutItem`（消耗则终止；副手不补调），
+  要完整让位给物品必须**两处都放行**（实测：仪式核心成型让位只改 useItemOn 仍被 useWithoutItem 的
+  openOrHint 抢回开 GUI）。
   **要修改玩家手上物品必须把真身 stack 传入处理函数**（传 copy 会导致生存模式不扣数量——已踩坑）。
   创造模式判定用 `player.hasInfiniteMaterials()`（创造背包客户端权威，服务端扣数会被回滚，应放复制体）。
 - **实体渲染**：`EntityRenderersEvent.RegisterRenderers` 里 `registerEntityRenderer`（实体）/

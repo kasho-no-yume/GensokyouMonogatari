@@ -80,8 +80,13 @@ public class RitualCoreBlock extends Block implements EntityBlock {
                                               BlockPos pos, Player player, InteractionHand hand,
                                               BlockHitResult hitResult) {
         if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-            // 非潜行：成型即开 UI（无例外）；未成型提示后让位物品链
+            // 非潜行：成型即开 UI；例外——手持仪式构建器时让位物品链路（升级分发归杖侧）；
+            // 未成型提示后让位物品链
             if (!player.isShiftKeyDown()) {
+                if (stack.getItem() instanceof com.bitsson.gensokyou.item.RitualBuilderItem
+                        && RitualMatcher.matchAt(level, pos).isPresent()) {
+                    return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+                }
                 return openOrHint(serverPlayer, (ServerLevel) level, pos, player)
                         ? ItemInteractionResult.SUCCESS
                         : ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
@@ -102,6 +107,10 @@ public class RitualCoreBlock extends Block implements EntityBlock {
                                                Player player, BlockHitResult hitResult) {
         if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
             if (!player.isShiftKeyDown()) {
+                // 主手空但任一手持构建器：PASS 后 vanilla 落到副手物品的 useOn（升级分发归杖侧）
+                if (holdsBuilder(player) && RitualMatcher.matchAt(level, pos).isPresent()) {
+                    return InteractionResult.PASS;
+                }
                 return openOrHint(serverPlayer, (ServerLevel) level, pos, player)
                         ? InteractionResult.SUCCESS
                         : InteractionResult.PASS;

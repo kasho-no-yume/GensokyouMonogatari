@@ -7,6 +7,8 @@ import com.bitsson.gensokyou.registry.ModDataComponents;
 import com.bitsson.gensokyou.registry.ModMenus;
 import com.bitsson.gensokyou.registry.TierPalette;
 import com.bitsson.gensokyou.ritual.RitualBuilderPlacement;
+import com.bitsson.gensokyou.ritual.RitualMatch;
+import com.bitsson.gensokyou.ritual.RitualMatcher;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
 import com.bitsson.gensokyou.ritual.RitualPreviewState;
@@ -89,9 +91,9 @@ public class RitualBuilderItem extends Item {
     }
 
     /**
-     * 两段式确认（服务端权威）：预览态与"此核心 + 手上选择 + 当前维度"全等 →
-     * 执行 {@link #doBuild} 并清态（成功/失败均清）；否则置入/替换预览态并 S2C 下发，
-     * 不放置任何方块、不消耗材料。成型核心走不到这里（行为分发先截获开 UI）。
+     * 两段式确认（服务端权威）：成型核心先过升级分发（他仪式/阶级不足提示让位不开 GUI），
+     * 预览态与"此核心 + 手上选择 + 当前维度"全等 → 执行 {@link #doBuild} 并清态（成功/失败均清）；
+     * 否则置入/替换预览态并 S2C 下发，不放置任何方块、不消耗材料。
      */
     private InteractionResult handleBuild(ServerPlayer player, InteractionHand hand, BlockPos corePos) {
         ItemStack stack = player.getItemInHand(hand);
@@ -101,9 +103,29 @@ public class RitualBuilderItem extends Item {
                     Component.translatable("msg.gensokyou.builder_select_first"), true);
             return InteractionResult.FAIL;
         }
-        if (RitualPatternLoader.byId(selection.patternId()).isEmpty()) {
+        Optional<RitualPattern> patternOpt = RitualPatternLoader.byId(selection.patternId());
+        if (patternOpt.isEmpty()) {
             player.displayClientMessage(
                     Component.translatable("msg.gensokyou.builder_pattern_gone"), true);
+            return InteractionResult.FAIL;
+        }
+        Optional<RitualMatch> matchOpt = RitualMatcher.matchAt(player.level(), corePos);
+        if (matchOpt.isPresent()) {
+            RitualMatch match = matchOpt.get();
+            if (!match.patternId().equals(selection.patternId())) {
+                player.displayClientMessage(
+                        Component.translatable("msg.gensokyou.builder_core_other_ritual"), true);
+                return InteractionResult.FAIL;
+            }
+            if (selection.tier() <= match.level()) {
+                player.displayClientMessage(Component.translatable(
+                        "msg.gensokyou.builder_level_insufficient", match.level()), true);
+                return InteractionResult.FAIL;
+            }
+        }
+        if (!RitualBuilderPlacement.hasLevel(patternOpt.get(), selection.tier())) {
+            player.displayClientMessage(
+                    Component.translatable("msg.gensokyou.builder_level_missing"), true);
             return InteractionResult.FAIL;
         }
         RitualPreviewState preview = player.getData(ModAttachments.RITUAL_PREVIEW.get());

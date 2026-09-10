@@ -1,0 +1,90 @@
+[
+  {
+    "level": 0,
+    "total": 119,
+    "added": 119,
+    "stones": 4,
+    "connected": 119,
+    "components": {
+      "core": 1,
+      "furnace foundation": 37,
+      "furnace bed": 37,
+      "bed corner paving": 8,
+      "four offering pedestals": 4,
+      "approaches": 4,
+      "copper channels": 4,
+      "open furnace rim": 8,
+      "corner footings": 4,
+      "lantern foundations": 4,
+      "lantern posts": 4,
+      "four corner lanterns": 4
+    }
+  },
+  {
+    "level": 1,
+    "total": 359,
+    "added": 240,
+    "stones": 8,
+    "connected": 359,
+    "components": {
+      "continuous outer ring": 92,
+      "radial paths": 16,
+      "four fire pools": 40,
+      "inner ring paving": 8,
+      "bollard footings": 8,
+      "raised rim": 8,
+      "ring rail": 24,
+      "lamp frame posts": 24,
+      "lamp frame lintels": 12,
+      "hanging lamp chains": 4,
+      "hanging lamps": 4
+    }
+  },
+  {
+    "level": 2,
+    "total": 827,
+    "added": 468,
+    "stones": 12,
+    "connected": 827,
+    "components": {
+      "tower plinth": 92,
+      "tower foundation": 88,
+      "tower continuous pillars": 80,
+      "tower window": 32,
+      "tower light chamber": 8,
+      "tower hearth": 4,
+      "tower lower eave": 100,
+      "tower upper roof": 36,
+      "four tower crowns": 4,
+      "paired path bollards": 16,
+      "path lights": 8
+    }
+  },
+  {
+    "level": 3,
+    "total": 1615,
+    "added": 788,
+    "stones": 28,
+    "connected": 1615,
+    "components": {
+      "gate approach foundations": 124,
+      "torii double posts": 128,
+      "torii lower tie beam": 28,
+      "torii upper beam": 44,
+      "torii continuous crown beam": 44,
+      "torii upturned beam ends": 8,
+      "torii central tablet": 4,
+      "gallery deck": 76,
+      "gallery outer rail": 40,
+      "gallery roof posts": 48,
+      "gallery roof": 68,
+      "four hanging chain swags": 28,
+      "gate suspended lanterns": 4,
+      "chain lower contour": 16,
+      "precinct wall": 76,
+      "precinct footing": 44,
+      "precinct corner caps": 4,
+      "precinct corner lights": 4
+    }
+  }
+]

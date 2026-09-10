@@ -25,7 +25,7 @@ import java.util.Optional;
 
 /**
  * 仪式构建器的一键搭建算法（纯服务端）。
- * 流程：取最高 level 切片 → 冲突预检（任一格被非目标方块占据即整体中止）→
+ * 流程：取所选阶级（level == 品阶）的累积切片 → 冲突预检（任一格被非目标方块占据即整体中止）→
  * 规范序尽力放置（缺料跳过该格，不降品阶、不重排）。锚点即被点击的核心，
  * 图案加载期已按对称展开为全量，故旋转固定 0。
  */
@@ -58,20 +58,30 @@ public final class RitualBuilderPlacement {
     public record Conflict(BlockPos pos, RitualPattern.BlockEntry entry) {
     }
 
-    /** 取图案最高 level 的切片（当前图案均只有 level 1）。 */
+    /** 取图案中 level == 所选阶级 的累积切片；图案无该阶级层级时返回 null（非法选择，调用方提示）。 */
     @Nullable
-    private static RitualPattern.LevelSlice topSlice(RitualPattern pattern) {
-        List<RitualPattern.LevelSlice> levels = pattern.levels();
-        return levels.isEmpty() ? null : levels.get(levels.size() - 1);
+    public static RitualPattern.LevelSlice sliceFor(RitualPattern pattern, int tier) {
+        for (RitualPattern.LevelSlice slice : pattern.levels()) {
+            if (slice.level() == tier) {
+                return slice;
+            }
+        }
+        return null;
+    }
+
+    /** 所选阶级在图案中是否有对应层级（杖侧分发预检用）。 */
+    public static boolean hasLevel(RitualPattern pattern, int tier) {
+        return sliceFor(pattern, tier) != null;
     }
 
     /**
-     * 计算所选图案在给定品阶下每种具体方块的需求总量（供 tooltip 与菜单展示）。
+     * 计算所选图案在给定阶级（品阶）下每种具体方块的需求总量（供 tooltip 与菜单展示），
+     * 口径 = 裸核心建到该阶的累积切片。
      * 与 {@link #build} 解析规则一致：EXACT 用固定方块、TAG 按品阶实例化；
-     * 锚点格与无法实例化（非品阶标签）的格位不计入需求。
+     * 锚点格与无法实例化（非品阶标签）的格位不计入需求；所选阶级无对应层级时返回空列表。
      */
     public static List<Requirement> requirements(RitualPattern pattern, int tier) {
-        RitualPattern.LevelSlice slice = topSlice(pattern);
+        RitualPattern.LevelSlice slice = sliceFor(pattern, tier);
         if (slice == null) {
             return List.of();
         }
@@ -103,7 +113,7 @@ public final class RitualBuilderPlacement {
      */
     public static Classification classify(Level level, BlockPos anchorPos,
                                           RitualPattern pattern, int tier) {
-        RitualPattern.LevelSlice slice = topSlice(pattern);
+        RitualPattern.LevelSlice slice = sliceFor(pattern, tier);
         if (slice == null) {
             return new Classification(List.of(), List.of(), List.of());
         }
