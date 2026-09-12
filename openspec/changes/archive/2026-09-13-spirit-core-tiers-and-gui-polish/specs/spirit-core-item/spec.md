@@ -1,9 +1,6 @@
-# spirit-core-item Specification
+# spirit-core-item Delta Spec
 
-## Purpose
-灵力核心储能物品：仪式侧灵力的便携载体，容量/注灵速率为物品构造定值（分品阶=新物品新定值），long 存储数据组件，作为仪式 GUI 输出槽的装卸对象。
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: 灵力核心物品与定值参数
 系统 SHALL 提供 `spirit_core_0..5`（六阶灵力核心）储能物品：容量与注灵速率作为构造定值（0 阶：容量 50000、注灵速率 1000/s；每高一阶容量 ×12、速率 ×8），品阶即新物品新定值，MUST NOT 依赖单一全局配置承载档位差异。物品 SHALL 不可堆叠，创造栏可取，语言键中英双备。旧 `spirit_core` 单档物品 SHALL 删除（WIP 阶段无存档迁移）。
@@ -25,3 +22,9 @@
 #### Scenario: 装满即止
 - **WHEN** 缓存灵力持续注入直至核心满 50000（0 阶）
 - **THEN** 注入停止、溢出留在仪式缓存，核心可取出且数值不超容
+
+## REMOVED Requirements
+
+### Requirement: 占位合成配方
+**Reason**: 六阶核心的获取/合成体系（低阶合高阶等）尚未设计，六物品暂仅创造栏可取。
+**Migration**: 后续配方立项时在 `spirit-core-tiers` 能力下新增获取途径规格。
