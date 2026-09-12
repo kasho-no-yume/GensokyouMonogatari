@@ -67,7 +67,8 @@ public class WeaponCoreMenu extends AbstractContainerMenu {
 
         for (int i = 0; i < CORE_SLOTS; i++) {
             final int coreIndex = i;
-            this.addSlot(new Slot(this.coreContainer, i, 62 + i * 36, 28) {
+            // 槽位嵌在背景大枪的对应部位上：枪托 / 机匣核心仓 / 枪管中段
+            this.addSlot(new Slot(this.coreContainer, i, 34 + i * 28, 22) {
                 @Override
                 public boolean mayPlace(ItemStack stack) {
                     return WeaponCoreMenu.this.mayPlaceCore(coreIndex, stack);

@@ -47,15 +47,16 @@ public final class RitualDiffCapture {
     public record PatternView(char anchorKey, Map<Character, String> paletteValues) {
     }
 
+    /** 受阶石族方块（祭品台已单方块化、不参与品阶反导）。 */
     private static final Pattern TIERED_BLOCK =
-            Pattern.compile("gensokyou:(ritual_stone|ritual_pedestal)_([0-5])");
+            Pattern.compile("gensokyou:(ritual_stone)_([0-5])");
 
     private RitualDiffCapture() {
     }
 
     /**
      * @param workspace   工作区内全部非空气格（相对锚点坐标），调用方扫描世界得到
-     * @param levelNumber 正在捕获的阶级号（= 石/台反导标签下限）
+     * @param levelNumber 正在捕获的阶级号（= 石反导标签下限）
      * @param ground      低级累积切片 cumulative(N-1) 全量展开（相对锚点）；最低阶传仅含锚点 (0,0,0) 的切片
      * @param view        既有 palette（keyChar → 谓词值）
      * @param index       标签成员 / 品阶查询
@@ -184,7 +185,7 @@ public final class RitualDiffCapture {
                 return key;
             }
         }
-        // ② 石/台反导 _N_plus 标签（含特例）；③ 其余新 EXACT
+        // ② 石反导 _N_plus 标签（含 N=0 全量特例）、台恒全量标签；③ 其余新 EXACT
         String derived = deriveTagValue(cell.blockId(), levelNumber);
         String value = derived != null ? derived : cell.blockId();
         Character ch = nextKey(usedKeys);
@@ -201,16 +202,15 @@ public final class RitualDiffCapture {
     }
 
     private static @Nullable String deriveTagValue(String blockId, int levelNumber) {
+        // 祭品台单方块无品阶：任意阶级新增台恒反导全量标签
+        if (blockId.equals("gensokyou:ritual_pedestal")) {
+            return "#gensokyou:ritual_pedestals";
+        }
         Matcher m = TIERED_BLOCK.matcher(blockId);
         if (!m.matches()) {
             return null;
         }
-        boolean pedestal = m.group(1).equals("ritual_pedestal");
         String ns = "gensokyou:";
-        if (pedestal) {
-            return levelNumber == 0 ? "#" + ns + "ritual_pedestals"
-                    : "#" + ns + "ritual_pedestals_" + Math.max(levelNumber, 2) + "_plus";
-        }
         return levelNumber == 0 ? "#" + ns + "ritual_stones"
                 : "#" + ns + "ritual_stones_" + levelNumber + "_plus";
     }

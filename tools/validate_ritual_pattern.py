@@ -129,7 +129,7 @@ def parse_entry(entry, where):
 
 
 def tier_of(block_id):
-    m = re.fullmatch(r'gensokyou:(ritual_stone|ritual_pedestal)_([0-5])', block_id)
+    m = re.fullmatch(r'gensokyou:(ritual_stone)_([0-5])', block_id)
     return int(m.group(2)) if m else -1
 
 

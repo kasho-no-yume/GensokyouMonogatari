@@ -76,8 +76,9 @@ public final class ModItems {
             ITEMS.registerSimpleBlockItem("ritual_core", ModBlocks.RITUAL_CORE);
     /** 仪式石物品（品阶 0-5，名字染品阶色）。 */
     public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_ITEMS = new ArrayList<>();
-    /** 祭品台物品（品阶 0-5，名字染品阶色）。 */
-    public static final List<DeferredItem<TieredBlockItem>> RITUAL_PEDESTAL_ITEMS = new ArrayList<>();
+    /** 祭品台物品：单一默认 0 阶外观，名字不染品阶色（变色是放置后台子的视觉）。 */
+    public static final DeferredItem<BlockItem> RITUAL_PEDESTAL_ITEM =
+            ITEMS.registerSimpleBlockItem("ritual_pedestal", ModBlocks.RITUAL_PEDESTAL);
     /** 仪式石装饰变种物品（台阶/楼梯/墙 × 品阶 0-5，名字染品阶色）。 */
     public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_SLAB_ITEMS = new ArrayList<>();
     public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_STAIRS_ITEMS = new ArrayList<>();
@@ -88,9 +89,6 @@ public final class ModItems {
             final int tier = i;
             RITUAL_STONE_ITEMS.add(ITEMS.register("ritual_stone_" + i,
                     () -> new TieredBlockItem(ModBlocks.RITUAL_STONES.get(tier).get(),
-                            new Item.Properties(), tier)));
-            RITUAL_PEDESTAL_ITEMS.add(ITEMS.register("ritual_pedestal_" + i,
-                    () -> new TieredBlockItem(ModBlocks.RITUAL_PEDESTALS.get(tier).get(),
                             new Item.Properties(), tier)));
             RITUAL_STONE_SLAB_ITEMS.add(ITEMS.register("ritual_stone_slab_" + tier,
                     () -> new TieredBlockItem(ModBlocks.RITUAL_STONE_SLABS.get(tier).get(),
@@ -110,11 +108,29 @@ public final class ModItems {
             ITEMS.register("ritual_builder", () -> new RitualBuilderItem(
                     new Item.Properties().stacksTo(1)));
 
-    /** 灵力核心（默认档电池）：容量/注灵速率为定值，分品阶=新物品新参数。 */
-    public static final DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem> SPIRIT_CORE =
-            ITEMS.register("spirit_core", () -> new com.bitsson.gensokyou.spirit.SpiritCoreItem(
-                    com.bitsson.gensokyou.spirit.SpiritCoreItem.DEFAULT_CAPACITY,
-                    com.bitsson.gensokyou.spirit.SpiritCoreItem.DEFAULT_FILL_RATE_PER_SECOND));
+    /** 六阶灵力核心（电池）：容量 50000×12ⁿ / 速率 1000×8ⁿ，品阶=新物品新定值。 */
+    public static final List<DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem>> SPIRIT_CORES =
+            registerSpiritCores();
+
+    private static List<DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem>> registerSpiritCores() {
+        List<DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem>> cores = new ArrayList<>();
+        for (int tier = 0; tier <= 5; tier++) {
+            final int t = tier;
+            final long capacity = 50000L * pow(12L, t);
+            final int rate = 1000 * (int) pow(8L, t);
+            cores.add(ITEMS.register("spirit_core_" + t,
+                    () -> new com.bitsson.gensokyou.spirit.SpiritCoreItem(t, capacity, rate)));
+        }
+        return List.copyOf(cores);
+    }
+
+    private static long pow(long base, int exp) {
+        long result = 1L;
+        for (int i = 0; i < exp; i++) {
+            result *= base;
+        }
+        return result;
+    }
 
     // ---------------- 弹幕主武器与三槽核 ----------------
 

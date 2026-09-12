@@ -1,9 +1,9 @@
 package com.bitsson.gensokyou.spirit;
 
 import com.bitsson.gensokyou.registry.ModDataComponents;
+import com.bitsson.gensokyou.registry.TierPalette;
 import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.Item;
+import net.minecraft.network.chat.Component;import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 
@@ -15,16 +15,19 @@ import java.util.List;
  */
 public class SpiritCoreItem extends Item {
 
-    public static final long DEFAULT_CAPACITY = 30000L;
-    public static final int DEFAULT_FILL_RATE_PER_SECOND = 100;
-
+    private final int tier;
     private final long capacity;
     private final int fillRatePerSecond;
 
-    public SpiritCoreItem(long capacity, int fillRatePerSecond) {
+    public SpiritCoreItem(int tier, long capacity, int fillRatePerSecond) {
         super(new Properties().stacksTo(1));
+        this.tier = tier;
         this.capacity = capacity;
         this.fillRatePerSecond = fillRatePerSecond;
+    }
+
+    public int tier() {
+        return tier;
     }
 
     public long capacity() {
@@ -73,5 +76,7 @@ public class SpiritCoreItem extends Item {
         tooltip.add(Component.translatable("tooltip.gensokyou.spirit_core",
                         getStored(stack), capacity)
                 .withStyle(ChatFormatting.AQUA));
+        tooltip.add(Component.translatable("tooltip.gensokyou.spirit_core_rate", fillRatePerSecond)
+                .withStyle(style -> style.withColor(TierPalette.textColor(tier))));
     }
 }

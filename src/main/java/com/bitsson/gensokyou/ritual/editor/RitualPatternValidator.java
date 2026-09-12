@@ -334,6 +334,7 @@ public final class RitualPatternValidator {
         ordered.sort(Comparator.comparingInt(ParsedLevel::level));
         for (Map.Entry<String, PaletteEntry> entry : pattern.palette().entrySet()) {
             PaletteEntry palette = entry.getValue();
+            // 无阶标签（floor=null，如单方块化的祭品台）不参与品阶下限判定
             if (!palette.tag() || palette.floorTier() == null) {
                 continue;
             }

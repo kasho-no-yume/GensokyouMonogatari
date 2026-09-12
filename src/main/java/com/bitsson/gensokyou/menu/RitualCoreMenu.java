@@ -17,7 +17,7 @@ import net.minecraft.world.inventory.DataSlot;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-/** 无槽位仪式菜单：承载核心位置上下文与服务端权威的启停按钮通道。 */
+/** 仪式菜单：核心位置上下文 + 启停按钮通道 + 玩家物品栏（通用，全仪式可用）。 */
 public class RitualCoreMenu extends AbstractContainerMenu {
 
     /** 按钮 id：0=启动，1=停止；≥10 为各仪式行为注入的自定义操作。 */
@@ -26,29 +26,34 @@ public class RitualCoreMenu extends AbstractContainerMenu {
     /** 自定义操作 id 基准（行为侧 uiActions 返回的 id + 此值）。 */
     public static final int BUTTON_ACTION_BASE = 100;
 
-    /** 灵力核心输出槽在面板中的位置（相对界面左上角）。 */
-    public static final int BATTERY_SLOT_X = 174;
-    public static final int BATTERY_SLOT_Y = 44;
+    /** 灵力核心输出槽在面板中的位置（面板 176 宽，槽位在信息区头排）。 */
+    public static final int BATTERY_SLOT_X = 30;
+    public static final int BATTERY_SLOT_Y = 40;
+    /** BatterySlot 恒为槽表 index 0，背包槽在其后追加。 */
+    private static final int BATTERY_SLOT_INDEX = 0;
+    /** 背包区起始 y：信息区 150px + 4px 间隔。 */
+    private static final int INVENTORY_TOP_Y = 158;
 
     private final BlockPos pos;
     private final DataSlot burnRemaining;
     private final DataSlot burnTotal;
 
     public RitualCoreMenu(int windowId, Inventory inventory, RegistryFriendlyByteBuf data) {
-        this(windowId, inventory.player, data.readBlockPos());
+        this(windowId, inventory, data.readBlockPos());
     }
 
     public RitualCoreMenu(int windowId, Inventory inventory, BlockPos pos) {
-        this(windowId, inventory.player, pos);
+        this(windowId, inventory, inventory.player, pos);
     }
 
-    public RitualCoreMenu(int windowId, Player player, BlockPos pos) {
+    private RitualCoreMenu(int windowId, Inventory inventory, Player player, BlockPos pos) {
         super(ModMenus.RITUAL_CORE.get(), windowId);
         this.pos = pos.immutable();
         // 电池槽与燃烧倒计时通道：服务端直读核心 BE，客户端持占位、值随菜单协议收敛
         if (player.level() instanceof ServerLevel serverLevel
                 && serverLevel.getBlockEntity(this.pos) instanceof RitualCoreBlockEntity core) {
-            addSlot(new BatterySlot(core.batteryHandler(), 0, BATTERY_SLOT_X, BATTERY_SLOT_Y));
+            addSlot(new BatterySlot(core.batteryHandler(), BATTERY_SLOT_INDEX,
+                    BATTERY_SLOT_X, BATTERY_SLOT_Y));
             this.burnRemaining = addDataSlot(new DataSlot() {
                 @Override
                 public int get() {
@@ -77,9 +82,19 @@ public class RitualCoreMenu extends AbstractContainerMenu {
                             return stack.getItem() instanceof com.bitsson.gensokyou.spirit.SpiritCoreItem;
                         }
                     };
-            addSlot(new BatterySlot(dummy, 0, BATTERY_SLOT_X, BATTERY_SLOT_Y));
+            addSlot(new BatterySlot(dummy, BATTERY_SLOT_INDEX, BATTERY_SLOT_X, BATTERY_SLOT_Y));
             this.burnRemaining = addDataSlot(DataSlot.standalone());
             this.burnTotal = addDataSlot(DataSlot.standalone());
+        }
+        // 玩家物品栏：两分支之后统一追加，客户端/服务端槽序一致
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 9; col++) {
+                this.addSlot(new Slot(inventory, 9 + row * 9 + col,
+                        8 + col * 18, INVENTORY_TOP_Y + row * 18));
+            }
+        }
+        for (int col = 0; col < 9; col++) {
+            this.addSlot(new Slot(inventory, col, 8 + col * 18, INVENTORY_TOP_Y + 56));
         }
     }
 
@@ -95,9 +110,34 @@ public class RitualCoreMenu extends AbstractContainerMenu {
         return pos;
     }
 
+    /** shift 转移：背包 → 电池槽（index 0，类型校验经 mayPlace 收敛）→ 兜底在背包内堆叠；电池槽 → 背包。 */
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
-        return ItemStack.EMPTY;
+        Slot slot = this.slots.get(index);
+        if (!slot.hasItem()) {
+            return ItemStack.EMPTY;
+        }
+        ItemStack stack = slot.getItem();
+        ItemStack original = stack.copy();
+        if (index == BATTERY_SLOT_INDEX) {
+            if (!this.moveItemStackTo(stack, BATTERY_SLOT_INDEX + 1, this.slots.size(), false)) {
+                return ItemStack.EMPTY;
+            }
+        } else if (!this.moveItemStackTo(stack, BATTERY_SLOT_INDEX,
+                BATTERY_SLOT_INDEX + 1, false)) {
+            if (!this.moveItemStackTo(stack, this.slots.size() - 9, this.slots.size(), false)) {
+                if (!this.moveItemStackTo(stack, BATTERY_SLOT_INDEX + 1,
+                        this.slots.size() - 9, true)) {
+                    return ItemStack.EMPTY;
+                }
+            }
+        }
+        if (stack.isEmpty()) {
+            slot.setByPlayer(ItemStack.EMPTY);
+        } else {
+            slot.setChanged();
+        }
+        return stack.getCount() == original.getCount() ? ItemStack.EMPTY : stack;
     }
 
     @Override

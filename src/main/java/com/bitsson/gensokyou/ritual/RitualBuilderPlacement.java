@@ -77,8 +77,9 @@ public final class RitualBuilderPlacement {
     /**
      * 计算所选图案在给定阶级（品阶）下每种具体方块的需求总量（供 tooltip 与菜单展示），
      * 口径 = 裸核心建到该阶的累积切片。
-     * 与 {@link #build} 解析规则一致：EXACT 用固定方块、TAG 按品阶实例化；
-     * 锚点格与无法实例化（非品阶标签）的格位不计入需求；所选阶级无对应层级时返回空列表。
+     * 与 {@link #build} 解析规则一致：EXACT 用固定方块、TAG 按品阶实例化
+     * （纯无阶标签回退唯一成员，如祭品台）；
+     * 锚点格与无法实例化（含阶标签混入无阶成员等）的格位不计入需求；所选阶级无对应层级时返回空列表。
      */
     public static List<Requirement> requirements(RitualPattern pattern, int tier) {
         RitualPattern.LevelSlice slice = sliceFor(pattern, tier);
@@ -213,7 +214,7 @@ public final class RitualBuilderPlacement {
         return entry.orientation() == null || Orientation.matches(state, entry.orientation());
     }
 
-    /** 解析格位应放置的具体方块：EXACT 用固定 block；TAG 取标签内 tierOf==tier 的方块。 */
+    /** 解析格位应放置的具体方块：EXACT 用固定 block；TAG 取标签内 tierOf==tier 的方块（纯无阶标签回退唯一成员）。 */
     @Nullable
     private static Block resolveBlock(@Nullable RitualPattern.Predicate predicate, int tier) {
         if (predicate == null) {
@@ -226,6 +227,10 @@ public final class RitualBuilderPlacement {
         };
     }
 
+    /**
+     * 标签内取所选品阶成员；无匹配品阶时，若标签全部成员不受阶（tierOf==-1，
+     * 如单方块化的祭品台）则回退取唯一成员，否则 null（该格计入"无法放置"）。
+     */
     @Nullable
     private static Block blockOfTier(RitualPattern.Predicate predicate, int tier) {
         if (predicate.tag() == null) {
@@ -236,12 +241,20 @@ public final class RitualBuilderPlacement {
         if (holders.isEmpty()) {
             return null;
         }
+        Block soleUntiered = null;
+        boolean mixed = false;
         for (Holder<Block> holder : holders.get()) {
-            if (ModBlocks.tierOf(holder.value()) == tier) {
+            int memberTier = ModBlocks.tierOf(holder.value());
+            if (memberTier == tier) {
                 return holder.value();
             }
+            if (memberTier >= 0) {
+                mixed = true;
+            } else if (soleUntiered == null) {
+                soleUntiered = holder.value();
+            }
         }
-        return null;
+        return mixed ? null : soleUntiered;
     }
 
     /** 从背包扣一个该方块的物品（精确匹配，忽略 NBT）。返回是否成功。 */

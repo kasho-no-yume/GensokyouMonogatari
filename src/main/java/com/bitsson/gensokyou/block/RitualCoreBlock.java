@@ -38,8 +38,9 @@ import javax.annotation.Nullable;
  *   （这样催化剂等物品的 useOn 才有机会执行）
  * - 结构有行为 → 行为结果即为最终结果
  *
- * 品阶视觉：tier 属性（0-5）随仪式等级（结构内石/台最高品阶）由
- * RitualCoreBlockEntity 服务端写入，驱动 blockstate 切换 ritual_core_0..5 模型。
+ * 品阶视觉：tier 属性（0-5）随仪式等级（结构内仪式石最高品阶）由
+ * RitualCoreBlockEntity 服务端写入，驱动 blockstate 切换 ritual_core_0..5 模型；
+ * 祭品台同拍写入同一 tier 值（见 RitualPedestalBlock）。
  */
 public class RitualCoreBlock extends Block implements EntityBlock {
 

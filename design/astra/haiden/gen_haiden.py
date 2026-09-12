@@ -137,7 +137,7 @@ put(cells, 14, 8, 8, "minecraft:amethyst_block")
 
 # ---- 段E 内部陈设 ----
 for x in (7, 8, 9):
-    put(cells, x, 2, 11, "gensokyou:ritual_pedestal_5")
+    put(cells, x, 2, 11, "gensokyou:ritual_pedestal")
 put(cells, 8, 3, 11, "minecraft:soul_lantern")
 for (x, z) in [(6, 5), (10, 5)]:
     put(cells, x, 2, z, "minecraft:pink_petals")

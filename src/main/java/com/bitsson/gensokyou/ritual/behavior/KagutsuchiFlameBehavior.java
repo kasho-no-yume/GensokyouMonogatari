@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.ritual.behavior;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualMatch;
@@ -12,8 +13,12 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 加具土命之焰：吞食祭品台上的可燃物产出灵力。
@@ -24,6 +29,36 @@ import net.minecraft.world.item.ItemStack;
  * {@code BASE_CAPACITY × 10^L}），并按所插灵力核心的注灵速率节流转入电池。
  */
 public class KagutsuchiFlameBehavior implements RitualBehavior {
+
+    @Override
+    public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
+                                 RitualCoreBlockEntity core) {
+        List<InfoLine> lines = new ArrayList<>();
+        int remaining = core.burnRemainingTicks();
+        int total = core.burnTotalTicks();
+        if (core.isBurning() && remaining > 0 && total > 0) {
+            // 燃烧批次：燃料图标 + 进度条 + 剩余秒
+            ItemStack fuel = core.burnFuelIcon();
+            String iconId = fuel.isEmpty() ? ""
+                    : BuiltInRegistries.ITEM.getKey(fuel.getItem()).toString();
+            lines.add(new InfoLine("gui.gensokyou.ritual.kagutsuchi.burning", new String[0],
+                    iconId, 0xFF2E8B57, (float) (total - remaining) / total, null));
+            lines.add(new InfoLine("gui.gensokyou.ritual.kagutsuchi.remaining",
+                    new String[]{String.valueOf((remaining + 19) / 20)},
+                    "", 0, -1F, null));
+        } else if (!core.isEnabled()) {
+            lines.add(new InfoLine("gui.gensokyou.ritual.kagutsuchi.not_started",
+                    new String[0], "", 0, -1F, null));
+        } else if (core.getStored() >= core.getCapacity()) {
+            lines.add(new InfoLine("gui.gensokyou.ritual.kagutsuchi.stalled",
+                    new String[0], "", 0xFFB22222, -1F, null));
+        } else {
+            lines.add(new InfoLine("gui.gensokyou.ritual.kagutsuchi.idle",
+                    new String[0], "", 0, -1F, null));
+        }
+        lines.addAll(RitualBehavior.defaultUiInfo(level, corePos, match, core));
+        return lines;
+    }
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
@@ -102,14 +137,17 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
 
     /** 每秒一次的产灵/注灵结算（速率 ×1000 定点进位，避免整除截断）。 */
     private static void settlePerSecond(RitualMatch match, RitualCoreBlockEntity core) {
-        // 产灵：20 × 4^等级 每秒；receive 天然截到上限，超出部分作废（空烧语义）
-        double ratePerSecond = GensokyouConfig.KAGUTSUICHI_BASE_RATE_PER_SECOND.get()
-                * pow4(match.level());
-        long rateCarry = core.rateCarry() + (long) Math.floor(ratePerSecond * 1000D);
-        long produced = rateCarry / 1000L;
-        core.setRateCarry(rateCarry % 1000L);
-        if (produced > 0L) {
-            core.receive(produced);
+        // 产灵：20 × 4^等级 每秒，仅燃烧期入账（含空烧——receive 天然截到上限，超出作废）；
+        // 无燃料待机/停等 MUST NOT 白产（bugfix：此前缺 isBurning 门控）
+        if (core.isBurning()) {
+            double ratePerSecond = GensokyouConfig.KAGUTSUICHI_BASE_RATE_PER_SECOND.get()
+                    * pow4(match.level());
+            long rateCarry = core.rateCarry() + (long) Math.floor(ratePerSecond * 1000D);
+            long produced = rateCarry / 1000L;
+            core.setRateCarry(rateCarry % 1000L);
+            if (produced > 0L) {
+                core.receive(produced);
+            }
         }
         // 注灵：按核心自身速率从缓存转入电池（电池满/无缓存自然为 0）
         ItemStack battery = core.batteryStack();
@@ -133,21 +171,71 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
         return value;
     }
 
+    /**
+     * 多点火柱粒子（方案 B v2）：每柱 FLAME 主簇 + SMALL_FLAME 细簇双层。
+     * 阶级 0 仅核心；≥1 每座祭品台一柱；≥2 环插值柱，半径铺到结构外扩边界的 40%~100%。
+     * 间隔 {6,4,3,2}、单簇数量随阶级线性放大 → 观感密度约每阶 ×2。
+     * 每 40t（L≥2 为 20t）补发 LARGE_SMOKE。非燃烧态（停等/待机）零粒子。
+     */
     private static void emitFlameParticles(ServerLevel level, BlockPos corePos,
                                            RitualMatch match, RitualCoreBlockEntity core) {
         if (!core.isBurning()) {
             return;
         }
-        int interval = Math.max(2, 6 - match.level());
-        if (core.ageTicks() % interval != 0) {
+        int l = Math.min(3, Math.max(0, match.level()));
+        int[] intervals = {6, 4, 3, 2};
+        var random = level.getRandom();
+        List<BlockPos> pedestals = match.positionsOf('P');
+        double cx = corePos.getX() + 0.5D;
+        double cz = corePos.getZ() + 0.5D;
+        double baseY = corePos.getY() + 1.1D;
+        if (core.ageTicks() % (l >= 2 ? 20 : 40) == 0) {
+            BlockPos s = pedestals.isEmpty() ? corePos
+                    : pedestals.get(random.nextInt(pedestals.size()));
+            level.sendParticles(ParticleTypes.LARGE_SMOKE,
+                    s.getX() + 0.5D, s.getY() + 1.6D, s.getZ() + 0.5D,
+                    l >= 2 ? 2 : 1, 0.2D, 0.1D, 0.2D, 0.01D);
+        }
+        if (core.ageTicks() % intervals[l] != 0) {
             return;
         }
-        int count = 2 + match.level();
-        var random = level.getRandom();
+        emitFlameColumn(level, cx, baseY, cz, 2 + 2 * l, 0.35D, random);
+        if (l < 1) {
+            return;
+        }
+        double avgPed = 0D;
+        for (BlockPos p : pedestals) {
+            avgPed += Math.hypot(p.getX() + 0.5D - cx, p.getZ() + 0.5D - cz);
+            emitFlameColumn(level, p.getX() + 0.5D, p.getY() + 1.1D, p.getZ() + 0.5D,
+                    2 + 2 * l, 0.3D, random);
+        }
+        if (l < 2) {
+            return;
+        }
+        double structR = 2D;
+        for (List<BlockPos> ps : match.keyedPositions().values()) {
+            for (BlockPos p : ps) {
+                structR = Math.max(structR,
+                        Math.hypot(p.getX() + 0.5D - cx, p.getZ() + 0.5D - cz));
+            }
+        }
+        double ringBase = Math.max(structR, avgPed / Math.max(1, pedestals.size()) * 1.2D);
+        for (int i = 0, points = 2 + 3 * l; i < points; i++) {
+            double angle = random.nextDouble() * Math.PI * 2D;
+            double radius = ringBase * (0.4D + random.nextDouble() * 0.6D);
+            emitFlameColumn(level, cx + Math.cos(angle) * radius, baseY,
+                    cz + Math.sin(angle) * radius, 3 + l, 0.25D, random);
+        }
+    }
+
+    /** 单点火柱：FLAME 主簇 + 半数 SMALL_FLAME 细簇，中心随机上浮。 */
+    private static void emitFlameColumn(ServerLevel level, double x, double y, double z,
+                                        int count, double spread, RandomSource random) {
         level.sendParticles(ParticleTypes.FLAME,
-                corePos.getX() + 0.5D + (random.nextDouble() - 0.5D) * 0.7D,
-                corePos.getY() + 0.9D + random.nextDouble() * 0.5D,
-                corePos.getZ() + 0.5D + (random.nextDouble() - 0.5D) * 0.7D,
-                count, 0.03D, 0.08D, 0.03D, 0.005D);
+                x, y + random.nextDouble() * 0.4D, z,
+                count, spread, 0.1D, spread, 0.005D);
+        level.sendParticles(ParticleTypes.SMALL_FLAME,
+                x, y + random.nextDouble() * 0.4D, z,
+                (count + 1) / 2, spread, 0.14D, spread, 0.004D);
     }
 }

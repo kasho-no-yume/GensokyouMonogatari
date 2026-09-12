@@ -39,9 +39,21 @@ public class WeaponCoreScreen extends AbstractContainerScreen<WeaponCoreMenu> {
                 PANEL_WIDTH, PANEL_HEIGHT);
     }
 
+    /** 可嵌入背景大枪的三个槽位中心（与 WeaponCoreMenu 槽位坐标一致）。 */
+    private static final int[] SLOT_XS = {34, 62, 90};
+    private static final int SLOT_Y = 22;
+
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
-        graphics.drawString(this.font, this.title, 8, 10, 0xFF404040, false);
+        // 面板标题（背景大枪上方）
+        graphics.drawString(this.font, this.title, 8, 4, 0xFF404040, false);
+        // 三核槽槽位标注（嵌槽下方）
+        graphics.drawString(this.font, Component.translatable("gui.gensokyou.weapon.slot_bullet"),
+                SLOT_XS[0], 54, 0xFF6B4A24, false);
+        graphics.drawString(this.font, Component.translatable("gui.gensokyou.weapon.slot_level"),
+                SLOT_XS[1], 54, 0xFF6B4A24, false);
+        graphics.drawString(this.font, Component.translatable("gui.gensokyou.weapon.slot_amp"),
+                SLOT_XS[2], 54, 0xFF6B4A24, false);
     }
 
     /** 等级不足的核叠加半透明灰色遮罩（原版槽位渲染后、悬停物之前执行）。 */

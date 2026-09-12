@@ -1,7 +1,9 @@
 package com.bitsson.gensokyou.block.entity;
 
+import com.bitsson.gensokyou.block.RitualPedestalBlock;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
+import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualMatch;
@@ -103,11 +105,11 @@ public class RitualCoreBlockEntity extends BlockEntity {
         return GensokyouConfig.CAPACITOR_CAPACITY.get();
     }
 
-    /** 加具土命缓存上限 = 基础值 × 10^等级。 */
+    /** 加具土命缓存上限 = 基础值 × 4^等级。 */
     public static long kagutsuchiCapacity(int level) {
         long cap = GensokyouConfig.KAGUTSUICHI_BASE_CAPACITY.get();
         for (int i = 0; i < level; i++) {
-            cap *= 10L;
+            cap *= 4L;
         }
         return cap;
     }
@@ -545,10 +547,13 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 RitualBehaviors.get(core.activeMatch.patternId())
                         .ifPresent(behavior -> behavior.onFormed(serverLevel, pos, core.activeMatch));
             }
-            // 品阶视觉随仪式等级（结构内石/台最高品阶）；结构失效回落 0 级灰。
+            // 品阶视觉随仪式等级（结构内仪式石最高品阶）；结构失效回落 0 级灰。
             // 仅在值变化时写块（重扫幂等，无循环）；setBlock 触发的邻居更新不参与重扫。
-            writeTier(serverLevel, pos,
-                    core.activeMatch == null ? 0 : core.activeMatch.ritualTier());
+            int ritualTier = core.activeMatch == null ? 0 : core.activeMatch.ritualTier();
+            writeTier(serverLevel, pos, ritualTier);
+            if (core.activeMatch != null) {
+                writePedestalTiers(serverLevel, core.activeMatch, ritualTier);
+            }
         }
         if (core.activeMatch == null) {
             if (previous != null) {
@@ -557,6 +562,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 core.setEnabled(false);
                 core.activeRecipeId = null;
                 core.setPedestalsActive(serverLevel, previous, false);
+                writePedestalTiers(serverLevel, previous, 0);
                 RitualBehaviors.get(previous.patternId())
                         .ifPresent(behavior -> behavior.onStructureLost(serverLevel, pos));
             }
@@ -586,6 +592,20 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (state.getBlock() instanceof com.bitsson.gensokyou.block.RitualCoreBlock
                 && state.getValue(com.bitsson.gensokyou.block.RitualCoreBlock.TIER) != tier) {
             level.setBlock(pos, state.setValue(com.bitsson.gensokyou.block.RitualCoreBlock.TIER, tier), 3);
+        }
+    }
+
+    /**
+     * 将匹配结构内全部祭品台的 tier 属性同步为仪式等级（与核心同源同值）。
+     * 仅变化时写块；同方块改属性不重建 BE，台面物品无损。
+     */
+    private static void writePedestalTiers(ServerLevel level, RitualMatch match, int tier) {
+        for (BlockPos p : match.positionsOf('P')) {
+            BlockState state = level.getBlockState(p);
+            if (state.is(ModBlocks.RITUAL_PEDESTAL.get())
+                    && state.getValue(RitualPedestalBlock.TIER) != tier) {
+                level.setBlock(p, state.setValue(RitualPedestalBlock.TIER, tier), 3);
+            }
         }
     }
 

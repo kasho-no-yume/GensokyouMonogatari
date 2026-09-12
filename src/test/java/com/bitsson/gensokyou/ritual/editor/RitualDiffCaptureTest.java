@@ -15,11 +15,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /** diff 捕获核心行为（地基不可动 / 本阶自由增删 / 轴上归并 / key 复用与标签反导 / 自检拒坏补丁）。 */
 class RitualDiffCaptureTest {
 
-    /** 测试用标签索引：镜像真实 tag 文件（复数标签名 → 单数成员 id）。 */
+    /** 测试用标签索引：镜像真实 tag 文件（石族复数标签名；祭品台单方块成员）。 */
     private static final class FakeIndex implements BlockTagIndex {
         @Override
         public List<String> members(String tagId) {
-            // gensokyou:ritual_stones / _N_plus；gensokyou:ritual_pedestals / _N_plus
+            // gensokyou:ritual_stones / _N_plus；gensokyou:ritual_pedestals（单成员，无 _N_plus）
+            if (tagId.equals("gensokyou:ritual_pedestals")) {
+                return List.of("gensokyou:ritual_pedestal");
+            }
             String tag = tagId;
             int min = 0;
             if (tag.endsWith("_plus")) {
@@ -27,7 +30,7 @@ class RitualDiffCaptureTest {
                 min = tag.charAt(tag.length() - 1) - '0';
                 tag = tag.substring(0, tag.length() - 2);
             }
-            if (!tag.equals("gensokyou:ritual_stones") && !tag.equals("gensokyou:ritual_pedestals")) {
+            if (!tag.equals("gensokyou:ritual_stones")) {
                 return List.of();
             }
             String singular = tag.substring(0, tag.length() - 1);
@@ -40,7 +43,7 @@ class RitualDiffCaptureTest {
 
         @Override
         public int tierOf(String blockId) {
-            if (!blockId.startsWith("gensokyou:ritual_stone_") && !blockId.startsWith("gensokyou:ritual_pedestal_")) {
+            if (!blockId.startsWith("gensokyou:ritual_stone_")) {
                 return -1;
             }
             char last = blockId.charAt(blockId.length() - 1);
@@ -127,6 +130,22 @@ class RitualDiffCaptureTest {
         assertTrue(patch.clean(), patch.violations().toString());
         assertEquals(1, patch.adds().size());
         assertEquals("#gensokyou:ritual_stones_3_plus",
+                patch.paletteAdditions().get(patch.adds().get(0).key()));
+    }
+
+    @Test
+    void newPedestalDerivesFullTagAtAnyLevel() {
+        // 阶级 3 新增一圈祭品台（单方块），仪式原无台标签 key → 恒反导全量标签、无 _N_plus
+        RitualDiffCapture.Patch patch = RitualDiffCapture.capture(
+                ws(0, 0, 4, "gensokyou:ritual_pedestal",
+                        0, 0, -4, "gensokyou:ritual_pedestal",
+                        4, 0, 0, "gensokyou:ritual_pedestal",
+                        -4, 0, 0, "gensokyou:ritual_pedestal"),
+                3, List.of(cell('C', 0, 0, 0)),
+                viewOf("C", "gensokyou:ritual_core"), INDEX);
+        assertTrue(patch.clean(), patch.violations().toString());
+        assertEquals(1, patch.adds().size());
+        assertEquals("#gensokyou:ritual_pedestals",
                 patch.paletteAdditions().get(patch.adds().get(0).key()));
     }
 

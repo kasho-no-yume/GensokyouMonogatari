@@ -26,8 +26,9 @@ public final class ModBlocks {
 
     /** 仪式石：按品阶独立注册 ritual_stone_0..5。 */
     public static final List<DeferredBlock<TieredBlock>> RITUAL_STONES = new ArrayList<>();
-    /** 祭品台：按品阶独立注册 ritual_pedestal_0..5。 */
-    public static final List<DeferredBlock<RitualPedestalBlock>> RITUAL_PEDESTALS = new ArrayList<>();
+    /** 祭品台：单一方块，tier BlockState 属性驱动变色（品阶视觉由核心重扫写入）。 */
+    public static final DeferredBlock<RitualPedestalBlock> RITUAL_PEDESTAL =
+            BLOCKS.registerBlock("ritual_pedestal", RitualPedestalBlock::new, stoneProperties());
     /** 仪式石台阶：装饰变种，按品阶独立注册 ritual_stone_slab_0..5。 */
     public static final List<DeferredBlock<SlabBlock>> RITUAL_STONE_SLABS = new ArrayList<>();
     /** 仪式石楼梯：装饰变种，按品阶独立注册 ritual_stone_stairs_0..5。 */
@@ -40,9 +41,6 @@ public final class ModBlocks {
             final int tier = i;
             RITUAL_STONES.add(BLOCKS.registerBlock("ritual_stone_" + i,
                     properties -> new TieredBlock(properties, tier),
-                    stoneProperties()));
-            RITUAL_PEDESTALS.add(BLOCKS.registerBlock("ritual_pedestal_" + i,
-                    properties -> new RitualPedestalBlock(properties, tier),
                     stoneProperties()));
         }
         // 装饰变种：直接用原版方块类，品阶只体现在注册名与贴图；tierOf() 不感知（不参与仪式匹配）
@@ -75,13 +73,10 @@ public final class ModBlocks {
                             .strength(-1.0F, 3600000.0F).noLootTable()
                             .noCollission());
 
-    /** 查询方块的仪式品阶；非品阶方块返回 -1（如仪式核心自身）。 */
+    /** 查询方块的仪式品阶；非品阶方块返回 -1（如仪式核心、单方块化后的祭品台）。 */
     public static int tierOf(Block block) {
         if (block instanceof TieredBlock tiered) {
             return tiered.tier();
-        }
-        if (block instanceof RitualPedestalBlock pedestal) {
-            return pedestal.tier();
         }
         return -1;
     }

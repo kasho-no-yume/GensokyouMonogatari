@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 final class JsonTagIndex implements BlockTagIndex {
 
     private static final Pattern TIER =
-            Pattern.compile("gensokyou:(ritual_stone|ritual_pedestal)_([0-5])");
+            Pattern.compile("gensokyou:(ritual_stone)_([0-5])");
 
     private final Map<String, List<String>> tags = new HashMap<>();
 

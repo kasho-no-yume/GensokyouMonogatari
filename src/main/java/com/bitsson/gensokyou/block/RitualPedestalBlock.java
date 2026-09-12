@@ -14,20 +14,28 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
+/**
+ * 祭品台：单一注册方块，`tier`（0-5）BlockState 属性驱动变体模型。
+ * 放置恒 tier=0 灰；仪式成型后由核心重扫写入当前仪式等级，与核心同色。
+ * 属性变化不改方块身份——BE 与台面物品无损（见 onRemove 的 is 判定）。
+ */
 public class RitualPedestalBlock extends Block implements EntityBlock {
 
-    private final int tier;
+    /** 仪式等级驱动的品阶视觉属性（与 RitualCoreBlock.TIER 同源同值）。 */
+    public static final IntegerProperty TIER = IntegerProperty.create("tier", 0, 5);
 
-    public RitualPedestalBlock(Properties properties, int tier) {
+    public RitualPedestalBlock(Properties properties) {
         super(properties);
-        this.tier = tier;
+        registerDefaultState(this.stateDefinition.any().setValue(TIER, 0));
     }
 
-    /** 品阶（0-5），由注册身份静态确定；供仪式等级推导使用。 */
-    public int tier() {
-        return this.tier;
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        builder.add(TIER);
     }
 
     @Override

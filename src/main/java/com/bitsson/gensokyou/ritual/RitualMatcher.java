@@ -47,7 +47,7 @@ public final class RitualMatcher {
         return Optional.empty();
     }
 
-    /** 校验结果：键位坐标表（规范序）+ 结构内品阶方块（石/台）的最高品阶。 */
+    /** 校验结果：键位坐标表（规范序）+ 结构内受阶方块（仪式石）的最高品阶。 */
     private record VerifyResult(Map<Character, List<BlockPos>> keyed, int maxTier) {
     }
 

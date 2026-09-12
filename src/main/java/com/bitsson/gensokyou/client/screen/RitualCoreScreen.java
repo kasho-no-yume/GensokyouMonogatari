@@ -3,26 +3,33 @@ package com.bitsson.gensokyou.client.screen;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.ClientRitualState;
 import com.bitsson.gensokyou.menu.RitualCoreMenu;
+import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.RitualInfoPayload;
-import com.bitsson.gensokyou.network.RitualTogglePayload;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 
 import javax.annotation.Nullable;
 import java.util.List;
 
 /**
- * 仪式界面：信息面板 + 祭品核对清单 + 启动/停止按钮。
- * 数据来自服务端推送的 RitualInfoPayload（ClientRitualState 暂存）。
+ * 仪式界面（176 宽，与玩家物品栏同宽）：固定头（名称/阶级/状态/灵力）
+ * + 头排（电池槽 + 启停按钮）+ 行为自主信息区（InfoLine 逐行渲染）
+ * + 底部玩家物品栏。数据来自服务端推送的 RitualInfoPayload（ClientRitualState 暂存）。
  */
 public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
 
-    private static final int PANEL_WIDTH = 200;
-    private static final int PANEL_HEIGHT = 150;
+    private static final int PANEL_WIDTH = 176;
+    /** 信息区高度（含固定头），信息行渲染下缘以此为准。 */
+    private static final int INFO_HEIGHT = 150;
+    /** 背包区高度：主仓 3 行 + 快捷栏 1 行 + 间隔。 */
+    private static final int INVENTORY_HEIGHT = 84;
+    private static final int PANEL_HEIGHT = INFO_HEIGHT + INVENTORY_HEIGHT;
     private static final int COLOR_TEXT = 0xFF404040;
     private static final int COLOR_OK = 0xFF2E8B57;
     private static final int COLOR_BAD = 0xFFB22222;
@@ -30,8 +37,13 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     private static final ResourceLocation BACKGROUND =
             Gensokyou.id("textures/gui/ritual_core.png");
 
-    /** 加具土命之焰图案 id（本界面燃烧区与电池槽的显隐判据）。 */
-    private static final String KAGUTSUICHI = "gensokyou:kagutsuchi_flame_circle";
+    /** 信息行布局：图标行占 18px，纯文本行占 11px。 */
+    private static final int INFO_X = 8;
+    private static final int INFO_MAX_Y = INFO_HEIGHT - 22;
+    private static final int STATE_X = 124;
+    /** 启停按钮（头排右列）。 */
+    private static final int TOGGLE_BUTTON_X = 120;
+    private static final int TOGGLE_BUTTON_W = 50;
 
     @Nullable
     private Button startButton;
@@ -48,23 +60,22 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     @Override
     protected void init() {
         super.init();
-        int x = leftPos + 8;
-        int y = topPos + PANEL_HEIGHT - 26;
+        // 启停按钮：头排右列（电池槽右侧）
         startButton = addRenderableWidget(Button.builder(
                         Component.translatable("gui.gensokyou.ritual.start"), b -> send(0))
-                .bounds(x, y, 84, 20).build());
+                .bounds(leftPos + TOGGLE_BUTTON_X, topPos + 40, TOGGLE_BUTTON_W, 20).build());
         stopButton = addRenderableWidget(Button.builder(
                         Component.translatable("gui.gensokyou.ritual.stop"), b -> send(1))
-                .bounds(x + 92, y, 84, 20).build());
+                .bounds(leftPos + TOGGLE_BUTTON_X, topPos + 62, TOGGLE_BUTTON_W, 20).build());
         // 首帧即隐藏，显隐唯一由 containerTick 按服务端 payload 收敛（防非 toggleable 仪式按钮闪现）
         startButton.visible = false;
         stopButton.visible = false;
-        int ax = x + 176;
+        // 行为注入操作按钮：启停下方竖排
         for (int i = 0; i < actionButtons.length; i++) {
             final int index = i;
             actionButtons[i] = addRenderableWidget(Button.builder(Component.literal("?"),
                             b -> send(RitualCoreMenu.BUTTON_ACTION_BASE + index))
-                    .bounds(ax, topPos + 8 + i * 22, 20, 20).build());
+                    .bounds(leftPos + TOGGLE_BUTTON_X, topPos + 88 + i * 22, TOGGLE_BUTTON_W, 20).build());
             actionButtons[i].visible = false;
         }
     }
@@ -87,7 +98,7 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         if (stopButton != null) {
             stopButton.visible = showButtons && ours && info.enabled();
         }
-        // 行为注入的自定义操作按钮：右侧竖排，随 payload 动态显隐
+        // 行为注入的自定义操作按钮：随 payload 动态显隐
         for (int i = 0; i < actionButtons.length; i++) {
             Button button = actionButtons[i];
             if (button == null) {
@@ -123,118 +134,74 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
             return;
         }
         var font = this.font;
-        int y = 10;
         if (info.patternId().isEmpty()) {
-            graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.no_pattern"), 8, y, COLOR_BAD, false);
+            graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.no_pattern"),
+                    INFO_X, 4, COLOR_BAD, false);
             return;
         }
+        // —— 固定头：名称 / 状态 / 阶级 / 灵力 ——
         ResourceLocation id = ResourceLocation.parse(info.patternId());
         graphics.drawString(font,
                 Component.translatableWithFallback("jei." + id.getNamespace() + ".ritual." + id.getPath(),
-                        id.getPath().replace('_', ' ')), 8, y, COLOR_TEXT, false);
-        y += 12;
-        graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.tier", info.tier()), 8, y, COLOR_TEXT, false);
-        graphics.drawString(font,
-                info.enabled() ? Component.translatable("gui.gensokyou.ritual.running")
-                        : Component.translatable("gui.gensokyou.ritual.idle"),
-                PANEL_WIDTH - 60, y, info.enabled() ? COLOR_OK : COLOR_BAD, false);
-        y += 12;
-        graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.sp", info.stored(), info.capacity()),
-                8, y, COLOR_TEXT, false);
-        y += 14;
-        if (KAGUTSUICHI.equals(info.patternId())) {
-            y = renderBurnRow(graphics, info, y);
-        }
-        // 灵力核心槽标注（槽本体由菜单协议渲染于右侧框内；通用插槽，吸能/供能随仪式而定）
+                        id.getPath().replace('_', ' ')), INFO_X, 4, COLOR_TEXT, false);
+        Component state = info.enabled()
+                ? Component.translatable("gui.gensokyou.ritual.running")
+                : Component.translatable("gui.gensokyou.ritual.idle");
+        graphics.drawString(font, state, PANEL_WIDTH - 8 - font.width(state), 4,
+                info.enabled() ? COLOR_OK : COLOR_BAD, false);
+        graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.tier", info.tier()),
+                INFO_X, 15, COLOR_TEXT, false);
+        graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.sp",
+                info.stored(), info.capacity()), INFO_X, 26, COLOR_TEXT, false);
+        // 电池槽标注（槽本体由菜单协议渲染）
         graphics.drawString(font,
                 Component.translatable("gui.gensokyou.ritual.spirit_core_slot"),
-                RitualCoreMenu.BATTERY_SLOT_X - 26, RitualCoreMenu.BATTERY_SLOT_Y - 12,
+                RitualCoreMenu.BATTERY_SLOT_X + 20, RitualCoreMenu.BATTERY_SLOT_Y + 4,
                 COLOR_TEXT, false);
-        List<RitualInfoPayload.Entry> entries = info.entries();
-        if (!entries.isEmpty()) {
-            graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.offerings"), 8, y, COLOR_TEXT, false);
-            y += 14;
+        // —— 信息区：行为产出的 InfoLine 逐行渲染（电池槽行下方起笔，避免与槽标注叠行） ——
+        renderInfoLines(graphics, font, info.infoLines(), 60);
+        // 一次性状态消息（启停反馈等）：信息区底部
+        if (!info.statusKey().isEmpty()) {
+            graphics.drawString(font, Component.translatable(info.statusKey()),
+                    INFO_X, INFO_HEIGHT - 12, COLOR_TEXT, false);
         }
-        for (int i = 0; i < entries.size() && y < PANEL_HEIGHT - 30; i++) {
-            RitualInfoPayload.Entry entry = entries.get(i);
-            var stack = ClientRitualState.stackFor(entry.itemId());
-            if (!stack.isEmpty()) {
-                graphics.renderItem(stack, 8, y);
-            }
-            graphics.drawString(font, entry.satisfied() ? "✓" : "✗",
-                    PANEL_WIDTH - 18, y + 4, entry.satisfied() ? COLOR_OK : COLOR_BAD, true);
-            y += 18;
-        }
-        if (!info.recipes().isEmpty() && y < PANEL_HEIGHT - 30) {
-            graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.recipes"), 8, y, COLOR_TEXT, false);
-            y += 12;
-        }
-        for (RitualInfoPayload.RecipeInfo recipe : info.recipes()) {
-            if (y >= PANEL_HEIGHT - 30) {
+    }
+
+    /** InfoLine 渲染：图标(18px) + 文本 + 进度条 + ✓✗；y 到 INFO_MAX_Y 即止。 */
+    private void renderInfoLines(GuiGraphics graphics, Font font, List<InfoLine> lines, int yStart) {
+        int y = yStart;
+        for (InfoLine line : lines) {
+            if (y > INFO_MAX_Y - 11) {
                 break;
             }
-            ResourceLocation recipeId = ResourceLocation.parse(recipe.recipeId());
-            Component name = Component.translatableWithFallback(
-                    "jei." + recipeId.getNamespace() + ".recipe." + recipeId.getPath(),
-                    recipeId.getPath().replace('_', ' '));
-            boolean active = !info.activeRecipeId().isEmpty()
-                    && info.activeRecipeId().equals(recipe.recipeId());
-            int color = recipe.satisfied() ? COLOR_OK : COLOR_BAD;
-            graphics.drawString(font, (recipe.satisfied() ? "✓ " : "✗ ") + name.getString(), 8, y, color, false);
-            y += 11;
-            if (!recipe.satisfied() && !recipe.missingText().isEmpty()) {
-                graphics.drawString(font, "  " + recipe.missingText(), 8, y, COLOR_TEXT, false);
-                y += 11;
-            } else if (active) {
-                graphics.drawString(font, "  " + translatableActive(), 8, y, COLOR_OK, false);
-                y += 11;
+            ItemStack icon = line.iconItemId().isEmpty()
+                    ? ItemStack.EMPTY : ClientRitualState.stackFor(line.iconItemId());
+            int textX = INFO_X;
+            if (!icon.isEmpty()) {
+                graphics.renderItem(icon, INFO_X, y);
+                textX = INFO_X + 20;
             }
-        }
-        if (!info.statusKey().isEmpty()) {
-            graphics.drawString(font, Component.translatable(info.statusKey()), 8, PANEL_HEIGHT - 34,
-                    COLOR_TEXT, false);
-        }
-    }
-
-    private static Component translatableActive() {
-        return Component.translatable("gui.gensokyou.ritual.active_recipe");
-    }
-
-    /** 加具土命燃烧区：未启动=提示；批次中=燃料图标+进度条+剩余秒；停等/待机=状态文本。返回新的 y。 */
-    private int renderBurnRow(GuiGraphics graphics, RitualInfoPayload info, int y) {
-        var font = this.font;
-        int remaining = menu.burnRemaining();
-        int total = menu.burnTotal();
-        if (info.enabled() && remaining > 0 && total > 0) {
-            var fuel = ClientRitualState.stackFor(info.fuelItem());
-            if (!fuel.isEmpty()) {
-                graphics.renderItem(fuel, 8, y);
+            int color = line.color() != 0 ? line.color() : COLOR_TEXT;
+            if (!line.textKey().isEmpty()) {
+                Component text = Component.translatable(line.textKey(), (Object[]) line.textArgs());
+                graphics.drawString(font, text, textX, y + (icon.isEmpty() ? 0 : 4), color, false);
             }
-            int barX = 28;
-            int barW = 96;
-            int barY = y + 6;
-            graphics.fill(barX, barY, barX + barW, barY + 3, 0xFF3A2A1A);
-            graphics.fill(barX, barY, barX + (int) ((long) barW * remaining / total), barY + 3, 0xFFE8912A);
-            graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.kagutsuchi.burning"),
-                    barX, y - 1, COLOR_OK, false);
-            graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.kagutsuchi.remaining",
-                    (remaining + 19) / 20), 8, y + 12, COLOR_TEXT, false);
-            return y + 24;
+            if (line.progress() >= 0F) {
+                int barX = textX + 52;
+                int barW = 40;
+                int barY = y + 5;
+                graphics.fill(leftPos + barX, topPos + barY,
+                        leftPos + barX + barW, topPos + barY + 4, 0xFF202030);
+                graphics.fill(leftPos + barX, topPos + barY,
+                        leftPos + barX + (int) (barW * Math.min(1F, line.progress())),
+                        topPos + barY + 4, 0xFFE8912A);
+            }
+            if (line.state() != null) {
+                String mark = line.state() ? "✓" : "✗";
+                int markColor = line.state() ? COLOR_OK : COLOR_BAD;
+                graphics.drawString(font, mark, STATE_X - font.width(mark), y + 4, markColor, true);
+            }
+            y += icon.isEmpty() ? 11 : 18;
         }
-        boolean stalled = info.stored() >= info.capacity();
-        Component text;
-        int color;
-        if (!info.enabled()) {
-            text = Component.translatable("gui.gensokyou.ritual.kagutsuchi.not_started");
-            color = COLOR_TEXT;
-        } else if (stalled) {
-            text = Component.translatable("gui.gensokyou.ritual.kagutsuchi.stalled");
-            color = COLOR_BAD;
-        } else {
-            text = Component.translatable("gui.gensokyou.ritual.kagutsuchi.idle");
-            color = COLOR_TEXT;
-        }
-        graphics.drawString(font, text, 8, y, color, false);
-        return y + 14;
     }
 }

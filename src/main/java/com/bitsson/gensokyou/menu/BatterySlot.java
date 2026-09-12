@@ -25,6 +25,7 @@ public class BatterySlot extends SlotItemHandler {
         return shown;
     }
 
+    /** 隐藏即拒收：shift 快速转移同样走 mayPlace，杜绝投件进不可见槽。 */
     @Override
     public boolean mayPlace(ItemStack stack) {
         return shown && super.mayPlace(stack);
