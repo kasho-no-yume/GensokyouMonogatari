@@ -81,8 +81,11 @@ public class RitualCoreBlock extends Block implements EntityBlock {
                                               BlockHitResult hitResult) {
         if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
             // 非潜行：成型即开 UI；例外——手持仪式构建器时让位物品链路（升级分发归杖侧）；
-            // 未成型提示后让位物品链
+            // 例外——手持编辑杖时恒让位（纯锚定，成型与否皆不开 GUI）；未成型提示后让位物品链
             if (!player.isShiftKeyDown()) {
+                if (stack.getItem() instanceof com.bitsson.gensokyou.item.RitualWandItem) {
+                    return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+                }
                 if (stack.getItem() instanceof com.bitsson.gensokyou.item.RitualBuilderItem
                         && RitualMatcher.matchAt(level, pos).isPresent()) {
                     return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
@@ -107,6 +110,10 @@ public class RitualCoreBlock extends Block implements EntityBlock {
                                                Player player, BlockHitResult hitResult) {
         if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
             if (!player.isShiftKeyDown()) {
+                // 编辑杖：纯锚定，恒让位物品链路（与 useItemOn 守卫成对，防补调抢回 GUI）
+                if (holdsWand(player)) {
+                    return InteractionResult.PASS;
+                }
                 // 主手空但任一手持构建器：PASS 后 vanilla 落到副手物品的 useOn（升级分发归杖侧）
                 if (holdsBuilder(player) && RitualMatcher.matchAt(level, pos).isPresent()) {
                     return InteractionResult.PASS;
@@ -145,6 +152,14 @@ public class RitualCoreBlock extends Block implements EntityBlock {
                        .getItem() instanceof com.bitsson.gensokyou.item.RitualBuilderItem
                 || player.getItemInHand(InteractionHand.OFF_HAND)
                        .getItem() instanceof com.bitsson.gensokyou.item.RitualBuilderItem;
+    }
+
+    /** 玩家任一手是否持编辑杖（成型核心右键只锚定、不开界面）。 */
+    private static boolean holdsWand(Player player) {
+        return player.getItemInHand(InteractionHand.MAIN_HAND)
+                       .getItem() instanceof com.bitsson.gensokyou.item.RitualWandItem
+                || player.getItemInHand(InteractionHand.OFF_HAND)
+                       .getItem() instanceof com.bitsson.gensokyou.item.RitualWandItem;
     }
 
     private InteractionResult dispatchUse(ServerLevel level, BlockPos pos, Player player,

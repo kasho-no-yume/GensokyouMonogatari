@@ -90,5 +90,6 @@ public final class GensokyouClient {
         event.register(ModMenus.RITUAL_CORE.get(), RitualCoreScreen::new);
         event.register(ModMenus.WEAPON_CORE.get(), WeaponCoreScreen::new);
         event.register(ModMenus.RITUAL_BUILDER.get(), RitualBuilderScreen::new);
+        event.register(ModMenus.RITUAL_EDITOR.get(), com.bitsson.gensokyou.client.screen.RitualEditorScreen::new);
     }
 }

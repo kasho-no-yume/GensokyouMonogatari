@@ -50,6 +50,10 @@ public final class ModNetworking {
                 ClientPayloadHandler::handleRitualConflict);
         registrar.playToClient(RitualPreviewPayload.TYPE, RitualPreviewPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleRitualPreview);
+        registrar.playToClient(EditorPreviewPayload.TYPE, EditorPreviewPayload.STREAM_CODEC,
+                ClientPayloadHandler::handleEditorPreview);
+        registrar.playToServer(EditorCommandPayload.TYPE, EditorCommandPayload.STREAM_CODEC,
+                ModNetworking::handleEditorCommand);
         registrar.playToClient(DialogSyncPayload.TYPE, DialogSyncPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleDialogSync);
         registrar.playToServer(DialogActionPayload.TYPE, DialogActionPayload.STREAM_CODEC,
@@ -85,6 +89,77 @@ public final class ModNetworking {
     public static void sendRitualPreview(ServerPlayer player,
                                          java.util.Optional<RitualPreviewState> preview) {
         PacketDistributor.sendToPlayer(player, new RitualPreviewPayload(preview));
+    }
+
+    /** 下发编辑杖力建预览（null = 清除；带草稿时附合成 pattern JSON 供客户端每帧本地重算三色）。 */
+    public static void sendEditorPreview(ServerPlayer player,
+                                         @javax.annotation.Nullable com.bitsson.gensokyou.ritual.editor.EditorPreviewState state) {
+        String json = null;
+        if (state != null && player.level() instanceof ServerLevel level
+                && com.bitsson.gensokyou.ritual.editor.RitualEditorActions.hasDrafts(level, state.patternId())) {
+            json = com.bitsson.gensokyou.ritual.editor.RitualEditorActions.composedRaw(level, state.patternId())
+                    .map(com.bitsson.gensokyou.ritual.editor.RitualPatternSerializer::serialize).orElse(null);
+        }
+        PacketDistributor.sendToPlayer(player, state == null
+                ? EditorPreviewPayload.CLEAR : EditorPreviewPayload.of(state, json));
+    }
+
+    /** C2S 编辑杖命令：创造硬闸后分发动作（UI 隐藏不算防御，spec 要求逐入口重复校验）。 */
+    private static void handleEditorCommand(EditorCommandPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (!(context.player() instanceof ServerPlayer player)
+                    || com.bitsson.gensokyou.ritual.editor.RitualEditorActions.gated(player) == null) {
+                return;
+            }
+            net.minecraft.world.InteractionHand hand =
+                    com.bitsson.gensokyou.ritual.editor.RitualEditorActions.handWithWand(player);
+            if (hand == null) {
+                return;
+            }
+            var stack = player.getItemInHand(hand);
+            var state = com.bitsson.gensokyou.ritual.editor.RitualEditorActions.stateOf(stack);
+            switch (payload.action()) {
+                case EditorCommandPayload.ACTION_SELECT -> {
+                    if (payload.patternId() == null) {
+                        return;
+                    }
+                    var pattern = com.bitsson.gensokyou.ritual.RitualPatternLoader
+                            .byId(payload.patternId()).orElse(null);
+                    if (pattern == null || !com.bitsson.gensokyou.ritual.RitualBuilderPlacement
+                            .hasLevel(pattern, payload.level())) {
+                        player.displayClientMessage(Component.translatable(
+                                "msg.gensokyou.editor_pattern_gone"), true);
+                        return;
+                    }
+                    com.bitsson.gensokyou.ritual.editor.RitualEditorActions.storeState(player, hand,
+                            state.withSelection(new com.bitsson.gensokyou.item.BuilderSelection(
+                                    payload.patternId(), payload.level())));
+                    com.bitsson.gensokyou.ritual.editor.RitualEditorActions.invalidatePreview(player);
+                }
+                case EditorCommandPayload.ACTION_SET_WORKSPACE -> {
+                    if (payload.workspace() == null) {
+                        return;
+                    }
+                    com.bitsson.gensokyou.ritual.editor.RitualEditorActions.storeState(player, hand,
+                            state.withWorkspace(payload.level(), payload.workspace()
+                                    .clamped(com.bitsson.gensokyou.item.RitualWandItem.maxDimension())));
+                    com.bitsson.gensokyou.ritual.editor.RitualEditorActions.invalidatePreview(player);
+                }
+                case EditorCommandPayload.ACTION_CAPTURE_DRAFT ->
+                        com.bitsson.gensokyou.ritual.editor.RitualEditorActions
+                                .captureDraft(player, hand);
+                case EditorCommandPayload.ACTION_SAVE_RITUAL ->
+                        com.bitsson.gensokyou.ritual.editor.RitualEditorActions
+                                .saveRitual(player, hand);
+                case EditorCommandPayload.ACTION_CLEAR_ANCHOR -> {
+                    com.bitsson.gensokyou.ritual.editor.RitualEditorActions.storeState(player, hand,
+                            state.withAnchor(null, null));
+                    com.bitsson.gensokyou.ritual.editor.RitualEditorActions.invalidatePreview(player);
+                }
+                default -> {
+                }
+            }
+        });
     }
 
     /** C2S 选择：校验图案存在 + 品阶合法后写回手上构建器组件。 */

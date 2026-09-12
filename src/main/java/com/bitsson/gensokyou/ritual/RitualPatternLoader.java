@@ -19,6 +19,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +28,8 @@ import java.util.Set;
 public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
     private static final Gson GSON = new Gson();
     private static final List<RitualPattern> PATTERNS = new ArrayList<>();
+    /** id → 原始 v5 JSON（编辑杖回写/校验的基文件；与 PATTERNS 同生命周期重建）。 */
+    private static final Map<ResourceLocation, JsonObject> RAWS = new LinkedHashMap<>();
 
     public RitualPatternLoader() {
         super(GSON, "rituals");
@@ -36,9 +39,12 @@ public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
     protected void apply(Map<ResourceLocation, JsonElement> files, ResourceManager resourceManager,
                          net.minecraft.util.profiling.ProfilerFiller profiler) {
         List<RitualPattern> parsed = new ArrayList<>();
+        Map<ResourceLocation, JsonObject> raws = new LinkedHashMap<>();
         for (var file : files.entrySet()) {
             try {
-                parsed.add(parse(file.getKey(), GsonHelper.convertToJsonObject(file.getValue(), "ritual")));
+                JsonObject json = GsonHelper.convertToJsonObject(file.getValue(), "ritual");
+                parsed.add(parse(file.getKey(), json));
+                raws.put(file.getKey(), json);
             } catch (Exception exception) {
                 Gensokyou.LOGGER.warn("Rejected ritual pattern {}: {}", file.getKey(), exception.getMessage());
             }
@@ -48,6 +54,8 @@ public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
             parsed.sort(java.util.Comparator.comparingInt(RitualPatternLoader::specificity).reversed());
             PATTERNS.clear();
             PATTERNS.addAll(parsed);
+            RAWS.clear();
+            RAWS.putAll(raws);
         }
         Gensokyou.LOGGER.info("Loaded {} ritual patterns", PATTERNS.size());
     }
@@ -332,6 +340,19 @@ public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
         synchronized (PATTERNS) {
             return List.copyOf(PATTERNS);
         }
+    }
+
+    /** 原始 v5 JSON 副本（编辑杖回写基文件）；未加载/被拒载返回 empty。 */
+    public static Optional<JsonObject> rawOf(ResourceLocation id) {
+        synchronized (PATTERNS) {
+            JsonObject json = RAWS.get(id);
+        return json == null ? Optional.empty() : Optional.of(json.deepCopy().getAsJsonObject());
+        }
+    }
+
+    /** 编辑期校验用：以 loader 同规则解析给定 JSON（非法即抛 IllegalArgumentException）。 */
+    public static RitualPattern parseForEdit(ResourceLocation id, JsonObject json) {
+        return parse(id, json);
     }
 
     public static Optional<RitualPattern> byId(ResourceLocation id) {

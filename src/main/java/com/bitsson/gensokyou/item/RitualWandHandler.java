@@ -1,16 +1,18 @@
 package com.bitsson.gensokyou.item;
 
 import com.bitsson.gensokyou.Gensokyou;
-import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
-/** 构造仗的左右键拦截：取消破坏/使用，转角点选择。 */
+/**
+ * 编辑杖事件闸：潜行右键（任意目标）无条件打开编辑菜单——
+ * 成型核心的菜单/直连链路会抢先消费右键，故在事件层拦截（其余右键走物品 useOn + 核心让位守卫）。
+ */
 @EventBusSubscriber(modid = Gensokyou.MODID)
 public final class RitualWandHandler {
 
@@ -18,40 +20,23 @@ public final class RitualWandHandler {
     }
 
     @SubscribeEvent
-    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            RitualWandItem.clearSelection(player.getUUID());
-        }
-    }
-
-    @SubscribeEvent
-    public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
-        if (!isWandMainHand(event)) {
-            return;
-        }
-        event.setCanceled(true);
-        if (event.getEntity() instanceof ServerPlayer player
-                && event.getLevel() instanceof ServerLevel serverLevel) {
-            RitualWandItem.selectCornerA(serverLevel, player, event.getPos());
-        }
-    }
-
-    @SubscribeEvent
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (!isWandMainHand(event)) {
+        if (event.getHand() != InteractionHand.MAIN_HAND
+                || event.getLevel().isClientSide()
+                || !(event.getEntity() instanceof ServerPlayer player)
+                || !player.isShiftKeyDown()
+                || !(event.getEntity().getMainHandItem().getItem() instanceof RitualWandItem)) {
             return;
         }
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.SUCCESS);
-        if (event.getEntity() instanceof ServerPlayer player
-                && event.getLevel() instanceof ServerLevel serverLevel) {
-            RitualWandItem.selectCornerB(serverLevel, player, event.getPos());
+        if (!player.hasInfiniteMaterials()) {
+            player.displayClientMessage(
+                    Component.translatable("msg.gensokyou.editor_creative_only"), true);
+            return;
         }
-    }
-
-    private static boolean isWandMainHand(PlayerInteractEvent event) {
-        return event.getHand() == InteractionHand.MAIN_HAND
-                && event.getEntity().getMainHandItem().getItem() instanceof RitualWandItem
-                && !event.getLevel().isClientSide();
+        if (player.getMainHandItem().getItem() instanceof RitualWandItem wandItem) {
+            wandItem.openMenu(player, event.getHand());
+        }
     }
 }

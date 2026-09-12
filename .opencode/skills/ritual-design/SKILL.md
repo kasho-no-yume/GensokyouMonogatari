@@ -124,13 +124,15 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
    - 两法可混用：脚本出骨架、手写补细节。
    - 无论哪条路径，落盘的 levels 只含**每级新增**（低级格位不再复制进高级增量）；脚本骨架的累积字典照旧自检，输出段已内置差分，见 §1。
 5. 校验：`python tools/validate_ritual_pattern.py --test-out run/world/datapacks/gs_ritual_test`——新 pattern 要求 0 ERROR、0 WARN；每次改 pattern 后必须重建测试包。存量占位仪式是 1 基编号的历史产物，勿效仿。如果有问题建议让用户检查。
+   **已存在仪式的迭代改走编辑杖闭环**（§6）：进游戏锚定→力建→实地改块→捕获存阶→仪式保存（游戏内校验+直接覆写文件+/reload 秒生效），不再"改 JSON→重启→看"；首稿仍按本流程落文件。编辑杖产出的 adds 与手搓同格式，python 校验兜底不变。
 6. 实机验证由用户运行 `powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1`（agent 不启动服务器）。美观评审进游戏实地看。现有测试 harness 只认 generator_circle 形状的仪式——新仪式的自动化实机测试需程序侧扩展 harness，需求说明中写清测试锚点坐标与期望输出。
 
 ## 6. 工具清单
 
 | 工具                                 | 用途                                                                                                                     |
 |--------------------------------------|--------------------------------------------------------------------------------------------------------------------------|
-| `tools/validate_ritual_pattern.py`   | 离线校验全部 pattern（锚点/展开冲突/纯增量/品阶下限/劫持）；`--test-out DIR` 重建服务器测试数据包。**唯一必跑工具**      |
+| `tools/validate_ritual_pattern.py`   | 离线校验全部 pattern（锚点/展开冲突/纯增量/品阶下限/劫持）；`--test-out DIR` 重建服务器测试数据包。**与 Java 校验器对表（`RitualPatternValidatorParityTest`），仍是 CI 权威** |
+| 仪式编辑杖（`ritual_wand`，仅创造）   | **迭代已存在仪式的主工具**：右键核心锚定 → 菜单选仪式/阶级/工作区 → 右键核心两段式力建（覆盖+sweep 工作区）→ 手改方块 → "捕获存阶"（diff 补丁，低级地基不可碰）→ "仪式保存"（游戏内全量合规校验，通过即覆写 `world/datapacks/gs_dev/...` + dev 环境回声源码树）→ `/reload` 秒生效。闭环替代"手改 JSON→重启"循环 |
 | `tools/gen_generator_circle.py`      | 生成脚本骨架（canon/put/slab/pillar + 冲突自检），照抄骨架改蓝图。**输出已是 v5 增量格式（逐级差分），重跑即可直接落盘** |
 | `run/world/datapacks/gs_ritual_test` | `--test-out` 生成的测试包，每次改 pattern 后必须重建                                                                     |
 | `tools/_run_ritual_test.ps1`         | 实机端到端测试启动器（**由用户运行**，agent 不启动服务器）                                                               |

@@ -31,6 +31,12 @@ public final class ModMenus {
                     (IContainerFactory<RitualBuilderMenu>) RitualBuilderMenu::new,
                     FeatureFlags.VANILLA_SET));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<com.bitsson.gensokyou.menu.RitualEditorMenu>> RITUAL_EDITOR =
+            MENUS.register("ritual_editor", () -> new MenuType<>(
+                    (IContainerFactory<com.bitsson.gensokyou.menu.RitualEditorMenu>)
+                            com.bitsson.gensokyou.menu.RitualEditorMenu::new,
+                    FeatureFlags.VANILLA_SET));
+
     private ModMenus() {
     }
 }

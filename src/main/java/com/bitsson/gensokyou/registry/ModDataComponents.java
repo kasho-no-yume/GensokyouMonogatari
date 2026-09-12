@@ -44,6 +44,14 @@ public final class ModDataComponents {
                     .networkSynchronized(BuilderSelection.STREAM_CODEC)
                     .build());
 
+    /** 编辑杖会话态（锚点/维度/选择/按阶级工作区），随物品持久化并同步客户端。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.bitsson.gensokyou.ritual.editor.EditorState>> RITUAL_EDITOR_STATE =
+            DATA_COMPONENTS.register("ritual_editor_state",
+                    () -> DataComponentType.<com.bitsson.gensokyou.ritual.editor.EditorState>builder()
+                            .persistent(com.bitsson.gensokyou.ritual.editor.EditorState.CODEC)
+                            .networkSynchronized(com.bitsson.gensokyou.ritual.editor.EditorState.STREAM_CODEC)
+                            .build());
+
     private ModDataComponents() {
     }
 }

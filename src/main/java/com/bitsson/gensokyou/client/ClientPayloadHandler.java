@@ -34,6 +34,11 @@ public final class ClientPayloadHandler {
         context.enqueueWork(() -> ClientRitualPreviewState.update(payload.preview()));
     }
 
+    public static void handleEditorPreview(com.bitsson.gensokyou.network.EditorPreviewPayload payload,
+                                           IPayloadContext context) {
+        context.enqueueWork(() -> ClientRitualEditorState.update(payload));
+    }
+
     /** 对话同步：委托客户端专属类处理（服务端不加载 DialogScreen/Minecraft）。 */
     public static void handleDialogSync(DialogSyncPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> ClientDialog.handle(payload));

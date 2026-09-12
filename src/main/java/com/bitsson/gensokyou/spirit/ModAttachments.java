@@ -47,6 +47,12 @@ public final class ModAttachments {
                     .<RitualPreviewState>builder(() -> null)
                     .build());
 
+    /** 编辑杖力建预览态：会话级 transient，默认 null = 无预览。 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.bitsson.gensokyou.ritual.editor.EditorPreviewState>> RITUAL_EDITOR_PREVIEW =
+            ATTACHMENTS.register("ritual_editor_preview", () -> AttachmentType
+                    .<com.bitsson.gensokyou.ritual.editor.EditorPreviewState>builder(() -> null)
+                    .build());
+
     private ModAttachments() {
     }
 
