@@ -110,6 +110,12 @@ public final class ModItems {
             ITEMS.register("ritual_builder", () -> new RitualBuilderItem(
                     new Item.Properties().stacksTo(1)));
 
+    /** 灵力核心（默认档电池）：容量/注灵速率为定值，分品阶=新物品新参数。 */
+    public static final DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem> SPIRIT_CORE =
+            ITEMS.register("spirit_core", () -> new com.bitsson.gensokyou.spirit.SpiritCoreItem(
+                    com.bitsson.gensokyou.spirit.SpiritCoreItem.DEFAULT_CAPACITY,
+                    com.bitsson.gensokyou.spirit.SpiritCoreItem.DEFAULT_FILL_RATE_PER_SECOND));
+
     // ---------------- 弹幕主武器与三槽核 ----------------
 
     private static ItemAttributeModifiers noMeleeAttributes() {

@@ -19,7 +19,7 @@ public class GeneratorBehavior implements RitualBehavior {
             return;
         }
         int generated = (int) Math.round(GensokyouConfig.GENERATOR_SP_PER_SECOND.get() * interval / 20D);
-        int remaining = generated;
+        long remaining = generated;
         for (Direction direction : Direction.values()) {
             if (remaining <= 0) {
                 break;

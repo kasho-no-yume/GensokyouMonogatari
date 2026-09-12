@@ -134,6 +134,7 @@
   "gui.gensokyou.builder.none": "尚未选择仪式",
   "gui.gensokyou.builder.material_line": "%s：需求 %s / 持有 %s",
   "gui.gensokyou.builder.material_count": "需求 %s / 持有 %s",
+  "gui.gensokyou.builder.hud_shortage": "×%s",
   "msg.gensokyou.builder_select_first": "请先潜行右键选择仪式",
   "msg.gensokyou.builder_core_only": "右键仪式核心以搭建",
   "msg.gensokyou.builder_pattern_gone": "仪式已不存在，请重新选择",
@@ -238,5 +239,13 @@
   "dialogue.gensokyou.rinnosuke.opt.back": "回到话题",
   "msg.gensokyou.npc_warning": "你伤害了幻想乡的居民！警告 %1$s/%2$s——再犯将被逐出幻想乡。",
   "msg.gensokyou.npc_exiled": "幻想乡拒绝了你这样的施暴者。",
-  "chat.gensokyou.npc_exiled": "%1$s 因屡次伤害幻想乡居民，被逐出了幻想乡。"
+  "chat.gensokyou.npc_exiled": "%1$s 因屡次伤害幻想乡居民，被逐出了幻想乡。",
+  "item.gensokyou.spirit_core": "灵力核心",
+  "tooltip.gensokyou.spirit_core": "灵力 %1$s / %2$s",
+  "gui.gensokyou.ritual.kagutsuchi.idle": "待机：祭品台无可燃物",
+  "gui.gensokyou.ritual.kagutsuchi.not_started": "未启动：请点击「启动」",
+  "gui.gensokyou.ritual.kagutsuchi.burning": "燃烧中",
+  "gui.gensokyou.ritual.kagutsuchi.stalled": "缓存已满：暂停消耗",
+  "gui.gensokyou.ritual.kagutsuchi.remaining": "剩余 %1$s 秒",
+  "gui.gensokyou.ritual.spirit_core_slot": "灵力核心槽"
 }

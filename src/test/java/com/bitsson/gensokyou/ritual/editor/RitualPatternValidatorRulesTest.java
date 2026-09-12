@@ -121,6 +121,20 @@ class RitualPatternValidatorRulesTest {
     }
 
     @Test
+    void offeringCountAboveOneIsError() {
+        String withCount = "{\"id\": \"t:oc\", \"anchorKey\": \"C\", \"palette\": " + CORE_PALETTE
+                + ", \"levels\": [{\"level\": 0, \"adds\": [[\"C\",0,0,0]]}],"
+                + " \"requirements\": [{\"key\": \"C\", \"slot\": 0, \"count\": 8}]}";
+        assertEquals(
+                List.of("t:oc: requirements[0]: 单条祭品要求恒为 1 件（祭品台单件不变量），count 字段已废弃"),
+                errors(raw(withCount)));
+        String countOne = "{\"id\": \"t:oc\", \"anchorKey\": \"C\", \"palette\": " + CORE_PALETTE
+                + ", \"levels\": [{\"level\": 0, \"adds\": [[\"C\",0,0,0]]}],"
+                + " \"requirements\": [{\"key\": \"C\", \"slot\": 0, \"count\": 1}]}";
+        assertEquals(List.of(), errors(raw(countOne)));
+    }
+
+    @Test
     void crossPatternHijackIsError() {
         JsonObject big = raw(pattern("t:big", CORE_PALETTE,
                 "[{\"level\": 0, \"adds\": [[\"C\",0,0,0],[\"S\",0,0,1]]},"

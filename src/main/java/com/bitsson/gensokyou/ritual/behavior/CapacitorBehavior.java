@@ -59,11 +59,11 @@ public class CapacitorBehavior implements RitualBehavior {
     }
 
     private void withdraw(RitualCoreBlockEntity core, ServerPlayer player) {
-        int rate = GensokyouConfig.CAPACITOR_TRANSFER_RATE.get();
-        int received = core.extract(rate);
+        long rate = GensokyouConfig.CAPACITOR_TRANSFER_RATE.get();
+        long received = core.extract(rate);
         var data = ModAttachments.get(player);
         if (received > 0) {
-            ModAttachments.set(player, data.withAddedCurrent(received));
+            ModAttachments.set(player, data.withAddedCurrent((float) received));
         }
         player.displayClientMessage(Component.translatable("msg.gensokyou.capacitor_withdraw",
                 received, core.getStored(), core.getCapacity()), true);
@@ -71,9 +71,9 @@ public class CapacitorBehavior implements RitualBehavior {
 
     private void deposit(RitualCoreBlockEntity core, ServerPlayer player) {
         var data = ModAttachments.get(player);
-        int want = (int) Math.min(GensokyouConfig.CAPACITOR_TRANSFER_RATE.get(),
+        long want = (long) Math.min(GensokyouConfig.CAPACITOR_TRANSFER_RATE.get(),
                 Math.floor(data.current()));
-        int deposited = core.receive(want);
+        long deposited = core.receive(want);
         if (deposited > 0) {
             ModAttachments.set(player, data.withCurrent(data.current() - deposited));
         }

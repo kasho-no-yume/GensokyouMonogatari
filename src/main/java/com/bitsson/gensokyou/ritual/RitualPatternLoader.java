@@ -299,7 +299,10 @@ public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
         char key = GsonHelper.getAsString(json, "key").charAt(0);
         int slot = GsonHelper.getAsInt(json, "slot", 0);
         RitualPattern.ItemRequirement item = parseItemRequirement(GsonHelper.getAsString(json, "item"));
-        int count = GsonHelper.getAsInt(json, "count", 1);
+        if (GsonHelper.getAsInt(json, "count", 1) > 1) {
+            throw new IllegalArgumentException("单条祭品要求恒为 1 件（祭品台单件不变量），"
+                    + "多件需求请拆为多条 requirement 绑定不同 slot");
+        }
         String consumeStr = GsonHelper.getAsString(json, "consume", "none");
         RitualPattern.ConsumeMode consume = switch (consumeStr) {
             case "none" -> RitualPattern.ConsumeMode.NONE;
@@ -308,7 +311,7 @@ public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
             default -> throw new IllegalArgumentException("unknown consume mode: " + consumeStr);
         };
         int period = Math.max(1, GsonHelper.getAsInt(json, "period", 1200));
-        return new RitualPattern.Offering(key, slot, item, Math.max(1, count), consume, period);
+        return new RitualPattern.Offering(key, slot, item, consume, period);
     }
 
     private static RitualPattern.ItemRequirement parseItemRequirement(String value) {

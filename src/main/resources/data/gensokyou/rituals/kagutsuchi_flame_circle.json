@@ -1,6 +1,7 @@
 {
   "id": "gensokyou:kagutsuchi_flame_circle",
   "anchorKey": "C",
+  "toggleable": true,
   "tiers": [
     0,
     1,

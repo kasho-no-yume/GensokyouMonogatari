@@ -10,24 +10,24 @@ import net.minecraft.world.level.block.state.BlockState;
 public class SpiritStorageBlockEntity extends BlockEntity {
     public static final String TAG_STORED = "StoredSpiritPower";
 
-    protected int stored;
-    protected final int capacity;
+    protected long stored;
+    protected final long capacity;
 
-    public SpiritStorageBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state, int capacity) {
+    public SpiritStorageBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state, long capacity) {
         super(type, pos, state);
         this.capacity = capacity;
     }
 
-    public int getStored() {
+    public long getStored() {
         return stored;
     }
 
-    public int getCapacity() {
+    public long getCapacity() {
         return capacity;
     }
 
-    public int receive(int maxAmount) {
-        int added = Math.min(maxAmount, capacity - stored);
+    public long receive(long maxAmount) {
+        long added = Math.min(maxAmount, capacity - stored);
         if (added > 0) {
             stored += added;
             setChanged();
@@ -35,8 +35,8 @@ public class SpiritStorageBlockEntity extends BlockEntity {
         return added;
     }
 
-    public int extract(int maxAmount) {
-        int taken = Math.min(maxAmount, stored);
+    public long extract(long maxAmount) {
+        long taken = Math.min(maxAmount, stored);
         if (taken > 0) {
             stored -= taken;
             setChanged();
@@ -47,12 +47,12 @@ public class SpiritStorageBlockEntity extends BlockEntity {
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
-        tag.putInt(TAG_STORED, stored);
+        tag.putLong(TAG_STORED, stored);
     }
 
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        stored = Math.min(tag.getInt(TAG_STORED), capacity);
+        stored = Math.min(tag.getLong(TAG_STORED), capacity);
     }
 }

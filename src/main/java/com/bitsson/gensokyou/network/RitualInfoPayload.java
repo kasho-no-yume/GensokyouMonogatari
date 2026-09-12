@@ -28,12 +28,12 @@ import java.util.Optional;
 
 /** S2C：仪式界面全量信息（开界面与状态变更后推送）。 */
 public record RitualInfoPayload(long pos, String patternId, int tier, boolean enabled,
-                                boolean toggleable, int stored, int capacity,
+                                boolean toggleable, long stored, long capacity,
                                 List<Entry> entries, List<Action> actions,
                                 List<RecipeInfo> recipes, String activeRecipeId,
-                                String statusKey) implements CustomPacketPayload {
+                                String statusKey, String fuelItem) implements CustomPacketPayload {
 
-    public record Entry(String itemId, int count, boolean satisfied) {
+    public record Entry(String itemId, boolean satisfied) {
     }
 
     /** 行为注入的自定义操作按钮（labelKey 客户端本地化）。 */
@@ -56,12 +56,11 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
         buf.writeVarInt(payload.tier);
         buf.writeBoolean(payload.enabled);
         buf.writeBoolean(payload.toggleable);
-        buf.writeVarInt(payload.stored);
-        buf.writeVarInt(payload.capacity);
+        buf.writeLong(payload.stored);
+        buf.writeLong(payload.capacity);
         buf.writeVarInt(payload.entries.size());
         for (Entry entry : payload.entries) {
             buf.writeUtf(entry.itemId());
-            buf.writeVarInt(entry.count());
             buf.writeBoolean(entry.satisfied());
         }
         buf.writeVarInt(payload.actions.size());
@@ -77,6 +76,7 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
         }
         buf.writeUtf(payload.activeRecipeId);
         buf.writeUtf(payload.statusKey);
+        buf.writeUtf(payload.fuelItem);
     }
 
     private static RitualInfoPayload read(FriendlyByteBuf buf) {
@@ -85,12 +85,12 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
         int tier = buf.readVarInt();
         boolean enabled = buf.readBoolean();
         boolean toggleable = buf.readBoolean();
-        int stored = buf.readVarInt();
-        int capacity = buf.readVarInt();
+        long stored = buf.readLong();
+        long capacity = buf.readLong();
         int entryCount = buf.readVarInt();
         List<Entry> entries = new ArrayList<>(entryCount);
         for (int i = 0; i < entryCount; i++) {
-            entries.add(new Entry(buf.readUtf(), buf.readVarInt(), buf.readBoolean()));
+            entries.add(new Entry(buf.readUtf(), buf.readBoolean()));
         }
         int actionCount = buf.readVarInt();
         List<Action> actions = new ArrayList<>(actionCount);
@@ -104,8 +104,10 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
         }
         String activeRecipeId = buf.readUtf();
         String statusKey = buf.readUtf();
+        String fuelItem = buf.readUtf();
         return new RitualInfoPayload(pos, patternId, tier, enabled, toggleable,
-                stored, capacity, entries, actions, recipes, activeRecipeId, statusKey);
+                stored, capacity, List.copyOf(entries), List.copyOf(actions),
+                List.copyOf(recipes), activeRecipeId, statusKey, fuelItem);
     }
 
     /** 服务端快照：由核心 BE 当前态 + 祭品门槛实时校验组装。 */
@@ -130,7 +132,7 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
                     ItemStack rep = status.requirement().item().representative();
                     String itemId = rep.isEmpty()
                             ? "" : BuiltInRegistries.ITEM.getKey(rep.getItem()).toString();
-                    entries.add(new Entry(itemId, status.requirement().count(), status.satisfied()));
+                    entries.add(new Entry(itemId, status.satisfied()));
                 }
             }
             RitualBehaviors.get(match.patternId()).ifPresent(behavior ->
@@ -152,7 +154,9 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
                 core.getStored(), core.getCapacity(), List.copyOf(entries), List.copyOf(actions),
                 List.copyOf(recipes),
                 core.activeRecipeId() == null ? "" : core.activeRecipeId().toString(),
-                statusKey);
+                statusKey,
+                core.isBurning() && !core.burnFuelIcon().isEmpty()
+                        ? BuiltInRegistries.ITEM.getKey(core.burnFuelIcon().getItem()).toString() : "");
     }
 
     /** ✗ 摘要：优先报缺失原料，其次报多余物品。 */

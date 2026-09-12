@@ -17,6 +17,7 @@ v5 格式：每层 `{level, adds}`；adds 只声明该级**新增**格位
   4. 品阶下限规则：key 首次出现的层级 L，其标签品阶下限必须 >= L（WARN）
   5. 跨 pattern 劫持检查：若 pattern A 先于 B 尝试且 A 某层是 B 顶级结构的子集，
      则 B 的建筑会被误判为 A（高特异性优先匹配的副作用）
+  6. 祭品台单件不变量：requirements 条目显式 count > 1 → ERROR（字段已废弃，多件拆多台）
 """
 import argparse
 import json
@@ -221,6 +222,11 @@ def parse_pattern(raw, tags):
         raise PatternError(f'anchorKey 须为单字符，得到 {anchor!r}')
     if not isinstance(raw.get('palette'), dict):
         raise PatternError('缺少 "palette" 对象')
+    for i, req in enumerate(raw.get('requirements', [])):
+        if isinstance(req, dict) and isinstance(req.get('count'), (int, float)) \
+                and not isinstance(req.get('count'), bool) and req['count'] > 1:
+            raise PatternError(f'requirements[{i}]: 单条祭品要求恒为 1 件'
+                               f'（祭品台单件不变量），count 字段已废弃')
     palette, min_tiers = parse_palette(raw, tags)
     levels = parse_levels_v5(raw)
     return {'id': raw['id'], 'anchor': anchor, 'palette': palette,

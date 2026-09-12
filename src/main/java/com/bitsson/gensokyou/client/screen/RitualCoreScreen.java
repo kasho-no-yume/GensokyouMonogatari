@@ -30,6 +30,9 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     private static final ResourceLocation BACKGROUND =
             Gensokyou.id("textures/gui/ritual_core.png");
 
+    /** 加具土命之焰图案 id（本界面燃烧区与电池槽的显隐判据）。 */
+    private static final String KAGUTSUICHI = "gensokyou:kagutsuchi_flame_circle";
+
     @Nullable
     private Button startButton;
     @Nullable
@@ -53,6 +56,9 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         stopButton = addRenderableWidget(Button.builder(
                         Component.translatable("gui.gensokyou.ritual.stop"), b -> send(1))
                 .bounds(x + 92, y, 84, 20).build());
+        // 首帧即隐藏，显隐唯一由 containerTick 按服务端 payload 收敛（防非 toggleable 仪式按钮闪现）
+        startButton.visible = false;
+        stopButton.visible = false;
         int ax = x + 176;
         for (int i = 0; i < actionButtons.length; i++) {
             final int index = i;
@@ -136,6 +142,14 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.sp", info.stored(), info.capacity()),
                 8, y, COLOR_TEXT, false);
         y += 14;
+        if (KAGUTSUICHI.equals(info.patternId())) {
+            y = renderBurnRow(graphics, info, y);
+        }
+        // 灵力核心槽标注（槽本体由菜单协议渲染于右侧框内；通用插槽，吸能/供能随仪式而定）
+        graphics.drawString(font,
+                Component.translatable("gui.gensokyou.ritual.spirit_core_slot"),
+                RitualCoreMenu.BATTERY_SLOT_X - 26, RitualCoreMenu.BATTERY_SLOT_Y - 12,
+                COLOR_TEXT, false);
         List<RitualInfoPayload.Entry> entries = info.entries();
         if (!entries.isEmpty()) {
             graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.offerings"), 8, y, COLOR_TEXT, false);
@@ -147,8 +161,6 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
             if (!stack.isEmpty()) {
                 graphics.renderItem(stack, 8, y);
             }
-            String label = "×" + entry.count();
-            graphics.drawString(font, label, 28, y + 4, COLOR_TEXT, false);
             graphics.drawString(font, entry.satisfied() ? "✓" : "✗",
                     PANEL_WIDTH - 18, y + 4, entry.satisfied() ? COLOR_OK : COLOR_BAD, true);
             y += 18;
@@ -186,5 +198,43 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
 
     private static Component translatableActive() {
         return Component.translatable("gui.gensokyou.ritual.active_recipe");
+    }
+
+    /** 加具土命燃烧区：未启动=提示；批次中=燃料图标+进度条+剩余秒；停等/待机=状态文本。返回新的 y。 */
+    private int renderBurnRow(GuiGraphics graphics, RitualInfoPayload info, int y) {
+        var font = this.font;
+        int remaining = menu.burnRemaining();
+        int total = menu.burnTotal();
+        if (info.enabled() && remaining > 0 && total > 0) {
+            var fuel = ClientRitualState.stackFor(info.fuelItem());
+            if (!fuel.isEmpty()) {
+                graphics.renderItem(fuel, 8, y);
+            }
+            int barX = 28;
+            int barW = 96;
+            int barY = y + 6;
+            graphics.fill(barX, barY, barX + barW, barY + 3, 0xFF3A2A1A);
+            graphics.fill(barX, barY, barX + (int) ((long) barW * remaining / total), barY + 3, 0xFFE8912A);
+            graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.kagutsuchi.burning"),
+                    barX, y - 1, COLOR_OK, false);
+            graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.kagutsuchi.remaining",
+                    (remaining + 19) / 20), 8, y + 12, COLOR_TEXT, false);
+            return y + 24;
+        }
+        boolean stalled = info.stored() >= info.capacity();
+        Component text;
+        int color;
+        if (!info.enabled()) {
+            text = Component.translatable("gui.gensokyou.ritual.kagutsuchi.not_started");
+            color = COLOR_TEXT;
+        } else if (stalled) {
+            text = Component.translatable("gui.gensokyou.ritual.kagutsuchi.stalled");
+            color = COLOR_BAD;
+        } else {
+            text = Component.translatable("gui.gensokyou.ritual.kagutsuchi.idle");
+            color = COLOR_TEXT;
+        }
+        graphics.drawString(font, text, 8, y, color, false);
+        return y + 14;
     }
 }

@@ -75,8 +75,9 @@ public record RitualPattern(ResourceLocation id, char anchorKey,
     /**
      * 单个祭品台要求。slot 为该 key 全部格位在规范序下的序号
      * （规范序 = 层自下而上、z 自北向南、x 自西向东）。
+     * 祭品台单件不变量：单条要求恒为 1 个物品，多件需求以多条 requirement 绑定不同台位。
      */
-    public record Offering(char key, int slot, ItemRequirement item, int count,
+    public record Offering(char key, int slot, ItemRequirement item,
                            ConsumeMode consume, int period) {
 
         public boolean periodic() {

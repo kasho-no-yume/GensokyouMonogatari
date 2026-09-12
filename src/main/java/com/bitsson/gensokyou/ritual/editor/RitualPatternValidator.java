@@ -115,6 +115,21 @@ public final class RitualPatternValidator {
             throw new FormatException("缺少 \"palette\" 对象");
         }
         Map<String, PaletteEntry> palette = parsePalette(raw.getAsJsonObject("palette"), index, issues);
+        JsonElement requirements = raw.get("requirements");
+        if (requirements != null && requirements.isJsonArray()) {
+            int i = 0;
+            for (JsonElement element : requirements.getAsJsonArray()) {
+                if (element.isJsonObject() && element.getAsJsonObject().has("count")) {
+                    JsonElement count = element.getAsJsonObject().get("count");
+                    if (count.isJsonPrimitive() && count.getAsJsonPrimitive().isNumber()
+                            && count.getAsDouble() > 1) {
+                        throw new FormatException("requirements[" + i + "]: 单条祭品要求恒为 1 件"
+                                + "（祭品台单件不变量），count 字段已废弃");
+                    }
+                }
+                i++;
+            }
+        }
         List<ParsedLevel> levels = parseLevels(raw.getAsJsonArray("levels"));
         return new ParsedPattern(raw.has("id") ? raw.get("id").getAsString() : "?", anchor, palette, levels);
     }

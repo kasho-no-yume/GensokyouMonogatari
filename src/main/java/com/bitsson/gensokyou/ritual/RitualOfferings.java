@@ -36,7 +36,8 @@ public final class RitualOfferings {
         List<SlotStatus> list = new ArrayList<>();
         for (RitualPattern.Offering requirement : pattern.requirements()) {
             ItemStack held = heldAt(match, requirement, level);
-            boolean ok = held.getCount() >= requirement.count() && requirement.item().matches(held);
+            // 单件不变量：满足 = 台面持有匹配物品（恒 1 件）
+            boolean ok = !held.isEmpty() && requirement.item().matches(held);
             list.add(new SlotStatus(requirement, held, ok));
         }
         return new Result(List.copyOf(list));
@@ -71,7 +72,7 @@ public final class RitualOfferings {
         }
         for (RitualPattern.Offering requirement : due) {
             ItemStack held = heldAt(match, requirement, level);
-            if (held.getCount() < requirement.count() || !requirement.item().matches(held)) {
+            if (held.isEmpty() || !requirement.item().matches(held)) {
                 return false;
             }
         }
@@ -98,7 +99,8 @@ public final class RitualOfferings {
             return;
         }
         ItemStack held = pedestal.getHeld();
-        int remaining = Math.max(0, held.getCount() - requirement.count());
+        // 单件不变量：恒扣 1 件（历史超限栈逐次回落，不凭空消失）
+        int remaining = Math.max(0, held.getCount() - 1);
         pedestal.setHeld(remaining == 0 ? ItemStack.EMPTY : held.copyWithCount(remaining));
     }
 

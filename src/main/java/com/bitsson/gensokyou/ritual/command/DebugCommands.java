@@ -82,7 +82,65 @@ public final class DebugCommands {
                                     new SkillStateData(state.learned(), 0L, 0L, 0L));
                             feedback(player, "debug_cd_cleared");
                             return 1;
-                        }))));
+                        })))
+                .then(Commands.literal("kagutsuchi")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> {
+                                    net.minecraft.core.BlockPos pos =
+                                            net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                    .getLoadedBlockPos(context, "core");
+                                    return probeKagutsuchi(context.getSource().getPlayerOrException(), pos);
+                                }))));
+    }
+
+    /** 加具土命现场探针：匹配态/启用/批次/缓存 + 每台燃料识别值，逐项打到聊天栏。 */
+    private static int probeKagutsuchi(ServerPlayer player, net.minecraft.core.BlockPos pos) {
+        if (!(player.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        var direct = com.bitsson.gensokyou.ritual.RitualMatcher.matchAt(serverLevel, pos);
+        line(player, "[kagu] direct match: " + (direct.isEmpty() ? "NONE"
+                : direct.get().patternId() + " L" + direct.get().level()));
+        if (!(serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core)) {
+            line(player, "[kagu] core BE: MISSING");
+            return 0;
+        }
+        var am = core.activeMatch();
+        line(player, "[kagu] active=" + (am == null ? "null" : am.patternId() + " L" + am.level())
+                + " enabled=" + core.isEnabled() + " burning=" + core.isBurning()
+                + " rem=" + core.burnRemainingTicks() + "/" + core.burnTotalTicks()
+                + " sp=" + core.getStored() + "/" + core.getCapacity());
+        if (am == null) {
+            return 1;
+        }
+        line(player, "[kagu] loader toggleable="
+                + com.bitsson.gensokyou.ritual.RitualPatternLoader.byId(am.patternId())
+                        .map(com.bitsson.gensokyou.ritual.RitualPattern::toggleable)
+                        .map(String::valueOf).orElse("PATTERN-MISSING")
+                + " requirements="
+                + com.bitsson.gensokyou.ritual.RitualPatternLoader.byId(am.patternId())
+                        .map(p -> p.requirements().size()).map(String::valueOf).orElse("?"));
+        for (net.minecraft.core.BlockPos p : am.positionsOf('P')) {
+            var be = serverLevel.getBlockEntity(p);
+            if (be instanceof com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity pedestal) {
+                net.minecraft.world.item.ItemStack held = pedestal.getHeld();
+                line(player, "[kagu] P " + p.toShortString() + " held="
+                        + (held.isEmpty() ? "empty"
+                        : net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(held.getItem())
+                                + " burn=" + held.getBurnTime(null)));
+            } else {
+                line(player, "[kagu] P " + p.toShortString() + " BE="
+                        + (be == null ? "null" : be.getClass().getSimpleName()));
+            }
+        }
+        return 1;
+    }
+
+    private static void line(ServerPlayer player, String text) {
+        player.displayClientMessage(
+                Component.literal(text).withStyle(net.minecraft.ChatFormatting.GRAY), false);
     }
 
     /** target=true 改上限，否则改当前值；add=true 在原值基础上累加。 */

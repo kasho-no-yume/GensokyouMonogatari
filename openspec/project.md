@@ -213,8 +213,10 @@
 
 ## 8a. Gradle 调用约定（自动化会话）
 
-- 长命令一律**输出重定向到文件再读取**，禁止管道直连流式输出（会卡住自动化会话）：
-  `cmd /c "gradlew.bat <task> --console=plain > build_out.txt 2>&1"` 后 `Get-Content build_out.txt`n- 攒批编译：写完一批代码再构建一次，构建后必须继续后续步骤不得中断
+- **禁止以前台管道直连方式运行 gradlew**（`gradlew ... | Select-String`、`2>&1 | tail` 等一律禁止，会卡死自动化会话管道）。正确姿势固定为"重定向到文件再读取"：
+  `cmd /c "gradlew.bat <task> --console=plain > build_out.txt 2>&1"` 完成后 `Get-Content build_out.txt`
+- 长任务（`build`/`test`/`runServer`）建议 `Start-Process -NoNewWindow -Wait -PassThru` 包一层同样重定向，或放后台会话轮询输出文件；无论哪种，**不得让 gradle 的 stdout 流入工具调用管道**
+- 攒批编译：写完一批代码再构建一次，构建后必须继续后续步骤不得中断
 ## 8. 开放问题
 
 1. 委托任务的最小形态定义（承载学卡所需的任务类型集）

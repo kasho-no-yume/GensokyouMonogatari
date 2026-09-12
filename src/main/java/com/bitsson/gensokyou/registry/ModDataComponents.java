@@ -52,6 +52,14 @@ public final class ModDataComponents {
                             .networkSynchronized(com.bitsson.gensokyou.ritual.editor.EditorState.STREAM_CODEC)
                             .build());
 
+    /** 灵力核心已存灵力（long；容量/速率是物品定值，不入组件）。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.bitsson.gensokyou.spirit.SpiritCoreData>> SPIRIT_CORE_POWER =
+            DATA_COMPONENTS.register("spirit_core_power",
+                    () -> DataComponentType.<com.bitsson.gensokyou.spirit.SpiritCoreData>builder()
+                            .persistent(com.bitsson.gensokyou.spirit.SpiritCoreData.CODEC)
+                            .networkSynchronized(com.bitsson.gensokyou.spirit.SpiritCoreData.STREAM_CODEC)
+                            .build());
+
     private ModDataComponents() {
     }
 }

@@ -7,6 +7,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -15,6 +16,10 @@ public class RitualPedestalBlockEntity extends BlockEntity {
     private static final String TAG_HELD = "Held";
     private static final String TAG_RITUAL_ACTIVE = "RitualActive";
 
+    /**
+     * 台面持有物（单件不变量：常规上限 1 个物品，经 {@link #setHeld} 强制）。
+     * 加载路径不 clamp——历史超限栈视为满槽（不可再插入），随消耗/抽出逐件自然回落。
+     */
     private ItemStack held = ItemStack.EMPTY;
     /** 所属仪式是否处于激活态（由核心广播；激活时祭品悬浮旋转）。 */
     private boolean ritualActive;
@@ -40,6 +45,13 @@ public class RitualPedestalBlockEntity extends BlockEntity {
     }
 
     public void setHeld(ItemStack stack) {
+        if (stack.getCount() > 1 && level != null && !level.isClientSide) {
+            // 单件不变量：台面截留 1 件，余量当场掉落（不凭空消失）
+            ItemStack overflow = stack.split(stack.getCount() - 1);
+            level.addFreshEntity(new ItemEntity(level,
+                    worldPosition.getX() + 0.5D, worldPosition.getY() + 0.5D, worldPosition.getZ() + 0.5D,
+                    overflow));
+        }
         this.held = stack;
         setChanged();
         syncToClients();

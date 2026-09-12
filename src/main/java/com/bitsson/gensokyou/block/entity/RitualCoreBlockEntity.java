@@ -20,12 +20,16 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import com.bitsson.gensokyou.spirit.SpiritPowerHelper;
+import net.neoforged.neoforge.items.IItemHandler;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -39,10 +43,17 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private static final String TAG_LEGACY_BARRIER_ACTIVATED = "BarrierActivated";
     private static final String TAG_PORTAL_POS = "PortalPos";
     private static final String TAG_ACTIVE_RECIPE = "ActiveRecipe";
+    private static final String TAG_BATTERY = "SpiritCoreBattery";
+    private static final String TAG_BURN = "KagutsuchiBurn";
+    private static final String TAG_BURN_FUEL = "Fuel";
+    private static final String TAG_BURN_TOTAL = "TotalTicks";
+    private static final String TAG_BURN_REMAINING = "RemainingTicks";
+    private static final String TAG_RATE_ACCUM = "RateAccum";
+    private static final String TAG_FILL_ACCUM = "FillAccum";
 
     private RitualMatch activeMatch;
     private long ageTicks;
-    private int storedSpiritPower;
+    private long storedSpiritPower;
     private BlockPos pendingLink;
     private BlockPos linkA;
     private BlockPos linkB;
@@ -50,6 +61,15 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private BlockPos portalPos;
     /** 当前激活配方（配方驱动的仪式启动时记录，停止/失效清除）。 */
     private ResourceLocation activeRecipeId;
+    /** 加具土命：输出槽内灵力核心（单件，NBT 持久化）。 */
+    private ItemStack batteryStack = ItemStack.EMPTY;
+    /** 加具土命：当前燃烧批次的燃料显示图标（点火即吞，仅存身份，供 GUI 与掉落不回流）。 */
+    private ItemStack burnFuelIcon = ItemStack.EMPTY;
+    private int burnTotalTicks;
+    private int burnRemainingTicks;
+    /** 产灵/注灵速率的小数进位累加器（tick 级折算，避免整除截断）。 */
+    private long rateCarry;
+    private long fillCarry;
 
     public RitualCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RITUAL_CORE.get(), pos, state);
@@ -71,16 +91,29 @@ public class RitualCoreBlockEntity extends BlockEntity {
         return activeMatch != null && activeMatch.patternId().equals(id);
     }
 
-    public int getStored() {
+    public long getStored() {
         return storedSpiritPower;
     }
 
-    public int getCapacity() {
+    /** 缓存上限按图案分派：加具土命随等级指数放大，其余仪式维持电容配置（行为不变）。 */
+    public long getCapacity() {
+        if (activeMatch != null && activeMatch.patternId().equals(RitualBehaviors.KAGUTSUICHI)) {
+            return kagutsuchiCapacity(activeMatch.level());
+        }
         return GensokyouConfig.CAPACITOR_CAPACITY.get();
     }
 
-    public int receive(int maxAmount) {
-        int added = Math.min(maxAmount, getCapacity() - storedSpiritPower);
+    /** 加具土命缓存上限 = 基础值 × 10^等级。 */
+    public static long kagutsuchiCapacity(int level) {
+        long cap = GensokyouConfig.KAGUTSUICHI_BASE_CAPACITY.get();
+        for (int i = 0; i < level; i++) {
+            cap *= 10L;
+        }
+        return cap;
+    }
+
+    public long receive(long maxAmount) {
+        long added = Math.min(maxAmount, getCapacity() - storedSpiritPower);
         if (added > 0) {
             storedSpiritPower += added;
             setChanged();
@@ -88,13 +121,88 @@ public class RitualCoreBlockEntity extends BlockEntity {
         return added;
     }
 
-    public int extract(int maxAmount) {
-        int taken = Math.min(maxAmount, storedSpiritPower);
+    public long extract(long maxAmount) {
+        long taken = Math.min(maxAmount, storedSpiritPower);
         if (taken > 0) {
             storedSpiritPower -= taken;
             setChanged();
         }
         return taken;
+    }
+
+    // ---- 加具土命：电池槽与燃烧批次态 ----
+
+    public ItemStack batteryStack() {
+        return batteryStack;
+    }
+
+    public void setBatteryStack(ItemStack stack) {
+        this.batteryStack = stack;
+        setChanged();
+    }
+
+    /** 电池槽活代理（服务端菜单用；单槽，仅收灵力核心）。 */
+    private final IItemHandler batteryHandler = new BatteryHandler();
+
+    public IItemHandler batteryHandler() {
+        return batteryHandler;
+    }
+
+    public ItemStack burnFuelIcon() {
+        return burnFuelIcon;
+    }
+
+    public int burnTotalTicks() {
+        return burnTotalTicks;
+    }
+
+    public int burnRemainingTicks() {
+        return burnRemainingTicks;
+    }
+
+    public boolean isBurning() {
+        return burnRemainingTicks > 0;
+    }
+
+    public long rateCarry() {
+        return rateCarry;
+    }
+
+    public void setRateCarry(long value) {
+        rateCarry = value;
+    }
+
+    public long fillCarry() {
+        return fillCarry;
+    }
+
+    public void setFillCarry(long value) {
+        fillCarry = value;
+    }
+
+    /** 点火新批次：仅记录显示图标与时长——燃料实体已在台侧销毁。 */
+    public void beginBurnBatch(ItemStack fuel, int totalTicks) {
+        this.burnFuelIcon = fuel.copyWithCount(1);
+        this.burnTotalTicks = totalTicks;
+        this.burnRemainingTicks = totalTicks;
+        setChanged();
+    }
+
+    /** 推进一批燃烧；返回是否恰好烧尽（remaining 归零）。逐 tick 走字不置脏，随批次变更/秒结算持久化。 */
+    public boolean advanceBurnTick() {
+        if (burnRemainingTicks > 0) {
+            burnRemainingTicks--;
+        }
+        return burnRemainingTicks == 0;
+    }
+
+    public void clearBurnBatch() {
+        if (burnRemainingTicks != 0 || burnTotalTicks != 0 || !burnFuelIcon.isEmpty()) {
+            burnFuelIcon = ItemStack.EMPTY;
+            burnTotalTicks = 0;
+            burnRemainingTicks = 0;
+            setChanged();
+        }
     }
 
     public boolean beginLink(BlockPos target) {
@@ -266,6 +374,160 @@ public class RitualCoreBlockEntity extends BlockEntity {
         setChanged();
     }
 
+    // ---- 自动化接口：祭品台代理箱（槽位 ⇄ 成型结构内祭品台，每槽容量 1，活代理） ----
+
+    /** 代理箱 handler（稳定单例：NeoForge 按返回实例缓存 capability）。 */
+    private final IItemHandler itemHandler = new PedestalItemHandler();
+
+    public IItemHandler itemHandler() {
+        return itemHandler;
+    }
+
+    /** 成型结构内全部祭品台位（按 BE 类型判定、跨 key 汇总后规范序 y,z,x）；未成型为空。 */
+    private List<BlockPos> pedestalPositions() {
+        if (activeMatch == null || level == null) {
+            return List.of();
+        }
+        List<BlockPos> out = new ArrayList<>();
+        for (List<BlockPos> positions : activeMatch.keyedPositions().values()) {
+            for (BlockPos p : positions) {
+                if (level.getBlockEntity(p) instanceof RitualPedestalBlockEntity) {
+                    out.add(p.immutable());
+                }
+            }
+        }
+        out.sort(Comparator.<BlockPos>comparingInt(BlockPos::getY)
+                .thenComparingInt(BlockPos::getZ)
+                .thenComparingInt(BlockPos::getX));
+        return out;
+    }
+
+    private RitualPedestalBlockEntity pedestalAt(int slot) {
+        List<BlockPos> positions = pedestalPositions();
+        if (slot < 0 || slot >= positions.size() || level == null) {
+            return null;
+        }
+        return level.getBlockEntity(positions.get(slot))
+                instanceof RitualPedestalBlockEntity pedestal ? pedestal : null;
+    }
+
+    /** 活代理实现：每次调用现场解析台位并直读直写祭品台 BE，核心零存储。 */
+    private final class PedestalItemHandler implements IItemHandler {
+
+        @Override
+        public int getSlots() {
+            return pedestalPositions().size();
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            RitualPedestalBlockEntity pedestal = pedestalAt(slot);
+            return pedestal == null ? ItemStack.EMPTY : pedestal.getHeld();
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (stack.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+            RitualPedestalBlockEntity pedestal = pedestalAt(slot);
+            if (pedestal == null || !pedestal.getHeld().isEmpty()) {
+                return stack;
+            }
+            if (!simulate) {
+                pedestal.setHeld(stack.copyWithCount(1));
+            }
+            return stack.getCount() <= 1 ? ItemStack.EMPTY : stack.copyWithCount(stack.getCount() - 1);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            if (amount <= 0) {
+                return ItemStack.EMPTY;
+            }
+            RitualPedestalBlockEntity pedestal = pedestalAt(slot);
+            if (pedestal == null || pedestal.getHeld().isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+            ItemStack held = pedestal.getHeld();
+            int take = Math.min(amount, held.getCount());
+            if (!simulate) {
+                int remaining = held.getCount() - take;
+                pedestal.setHeld(remaining <= 0 ? ItemStack.EMPTY : held.copyWithCount(remaining));
+            }
+            return held.copyWithCount(take);
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 1;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            if (stack.isEmpty()) {
+                return false;
+            }
+            RitualPedestalBlockEntity pedestal = pedestalAt(slot);
+            return pedestal != null && pedestal.getHeld().isEmpty();
+        }
+    }
+
+    /** 电池槽单槽代理：仅收灵力核心物品，直读直写 BE 字段（SlotItemHandler.set 要求可写接口）。 */
+    private final class BatteryHandler implements net.neoforged.neoforge.items.IItemHandlerModifiable {
+
+        @Override
+        public void setStackInSlot(int slot, ItemStack stack) {
+            if (slot == 0 && isItemValid(slot, stack)) {
+                setBatteryStack(stack.isEmpty() ? ItemStack.EMPTY : stack.copyWithCount(1));
+            }
+        }
+
+        @Override
+        public int getSlots() {
+            return 1;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return slot == 0 ? batteryStack : ItemStack.EMPTY;
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (slot != 0 || !isItemValid(slot, stack)) {
+                return stack;
+            }
+            if (!simulate) {
+                setBatteryStack(stack.copyWithCount(1));
+            }
+            return stack.getCount() <= 1 ? ItemStack.EMPTY : stack.copyWithCount(stack.getCount() - 1);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            if (slot != 0 || amount <= 0 || batteryStack.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+            ItemStack copy = batteryStack.copyWithCount(1);
+            if (!simulate) {
+                setBatteryStack(ItemStack.EMPTY);
+            }
+            return copy;
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 1;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return slot == 0 && stack.getItem()
+                    instanceof com.bitsson.gensokyou.spirit.SpiritCoreItem;
+        }
+    }
+
     public static void serverTick(Level level, BlockPos pos, BlockState state,
                                   RitualCoreBlockEntity core) {
         if (!(level instanceof ServerLevel serverLevel)) {
@@ -277,6 +539,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (rescan) {
             core.activeMatch = RitualMatcher.matchAt(serverLevel, pos).orElse(null);
             if (core.activeMatch != null && previous == null) {
+                // 成型瞬间：代理箱从无槽变有槽，失效块 cap 缓存让漏斗等消费者重查
+                serverLevel.invalidateCapabilities(pos);
                 // 成型替换扩展点：命中瞬间调用（当前为空实现占位）
                 RitualBehaviors.get(core.activeMatch.patternId())
                         .ifPresent(behavior -> behavior.onFormed(serverLevel, pos, core.activeMatch));
@@ -289,6 +553,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (core.activeMatch == null) {
             if (previous != null) {
                 // 重扫失效即自动停机（全仪式统一判据），并触发既有失效清理
+                serverLevel.invalidateCapabilities(pos);
                 core.setEnabled(false);
                 core.activeRecipeId = null;
                 core.setPedestalsActive(serverLevel, previous, false);
@@ -344,46 +609,39 @@ public class RitualCoreBlockEntity extends BlockEntity {
             if (attempt.isEmpty()) {
                 continue;
             }
-            List<RitualRecipeMatcher.Take> takes = attempt.get().takes();
-            // 结果落位：规范序第一个「腾空或同物品可容纳」的被消耗台位；无处可放则整单放弃
             ItemStack result = recipe.resultStack();
-            BlockPos target = null;
-            for (RitualRecipeMatcher.Take take : takes) {
-                if (!(level.getBlockEntity(take.pos()) instanceof com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity pedestal)) {
-                    continue;
-                }
-                ItemStack after = pedestal.getHeld().copy();
-                after.shrink(take.amount());
-                if (after.isEmpty()
-                        || (ItemStack.isSameItemSameComponents(after, result) && after.getCount() + result.getCount() <= result.getMaxStackSize())) {
-                    target = take.pos();
-                    break;
-                }
-            }
-            if (target == null || result == null) {
+            if (result == null) {
                 continue;
             }
             if (recipe.spCost() > 0
                     && SpiritPowerHelper.drainCapacitorsAround(level, pos, 3, recipe.spCost()) < recipe.spCost() - 0.01F) {
                 continue;
             }
-            RitualRecipeMatcher.apply(level, takes);
-            if (level.getBlockEntity(target) instanceof com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity pedestal) {
-                ItemStack remaining = pedestal.getHeld();
-                if (remaining.isEmpty()) {
-                    pedestal.setHeld(result);
-                } else {
-                    pedestal.setHeld(remaining.copyWithCount(remaining.getCount() + result.getCount()));
-                }
-            }
+            RitualRecipeMatcher.apply(level, attempt.get().takes());
+            dropPassiveOutput(level, pos, result);
             break;
         }
+    }
+
+    /** 被动产物掉落：以核心为圆心、水平半径 R 圆盘内均匀随机落点，产物从不经停台面。 */
+    private static void dropPassiveOutput(ServerLevel level, BlockPos pos, ItemStack result) {
+        double radius = GensokyouConfig.RITUAL_OUTPUT_DROP_RADIUS.get();
+        double angle = level.random.nextDouble() * Math.PI * 2D;
+        double r = radius * Math.sqrt(level.random.nextDouble());
+        ItemEntity drop = new ItemEntity(level,
+                pos.getX() + 0.5D + r * Math.cos(angle),
+                pos.getY() + 1.25D,
+                pos.getZ() + 0.5D + r * Math.sin(angle),
+                result.copy());
+        drop.setDeltaMovement(0D, 0D, 0D);
+        drop.setDefaultPickUpDelay();
+        level.addFreshEntity(drop);
     }
 
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
-        tag.putInt(TAG_STORED, storedSpiritPower);
+        tag.putLong(TAG_STORED, storedSpiritPower);
         if (pendingLink != null) {
             tag.putLong(TAG_PENDING_LINK, pendingLink.asLong());
         }
@@ -400,12 +658,32 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (portalPos != null) {
             tag.putLong(TAG_PORTAL_POS, portalPos.asLong());
         }
+        if (!batteryStack.isEmpty()) {
+            tag.put(TAG_BATTERY, batteryStack.save(registries));
+        }
+        if (burnTotalTicks > 0) {
+            CompoundTag burn = new CompoundTag();
+            if (!burnFuelIcon.isEmpty()) {
+                burn.put(TAG_BURN_FUEL, burnFuelIcon.save(registries));
+            }
+            burn.putInt(TAG_BURN_TOTAL, burnTotalTicks);
+            burn.putInt(TAG_BURN_REMAINING, burnRemainingTicks);
+            tag.put(TAG_BURN, burn);
+        }
+        if (rateCarry != 0) {
+            tag.putLong(TAG_RATE_ACCUM, rateCarry);
+        }
+        if (fillCarry != 0) {
+            tag.putLong(TAG_FILL_ACCUM, fillCarry);
+        }
     }
 
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        storedSpiritPower = Math.min(tag.getInt(TAG_STORED), getCapacity());
+        // 加载期 activeMatch 未就位，不可用 getCapacity 夹取（分图案上限会误截）；
+        // 超储自愈：receive 对 stored≥cap 恒 0，extract 正常，无需读档时 clamp
+        storedSpiritPower = Math.max(0L, tag.getLong(TAG_STORED));
         pendingLink = tag.contains(TAG_PENDING_LINK)
                 ? BlockPos.of(tag.getLong(TAG_PENDING_LINK)) : null;
         linkA = tag.contains(TAG_LINK_A) ? BlockPos.of(tag.getLong(TAG_LINK_A)) : null;
@@ -420,5 +698,18 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 ? BlockPos.of(tag.getLong(TAG_PORTAL_POS)) : null;
         activeRecipeId = tag.contains(TAG_ACTIVE_RECIPE)
                 ? ResourceLocation.parse(tag.getString(TAG_ACTIVE_RECIPE)) : null;
+        batteryStack = tag.contains(TAG_BATTERY)
+                ? ItemStack.parseOptional(registries, tag.getCompound(TAG_BATTERY))
+                : ItemStack.EMPTY;
+        if (tag.contains(TAG_BURN)) {
+            CompoundTag burn = tag.getCompound(TAG_BURN);
+            burnFuelIcon = burn.contains(TAG_BURN_FUEL)
+                    ? ItemStack.parseOptional(registries, burn.getCompound(TAG_BURN_FUEL))
+                    : ItemStack.EMPTY;
+            burnTotalTicks = burn.getInt(TAG_BURN_TOTAL);
+            burnRemainingTicks = Math.min(burn.getInt(TAG_BURN_REMAINING), burnTotalTicks);
+        }
+        rateCarry = tag.getLong(TAG_RATE_ACCUM);
+        fillCarry = tag.getLong(TAG_FILL_ACCUM);
     }
 }

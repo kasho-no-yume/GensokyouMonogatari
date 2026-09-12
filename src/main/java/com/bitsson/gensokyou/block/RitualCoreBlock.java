@@ -76,6 +76,21 @@ public class RitualCoreBlock extends Block implements EntityBlock {
     }
 
     @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos,
+                            BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock())
+                && level.getBlockEntity(pos) instanceof RitualCoreBlockEntity core) {
+            ItemStack battery = core.batteryStack();
+            if (!battery.isEmpty()) {
+                core.setBatteryStack(ItemStack.EMPTY);
+                level.addFreshEntity(new net.minecraft.world.entity.item.ItemEntity(level,
+                        pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D, battery));
+            }
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+
+    @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level,
                                               BlockPos pos, Player player, InteractionHand hand,
                                               BlockHitResult hitResult) {

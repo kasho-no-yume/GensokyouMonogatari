@@ -67,6 +67,10 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue EDITOR_MAX_DIMENSION;
     public static final ModConfigSpec.IntValue RITUAL_BUILDER_OUTLINE_SECONDS;
     public static final ModConfigSpec.IntValue PASSIVE_CYCLE_TICKS;
+    public static final ModConfigSpec.IntValue RITUAL_OUTPUT_DROP_RADIUS;
+    public static final ModConfigSpec.DoubleValue KAGUTSUICHI_BASE_RATE_PER_SECOND;
+    public static final ModConfigSpec.IntValue KAGUTSUICHI_BASE_CAPACITY;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> KAGUTSUICHI_FUEL_BLACKLIST;
     public static final ModConfigSpec.IntValue SKILL_MUSOU_SP_COST;
     public static final ModConfigSpec.IntValue SKILL_MUSOU_COOLDOWN;
     public static final ModConfigSpec.IntValue SKILL_ICICLE_SP_COST;
@@ -209,6 +213,10 @@ public class GensokyouConfig {
         EDITOR_MAX_DIMENSION = BUILDER.comment("Max per-axis size (blocks) of an editor-wand workspace").defineInRange("editorMaxDimension", 48, 4, 128);
         RITUAL_BUILDER_OUTLINE_SECONDS = BUILDER.comment("How long the red conflict outline lingers after a blocked ritual build (seconds)").defineInRange("ritualBuilderOutlineSeconds", 15, 1, 60);
         PASSIVE_CYCLE_TICKS = BUILDER.comment("Cycle ticks for passive ritual recipe processing").defineInRange("passiveCycleTicks", 40, 1, 12000);
+        RITUAL_OUTPUT_DROP_RADIUS = BUILDER.comment("Horizontal spawn radius (blocks, uniform over disc) around the ritual core for passive recipe output drops").defineInRange("ritualOutputDropRadius", 3, 0, 16);
+        KAGUTSUICHI_BASE_RATE_PER_SECOND = BUILDER.comment("Kagutsuchi Flame: base spirit power per second at level 0 (level N multiplies by 4^N)").defineInRange("kagutsuchiBaseRatePerSecond", 20D, 0D, 1000000D);
+        KAGUTSUICHI_BASE_CAPACITY = BUILDER.comment("Kagutsuchi Flame: base buffer capacity at level 0 (level N multiplies by 10^N)").defineInRange("kagutsuchiBaseCapacity", 1000, 1, Integer.MAX_VALUE);
+        KAGUTSUICHI_FUEL_BLACKLIST = BUILDER.comment("Item ids the Kagutsuchi Flame refuses to digest (fuel-table items you consider unsuitable, e.g. minecraft:wool)").defineListAllowEmpty("kagutsuchiFuelBlacklist", List.of(), o -> o instanceof String);
         BUILDER.pop();
         BUILDER.push("skills").comment("Learned spell card slots");
         SKILL_MUSOU_SP_COST = BUILDER.defineInRange("musouFuuinSpCost", 30, 0, 10000);

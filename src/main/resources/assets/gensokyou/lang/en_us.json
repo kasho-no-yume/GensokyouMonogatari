@@ -157,6 +157,7 @@
     "gui.gensokyou.builder.none": "No ritual selected",
     "gui.gensokyou.builder.material_line": "%s: need %s / have %s",
     "gui.gensokyou.builder.material_count": "need %s / have %s",
+    "gui.gensokyou.builder.hud_shortage": "×%s",
     "msg.gensokyou.builder_select_first": "Sneak + right-click to choose a ritual first",
     "msg.gensokyou.builder_core_only": "Right-click a ritual core to build",
     "msg.gensokyou.builder_pattern_gone": "Ritual no longer exists, please reselect",
@@ -236,5 +237,13 @@
   "dialogue.gensokyou.rinnosuke.opt.back": "Back to the topic",
   "msg.gensokyou.npc_warning": "You harmed a resident of Gensokyo! Warning %1$s/%2$s -- one more and you will be cast out.",
   "msg.gensokyou.npc_exiled": "Gensokyo refuses such a violent intruder.",
-  "chat.gensokyou.npc_exiled": "%1$s was cast out of Gensokyo for repeatedly harming its residents."
+  "chat.gensokyou.npc_exiled": "%1$s was cast out of Gensokyo for repeatedly harming its residents.",
+  "item.gensokyou.spirit_core": "Spirit Core",
+  "tooltip.gensokyou.spirit_core": "Spirit %1$s / %2$s",
+  "gui.gensokyou.ritual.kagutsuchi.idle": "Idle: no fuel on pedestals",
+  "gui.gensokyou.ritual.kagutsuchi.not_started": "Not started: press Start",
+  "gui.gensokyou.ritual.kagutsuchi.burning": "Burning",
+  "gui.gensokyou.ritual.kagutsuchi.stalled": "Buffer full: consumption paused",
+  "gui.gensokyou.ritual.kagutsuchi.remaining": "%1$s s remaining",
+  "gui.gensokyou.ritual.spirit_core_slot": "Spirit Core Slot"
 }

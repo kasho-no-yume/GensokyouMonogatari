@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior;
 import com.bitsson.gensokyou.ritual.behavior.CapacitorBehavior;
 import com.bitsson.gensokyou.ritual.behavior.GeneratorBehavior;
+import com.bitsson.gensokyou.ritual.behavior.KagutsuchiFlameBehavior;
 
 import com.bitsson.gensokyou.ritual.behavior.RelayBehavior;
 import com.bitsson.gensokyou.ritual.behavior.TemperingBehavior;
@@ -23,6 +24,7 @@ public final class RitualBehaviors {
     public static final ResourceLocation CAPACITOR = Gensokyou.id("capacitor_circle");
     public static final ResourceLocation RELAY = Gensokyou.id("relay_circle");
     public static final ResourceLocation BARRIER_BREAK = Gensokyou.id("barrier_break_circle");
+    public static final ResourceLocation KAGUTSUICHI = Gensokyou.id("kagutsuchi_flame_circle");
 
     static {
         register(GENERATOR, new GeneratorBehavior());
@@ -30,6 +32,7 @@ public final class RitualBehaviors {
         register(CAPACITOR, new CapacitorBehavior());
         register(RELAY, new RelayBehavior());
         register(BARRIER_BREAK, new BarrierBreakBehavior());
+        register(KAGUTSUICHI, new KagutsuchiFlameBehavior());
     }
 
     private RitualBehaviors() {

@@ -221,6 +221,19 @@ public final class ModNetworking {
                 RitualInfoPayload.snapshot(level, pos, core, statusKey));
     }
 
+    /** 状态跃迁（点火/换批/停等进出）时向正打开该核心界面的玩家重推快照。 */
+    public static void sendRitualInfoToViewers(ServerLevel level, BlockPos pos) {
+        if (!(level.getBlockEntity(pos) instanceof RitualCoreBlockEntity core)) {
+            return;
+        }
+        for (ServerPlayer player : level.players()) {
+            if (player.containerMenu instanceof com.bitsson.gensokyou.menu.RitualCoreMenu menu
+                    && menu.pos().equals(pos)) {
+                sendRitualInfo(player, level, pos, core, "");
+            }
+        }
+    }
+
     private static void handleCastSkill(CastSkillPayload payload,
                                         net.neoforged.neoforge.network.handling.IPayloadContext context) {
         context.enqueueWork(() -> {
