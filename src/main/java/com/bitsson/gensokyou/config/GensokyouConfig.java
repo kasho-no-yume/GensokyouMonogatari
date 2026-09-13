@@ -52,6 +52,7 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue RESONANCE_BASE_IN_QUOTA;
     public static final ModConfigSpec.IntValue RESONANCE_BASE_OUT_QUOTA;
     public static final ModConfigSpec.IntValue RESONANCE_BASE_RADIUS;
+    public static final ModConfigSpec.IntValue SETTLE_PERIOD_TICKS;
     public static final ModConfigSpec.DoubleValue MU_POWER_NUMERATOR;
     public static final ModConfigSpec.DoubleValue MU_POWER_DENOMINATOR;
     public static final ModConfigSpec.DoubleValue ICICLE_DAMAGE;
@@ -190,6 +191,7 @@ public class GensokyouConfig {
         RESONANCE_BASE_IN_QUOTA = BUILDER.comment("resonance relay: base input-link quota at tier 2, doubled per level").defineInRange("resonanceBaseInQuota", 1, 1, 1024);
         RESONANCE_BASE_OUT_QUOTA = BUILDER.comment("resonance relay: base output-link quota at tier 2, doubled per level").defineInRange("resonanceBaseOutQuota", 4, 1, 1024);
         RESONANCE_BASE_RADIUS = BUILDER.comment("resonance relay: base XZ radius at tier 2, doubled per level (Y unlimited, same dimension)").defineInRange("resonanceBaseRadius", 10, 1, 1024);
+        SETTLE_PERIOD_TICKS = BUILDER.comment("spirit transfer settlement period in ticks (20 = 1s); rates are per second, transfers settle in batches of this period").defineInRange("settlePeriodTicks", 20, 1, 200);
         MU_POWER_NUMERATOR = BUILDER.comment("Damage taken multiplier = (numerator + level) / denominator").defineInRange("muPowerNumerator", 3D, 0D, 100D);
         MU_POWER_DENOMINATOR = BUILDER.defineInRange("muPowerDenominator", 2D, 1D, 100D);
         ICICLE_DAMAGE = BUILDER.defineInRange("icicleCardDamage", 8D, 0D, 1024D);

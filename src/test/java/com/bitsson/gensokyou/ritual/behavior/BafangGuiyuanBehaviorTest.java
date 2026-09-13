@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 八方归元托管内核（世界无关）：聚合口径、阶级门槛、tick 定点进位无截断。
@@ -78,31 +80,70 @@ class BafangGuiyuanBehaviorTest {
     }
 
     @Test
-    void subUnitRatesAccumulateWithoutTruncationLoss() {
-        // 1/s → 每 tick 50 定点单位：第 20 tick 恰好出 1 单位，20 tick 合计不丢不多
-        long carry = 0L;
-        long budgetSum = 0L;
-        for (int tick = 0; tick < 20; tick++) {
-            budgetSum += BafangGuiyuanBehavior.tickAllowanceBudget(carry, 1L);
-            carry = BafangGuiyuanBehavior.tickAllowanceCarry(carry, 1L);
-        }
-        assertEquals(1L, budgetSum);
-        assertEquals(0L, carry);
+    void weightedSplitIsProportionalToCoreRate() {
+        long[] weights = {64_000L, 64_000L, 8_000L};
+        long[] caps = {Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE};
+        long[] alloc = BafangGuiyuanBehavior.weightedSplit(13_600L, weights, caps, new long[3]);
+        assertArrayEquals(new long[]{6_400L, 6_400L, 800L}, alloc);
     }
 
     @Test
-    void oddRatesConserveAcrossTwentyTicks() {
-        // 3/s：20 tick 应合计 3 单位且零头归位（carry 循环回原点）
-        long carry = 0L;
-        long budgetSum = 0L;
-        for (int tick = 0; tick < 20; tick++) {
-            budgetSum += BafangGuiyuanBehavior.tickAllowanceBudget(carry, 3L);
-            carry = BafangGuiyuanBehavior.tickAllowanceCarry(carry, 3L);
+    void weightedSplitBackfillsWhenACoreIsCapped() {
+        long[] weights = {100L, 100L};
+        long[] caps = {10L, 1_000L};
+        long[] alloc = BafangGuiyuanBehavior.weightedSplit(200L, weights, caps, new long[2]);
+        // 首核按权重本应 100，封顶 10；溢出 90 由第二核回填（共 190）
+        assertArrayEquals(new long[]{10L, 190L}, alloc);
+    }
+
+    @Test
+    void weightedSplitConservesAmountWithoutTruncation() {
+        long[] weights = {1L, 1L, 1L};
+        long[] caps = {Long.MAX_VALUE, Long.MAX_VALUE, Long.MAX_VALUE};
+        long[] alloc = BafangGuiyuanBehavior.weightedSplit(10L, weights, caps, new long[3]);
+        assertEquals(10L, alloc[0] + alloc[1] + alloc[2]);
+    }
+
+    @Test
+    void weightedSplitRespectsTotalCap() {
+        long[] weights = {5L, 5L};
+        long[] caps = {5L, 5L};
+        long[] alloc = BafangGuiyuanBehavior.weightedSplit(100L, weights, caps, new long[2]);
+        assertArrayEquals(new long[]{5L, 5L}, alloc);
+    }
+
+    @Test
+    void weightedSplitIsProportionallyFairOverTime() {
+        long[] weights = {1_000L, 1L};
+        long[] caps = {Long.MAX_VALUE, Long.MAX_VALUE};
+        long[] priority = new long[2];
+        long low = 0L;
+        for (int call = 0; call < 1_001; call++) {
+            long[] alloc = BafangGuiyuanBehavior.weightedSplit(100L, weights, caps, priority);
+            low += alloc[1];
         }
-        assertEquals(3L, budgetSum);
-        assertEquals(0L, carry);
-        // 大速率常规档：64k/s → 每 tick 3200 单位、零头恒 0
-        assertEquals(3_200L, BafangGuiyuanBehavior.tickAllowanceBudget(0L, T2_RATE));
-        assertEquals(0L, BafangGuiyuanBehavior.tickAllowanceCarry(0L, T2_RATE));
+        // 总 100100，理想低速份额 = 100100 × 1/1001 = 100；WFQ 跨周期累积应近似命中
+        assertTrue(low >= 90L && low <= 110L, "低速核长期份额应≈100，实际 " + low);
+    }
+
+    @Test
+    void weightedSplitDoesNotStarveLowRateCore() {
+        // 复刻"23×T5 + 1×T4、每周期 64"场景：T4 速率是 T5 的 1/8，旧最大余数法下恒为 0
+        long[] weights = new long[24];
+        long[] caps = new long[24];
+        for (int i = 0; i < 23; i++) {
+            weights[i] = 32_768_000L;
+            caps[i] = Long.MAX_VALUE;
+        }
+        weights[23] = 4_096_000L;
+        caps[23] = Long.MAX_VALUE;
+        long[] priority = new long[24];
+        long t4 = 0L;
+        for (int call = 0; call < 40; call++) {
+            long[] alloc = BafangGuiyuanBehavior.weightedSplit(64L, weights, caps, priority);
+            t4 += alloc[23];
+        }
+        assertTrue(t4 > 0L, "4 级核不应被永久饿死");
+        assertTrue(t4 < 30L, "4 级核份额应远小于 5 级核，实际 " + t4);
     }
 }

@@ -18,6 +18,7 @@ import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipeMatcher;
 import com.bitsson.gensokyou.ritual.behavior.SpiritBank;
+import com.bitsson.gensokyou.ritual.behavior.TickRateLedger;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -82,6 +83,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 产灵/注灵速率的小数进位累加器（tick 级折算，避免整除截断）。 */
     private long rateCarry;
     private long fillCarry;
+    /** 路由面向（万象共鸣）的端点每 tick 速率账本：唯一权威，gameTime 锁存；运行时态不持久化。 */
+    private final TickRateLedger routedInLedger = new TickRateLedger();
+    private final TickRateLedger routedOutLedger = new TickRateLedger();
 
     public RitualCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RITUAL_CORE.get(), pos, state);
@@ -90,6 +94,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 移除（含区块卸载/破坏）时注销索引条目，归属守卫防拆旧建新误删。 */
     @Override
     public void setRemoved() {
+        clearRoutedLedgers();
         if (activeMatch != null && level instanceof ServerLevel serverLevel) {
             RitualCoreRegistry registry = RitualCoreRegistry.peek(serverLevel);
             if (registry != null) {
@@ -196,6 +201,53 @@ public class RitualCoreBlockEntity extends BlockEntity {
             setChanged();
         }
         return taken;
+    }
+
+    // ---- 路由面向端点账本（resonance-relay-routing）：速率由端点强制，调用方预算仅为建议 ----
+
+    /**
+     * 路由抽取（万象共鸣专用）：先经端点输出速率账本按 {@code spiritOutRatePerSecond} 全局限速，
+     * 再走普通 {@link #extract}。速率&gt;0 才成源；多塔同 tick 共享同一份额度，先到先得。
+     * 既有定向链路（配方/激活费就近抽储灵）走普通 extract，不经此账本。
+     */
+    public long extractRouted(long maxAmount) {
+        if (maxAmount <= 0L || activeMatch == null || !(level instanceof ServerLevel serverLevel)) {
+            return 0L;
+        }
+        long rate = RitualBehaviors.get(activeMatch.patternId())
+                .map(b -> b.spiritOutRatePerSecond(serverLevel, worldPosition, activeMatch, this))
+                .orElse(0L);
+        if (rate <= 0L) {
+            return 0L;
+        }
+        long granted = routedOutLedger.grant(serverLevel.getGameTime(), rate,
+                GensokyouConfig.SETTLE_PERIOD_TICKS.get(), maxAmount);
+        return granted <= 0L ? 0L : extract(granted);
+    }
+
+    /**
+     * 路由注入（万象共鸣专用）：先经端点输入速率账本按 {@code spiritInRatePerSecond} 全局限速，
+     * 再走普通 {@link #receive}。速率&gt;0 才成汇；多塔同 tick 共享同一份额度。
+     */
+    public long receiveRouted(long maxAmount) {
+        if (maxAmount <= 0L || activeMatch == null || !(level instanceof ServerLevel serverLevel)) {
+            return 0L;
+        }
+        long rate = RitualBehaviors.get(activeMatch.patternId())
+                .map(b -> b.spiritInRatePerSecond(serverLevel, worldPosition, activeMatch, this))
+                .orElse(0L);
+        if (rate <= 0L) {
+            return 0L;
+        }
+        long granted = routedInLedger.grant(serverLevel.getGameTime(), rate,
+                GensokyouConfig.SETTLE_PERIOD_TICKS.get(), maxAmount);
+        return granted <= 0L ? 0L : receive(granted);
+    }
+
+    /** 结构失效/移除时清空路由账本残留额度。 */
+    public void clearRoutedLedgers() {
+        routedInLedger.clear();
+        routedOutLedger.clear();
     }
 
     // ---- 加具土命：电池槽与燃烧批次态 ----
@@ -659,6 +711,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
             if (previous != null) {
                 // 重扫失效即自动停机（全仪式统一判据），并触发既有失效清理
                 serverLevel.invalidateCapabilities(pos);
+                core.clearRoutedLedgers();
                 core.setEnabled(false);
                 core.activeRecipeId = null;
                 core.setPedestalsActive(serverLevel, previous, false);

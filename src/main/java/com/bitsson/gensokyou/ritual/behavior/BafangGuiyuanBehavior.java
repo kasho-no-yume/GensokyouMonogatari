@@ -2,6 +2,7 @@ package com.bitsson.gensokyou.ritual.behavior;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
+import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -13,7 +14,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,8 +22,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * 八方归元之仪：托管蓄电池组。
  *
  * 灵力物理住在祭品台的灵力核心里——存量/容量 = Σ 识别核心（tier ≤ 本阶级），
- * 更高阶核心占台不识别；收放灵逐核按各自速率限速（tick 均摊 ×1000 定点进位，
- * 见 {@link #tickAllowanceBudget}），所有识别核心同 tick 并行收支。对外声明两条独立
+ * 更高阶核心占台不识别；收放灵逐核按各自速率限速（每 tick 由 {@link TickRateLedger} 锁存，
+ * 同一 tick 多笔调用共享一份额度），单笔额度在识别核心间按各核速率加权水位分配
+ * （见 {@link #weightedSplit}），所有识别核心同 tick 并行收支。对外声明两条独立
  * 最大值：maxIn = Σ 核心·进速率、maxOut = Σ 核心·出速率（当前两者由 {@link #coreRates}
  * 同源故相等，实为两条管道）；实际收/发按供需各自结算、互不相等且各 ≤ 其最大。
  * 聚合按需计算、不依赖 enabled；仪式不触碰玩家灵力池（无按钮、无潜行直连），
@@ -34,21 +35,20 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
 
-    private static final long FIXED = 1000L;
+    /** 逐核每 tick 锁存的进/出剩余额度账本（收/发分道）：corePos → (pedestalPos → ledger)，不持久化。 */
+    private static final Map<BlockPos, Map<BlockPos, TickRateLedger>> IN_LEDGER = new ConcurrentHashMap<>();
+    private static final Map<BlockPos, Map<BlockPos, TickRateLedger>> OUT_LEDGER = new ConcurrentHashMap<>();
 
-    /** 逐核 tick 均摊的定点进位（收/发分道）：corePos → (pedestalPos → carry)，不持久化。 */
-    private static final Map<BlockPos, Map<BlockPos, Long>> IN_CARRY = new ConcurrentHashMap<>();
-    private static final Map<BlockPos, Map<BlockPos, Long>> OUT_CARRY = new ConcurrentHashMap<>();
-
-    /** 实测吞吐窗口（仅展示用，不持久化）：corePos → (pedestalPos → {入/出累计, 窗起点 tick})。
-     *  写入时 ~1s 滚动，读取按已过 tick 折算——静默期无新写入，速率自然衰减趋 0。 */
-    private static final class Window {
-        long in;
-        long out;
-        long since;
+    /** 实测吞吐（仅展示用，不持久化）：按结算周期累计实搬，展示取"最近周期"的每秒化值。
+     *  直接读该周期实搬量求和，MUST NOT 对任意窗口做差分——窗口非整周期倍数时会读出
+     *  0×/2× 的波动（成熟科技模组同样显示"最后一次结算的精确吞吐"而非窗口均值）。 */
+    private static final class Meter {
+        long period = Long.MIN_VALUE;
+        long movedIn;
+        long movedOut;
     }
 
-    private static final Map<BlockPos, Map<BlockPos, Window>> WINDOWS = new ConcurrentHashMap<>();
+    private static final Map<BlockPos, Map<BlockPos, Meter>> METERS = new ConcurrentHashMap<>();
 
     // ---- 世界无关纯内核（阶级门槛 + 聚合求和 + tick 预算），单测对象 ----
 
@@ -57,12 +57,92 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
         return coreTier <= ritualLevel;
     }
 
-    static long tickAllowanceBudget(long carryIn, long ratePerSecond) {
-        return (carryIn + ratePerSecond * FIXED / 20L) / FIXED;
-    }
-
-    static long tickAllowanceCarry(long carryIn, long ratePerSecond) {
-        return (carryIn + ratePerSecond * FIXED / 20L) % FIXED;
+    /**
+     * 加权水位分配（WFQ）：把 {@code amount} 按各核速率上限 {@code weights[i]} 加权分配，
+     * 逐项受 {@code caps[i]}（= min(本周期剩余额度, 头寸)）封顶；封顶者让位、其余核按同权重回填。
+     *
+     * <p>{@code priority} 为**跨周期持久**的每核累加器：每笔把本核的小数余量累加进去，整数余量发给
+     * {@code priority} 最大者并扣 {@code Σw}。这样低速率核的份额随周期累积，最终挤进分配、
+     * MUST NOT 因"每笔余数恒最小"被永久饿死（等比公平）。Σresult = min(amount, Σcaps)，无系统性截断。
+     * 世界无关纯函数、可单测。
+     */
+    static long[] weightedSplit(long amount, long[] weights, long[] caps, long[] priority) {
+        int n = weights.length;
+        long[] result = new long[n];
+        if (amount <= 0L || n == 0) {
+            return result;
+        }
+        long remaining = amount;
+        while (remaining > 0L) {
+            long sumW = 0L;
+            for (int i = 0; i < n; i++) {
+                if (weights[i] > 0L && caps[i] - result[i] > 0L) {
+                    sumW += weights[i];
+                }
+            }
+            if (sumW <= 0L) {
+                break;
+            }
+            long[] temp = new long[n];
+            boolean clamped = false;
+            for (int i = 0; i < n; i++) {
+                if (weights[i] <= 0L || caps[i] - result[i] <= 0L) {
+                    continue;
+                }
+                long share = remaining * weights[i] / sumW;
+                long room = caps[i] - result[i];
+                if (share >= room) {
+                    temp[i] = room;
+                    clamped = true;
+                } else {
+                    temp[i] = share;
+                }
+            }
+            if (clamped) {
+                // 只提交被封顶者，其余下一轮按缩减后的剩余重新分配（水位回填）
+                long committed = 0L;
+                for (int i = 0; i < n; i++) {
+                    if (temp[i] > 0L && temp[i] == caps[i] - result[i]) {
+                        result[i] += temp[i];
+                        committed += temp[i];
+                    }
+                }
+                if (committed <= 0L) {
+                    break;
+                }
+                remaining -= committed;
+                continue;
+            }
+            // 无封顶：提交取整份额，并把本核小数余量累加进跨周期优先级
+            long assigned = 0L;
+            for (int i = 0; i < n; i++) {
+                result[i] += temp[i];
+                assigned += temp[i];
+                if (weights[i] > 0L && caps[i] - result[i] > 0L) {
+                    priority[i] += (remaining * weights[i]) % sumW;
+                }
+            }
+            long leftover = remaining - assigned;
+            while (leftover > 0L) {
+                int best = -1;
+                long bestPriority = Long.MIN_VALUE;
+                for (int i = 0; i < n; i++) {
+                    if (weights[i] > 0L && caps[i] - result[i] > 0L
+                            && priority[i] > bestPriority) {
+                        bestPriority = priority[i];
+                        best = i;
+                    }
+                }
+                if (best < 0) {
+                    break;
+                }
+                result[best]++;
+                leftover--;
+                priority[best] -= sumW;
+            }
+            remaining = 0L;
+        }
+        return result;
     }
 
     static long sumStored(List<SpiritCoreView> cores) {
@@ -150,35 +230,44 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
         return out;
     }
 
-    /** 实测吞吐入账（每笔 transfer 实转后调用）；~1s 窗滚动。 */
-    private static void account(ServerLevel level, BlockPos coreKey, BlockPos pedPos,
-                                boolean deposit, long moved) {
+    /** 实测吞吐入账（每笔 transfer 实转后调用）：按结算周期序号归集；跨周期则清零重计。 */
+    private static void meter(ServerLevel level, BlockPos coreKey, BlockPos pedPos,
+                              boolean deposit, long moved) {
         if (moved <= 0L) {
             return;
         }
-        long now = level.getGameTime();
-        Window w = WINDOWS.computeIfAbsent(coreKey, k -> new ConcurrentHashMap<>())
-                .computeIfAbsent(pedPos, k -> new Window());
-        if (now - w.since >= 20L) {
-            w.since = now;
-            w.in = 0L;
-            w.out = 0L;
+        int period = Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get());
+        long nowPeriod = Math.floorDiv(level.getGameTime(), period);
+        Meter m = METERS.computeIfAbsent(coreKey, k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(pedPos, k -> new Meter());
+        if (m.period != nowPeriod) {
+            m.period = nowPeriod;
+            m.movedIn = 0L;
+            m.movedOut = 0L;
         }
         if (deposit) {
-            w.in += moved;
+            m.movedIn += moved;
         } else {
-            w.out += moved;
+            m.movedOut += moved;
         }
     }
 
-    /** 折算台位当前实际 {进, 出} 速率/s；窗口已过 20t 按实际经过时长摊薄（静默趋 0）。 */
+    /**
+     * 折算台位当前实际 {进, 出} 速率/s = 最近一次结算周期的实搬量 × 20/周期。
+     * 直接读"已结算周期"的精确汇总，不做任何窗口差分——因此关/开 GUI、采样相位如何都不会
+     * 出现 0/2× 波动；连续静默超过一个周期后归 0。
+     */
     private static long[] actualRates(ServerLevel level, BlockPos coreKey, BlockPos pedPos) {
-        Window w = WINDOWS.getOrDefault(coreKey, Map.of()).get(pedPos);
-        if (w == null || w.in + w.out <= 0L) {
+        Meter m = METERS.getOrDefault(coreKey, Map.of()).get(pedPos);
+        if (m == null) {
             return new long[]{0L, 0L};
         }
-        long elapsed = Math.max(1L, level.getGameTime() - w.since);
-        return new long[]{Math.round(w.in * 20D / elapsed), Math.round(w.out * 20D / elapsed)};
+        int period = Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get());
+        long nowPeriod = Math.floorDiv(level.getGameTime(), period);
+        if (m.period == nowPeriod || m.period == nowPeriod - 1L) {
+            return new long[]{m.movedIn * 20L / period, m.movedOut * 20L / period};
+        }
+        return new long[]{0L, 0L};
     }
 
     // ---- SpiritBank ----
@@ -203,47 +292,58 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
         return transfer(level, corePos, match, maxAmount, false);
     }
 
-    /** 逐核预算（速率/20 + 进位）结算；实转以预算/头寸/剩余额截断，未消化预算当场作废防囤积。 */
+    /**
+     * 逐核每 tick 账本 + 按核速率加权水位分配：本 tick 每个识别核心的进/出额度只结算一次，
+     * 同 tick 多笔调用共享同一份剩余额度（MUST NOT 重复发放）；单笔额度在全部有头寸核心间
+     * 按各核速率上限加权分配，遇额度/头寸封顶者让位、由其余核心回填。
+     */
     private static long transfer(ServerLevel level, BlockPos corePos, RitualMatch match,
                                  long amount, boolean deposit) {
         if (amount <= 0L) {
             return 0L;
         }
-        Map<BlockPos, Map<BlockPos, Long>> store = deposit ? IN_CARRY : OUT_CARRY;
-        BlockPos key = corePos.immutable();
-        Map<BlockPos, Long> old = store.getOrDefault(key, Map.of());
-        Map<BlockPos, Long> next = new HashMap<>();
-        long remaining = amount;
-        long moved = 0L;
-        for (Hosted h : hosted(level, match)) {
-            long rate = deposit ? h.inRate() : h.outRate();
-            long carryIn = old.getOrDefault(h.pos(), 0L);
-            long budget = tickAllowanceBudget(carryIn, rate);
-            long want = Math.min(remaining, budget);
-            want = Math.min(want, deposit
-                    ? h.core().capacity() - h.stored() : h.stored());
-            long actual = 0L;
-            if (want > 0L) {
-                actual = deposit
-                        ? SpiritCoreItem.receive(h.stack(), want)
-                        : SpiritCoreItem.extract(h.stack(), want);
-                if (actual > 0L) {
-                    h.pedestal().markHeldChanged();
-                    moved += actual;
-                    remaining -= actual;
-                    account(level, key, h.pos(), deposit, actual);
-                }
-            }
-            // 未消化的整数单位当场作废（不跨 tick 囤积 burst），仅未折整零头进 carry
-            long carryLeft = tickAllowanceCarry(carryIn, rate);
-            if (carryLeft > 0L) {
-                next.put(h.pos(), carryLeft);
-            }
+        List<Hosted> cores = hosted(level, match);
+        if (cores.isEmpty()) {
+            return 0L;
         }
-        if (next.isEmpty()) {
-            store.remove(key);
-        } else {
-            store.put(key, next);
+        BlockPos key = corePos.immutable();
+        long now = level.getGameTime();
+        int period = GensokyouConfig.SETTLE_PERIOD_TICKS.get();
+        Map<BlockPos, TickRateLedger> ledgers = (deposit ? IN_LEDGER : OUT_LEDGER)
+                .computeIfAbsent(key, k -> new ConcurrentHashMap<>());
+        int n = cores.size();
+        long[] weights = new long[n];
+        long[] caps = new long[n];
+        long[] priority = new long[n];
+        for (int i = 0; i < n; i++) {
+            Hosted h = cores.get(i);
+            long rate = deposit ? h.inRate() : h.outRate();
+            TickRateLedger ledger = ledgers.computeIfAbsent(h.pos(), k -> new TickRateLedger());
+            long budget = ledger.peek(now, rate, period);
+            long head = deposit ? h.core().capacity() - h.stored() : h.stored();
+            weights[i] = rate;
+            caps[i] = Math.min(budget, Math.max(0L, head));
+            priority[i] = ledger.allocPriority();
+        }
+        long[] alloc = weightedSplit(amount, weights, caps, priority);
+        for (int i = 0; i < n; i++) {
+            ledgers.get(cores.get(i).pos()).setAllocPriority(priority[i]);
+        }
+        long moved = 0L;
+        for (int i = 0; i < n; i++) {
+            if (alloc[i] <= 0L) {
+                continue;
+            }
+            Hosted h = cores.get(i);
+            long actual = deposit
+                    ? SpiritCoreItem.receive(h.stack(), alloc[i])
+                    : SpiritCoreItem.extract(h.stack(), alloc[i]);
+            if (actual > 0L) {
+                h.pedestal().markHeldChanged();
+                moved += actual;
+                ledgers.get(h.pos()).consume(actual);
+                meter(level, key, h.pos(), deposit, actual);
+            }
         }
         return moved;
     }
@@ -333,9 +433,10 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
 
     @Override
     public void onStructureLost(ServerLevel level, BlockPos corePos) {
-        IN_CARRY.remove(corePos.immutable());
-        OUT_CARRY.remove(corePos.immutable());
-        WINDOWS.remove(corePos.immutable());
+        BlockPos key = corePos.immutable();
+        IN_LEDGER.remove(key);
+        OUT_LEDGER.remove(key);
+        METERS.remove(key);
     }
 
     /** 现场探针摘要（gs_debug bafang / GS-AUTO 机读单行）：托管池全貌。 */

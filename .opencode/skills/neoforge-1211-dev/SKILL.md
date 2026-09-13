@@ -85,6 +85,18 @@ metadata:
   "速率"值/字段/UI 行（八方归元初版合并被退回）。"同源"取值只允许出现在一个装配点（如
   `BafangGuiyuanBehavior.coreRates()`），结算/端点声明/UI 三层都按方向走双管道；实际收发由供需
   截断、可互不相等、各 ≤ 各自最大（上限语义见 ritual-power-attributes）。
+- **灵力端点速率 = 端点自持每 tick 账本，唯一权威**：跨仪式路由（万象共鸣）的实搬 MUST 走
+  `RitualCoreBlockEntity.extractRouted/receiveRouted`——端点账本按 `gameTime` 幂等锁存
+  （`TickRateLedger`），同一 tick 内多塔/多笔调用共享一份额度，先到先得（次序 = 路由 tick 顺序，
+  与启停历史无关，暂停重启不会插队）。路由器算出的每对预算只是**建议值**，MUST NOT 依赖它保证不超发；
+  既有定向链路（配方/激活费就近抽储灵 `SpiritPowerHelper`）与内部产灵/记账走普通 `receive/extract`，
+  不经账本（加具土命内部产灵即走普通 receive，避免被自身 inRate=0 误截）。
+- **聚合池内部分配 MUST 按核速率加权水位分配**：八方归元等多核托管端把单笔额度在全部有头寸核间
+  按各核 `速率上限` 加权分配，遇额度/头寸封顶者让位、其余核回填（`BafangGuiyuanBehavior.weightedSplit`），
+  MUST NOT 规范序灌满首核致后核饥饿；逐核预算同样按 `gameTime` 锁存，同 tick 多笔不重复发放。
+- **实测吞吐展示口径 = 单调累计差分**：`速率 = (累计_now − 累计_prev)/(tick_now − tick_prev) × 20`，
+  MUST NOT 用会 off-by-one 过读的窗口折算（把含当前 tick 的累计 `in` 除以已过 `elapsed`，稳定 1280 会读成 1600），
+  也 MUST NOT 用无界 EMA 造成滞后虚高或静默残影；用单调计数器（如 `BafangGuiyuanBehavior.Meter`、路由 TowerState）。
 - **自定义核心着色器**：json 里 `vertex`/`fragment` 必须**带 mod 命名空间**（`"gensokyou:ritual_ghost"`）——
   裸名默认解析到 `minecraft:` 命名空间（原版文件就是这么写的），结果 FileNotFound，
   RegisterShadersEvent 抛异常卡死资源重载、进不去游戏（日志特征：`minecraft:shaders/core/xxx.vsh` FileNotFoundException）。

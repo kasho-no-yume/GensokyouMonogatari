@@ -58,7 +58,9 @@ public class ResonanceRelayBehavior implements RitualBehavior {
 
     private static final class TowerState {
         Map<PairKey, Long> carry = new HashMap<>();
-        double emaFlow;
+        /** 最近一次结算周期的实搬量（每秒化后展示）：精确汇总，不做窗口差分以免相位波动。 */
+        long flowRate;
+        long flowPeriod = Long.MIN_VALUE;
         long lastMovedPerTick;
         String statusKey;
         String[] statusArgs;
@@ -106,7 +108,10 @@ public class ResonanceRelayBehavior implements RitualBehavior {
                 new String[]{String.valueOf(core.inLinks().size()), String.valueOf(inQuota(match.level())),
                         String.valueOf(core.outLinks().size()), String.valueOf(outQuota(match.level()))},
                 "", 0, -1F, null));
-        long flow = Math.round(st.emaFlow);
+        int period = Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get());
+        long nowPeriod = Math.floorDiv(level.getGameTime(), period);
+        long flow = (st.flowPeriod == nowPeriod || st.flowPeriod == nowPeriod - 1L)
+                ? st.flowRate : 0L;
         lines.add(InfoLine.tipped("gui.gensokyou.ritual.reso_flow",
                 new String[]{compactNumber(flow)}, 0,
                 "gui.gensokyou.ritual.reso_flow_tip", new String[]{String.valueOf(flow)}));
@@ -194,20 +199,29 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         if (linksChanged) {
             st.carry = new HashMap<>();
         }
-        List<Beam> beams = routeTick(level, core, st);
+        // 仅在结算周期边界搬运（D7）；非边界 tick 无实搬，lastMoved 归零
+        int period = Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get());
+        List<Beam> beams = List.of();
+        if (level.getGameTime() % period == 0L) {
+            beams = routeTick(level, core, st, period);
+            // 展示取本周期精确实搬量的每秒化值（不做窗口差分 → 关/开界面无相位波动）
+            st.flowRate = st.lastMovedPerTick * 20L / period;
+            st.flowPeriod = Math.floorDiv(level.getGameTime(), period);
+        } else {
+            st.lastMovedPerTick = 0L;
+        }
         emitSpiral(level, corePos, match, core);
         for (Beam beam : beams) {
             emitBeam(level, corePos, core.structureMaxY(), beam.target(), beam.out());
         }
-        // 同 tick 抽 == 注（直推不过身），单值吞吐即可
-        st.emaFlow += (st.lastMovedPerTick * 20D - st.emaFlow) * 0.02D;
         if (core.ageTicks() % 20 == 0) {
             ModNetworking.sendRitualInfoToViewers(level, corePos);
         }
     }
 
     /** 一次路由结算；返回本 tick 实搬 >0 的通道（供光束）。 */
-    private List<Beam> routeTick(ServerLevel level, RitualCoreBlockEntity core, TowerState st) {
+    private List<Beam> routeTick(ServerLevel level, RitualCoreBlockEntity core, TowerState st,
+                                 int period) {
         st.lastMovedPerTick = 0L;
         List<Beam> beams = new ArrayList<>();
         List<RitualCoreBlockEntity> sources = needyEndpoints(level, core.inLinks(), true);
@@ -215,6 +229,9 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         if (sources.isEmpty() || sinks.isEmpty()) {
             return beams;
         }
+        // 每对预算仅为"建议值"（塔内把源速率在自家多汇间分摊、汇 in 速率在多源间分摊）；
+        // 真正不超发由端点自身账本（extractRouted/receiveRouted）保证：
+        // 多塔同 tick 争用同一端点额度 = 先到先得，次序 = 各路由 tick 顺序，与启停历史无关。
         for (RitualCoreBlockEntity source : sources) {
             double sShare = outRateOf(level, source) / (double) sinks.size();
             for (RitualCoreBlockEntity sink : sinks) {
@@ -223,26 +240,28 @@ public class ResonanceRelayBehavior implements RitualBehavior {
                 }
                 double budgetPerSecond = Math.min(sShare,
                         inRateOf(level, sink) / (double) sources.size());
-                long perTickUnits = (long) Math.floor(budgetPerSecond * FIXED / 20D);
+                long perPeriodUnits = (long) Math.floor(budgetPerSecond * FIXED * period / 20D);
                 PairKey key = new PairKey(source.getBlockPos(), sink.getBlockPos());
-                long allowance = perTickUnits + st.carry.getOrDefault(key, 0L);
+                long allowance = perPeriodUnits + st.carry.getOrDefault(key, 0L);
                 long want = allowance / FIXED;
+                // 建议值 carry 封顶 ~1 周期，防端点截断导致 carry 债累积
+                long carryCap = perPeriodUnits + FIXED;
                 if (want <= 0L) {
-                    st.carry.put(key, allowance);
+                    st.carry.put(key, Math.min(allowance, carryCap));
                     continue;
                 }
-                long taken = source.extract(want);
-                long put = sink.receive(taken);
+                long taken = source.extractRouted(want);
+                long put = sink.receiveRouted(taken);
                 if (taken > put) {
-                    source.receive(taken - put); // 汇被并行填满：差额回吐源，不进塔身
+                    source.receive(taken - put); // 汇被并行填满：差额回吐源，不进塔身（内部回吐，不走账本）
                 }
                 if (put > 0L) {
-                    st.carry.put(key, allowance - put * FIXED);
+                    st.carry.put(key, Math.min(allowance - put * FIXED, carryCap));
                     st.lastMovedPerTick += put;
                     beams.add(new Beam(sink.getBlockPos(), true));
                     beams.add(new Beam(source.getBlockPos(), false));
                 } else {
-                    st.carry.put(key, Math.min(allowance, 4 * perTickUnits + FIXED));
+                    st.carry.put(key, Math.min(allowance, carryCap));
                 }
             }
         }
