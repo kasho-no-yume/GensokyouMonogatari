@@ -117,6 +117,11 @@ public interface RitualBehavior {
 
     // ---- 灵力端点属性（resonance-relay-routing / ritual-power-attributes）----
 
+    /** 界面是否显示灵力核心槽（电池槽）：仅"向槽内核心注灵"类仪式（加具土命）覆写为 true；其余仪式该槽隐藏且拒收。 */
+    default boolean usesCoreSocket() {
+        return false;
+    }
+
     /** 作为受灵汇的最大每秒输入速率；0 = 不具备该属性，不可被路由选为输出目标。值为上限，非保证带宽。 */
     default long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
                                        RitualCoreBlockEntity core) {

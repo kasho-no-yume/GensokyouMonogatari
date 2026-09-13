@@ -31,6 +31,11 @@ import java.util.List;
 public class KagutsuchiFlameBehavior implements RitualBehavior {
 
     @Override
+    public boolean usesCoreSocket() {
+        return true;
+    }
+
+    @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
                                  RitualCoreBlockEntity core) {
         List<InfoLine> lines = new ArrayList<>();

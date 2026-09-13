@@ -1,6 +1,7 @@
 {
   "id": "gensokyou:bafang_guiyuan_circle",
   "anchorKey": "C",
+  "toggleable": true,
   "tiers": [
     2,
     3,

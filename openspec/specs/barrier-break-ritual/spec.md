@@ -4,7 +4,7 @@
 TBD - created by archiving change phase-c-gensokyo-gate. Update Purpose after archive.
 ## Requirements
 ### Requirement: 结界引爆仪式
-右键仪式核心 SHALL 尝试激活：从玩家与相邻电容扣除 barrierSpCost 灵力，成功后在核心上方生成隙间方块；激活标志持久化，重复激活不再扣费。灵力不足时提示且零消耗。
+右键仪式核心 SHALL 尝试激活：从玩家与邻近有余灵的核心（结构半径 3 内成型、存量 > 0，如八方归元之仪）扣除 barrierSpCost 灵力，成功后在核心上方生成隙间方块；激活标志持久化，重复激活不再扣费。灵力不足时提示且零消耗。
 
 #### Scenario: 激活
 - **WHEN** 灵力充足的玩家右键完整结界仪式核心

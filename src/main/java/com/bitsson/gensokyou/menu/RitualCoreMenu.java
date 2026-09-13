@@ -37,6 +37,8 @@ public class RitualCoreMenu extends AbstractContainerMenu {
     private final BlockPos pos;
     private final DataSlot burnRemaining;
     private final DataSlot burnTotal;
+    private final BatterySlot batterySlot;
+    private final boolean clientSide;
 
     public RitualCoreMenu(int windowId, Inventory inventory, RegistryFriendlyByteBuf data) {
         this(windowId, inventory, data.readBlockPos());
@@ -52,8 +54,17 @@ public class RitualCoreMenu extends AbstractContainerMenu {
         // 电池槽与燃烧倒计时通道：服务端直读核心 BE，客户端持占位、值随菜单协议收敛
         if (player.level() instanceof ServerLevel serverLevel
                 && serverLevel.getBlockEntity(this.pos) instanceof RitualCoreBlockEntity core) {
+            this.clientSide = false;
             addSlot(new BatterySlot(core.batteryHandler(), BATTERY_SLOT_INDEX,
                     BATTERY_SLOT_X, BATTERY_SLOT_Y));
+            this.batterySlot = (BatterySlot) this.slots.get(BATTERY_SLOT_INDEX);
+            // 槽显隐由行为声明（仅加具土命类注灵仪式）；隐藏槽 mayPlace 同步拒收；
+            // 槽内已有电池时强制可见——结构拆解失配也要能取出（防吞件）
+            this.batterySlot.setShown(!core.batteryStack().isEmpty()
+                    || (core.activeMatch() != null
+                            && RitualBehaviors.get(core.activeMatch().patternId())
+                                    .map(com.bitsson.gensokyou.ritual.RitualBehavior::usesCoreSocket)
+                                    .orElse(false)));
             this.burnRemaining = addDataSlot(new DataSlot() {
                 @Override
                 public int get() {
@@ -75,6 +86,7 @@ public class RitualCoreMenu extends AbstractContainerMenu {
                 }
             });
         } else {
+            this.clientSide = true;
             net.neoforged.neoforge.items.ItemStackHandler dummy =
                     new net.neoforged.neoforge.items.ItemStackHandler(1) {
                         @Override
@@ -83,6 +95,9 @@ public class RitualCoreMenu extends AbstractContainerMenu {
                         }
                     };
             addSlot(new BatterySlot(dummy, BATTERY_SLOT_INDEX, BATTERY_SLOT_X, BATTERY_SLOT_Y));
+            this.batterySlot = (BatterySlot) this.slots.get(BATTERY_SLOT_INDEX);
+            // 首帧即隐藏：显隐唯一由 containerTick 按服务端 payload 收敛（与启停按钮同范式）
+            this.batterySlot.setShown(false);
             this.burnRemaining = addDataSlot(DataSlot.standalone());
             this.burnTotal = addDataSlot(DataSlot.standalone());
         }
@@ -100,6 +115,19 @@ public class RitualCoreMenu extends AbstractContainerMenu {
 
     public int burnRemaining() {
         return burnRemaining.get();
+    }
+
+    /** 仅客户端：灵力核心槽显隐随服务端 payload 收敛（见 RitualCoreScreen）。
+     *  declaredByBehavior=false 但槽内仍有电池时保持可见，防结构拆解失配吞件。 */
+    public void syncCoreSocketVisible(boolean declaredByBehavior) {
+        if (clientSide) {
+            batterySlot.setShown(declaredByBehavior || !batterySlot.getItem().isEmpty());
+        }
+    }
+
+    /** 灵力核心槽当前是否可见（客户端渲染标注用）。 */
+    public boolean coreSocketShown() {
+        return batterySlot.isActive();
     }
 
     public int burnTotal() {

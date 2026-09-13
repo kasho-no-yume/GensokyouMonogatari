@@ -83,6 +83,15 @@ public final class DebugCommands {
                             feedback(player, "debug_cd_cleared");
                             return 1;
                         })))
+                .then(Commands.literal("bafang")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> {
+                                    net.minecraft.core.BlockPos pos =
+                                            net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                    .getLoadedBlockPos(context, "core");
+                                    return probeBafang(context.getSource(), pos);
+                                })))
                 .then(Commands.literal("kagutsuchi")
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
@@ -141,6 +150,30 @@ public final class DebugCommands {
     private static void line(ServerPlayer player, String text) {
         player.displayClientMessage(
                 Component.literal(text).withStyle(net.minecraft.ChatFormatting.GRAY), false);
+    }
+
+    /** 八方归元储灵池探针：聚合态单行 [GS-AUTO]，日志+指令源双输出（服务器函数上下文可跑）。 */
+    private static int probeBafang(net.minecraft.commands.CommandSourceStack source,
+                                   net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null) {
+            var am = core.activeMatch();
+            msg = "[GS-AUTO] BAFANG "
+                    + com.bitsson.gensokyou.ritual.behavior.BafangGuiyuanBehavior
+                            .debugSummary(serverLevel, pos, am)
+                    + " pattern=" + am.patternId() + " enabled=" + core.isEnabled()
+                    + " be=" + core.getStored() + "/" + core.getCapacity();
+        } else {
+            msg = "[GS-AUTO] BAFANG NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
     }
 
     /** target=true 改上限，否则改当前值；add=true 在原值基础上累加。 */

@@ -67,6 +67,26 @@ public record InfoLine(String textKey, String[] textArgs, String iconItemId, int
         return !tipKey.isEmpty();
     }
 
+    /** 大数字紧凑化（≥1e6→x.xxM / ≥1e3→x.xxk / 否则原值）。信息行与固定头数值 MUST NOT raw long。 */
+    public static String compact(long v) {
+        double a = Math.abs(v);
+        if (a >= 1_000_000D) {
+            return trimZeros(String.format(java.util.Locale.ROOT, "%.2f", a / 1_000_000D)) + "M";
+        }
+        if (a >= 1_000D) {
+            return trimZeros(String.format(java.util.Locale.ROOT, "%.2f", a / 1_000D)) + "k";
+        }
+        return String.valueOf(v);
+    }
+
+    private static String trimZeros(String s) {
+        String r = s;
+        while (r.endsWith("0")) {
+            r = r.substring(0, r.length() - 1);
+        }
+        return r.endsWith(".") ? r.substring(0, r.length() - 1) : r;
+    }
+
     private void write(FriendlyByteBuf buf) {
         buf.writeUtf(this.textKey);
         buf.writeVarInt(this.textArgs.length);

@@ -1,8 +1,7 @@
-# ritual-power-attributes Specification
+# ritual-power-attributes Delta
 
-## Purpose
-仪式灵力端点属性：行为按图案声明最大输入/输出速率（可随阶级变化），据此判定仪式可否作为路由传输的源/汇，并定义速率作为上限而非保证带宽的语义。
-## Requirements
+## MODIFIED Requirements
+
 ### Requirement: 端点速率行为声明
 `RitualBehavior` SHALL 提供灵力端点属性声明钩子：最大每秒输入速率与最大每秒输出速率，默认均为 0（无属性）。声明 SHALL 可依据当前 `RitualMatch`（阶级）计算。具体数值 MUST 由该仪式的配置基项或其所托管物品的构造定值聚合驱动，而非在行为中硬编码字面量。
 
@@ -28,15 +27,3 @@
 #### Scenario: 空托管池自动隐身
 - **WHEN** 八方归元台上无任何被识别核心（in=out=0）
 - **THEN** 它不出现在共鸣候选集中；放入核心后自动恢复可连
-
-### Requirement: 速率上限语义
-经路由的每对通道，其实际每秒传输量 SHALL 等于 `min(源 out 速率上限, 汇 in 速率上限)`，并受源实时存量与汇实时空位进一步截断。属性值仅为上限，MUST NOT 被理解为保证带宽。
-
-#### Scenario: 高速源接低速汇
-- **WHEN** 源 out 速率 1000/s 连接 in 速率 100/s 的汇
-- **THEN** 该通道实际传输约 100/s，源的其余产能留在源自缓存中
-
-#### Scenario: 汇满即断流
-- **WHEN** 通道两端的速率上限均大于汇的剩余空位
-- **THEN** 本 tick 实际搬运量以空位截断，汇满后该通道传输量为 0
-

@@ -27,20 +27,20 @@ public class BarrierBreakBehavior implements RitualBehavior {
         var data = ModAttachments.get(player);
         float paidFromPlayer = Math.min(data.current(), (float) cost);
         float remaining = (float) cost - paidFromPlayer;
-        if (remaining > 0F && !SpiritPowerHelper.hasCapacitorAround(level, player.blockPosition(), 3)) {
+        if (remaining > 0F && !SpiritPowerHelper.hasStorageAround(level, player.blockPosition(), 3)) {
             player.displayClientMessage(
-                    Component.translatable("msg.gensokyou.temper_no_power", (int) cost), true);
+                    Component.translatable("msg.gensokyou.ritual_no_power", (int) cost), true);
             return InteractionResult.FAIL;
         }
         ModAttachments.set(player, data.withCurrent(data.current() - paidFromPlayer));
         if (remaining > 0F) {
-            float drained = SpiritPowerHelper.drainCapacitorsAround(
+            float drained = SpiritPowerHelper.drainStoragesAround(
                     level, player.blockPosition(), 3, remaining);
             if (drained < remaining - 0.01F) {
                 ModAttachments.set(player,
                         ModAttachments.get(player).withAddedCurrent(remaining - drained));
                 player.displayClientMessage(
-                        Component.translatable("msg.gensokyou.temper_no_power", (int) cost), true);
+                        Component.translatable("msg.gensokyou.ritual_no_power", (int) cost), true);
                 return InteractionResult.FAIL;
             }
         }

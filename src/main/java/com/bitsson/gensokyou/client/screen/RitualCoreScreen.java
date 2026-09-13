@@ -101,12 +101,24 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         }
     }
 
+    /** 该仪式是否声明灵力核心槽：由行为 usesCoreSocket 决定，客户端按 payload 图案判定。 */
+    private static boolean coreSocket(RitualInfoPayload info) {
+        if (info.patternId().isEmpty()) {
+            return false;
+        }
+        return com.bitsson.gensokyou.ritual.RitualBehaviors
+                .get(ResourceLocation.parse(info.patternId()))
+                .map(com.bitsson.gensokyou.ritual.RitualBehavior::usesCoreSocket)
+                .orElse(false);
+    }
+
     @Override
     public void containerTick() {
         super.containerTick();
         RitualInfoPayload info = ClientRitualState.latest();
         boolean ours = info != null && info.blockPos().equals(menu.pos());
         boolean showButtons = ours && info.toggleable();
+        menu.syncCoreSocketVisible(ours && coreSocket(info));
         if (startButton != null) {
             startButton.visible = showButtons && !(ours && info.enabled());
         }
@@ -216,16 +228,21 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
                 info.enabled() ? COLOR_OK : COLOR_BAD, false);
         graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.tier", info.tier()),
                 INFO_X, 15, COLOR_TEXT, false);
-        // 零缓存核心（共鸣塔）不显示"灵力 0/0"行，概要数据由行为信息行替代
+        // 零缓存核心（共鸣塔）不显示"灵力 0/0"行，概要数据由行为信息行替代；
+        // 数值 MUST 紧凑化——托管池满配可达 12 位数，raw long 会画穿 176px 面板
         if (info.capacity() > 0) {
             graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.sp",
-                    info.stored(), info.capacity()), INFO_X, 26, COLOR_TEXT, false);
+                    com.bitsson.gensokyou.network.InfoLine.compact(info.stored()),
+                    com.bitsson.gensokyou.network.InfoLine.compact(info.capacity())),
+                    INFO_X, 26, COLOR_TEXT, false);
         }
-        // 电池槽标注（槽本体由菜单协议渲染）
-        graphics.drawString(font,
-                Component.translatable("gui.gensokyou.ritual.spirit_core_slot"),
-                RitualCoreMenu.BATTERY_SLOT_X + 20, RitualCoreMenu.BATTERY_SLOT_Y + 4,
-                COLOR_TEXT, false);
+        // 灵力核心槽标注（槽体由菜单协议渲染）：随菜单最终可见性绘制
+        if (menu.coreSocketShown()) {
+            graphics.drawString(font,
+                    Component.translatable("gui.gensokyou.ritual.spirit_core_slot"),
+                    RitualCoreMenu.BATTERY_SLOT_X + 20, RitualCoreMenu.BATTERY_SLOT_Y + 4,
+                    COLOR_TEXT, false);
+        }
         // —— 信息区：行为产出的 InfoLine 逐行渲染（电池槽行下方起笔，避免与槽标注叠行） ——
         renderInfoLines(graphics, font, info.infoLines());
         // 一次性状态消息（启停反馈等）：信息区底部

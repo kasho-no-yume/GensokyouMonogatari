@@ -65,6 +65,11 @@ public class RitualPedestalBlockEntity extends BlockEntity {
         return taken;
     }
 
+    /** 托管侧就地改写 held 数据组件后的持久化标记（显示态无变化，不广播方块更新）。 */
+    public void markHeldChanged() {
+        setChanged();
+    }
+
     private void syncToClients() {
         if (level != null && !level.isClientSide) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);

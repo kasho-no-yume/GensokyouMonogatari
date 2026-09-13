@@ -443,24 +443,9 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         return new TipSpec("gui.gensokyou.ritual.reso_row_plain", new String[]{tier, dist, coord});
     }
 
-    /** 吞吐数字紧凑化：≥1e6→x.xxM / ≥1e3→x.xxk / 否则原值。 */
+    /** 吞吐数字紧凑化：下沉至 {@link InfoLine#compact(long)}（GUI 信息行同源共用）。 */
     static String compactNumber(long v) {
-        double a = Math.abs(v);
-        if (a >= 1_000_000D) {
-            return trimZeros(String.format(java.util.Locale.ROOT, "%.2f", a / 1_000_000D)) + "M";
-        }
-        if (a >= 1_000D) {
-            return trimZeros(String.format(java.util.Locale.ROOT, "%.2f", a / 1_000D)) + "k";
-        }
-        return String.valueOf(v);
-    }
-
-    private static String trimZeros(String s) {
-        String r = s;
-        while (r.endsWith("0")) {
-            r = r.substring(0, r.length() - 1);
-        }
-        return r.endsWith(".") ? r.substring(0, r.length() - 1) : r;
+        return InfoLine.compact(v);
     }
 
     private static void resetState(BlockPos corePos) {

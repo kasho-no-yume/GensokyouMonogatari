@@ -13,9 +13,11 @@ import com.bitsson.gensokyou.ritual.RitualLink;
 import com.bitsson.gensokyou.ritual.RitualOfferings;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
+import com.bitsson.gensokyou.ritual.RitualPedestals;
 import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipeMatcher;
+import com.bitsson.gensokyou.ritual.behavior.SpiritBank;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -33,6 +35,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import com.bitsson.gensokyou.spirit.SpiritPowerHelper;
 import net.neoforged.neoforge.items.IItemHandler;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -113,11 +116,19 @@ public class RitualCoreBlockEntity extends BlockEntity {
     }
 
     public long getStored() {
+        SpiritBank bank = bank();
+        if (bank != null && level instanceof ServerLevel serverLevel && activeMatch != null) {
+            return bank.stored(serverLevel, worldPosition, activeMatch);
+        }
         return storedSpiritPower;
     }
 
-    /** 缓存上限按图案分派：共鸣塔零缓存，加具土命随等级指数放大，其余仪式维持电容配置（行为不变）。 */
+    /** 缓存上限按图案分派：托管型行为整体转发，共鸣塔零缓存，加具土命随等级指数放大，其余仪式常量兜底。 */
     public long getCapacity() {
+        SpiritBank bank = bank();
+        if (bank != null && level instanceof ServerLevel serverLevel && activeMatch != null) {
+            return bank.capacity(serverLevel, worldPosition, activeMatch);
+        }
         if (activeMatch != null) {
             if (activeMatch.patternId().equals(RitualBehaviors.RESONANCE)) {
                 return 0L;
@@ -126,8 +137,11 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 return kagutsuchiCapacity(activeMatch.level());
             }
         }
-        return GensokyouConfig.CAPACITOR_CAPACITY.get();
+        return DEFAULT_CORE_CAPACITY;
     }
+
+    /** 杂项仪式（无专属缓存语义）的兜底缓存上限。 */
+    public static final long DEFAULT_CORE_CAPACITY = 10_000L;
 
     /** 加具土命缓存上限 = 基础值 × 4^等级。 */
     public static long kagutsuchiCapacity(int level) {
@@ -138,7 +152,27 @@ public class RitualCoreBlockEntity extends BlockEntity {
         return cap;
     }
 
+    /** 托管型储灵行为（如八方归元）：图案命中且行为实现 SpiritBank 时灵力四件套整体转发。 */
+    @Nullable
+    private SpiritBank bank() {
+        if (activeMatch == null) {
+            return null;
+        }
+        return RitualBehaviors.get(activeMatch.patternId())
+                .filter(SpiritBank.class::isInstance)
+                .map(SpiritBank.class::cast)
+                .orElse(null);
+    }
+
     public long receive(long maxAmount) {
+        SpiritBank bank = bank();
+        if (bank != null && level instanceof ServerLevel serverLevel && activeMatch != null) {
+            long added = bank.receive(serverLevel, worldPosition, activeMatch, maxAmount);
+            if (added > 0) {
+                setChanged();
+            }
+            return added;
+        }
         long added = Math.min(maxAmount, getCapacity() - storedSpiritPower);
         if (added > 0) {
             storedSpiritPower += added;
@@ -148,6 +182,14 @@ public class RitualCoreBlockEntity extends BlockEntity {
     }
 
     public long extract(long maxAmount) {
+        SpiritBank bank = bank();
+        if (bank != null && level instanceof ServerLevel serverLevel && activeMatch != null) {
+            long taken = bank.extract(serverLevel, worldPosition, activeMatch, maxAmount);
+            if (taken > 0) {
+                setChanged();
+            }
+            return taken;
+        }
         long taken = Math.min(maxAmount, storedSpiritPower);
         if (taken > 0) {
             storedSpiritPower -= taken;
@@ -360,12 +402,12 @@ public class RitualCoreBlockEntity extends BlockEntity {
                         Component.translatable("msg.gensokyou.ritual_no_matching_recipe"), true);
                 return false;
             }
-            // 配方灵力消耗：从核心周边电容预扣，不足即中止（尚未发生任何消耗）
+            // 配方灵力消耗：从核心周边储灵预扣，不足即中止（尚未发生任何消耗）
             if (matched.recipe().spCost() > 0
-                    && SpiritPowerHelper.drainCapacitorsAround(serverLevel, worldPosition, 3,
+                    && SpiritPowerHelper.drainStoragesAround(serverLevel, worldPosition, 3,
                             matched.recipe().spCost()) < matched.recipe().spCost() - 0.01F) {
                 player.displayClientMessage(Component.translatable(
-                        "msg.gensokyou.temper_no_power", matched.recipe().spCost()), true);
+                        "msg.gensokyou.ritual_no_power", matched.recipe().spCost()), true);
                 return false;
             }
         }
@@ -658,7 +700,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
      * 仅变化时写块；同方块改属性不重建 BE，台面物品无损。
      */
     private static void writePedestalTiers(ServerLevel level, RitualMatch match, int tier) {
-        for (BlockPos p : match.positionsOf('P')) {
+        for (BlockPos p : RitualPedestals.positions(match)) {
             BlockState state = level.getBlockState(p);
             if (state.is(ModBlocks.RITUAL_PEDESTAL.get())
                     && state.getValue(RitualPedestalBlock.TIER) != tier) {
@@ -692,7 +734,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 continue;
             }
             if (recipe.spCost() > 0
-                    && SpiritPowerHelper.drainCapacitorsAround(level, pos, 3, recipe.spCost()) < recipe.spCost() - 0.01F) {
+                    && SpiritPowerHelper.drainStoragesAround(level, pos, 3, recipe.spCost()) < recipe.spCost() - 0.01F) {
                 continue;
             }
             RitualRecipeMatcher.apply(level, attempt.get().takes());

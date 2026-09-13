@@ -80,6 +80,11 @@ metadata:
   `registerBlockEntityRenderer`（方块实体，注意不是 registerBlockRenderer）。
 - **主仪式方块点击分发**：无匹配结构或无行为的 pattern 必须**返回 PASS** 让物品 useOn 有机会执行
   （否则催化剂等物品永远收不到点击——已踩坑）。范例：`block/RitualCoreBlock.java`。
+- **仪式最大速率声明 MUST 收/发分道**：`spiritInRatePerSecond`/`spiritOutRatePerSecond` 是两条独立
+  上限（各自声明、各自求和），即便当前核心物品两向定值对称、数值相等，也 MUST NOT 合并成单一
+  "速率"值/字段/UI 行（八方归元初版合并被退回）。"同源"取值只允许出现在一个装配点（如
+  `BafangGuiyuanBehavior.coreRates()`），结算/端点声明/UI 三层都按方向走双管道；实际收发由供需
+  截断、可互不相等、各 ≤ 各自最大（上限语义见 ritual-power-attributes）。
 - **自定义核心着色器**：json 里 `vertex`/`fragment` 必须**带 mod 命名空间**（`"gensokyou:ritual_ghost"`）——
   裸名默认解析到 `minecraft:` 命名空间（原版文件就是这么写的），结果 FileNotFound，
   RegisterShadersEvent 抛异常卡死资源重载、进不去游戏（日志特征：`minecraft:shaders/core/xxx.vsh` FileNotFoundException）。
@@ -88,6 +93,19 @@ metadata:
   双 RenderType 各喂不同 uniform 的正确姿势：共用一个 ShaderInstance，渲染器在每批 `endBatch` 前
   `shader.getUniform("Tint").set(...)`（脏标记延迟到 apply 时上传，各批取值正确）。
   仓内范例：`client/renderer/RitualGhostRenderTypes.java` + `RitualPreviewRenderer`。
+- **仪式 GUI 启停按钮 = pattern `toggleable`**：`RitualCoreScreen` 的启停按钮显隐唯一由
+  `info.toggleable()` 决定（源自 pattern JSON 顶层 `toggleable`，缺省 false）。**行为型仪式
+  （如八方归元、万象共鸣、加具土命）若 pattern 不写 `toggleable: true`，界面上根本不出现启动
+  按钮**——`onStart`/`serverTick`(enabled 才跑) 全成死路。加仪式时若行为覆写了 `serverTick`
+  或依赖 `enabled`，pattern JSON MUST 显式 `"toggleable": true`。
+- **仪式信息行 `InfoLine` 宽度红线**：`RitualCoreScreen` 面板 `PANEL_WIDTH=176`、信息区
+  `INFO_X=8`、状态标记 `STATE_X=124`、进度条占 `textX+52 .. +92`。一行可见文本实得仅 **~116px**
+  （有 ✓✗ 时）且 progress 行更窄。`renderInfoLine` 对溢出**只裁不断**（`font.split` 取首行），
+  多字段拼一行必超框（八方归元初版把"核心数/存量/容量/速率"塞一行即翻车）。正解沿用万象共鸣：
+  **可见行只放短标签 + progress 比例条，数字明细进 `InfoLine.tipped` 的悬浮 tip（模板内 `\n` 分行）**；
+  所有大数字经 `InfoLine.compact`（≥1e6→M / ≥1e3→k），固定头"灵力"raw long 在托管池 12 位数下也会画穿面板。
+  **带图标的行再减 20px**（textX 从 28 起笔，预算 ~142px）——"数值+双速率"四列并排照样爆（八方归元逐台清单二修教训）：
+  图标行可见段最多放"一个短语 + 一两个值"，其余照旧进 tip。
 
 ## 数据包格式陷阱（worldgen 等）
 

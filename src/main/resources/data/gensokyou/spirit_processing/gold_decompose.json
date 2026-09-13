@@ -1,7 +1,0 @@
-﻿{
-  "mode": "decompose",
-  "ingredient": { "item": "minecraft:gold_block" },
-  "result": { "id": "minecraft:raw_gold", "count": 12 },
-  "spCost": 150,
-  "timeTicks": 200
-}
