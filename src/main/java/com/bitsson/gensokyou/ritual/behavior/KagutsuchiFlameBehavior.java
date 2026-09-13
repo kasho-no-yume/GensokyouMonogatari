@@ -135,13 +135,23 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
         return false;
     }
 
+    /** 产灵速率式（每秒，指定等级）：settlePerSecond 与端点 out 声明共用，防公式漂移。 */
+    public static double productionRatePerSecond(int level) {
+        return GensokyouConfig.KAGUTSUICHI_BASE_RATE_PER_SECOND.get() * pow4(level);
+    }
+
+    @Override
+    public long spiritOutRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
+                                       RitualCoreBlockEntity core) {
+        return (long) Math.floor(productionRatePerSecond(match.level()));
+    }
+
     /** 每秒一次的产灵/注灵结算（速率 ×1000 定点进位，避免整除截断）。 */
     private static void settlePerSecond(RitualMatch match, RitualCoreBlockEntity core) {
         // 产灵：20 × 4^等级 每秒，仅燃烧期入账（含空烧——receive 天然截到上限，超出作废）；
         // 无燃料待机/停等 MUST NOT 白产（bugfix：此前缺 isBurning 门控）
         if (core.isBurning()) {
-            double ratePerSecond = GensokyouConfig.KAGUTSUICHI_BASE_RATE_PER_SECOND.get()
-                    * pow4(match.level());
+            double ratePerSecond = productionRatePerSecond(match.level());
             long rateCarry = core.rateCarry() + (long) Math.floor(ratePerSecond * 1000D);
             long produced = rateCarry / 1000L;
             core.setRateCarry(rateCarry % 1000L);

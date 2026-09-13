@@ -9,17 +9,6 @@
   贴图 `ritual_core_0..5` 按 blockstate tier 切换；颜色随品阶（0灰/1绿/2蓝/3琥珀/4红/5紫主色调晶体）。
 - `sukima`：隙间传送门（功能方块）。
 
-### ritual_pedestal — 品阶方块族（贴图随品阶变化）
-
-| id | 品阶 | 主色 |
-|---|---|---|
-| gensokyou:ritual_pedestal_0 | 0(灰) | #6f6869 |
-| gensokyou:ritual_pedestal_1 | 1(绿) | #605863 |
-| gensokyou:ritual_pedestal_2 | 2(蓝) | #5a5276 |
-| gensokyou:ritual_pedestal_3 | 3(琥珀) | #6d525e |
-| gensokyou:ritual_pedestal_4 | 4(红) | #6b4360 |
-| gensokyou:ritual_pedestal_5 | 5(紫) | #5f3b68 |
-
 ### ritual_stone — 品阶方块族（贴图随品阶变化）
 
 | id | 品阶 | 主色 |

@@ -55,8 +55,9 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue CAPACITOR_TRANSFER_RATE;
     public static final ModConfigSpec.DoubleValue GENERATOR_SP_PER_SECOND;
     public static final ModConfigSpec.IntValue GENERATOR_PUSH_INTERVAL_TICKS;
-    public static final ModConfigSpec.IntValue RELAY_TRANSFER_RATE;
-    public static final ModConfigSpec.IntValue RELAY_INTERVAL_TICKS;
+    public static final ModConfigSpec.IntValue RESONANCE_BASE_IN_QUOTA;
+    public static final ModConfigSpec.IntValue RESONANCE_BASE_OUT_QUOTA;
+    public static final ModConfigSpec.IntValue RESONANCE_BASE_RADIUS;
     public static final ModConfigSpec.DoubleValue MU_POWER_NUMERATOR;
     public static final ModConfigSpec.DoubleValue MU_POWER_DENOMINATOR;
     public static final ModConfigSpec.DoubleValue ICICLE_DAMAGE;
@@ -198,8 +199,9 @@ public class GensokyouConfig {
         CAPACITOR_TRANSFER_RATE = BUILDER.defineInRange("capacitorTransferRatePerClick", 200, 1, 1000000);
         GENERATOR_SP_PER_SECOND = BUILDER.defineInRange("generatorSpPerSecond", 5D, 0D, 10000D);
         GENERATOR_PUSH_INTERVAL_TICKS = BUILDER.defineInRange("generatorPushIntervalTicks", 40, 1, 1200);
-        RELAY_TRANSFER_RATE = BUILDER.defineInRange("relayTransferRate", 100, 1, 1000000);
-        RELAY_INTERVAL_TICKS = BUILDER.defineInRange("relayIntervalTicks", 20, 1, 1200);
+        RESONANCE_BASE_IN_QUOTA = BUILDER.comment("resonance relay: base input-link quota at tier 2, doubled per level").defineInRange("resonanceBaseInQuota", 1, 1, 1024);
+        RESONANCE_BASE_OUT_QUOTA = BUILDER.comment("resonance relay: base output-link quota at tier 2, doubled per level").defineInRange("resonanceBaseOutQuota", 4, 1, 1024);
+        RESONANCE_BASE_RADIUS = BUILDER.comment("resonance relay: base XZ radius at tier 2, doubled per level (Y unlimited, same dimension)").defineInRange("resonanceBaseRadius", 10, 1, 1024);
         MU_POWER_NUMERATOR = BUILDER.comment("Damage taken multiplier = (numerator + level) / denominator").defineInRange("muPowerNumerator", 3D, 0D, 100D);
         MU_POWER_DENOMINATOR = BUILDER.defineInRange("muPowerDenominator", 2D, 1D, 100D);
         ICICLE_DAMAGE = BUILDER.defineInRange("icicleCardDamage", 8D, 0D, 1024D);

@@ -20,6 +20,7 @@ v5 格式：每层 `{level, adds}`；adds 只声明该级**新增**格位
   6. 祭品台单件不变量：requirements 条目显式 count > 1 → ERROR（字段已废弃，多件拆多台）
 """
 import argparse
+import shutil
 import json
 import re
 import sys
@@ -455,9 +456,6 @@ def convert_all():
 
 # ---- 服务器端到端测试函数生成（发电机仪式专用场景） ----
 
-MIXED_TIERS = {'1': 1, '2': 2, '3': 3, '4': 4, '5': 5, 'P': 2, 'Q': 3, 'R': 4}
-
-
 def resolve_block(pattern, key, tier_choice):
     kind, value, members = pattern['palette'][key]
     if kind == 'EXACT':
@@ -469,15 +467,17 @@ def resolve_block(pattern, key, tier_choice):
     return None
 
 
-def place_commands(pattern, level_no, anchor, tier_choice, only_additions=True):
+def place_commands(pattern, level_no, anchor, tier_choice, only_additions=True,
+                   resolver=None):
     """生成 setblock 序列。only_additions 直接取该级增量（v5 语义）；
-    全量路径取累积切片（与迁移前 v4 快照等价）。"""
+    全量路径取累积切片（与迁移前 v4 快照等价）。resolver 可换格位解析（测试包用）。"""
+    resolver = resolver or resolve_block
     ax, ay, az = anchor
     level = pattern_level(pattern, level_no)
     source = level['delta'] if only_additions else level['expanded']
     out = []
     for key, x, y, z, *_ in source:
-        block = resolve_block(pattern, key, tier_choice)
+        block = resolver(pattern, key, tier_choice)
         if block is None:
             continue
         out.append(f'setblock {ax + x} {ay + y} {az + z} {block}')
@@ -491,8 +491,51 @@ def pattern_level(pattern, level_no):
     raise KeyError(level_no)
 
 
-def generator_test_functions(pattern, out_dir):
-    """生成 run/world/datapacks 用的端到端测试包（品阶渐进 + 发电验证）。"""
+def tier_of_any(block_id):
+    """测试包格位解析用：仪式石/祭品台满块的品阶；其余 -1。
+    （Java 侧 ritualTier 判据仅仪式石计阶，祭品台返回 -1——勿混用于断言。）"""
+    m = re.fullmatch(r'gensokyou:(ritual_stone|ritual_pedestal)_([0-5])', block_id)
+    return int(m.group(2)) if m else -1
+
+
+def resolve_block_test(pattern, key, tier_choice):
+    """测试包解析器：标签按所选品阶精确取块（含祭品台变体）。"""
+    kind, value, members = pattern['palette'][key]
+    if kind == 'EXACT':
+        return value
+    want = tier_choice(key)
+    for member in members:
+        if tier_of_any(member) == want:
+            return member
+    return None
+
+
+def footprint_radius(pattern):
+    r = 0
+    for level in pattern['levels']:
+        for entry in level['expanded']:
+            r = max(r, abs(entry[1]), abs(entry[3]))
+    return r
+
+
+def expected_tier(pattern, level_no, tier):
+    """常量品阶 tier 全量搭建 level_no 后核心 TIER 预期值：
+    切片中存在可解析的仪式石标签时为 tier，否则 0（无信号）。"""
+    for entry in pattern_level(pattern, level_no)['expanded']:
+        kind, _value, members = pattern['palette'][entry[0]]
+        if kind != 'TAG':
+            continue
+        for member in members:
+            if tier_of(member) == tier:
+                return tier
+    return 0
+
+
+def emit_test_pack(patterns, out_dir):
+    """为全部多级 pattern 生成端到端测试包：逐级全量搭建 + 核心 tier 断言 +
+    高阶级低品阶负查（禁虚高匹配），链式 schedule 串行，末行 ALL_DONE。"""
+    if out_dir.exists():
+        shutil.rmtree(out_dir)  # 重建=全量替换，绝不留旧代残留文件
     functions = out_dir / 'data' / 'gs_test' / 'function'
     functions.mkdir(parents=True, exist_ok=True)
     tag_dir = out_dir / 'data' / 'minecraft' / 'tags' / 'function'
@@ -504,79 +547,83 @@ def generator_test_functions(pattern, out_dir):
     (tag_dir / 'load.json').write_text(
         json.dumps({'values': ['gs_test:run_all']}, indent=2), encoding='utf-8')
 
-    a1, a3, a5, an = (4, 100, 4), (44, 100, 4), (64, 100, 4), (84, 100, 4)
-    cap1, cap2 = (4, 101, 4), (64, 101, 4)
+    funcs = {}
+    targets = [p for p in sorted(patterns, key=lambda p: p['id']) if len(p['levels']) >= 2]
+    x = 8
+    min_x, min_z, max_x, max_z = 0, 0, 0, 0
+    seq = []
+    for pattern in targets:
+        r = footprint_radius(pattern)
+        ax, ay, az = x + r, 100, 4
+        min_x, min_z = min(min_x, ax - r - 2), min(min_z, az - r - 2)
+        max_x, max_z = max(max_x, ax + r + 2), max(max_z, az + r + 2)
+        x = ax + r + 12
+        path = pattern['id'].split(':')[-1]
+        levels = sorted(level['level'] for level in pattern['levels'])
 
-    def emit(name, lines):
-        (functions / f'{name}.mcfunction').write_text(
-            '\n'.join(lines) + '\n', encoding='utf-8')
+        def wire(name, body_lines):
+            funcs[name] = body_lines
 
-    emit('run_all', ['forceload add -16 -16 112 32',
-                     'scoreboard objectives add gs dummy',
-                     'schedule function gs_test:setup_t1 1s'])
-    body = place_commands(pattern, 1, a1, lambda key: 1)
-    body += [f'setblock {cap1[0]} {cap1[1]} {cap1[2]} gensokyou:ritual_core',
-             # 电容环 4 石（±2,±2）：capacitor_circle L1 需要全部四角，缺一即不成型
-             f'setblock {cap1[0] - 2} {cap1[1]} {cap1[2] - 2} gensokyou:ritual_stone_1',
-             f'setblock {cap1[0] + 2} {cap1[1]} {cap1[2] - 2} gensokyou:ritual_stone_1',
-             f'setblock {cap1[0] - 2} {cap1[1]} {cap1[2] + 2} gensokyou:ritual_stone_1',
-             f'setblock {cap1[0] + 2} {cap1[1]} {cap1[2] + 2} gensokyou:ritual_stone_1',
-             f'data modify block {a1[0]} {a1[1]} {a1[2]} Enabled set value 1b',
-             'schedule function gs_test:check_t1 3s']
-    emit('setup_t1', body)
-    emit('check_t1', [
-        f'execute if block {a1[0]} {a1[1]} {a1[2]} gensokyou:ritual_core[tier=1] '
-        f'run say [GS-TEST] T1_OK: level1 matched, core tier=1',
-        f'execute store result score $sp gs run data get block '
-        f'{cap1[0]} {cap1[1]} {cap1[2]} StoredSpiritPower 1',
-        f'execute if score $sp gs matches 1.. run say [GS-TEST] SP_OK:cap1',
-        f'execute if score $sp gs matches ..0 run say [GS-TEST] SP_FAIL:cap1 StoredSpiritPower=0',
-        'schedule function gs_test:setup_t2 1s'])
-    emit('setup_t2', place_commands(pattern, 2, a1, MIXED_TIERS.get) +
-         ['schedule function gs_test:check_t2 3s'])
-    emit('check_t2', [
-        f'execute if block {a1[0]} {a1[1]} {a1[2]} gensokyou:ritual_core[tier=2] '
-        f'run say [GS-TEST] T2_OK: upgrade to level2, core tier=2',
-        'schedule function gs_test:setup_t3 1s'])
-    emit('setup_t3', place_commands(pattern, 3, a3, MIXED_TIERS.get,
-                                    only_additions=False) +
-         ['schedule function gs_test:check_t3 3s'])
-    emit('check_t3', [
-        f'execute if block {a3[0]} {a3[1]} {a3[2]} gensokyou:ritual_core[tier=3] '
-        f'run say [GS-TEST] T3_OK: level3 mixed tiers (1/2/3), core tier=3',
-        'schedule function gs_test:setup_t5 1s'])
-    body = place_commands(pattern, 5, a5, MIXED_TIERS.get, only_additions=False)
-    body += [f'setblock {cap2[0]} {cap2[1]} {cap2[2]} gensokyou:ritual_core',
-             f'setblock {cap2[0] - 2} {cap2[1]} {cap2[2] - 2} gensokyou:ritual_stone_1',
-             f'setblock {cap2[0] + 2} {cap2[1]} {cap2[2] - 2} gensokyou:ritual_stone_1',
-             f'setblock {cap2[0] - 2} {cap2[1]} {cap2[2] + 2} gensokyou:ritual_stone_1',
-             f'setblock {cap2[0] + 2} {cap2[1]} {cap2[2] + 2} gensokyou:ritual_stone_1',
-             f'data modify block {a5[0]} {a5[1]} {a5[2]} Enabled set value 1b',
-             'schedule function gs_test:check_t5 4s']
-    emit('setup_t5', body)
-    emit('check_t5', [
-        f'execute if block {a5[0]} {a5[1]} {a5[2]} gensokyou:ritual_core[tier=5] '
-        f'run say [GS-TEST] T5_OK: level5 mixed tiers (1..5), core tier=5',
-        f'execute store result score $sp gs run data get block '
-        f'{cap2[0]} {cap2[1]} {cap2[2]} StoredSpiritPower 1',
-        f'execute if score $sp gs matches 1.. run say [GS-TEST] SP_OK:cap2',
-        f'execute if score $sp gs matches ..0 run say [GS-TEST] SP_FAIL:cap2 StoredSpiritPower=0',
-        'schedule function gs_test:setup_neg 1s'])
-    emit('setup_neg', place_commands(pattern, 2, an, lambda key: 1,
-                                     only_additions=False) +
-         ['schedule function gs_test:check_neg 3s'])
-    emit('check_neg', [
-        f'execute if block {an[0]} {an[1]} {an[2]} gensokyou:ritual_core[tier=1] '
-        f'run say [GS-TEST] NEG_OK: tier1 stones cannot form level2 ring, fell back to level1',
-        f'execute if block {an[0]} {an[1]} {an[2]} gensokyou:ritual_core[tier=2] '
-        f'run say [GS-TEST] NEG_FAIL: tier1 stones wrongly formed level2!',
-        'say [GS-TEST] ALL_DONE'])
+        for i, lvl in enumerate(levels):
+            setup, check = f'setup_{path}_l{lvl}', f'check_{path}_l{lvl}'
+            seq.append(setup)
+            body = place_commands(pattern, lvl, (ax, ay, az),
+                                  lambda _key, _l=lvl: _l, only_additions=False,
+                                  resolver=resolve_block_test)
+            wire(setup, body + [f'schedule gs_test:{check} 4s'])
+            exp = expected_tier(pattern, lvl, lvl)
+            if exp >= 1:
+                lines = [
+                    f'execute if block {ax} {ay} {az} gensokyou:ritual_core[tier={exp}] '
+                    f'run say [GS-TEST] OK:{path}:L{lvl}',
+                    f'execute unless block {ax} {ay} {az} gensokyou:ritual_core[tier={exp}] '
+                    f'run say [GS-TEST] FAIL:{path}:L{lvl} expected_tier={exp}',
+                ]
+            else:
+                lines = [f'say [GS-TEST] SKIP:{path}:L{lvl} no-tier-signal']
+            wire(check, lines)
+        # 负查：以最低阶品阶常量铺最高阶全量切片——高阶标签解析不出即跳格，
+        # 不得虚高匹配到顶阶（tier 不等于顶阶预期值）
+        low = levels[0]
+        hi = levels[-1]
+        setup_neg, check_neg = f'setup_{path}_neg', f'check_{path}_neg'
+        seq.append(setup_neg)
+        body = place_commands(pattern, hi, (ax, ay, az),
+                              lambda _key: low, only_additions=False,
+                              resolver=resolve_block_test)
+        wire(setup_neg, body + [f'schedule gs_test:{check_neg} 4s'])
+        hi_exp = expected_tier(pattern, hi, hi)
+        wire(check_neg, [
+            f'execute if block {ax} {ay} {az} gensokyou:ritual_core[tier={hi_exp}] '
+            f'run say [GS-TEST] NEG_FAIL:{path} low stones wrongly formed top level!',
+            f'execute unless block {ax} {ay} {az} gensokyou:ritual_core[tier={hi_exp}] '
+            f'run say [GS-TEST] NEG_OK:{path}',
+        ])
+
+    # 链式串接：每个 check 完成后衔接下一个 setup（串行执行）
+    for i, name in enumerate(seq):
+        if i + 1 < len(seq):
+            check_name = name.replace('setup_', 'check_')
+            funcs[check_name] = funcs[check_name] + [f'schedule gs_test:{seq[i + 1]} 1s']
+    funcs['finish'] = ['say [GS-TEST] ALL_DONE']
+    if seq:
+        funcs[seq[-1].replace('setup_', 'check_')] = \
+            funcs[seq[-1].replace('setup_', 'check_')] + ['schedule gs_test:finish 1s']
+        funcs['run_all'] = [f'forceload add {min_x} {min_z} {max_x} {max_z}',
+                            'scoreboard objectives add gs dummy',
+                            f'schedule gs_test:{seq[0]} 2s']
+    else:
+        funcs['run_all'] = ['say [GS-TEST] INFO no multi-level patterns',
+                            'schedule gs_test:finish 1s']
+    for name, lines in funcs.items():
+        (functions / f'{name}.mcfunction').write_text('\n'.join(lines) + '\n',
+                                                      encoding='utf-8')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--test-out', metavar='DIR', help='生成发电机仪式服务器测试数据包')
+    parser.add_argument('--test-out', metavar='DIR', help='为全部有效 pattern 生成端到端服务器测试数据包')
     parser.add_argument('--convert-v4', action='store_true',
                         help='将 v4 全量快照 pattern 就地迁移为 v5 逐级增量')
     args = parser.parse_args()
@@ -601,12 +648,8 @@ def main():
         cross_pattern_hazards(patterns, errors, warnings)
 
     if args.test_out:
-        generator = next((p for p in patterns if p['id'].endswith('generator_circle')), None)
-        if generator is None:
-            errors.append('未找到 generator_circle，无法生成测试包')
-        else:
-            generator_test_functions(generator, Path(args.test_out))
-            print(f'测试数据包: {args.test_out}')
+        emit_test_pack(valid, Path(args.test_out))
+        print(f'测试数据包: {args.test_out}')
     # 错误/警告最先输出（单行，供 AI 直接消费），摘要其次
     for warning in warnings:
         print(f'WARN: {warning}')

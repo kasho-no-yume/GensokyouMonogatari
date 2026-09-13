@@ -8,6 +8,8 @@ import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualMatch;
 import com.bitsson.gensokyou.ritual.RitualMatcher;
+import com.bitsson.gensokyou.ritual.RitualCoreRegistry;
+import com.bitsson.gensokyou.ritual.RitualLink;
 import com.bitsson.gensokyou.ritual.RitualOfferings;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
@@ -17,6 +19,7 @@ import com.bitsson.gensokyou.ritual.RitualRecipeMatcher;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -37,9 +40,10 @@ import java.util.Optional;
 
 public class RitualCoreBlockEntity extends BlockEntity {
     private static final String TAG_STORED = "StoredSpiritPower";
-    private static final String TAG_PENDING_LINK = "PendingLink";
-    private static final String TAG_LINK_A = "LinkA";
-    private static final String TAG_LINK_B = "LinkB";
+    private static final String TAG_RESO_IN = "ResoInLinks";
+    private static final String TAG_RESO_OUT = "ResoOutLinks";
+    private static final String TAG_LINK_POS = "P";
+    private static final String TAG_LINK_PATTERN = "I";
     private static final String TAG_ENABLED = "Enabled";
     /** 旧版结界引爆开关字段：收编为 enabled 的存档兼容读。 */
     private static final String TAG_LEGACY_BARRIER_ACTIVATED = "BarrierActivated";
@@ -56,13 +60,16 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private RitualMatch activeMatch;
     private long ageTicks;
     private long storedSpiritPower;
-    private BlockPos pendingLink;
-    private BlockPos linkA;
-    private BlockPos linkB;
     private boolean enabled;
     private BlockPos portalPos;
     /** 当前激活配方（配方驱动的仪式启动时记录，停止/失效清除）。 */
     private ResourceLocation activeRecipeId;
+    /** 万象共鸣：输入/输出链接（身份 = 目标核心坐标 + 图案）。 */
+    private List<RitualLink> inLinks = List.of();
+    private List<RitualLink> outLinks = List.of();
+    /** 万象共鸣：当前结构的 Y 包围盒（仅内存，重扫刷新；驱动螺旋高度）。 */
+    private int boundsMinY;
+    private int boundsMaxY;
     /** 加具土命：输出槽内灵力核心（单件，NBT 持久化）。 */
     private ItemStack batteryStack = ItemStack.EMPTY;
     /** 加具土命：当前燃烧批次的燃料显示图标（点火即吞，仅存身份，供 GUI 与掉落不回流）。 */
@@ -75,6 +82,18 @@ public class RitualCoreBlockEntity extends BlockEntity {
 
     public RitualCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RITUAL_CORE.get(), pos, state);
+    }
+
+    /** 移除（含区块卸载/破坏）时注销索引条目，归属守卫防拆旧建新误删。 */
+    @Override
+    public void setRemoved() {
+        if (activeMatch != null && level instanceof ServerLevel serverLevel) {
+            RitualCoreRegistry registry = RitualCoreRegistry.peek(serverLevel);
+            if (registry != null) {
+                registry.unregister(getBlockPos(), activeMatch.patternId());
+            }
+        }
+        super.setRemoved();
     }
 
     public long ageTicks() {
@@ -97,10 +116,15 @@ public class RitualCoreBlockEntity extends BlockEntity {
         return storedSpiritPower;
     }
 
-    /** 缓存上限按图案分派：加具土命随等级指数放大，其余仪式维持电容配置（行为不变）。 */
+    /** 缓存上限按图案分派：共鸣塔零缓存，加具土命随等级指数放大，其余仪式维持电容配置（行为不变）。 */
     public long getCapacity() {
-        if (activeMatch != null && activeMatch.patternId().equals(RitualBehaviors.KAGUTSUICHI)) {
-            return kagutsuchiCapacity(activeMatch.level());
+        if (activeMatch != null) {
+            if (activeMatch.patternId().equals(RitualBehaviors.RESONANCE)) {
+                return 0L;
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.KAGUTSUICHI)) {
+                return kagutsuchiCapacity(activeMatch.level());
+            }
         }
         return GensokyouConfig.CAPACITOR_CAPACITY.get();
     }
@@ -207,49 +231,76 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
     }
 
-    public boolean beginLink(BlockPos target) {
-        if (linked()) {
-            return false;
+    // ---- 万象共鸣：链接存储（配额/互斥/属性等不变量校验在行为侧写入路径） ----
+
+    public List<RitualLink> inLinks() {
+        return inLinks;
+    }
+
+    public List<RitualLink> outLinks() {
+        return outLinks;
+    }
+
+    /** 整体替换两列链接（行为侧唯一写入口，raw 存储不再判）。 */
+    public void setSpiritLinks(List<RitualLink> in, List<RitualLink> out) {
+        this.inLinks = List.copyOf(in);
+        this.outLinks = List.copyOf(out);
+        setChanged();
+    }
+
+    private static void writeLinks(CompoundTag tag, String key, List<RitualLink> links) {
+        if (links.isEmpty()) {
+            return;
         }
-        pendingLink = target;
-        setChanged();
-        return true;
-    }
-
-    public boolean completeLink(BlockPos target) {
-        if (pendingLink == null || pendingLink.equals(target)) {
-            return false;
+        ListTag list = new ListTag();
+        for (RitualLink link : links) {
+            CompoundTag entry = new CompoundTag();
+            entry.putLong(TAG_LINK_POS, link.corePos().asLong());
+            entry.putString(TAG_LINK_PATTERN, link.patternId().toString());
+            list.add(entry);
         }
-        linkA = pendingLink;
-        linkB = target.immutable();
-        pendingLink = null;
-        setChanged();
-        return true;
+        tag.put(key, list);
     }
 
-    public boolean unbindLinks() {
-        boolean had = pendingLink != null || linked();
-        pendingLink = null;
-        linkA = null;
-        linkB = null;
-        setChanged();
-        return had;
+    private static List<RitualLink> readLinks(CompoundTag tag, String key) {
+        if (!tag.contains(key)) {
+            return List.of();
+        }
+        List<RitualLink> out = new ArrayList<>();
+        for (var item : tag.getList(key, CompoundTag.TAG_COMPOUND)) {
+            CompoundTag entry = (CompoundTag) item;
+            out.add(new RitualLink(BlockPos.of(entry.getLong(TAG_LINK_POS)),
+                    ResourceLocation.parse(entry.getString(TAG_LINK_PATTERN))));
+        }
+        return List.copyOf(out);
     }
 
-    public BlockPos pendingLink() {
-        return pendingLink;
+    /** 结构 Y 包围盒（世界坐标，重扫时刷新）：螺旋纵向覆盖范围。 */
+    public int structureMinY() {
+        return boundsMinY;
     }
 
-    public boolean linked() {
-        return linkA != null && linkB != null;
+    public int structureMaxY() {
+        return boundsMaxY;
     }
 
-    public BlockPos linkA() {
-        return linkA;
-    }
-
-    public BlockPos linkB() {
-        return linkB;
+    private void refreshStructureBounds() {
+        int min = worldPosition.getY();
+        int max = worldPosition.getY();
+        if (activeMatch != null) {
+            for (List<BlockPos> positions : activeMatch.keyedPositions().values()) {
+                for (BlockPos p : positions) {
+                    if (p.getY() < min) {
+                        min = p.getY();
+                    }
+                    if (p.getY() > max) {
+                        max = p.getY();
+                    }
+                }
+            }
+        }
+        boundsMinY = min;
+        boundsMaxY = max;
     }
 
     // ---- 生命周期：enabled 门控与启停 ----
@@ -540,6 +591,13 @@ public class RitualCoreBlockEntity extends BlockEntity {
         RitualMatch previous = core.activeMatch;
         if (rescan) {
             core.activeMatch = RitualMatcher.matchAt(serverLevel, pos).orElse(null);
+            RitualCoreRegistry registry = RitualCoreRegistry.forLevel(serverLevel);
+            if (core.activeMatch != null) {
+                registry.register(pos, core.activeMatch.patternId(), core.activeMatch.level());
+            } else if (previous != null) {
+                registry.unregister(pos, previous.patternId());
+            }
+            core.refreshStructureBounds();
             if (core.activeMatch != null && previous == null) {
                 // 成型瞬间：代理箱从无槽变有槽，失效块 cap 缓存让漏斗等消费者重查
                 serverLevel.invalidateCapabilities(pos);
@@ -662,15 +720,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         tag.putLong(TAG_STORED, storedSpiritPower);
-        if (pendingLink != null) {
-            tag.putLong(TAG_PENDING_LINK, pendingLink.asLong());
-        }
-        if (linkA != null) {
-            tag.putLong(TAG_LINK_A, linkA.asLong());
-        }
-        if (linkB != null) {
-            tag.putLong(TAG_LINK_B, linkB.asLong());
-        }
+        writeLinks(tag, TAG_RESO_IN, inLinks);
+        writeLinks(tag, TAG_RESO_OUT, outLinks);
         tag.putBoolean(TAG_ENABLED, enabled);
         if (activeRecipeId != null) {
             tag.putString(TAG_ACTIVE_RECIPE, activeRecipeId.toString());
@@ -704,10 +755,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
         // 加载期 activeMatch 未就位，不可用 getCapacity 夹取（分图案上限会误截）；
         // 超储自愈：receive 对 stored≥cap 恒 0，extract 正常，无需读档时 clamp
         storedSpiritPower = Math.max(0L, tag.getLong(TAG_STORED));
-        pendingLink = tag.contains(TAG_PENDING_LINK)
-                ? BlockPos.of(tag.getLong(TAG_PENDING_LINK)) : null;
-        linkA = tag.contains(TAG_LINK_A) ? BlockPos.of(tag.getLong(TAG_LINK_A)) : null;
-        linkB = tag.contains(TAG_LINK_B) ? BlockPos.of(tag.getLong(TAG_LINK_B)) : null;
+        inLinks = readLinks(tag, TAG_RESO_IN);
+        outLinks = readLinks(tag, TAG_RESO_OUT);
         if (tag.contains(TAG_ENABLED)) {
             enabled = tag.getBoolean(TAG_ENABLED);
         } else if (tag.contains(TAG_LEGACY_BARRIER_ACTIVATED)) {

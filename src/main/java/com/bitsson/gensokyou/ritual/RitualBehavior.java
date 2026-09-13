@@ -115,6 +115,20 @@ public interface RitualBehavior {
         return InteractionResult.PASS;
     }
 
+    // ---- 灵力端点属性（resonance-relay-routing / ritual-power-attributes）----
+
+    /** 作为受灵汇的最大每秒输入速率；0 = 不具备该属性，不可被路由选为输出目标。值为上限，非保证带宽。 */
+    default long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
+                                       RitualCoreBlockEntity core) {
+        return 0L;
+    }
+
+    /** 作为供灵源的最大每秒输出速率；0 = 不具备该属性，不可被路由选为输入来源。值可随阶级变化。 */
+    default long spiritOutRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
+                                        RitualCoreBlockEntity core) {
+        return 0L;
+    }
+
     /** 结构存续期间的周期逻辑（核心每 tick 调用，仅 enabled 时；自行按 core.ageTicks() 控频）。 */
     default void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
                             RitualCoreBlockEntity core) {
