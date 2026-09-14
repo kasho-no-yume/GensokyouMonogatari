@@ -64,5 +64,5 @@ gradle-app.setting
 # gen_tex.py previews
 tools/textures/_preview/
 __pycache__/
-.cocoindex_code
+.cocoindex_code/
 .codex
