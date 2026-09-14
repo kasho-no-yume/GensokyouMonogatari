@@ -1,0 +1,46 @@
+# core-socket-powering Specification
+
+## Purpose
+TBD - created by archiving change implement-zaohua-crafting. Update Purpose after archive.
+## Requirements
+### Requirement: 灵力核心槽对非路由非托管仪式开放供能
+`RitualBehavior.usesCoreSocket()` 默认值 SHALL 反转为 true：除路由仪式（万象共鸣）与托管存电仪式（八方归元，灵力托管于祭品台核心）显式豁免外，其余全部成型仪式（含无行为覆写的占位仪式与源初造化之仪）的 GUI SHALL 展示灵力核心槽并接受放入 `spirit_core_0..5`；玩家 SHALL 能从槽内取出核心（含已存灵力）。加具土命之焰保持既有**注灵（流入）**语义不变——槽对它是输出容器，对其余仪式是灵力来源，两种方向共用同一槽位互不冲突：只有配方扣费会从槽中抽取，而加具土命无 spCost 扣费路径。槽内持有核心时槽位恒可见的防吞件规则 SHALL 继续生效。
+
+#### Scenario: 占位仪式开槽
+- **WHEN** 玩家右键成型但未注册行为的仪式（如月影之仪）核心打开 GUI
+- **THEN** 灵力核心槽可见可用，可将 spirit_core 放入并随时取出
+
+#### Scenario: 路由与托管仪式无槽
+- **WHEN** 打开万象共鸣或八方归元核心 GUI
+- **THEN** 灵力核心槽隐藏且拒收（八方归元的核心仍在祭品台上托管）
+
+#### Scenario: 加具土命注灵不受影响
+- **WHEN** 运行中的加具土命缓存有存量且槽内插入未满灵力核心
+- **THEN** 灵力仍按注灵速率流入核心（该仪式永不反向抽取）
+
+### Requirement: 仪式扣费三段式灵力来源
+所有仪式侧 spCost 扣费（activation 预扣与 passive 周期扣费，含先聚灵后合成型会话）SHALL 统一走同一来源解析器，优先级为：**①槽内灵力核心（`SpiritCoreItem.extract`，抽取不受核心速率限制）→ ②核心自身储灵（万象共鸣路由注入处）→ ③半径内其他核心兜底（既有链路）**。执行 SHALL 全有全无：先以模拟汇总核验总额 ≥ 应扣额，不足即失败且 MUST NOT 发生任何部分扣除（修复既有 `start()` 先抽后比、不足时不回滚的缺陷）。聚灵型会话 SHALL 按同一优先级逐 tick 抽取直至足额。
+
+#### Scenario: 槽核优先于自身储
+- **WHEN** 槽内灵力核心有余灵且核心自身储灵亦大于 0，执行 spCost=1,000 的扣费
+- **THEN** 1,000 全部抽自槽核，自身储灵不动
+
+#### Scenario: 槽核不足跨来源足额
+- **WHEN** 槽核存量 400、配方 spCost 1,000、核心自身储灵 600
+- **THEN** 槽核抽 400、自身储补 600，扣费成功
+
+#### Scenario: 总额不足零扣除
+- **WHEN** 全部来源合计 < spCost 时启动扣费
+- **THEN** 核验失败，所有来源分毫未动
+
+#### Scenario: 被动配方同链路
+- **WHEN** passive 配方周期执行需扣 spCost
+- **THEN** 走与 activation 相同的三段式来源与全有全无核验
+
+### Requirement: 源初造化受灵汇声明
+源初造化之仪 SHALL 声明逐阶 `spiritInRatePerSecond`（config 可调，量级取大以担当供能主干；缺省 0 阶 10,000/s、逐阶 ×8），使其可被万象共鸣路由选为受灵汇、灵力注入核心自身储灵后经上述来源链供扣费使用；其 `spiritOutRatePerSecond` MUST 保持 0（不作为供灵源）。
+
+#### Scenario: 共鸣向造化塔注灵
+- **WHEN** 万象共鸣网络将源初造化核心列为输出目标且产出方有余灵
+- **THEN** 灵力按造化塔声明的输入速率注入其自身储灵，可被合成会话抽作来源
+

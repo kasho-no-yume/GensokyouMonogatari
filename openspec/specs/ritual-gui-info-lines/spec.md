@@ -16,15 +16,19 @@
 - **THEN** Screen 通用渲染为可点击行并把点击回报该 behavior，自身不含任何共鸣语义
 
 ### Requirement: 清单与燃烧行下沉
-祭品核对清单、可用配方清单 SHALL 由基类默认 `uiInfo` 实现产出为 InfoLine；加具土命之焰的燃烧批次状态（燃料图标+进度条+剩余秒/停机提示）SHALL 由该仪式 behavior 覆写产出。Screen 侧 MUST NOT 保留按 patternId 特判的渲染分支。
+祭品核对清单 SHALL 由基类默认 `uiInfo` 实现产出为 InfoLine；可用配方清单 SHALL NOT 出现在任何仪式 GUI（配方目录的唯一展示面是 JEI）。加具土命之焰的燃烧批次状态（燃料图标+进度条+剩余秒/停机提示）SHALL 由该仪式 behavior 覆写产出。Screen 侧 MUST NOT 保留按 patternId 特判的渲染分支。
 
 #### Scenario: 加具土命燃烧行
 - **WHEN** 加具土命之焰燃烧批次进行中
 - **THEN** 信息区出现燃料图标、燃烧进度条与剩余秒数，其渲染数据来自该 behavior 而非 Screen 特判
 
-#### Scenario: 通用仪式默认信息
+#### Scenario: 通用仪式默认信息不含配方清单
 - **WHEN** 打开未覆写 `uiInfo` 的仪式界面
-- **THEN** 信息区仍按基类默认实现显示祭品清单与配方清单
+- **THEN** 信息区按基类默认实现显示祭品清单与（若有）当前激活配方标记，但不罗列可用配方
+
+#### Scenario: 源初造化界面零裸键
+- **WHEN** 打开未摆任何原料的源初造化核心界面
+- **THEN** 信息区无配方 ✓✗ 行、无未翻译裸键；仅空闲态（无行）或聚灵/合成状态行
 
 ### Requirement: 信息行可交互扩展
 `InfoLine` SHALL 支持可选交互声明：每行可携带一个操作 id、控件类型（当前定义：0=纯展示、1=三态链接控件）与悬浮明细（tipKey + tipArgs，模板以 \n 分行），纯展示行为默认值。携带操作 id 的行 SHALL 由客户端渲染为可点击行，点击经既有菜单按钮通道回报服务端，由行为侧 `onUiAction` 权威处理；服务端 MUST NOT 信任客户端状态，处理入口统一复核约束。携带 tipKey 的行 SHALL 在鼠标悬浮时按模板分行渲染 tooltip（不做按宽自动换行）。新增字段 SHALL 向后兼容：未声明交互的行为产出的行渲染与行为完全不变。

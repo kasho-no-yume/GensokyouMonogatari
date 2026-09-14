@@ -34,6 +34,15 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
 
+    /**
+     * 托管存电仪式豁免灵力核心槽：灵力物理住在祭品台的核心上，GUI 槽不参与
+     * （开放会给玩家第二个互不相干的储能位，语义分裂）。
+     */
+    @Override
+    public boolean usesCoreSocket() {
+        return false;
+    }
+
     /** 逐核每 tick 锁存的进/出剩余额度账本（收/发分道）：corePos → (pedestalPos → ledger)，不持久化。 */
     private static final Map<BlockPos, Map<BlockPos, TickRateLedger>> IN_LEDGER = new ConcurrentHashMap<>();
     private static final Map<BlockPos, Map<BlockPos, TickRateLedger>> OUT_LEDGER = new ConcurrentHashMap<>();

@@ -91,6 +91,30 @@ public class RitualCoreBlock extends Block implements EntityBlock {
         super.onRemove(state, level, pos, newState, movedByPiston);
     }
 
+    /**
+     * 红石上升沿：邻居信号 0→>0 跳变时回调当前行为的 onRedstonePulse（仅覆写的仪式响应）。
+     * 常亮保持与下降沿不触发；标志持久化，防卸载重载后常亮信号误触一次。
+     */
+    @Override
+    protected void neighborChanged(BlockState state, Level level, BlockPos pos,
+                                   Block neighborBlock, BlockPos neighborPos,
+                                   boolean movedByPiston) {
+        if (level.isClientSide || !(level instanceof ServerLevel serverLevel)
+                || !(level.getBlockEntity(pos) instanceof RitualCoreBlockEntity core)) {
+            return;
+        }
+        boolean powered = level.hasNeighborSignal(pos);
+        if (powered == core.wasPowered()) {
+            return;
+        }
+        core.setWasPowered(powered);
+        if (powered && core.activeMatch() != null) {
+            RitualMatch match = core.activeMatch();
+            RitualBehaviors.get(match.patternId())
+                    .ifPresent(behavior -> behavior.onRedstonePulse(serverLevel, pos, match, core));
+        }
+    }
+
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level,
                                               BlockPos pos, Player player, InteractionHand hand,

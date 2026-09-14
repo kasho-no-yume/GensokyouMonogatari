@@ -35,9 +35,11 @@ public class RitualRecipeLoader extends SimpleJsonResourceReloadListener {
         List<RitualRecipe> parsed = new ArrayList<>();
         for (var file : files.entrySet()) {
             try {
-                parsed.add(parse(file.getKey(), GsonHelper.convertToJsonObject(file.getValue(), "recipe")));
+                parsed.addAll(parseFile(file.getKey(),
+                        GsonHelper.convertToJsonObject(file.getValue(), "recipe file")));
             } catch (Exception exception) {
-                Gensokyou.LOGGER.warn("Rejected ritual recipe {}: {}", file.getKey(), exception.getMessage());
+                Gensokyou.LOGGER.warn("Rejected ritual recipe file {}: {}", file.getKey(),
+                        exception.getMessage());
             }
         }
         // 歧义校验：同 pattern+mode 归一化原料表一致 → 后者拒载
@@ -55,6 +57,7 @@ public class RitualRecipeLoader extends SimpleJsonResourceReloadListener {
             seen.put(signature, recipe);
             accepted.add(recipe);
         }
+        warnIfSuperset(accepted);
         synchronized (RECIPES) {
             RECIPES.clear();
             RECIPES.addAll(accepted);
@@ -64,15 +67,8 @@ public class RitualRecipeLoader extends SimpleJsonResourceReloadListener {
 
     /** 归一化原料签名：身份（物品 id / #标签）聚合计数后按序拼接。 */
     public static String ingredientSignature(List<RitualRecipe.Ingredient> ingredients) {
-        Map<String, Integer> agg = new TreeMap<>();
-        for (RitualRecipe.Ingredient ingredient : ingredients) {
-            String identity = ingredient.tag() != null
-                    ? "#" + ingredient.tag().location()
-                    : BuiltInRegistries.ITEM.getKey(ingredient.item()).toString();
-            agg.merge(identity, ingredient.count(), Integer::sum);
-        }
         StringBuilder signature = new StringBuilder();
-        for (Map.Entry<String, Integer> entry : agg.entrySet()) {
+        for (Map.Entry<String, Integer> entry : aggregate(ingredients).entrySet()) {
             if (!signature.isEmpty()) {
                 signature.append(';');
             }
@@ -81,15 +77,102 @@ public class RitualRecipeLoader extends SimpleJsonResourceReloadListener {
         return signature.toString();
     }
 
-    private static RitualRecipe parse(ResourceLocation id, JsonObject json) {
-        ResourceLocation patternId = ResourceLocation.parse(GsonHelper.getAsString(json, "pattern"));
-        RitualRecipe.Mode mode = switch (GsonHelper.getAsString(json, "mode", "activation")) {
-            case "activation" -> RitualRecipe.Mode.ACTIVATION;
-            case "passive" -> RitualRecipe.Mode.PASSIVE;
-            default -> throw new IllegalArgumentException("unknown mode: "
-                    + GsonHelper.getAsString(json, "mode", "activation"));
-        };
-        int minTier = Math.max(1, GsonHelper.getAsInt(json, "minTier", 1));
+    /** 归一化原料表：身份 → 总需求数（TreeMap 保序）。 */
+    static Map<String, Integer> aggregate(List<RitualRecipe.Ingredient> ingredients) {
+        Map<String, Integer> agg = new TreeMap<>();
+        for (RitualRecipe.Ingredient ingredient : ingredients) {
+            String identity = ingredient.tag() != null
+                    ? "#" + ingredient.tag().location()
+                    : BuiltInRegistries.ITEM.getKey(ingredient.item()).toString();
+            agg.merge(identity, ingredient.count(), Integer::sum);
+        }
+        return agg;
+    }
+
+    /**
+     * 同 pattern 配方位集互含的软校验（仅提示，不拒载）：max 匹配下包含可判定，
+     * 但设计上互含配方易混淆语义，报 WARN 列双方 id 与包含方向。
+     */
+    private static void warnIfSuperset(List<RitualRecipe> accepted) {
+        Map<ResourceLocation, List<RitualRecipe>> byPattern = new HashMap<>();
+        for (RitualRecipe recipe : accepted) {
+            byPattern.computeIfAbsent(recipe.patternId(), k -> new ArrayList<>()).add(recipe);
+        }
+        for (List<RitualRecipe> group : byPattern.values()) {
+            for (int i = 0; i < group.size(); i++) {
+                for (int j = i + 1; j < group.size(); j++) {
+                    RitualRecipe a = group.get(i);
+                    RitualRecipe b = group.get(j);
+                    Map<String, Integer> ma = aggregate(a.ingredients());
+                    Map<String, Integer> mb = aggregate(b.ingredients());
+                    if (isProperSuperset(ma, mb)) {
+                        Gensokyou.LOGGER.warn("Ritual recipe {} ingredients properly contain recipe {} (same pattern)",
+                                a.id(), b.id());
+                    } else if (isProperSuperset(mb, ma)) {
+                        Gensokyou.LOGGER.warn("Ritual recipe {} ingredients properly contain recipe {} (same pattern)",
+                                b.id(), a.id());
+                    }
+                }
+            }
+        }
+    }
+
+    /** super ⊃ sub：逐身份覆盖且不落空集、总量严格更大（aggregate 非空恒成立）。 */
+    static boolean isProperSuperset(Map<String, Integer> sup, Map<String, Integer> sub) {
+        if (sup.size() < sub.size()) {
+            return false;
+        }
+        int totalSup = 0;
+        int totalSub = 0;
+        for (Map.Entry<String, Integer> entry : sub.entrySet()) {
+            Integer mine = sup.get(entry.getKey());
+            if (mine == null || mine < entry.getValue()) {
+                return false;
+            }
+            totalSub += entry.getValue();
+        }
+        for (int v : sup.values()) {
+            totalSup += v;
+        }
+        return totalSup > totalSub;
+    }
+
+    /**
+     * 解析一个配方文件（一仪式一文件）：顶层 {@code pattern} 声明归属仪式，
+     * {@code recipes[]} 为其配方列表。每条配方 id = 文件命名空间 + ":" + 名称，
+     * 名称取条目 {@code name}，缺省用 {@code <文件路径>_<下标>} 保证唯一稳定。
+     * 兼容旧式单配方文件（顶层直接是配方字段 + 自带 pattern）以零破坏历史数据。
+     */
+    static List<RitualRecipe> parseFile(ResourceLocation fileId, JsonObject json) {
+        if (!json.has("recipes")) {
+            ResourceLocation legacyPattern =
+                    ResourceLocation.parse(GsonHelper.getAsString(json, "pattern"));
+            return List.of(parseRecipe(fileId, legacyPattern, json));
+        }
+        ResourceLocation patternId =
+                ResourceLocation.parse(GsonHelper.getAsString(json, "pattern"));
+        List<RitualRecipe> recipes = new ArrayList<>();
+        int index = 0;
+        for (JsonElement element : GsonHelper.getAsJsonArray(json, "recipes")) {
+            JsonObject entry = GsonHelper.convertToJsonObject(element, "recipe");
+            String name = GsonHelper.getAsString(entry, "name", fileId.getPath() + "_" + index);
+            ResourceLocation recipeId = ResourceLocation.fromNamespaceAndPath(
+                    fileId.getNamespace(), name);
+            recipes.add(parseRecipe(recipeId, patternId, entry));
+            index++;
+        }
+        if (recipes.isEmpty()) {
+            throw new IllegalArgumentException("recipes array must not be empty");
+        }
+        return recipes;
+    }
+
+    private static RitualRecipe parseRecipe(ResourceLocation id, ResourceLocation patternId,
+                                            JsonObject json) {
+        RitualRecipe.Mode mode = parseMode(GsonHelper.getAsString(json, "mode", "activation"));
+        RitualRecipe.MatchMode matchMode =
+                parseMatch(GsonHelper.getAsString(json, "match", "exact"));
+        int minTier = clampMinTier(GsonHelper.getAsInt(json, "minTier", 1));
         List<RitualRecipe.Ingredient> ingredients = new ArrayList<>();
         for (JsonElement element : GsonHelper.getAsJsonArray(json, "ingredients")) {
             JsonObject entry = GsonHelper.convertToJsonObject(element, "ingredient");
@@ -114,11 +197,48 @@ public class RitualRecipeLoader extends SimpleJsonResourceReloadListener {
         if (result == null && effect == null) {
             throw new IllegalArgumentException("result and effect must not both be absent");
         }
-        if (mode == RitualRecipe.Mode.PASSIVE && result == null) {
-            throw new IllegalArgumentException("passive recipes require a result");
-        }
-        return new RitualRecipe(id, patternId, mode, minTier,
+        validateModeMatch(mode, matchMode, result != null);
+        return new RitualRecipe(id, patternId, mode, matchMode, minTier,
                 List.copyOf(ingredients), spCost, result, effect);
+    }
+
+    /** 执行模式解析（缺省 activation）。 */
+    static RitualRecipe.Mode parseMode(String raw) {
+        return switch (raw) {
+            case "activation" -> RitualRecipe.Mode.ACTIVATION;
+            case "passive" -> RitualRecipe.Mode.PASSIVE;
+            default -> throw new IllegalArgumentException("unknown mode: " + raw);
+        };
+    }
+
+    /** 匹配模式解析（缺省 exact 严格等值）。 */
+    static RitualRecipe.MatchMode parseMatch(String raw) {
+        return switch (raw) {
+            case "exact" -> RitualRecipe.MatchMode.EXACT;
+            case "max" -> RitualRecipe.MatchMode.MAX;
+            default -> throw new IllegalArgumentException("unknown match: " + raw);
+        };
+    }
+
+    /** minTier 下限 0（0 阶可用配方；负值夹到 0）。默认 1 由调用方 GsonHelper 提供。 */
+    static int clampMinTier(int raw) {
+        return Math.max(0, raw);
+    }
+
+    /**
+     * mode × match × result 组合合法性：passive 必带 result，且 passive MUST NOT 用 max。
+     * 非法抛 IllegalArgumentException（外层 apply 捕获后拒载报因）。
+     */
+    static void validateModeMatch(RitualRecipe.Mode mode, RitualRecipe.MatchMode match,
+                                  boolean hasResult) {
+        if (mode == RitualRecipe.Mode.PASSIVE) {
+            if (!hasResult) {
+                throw new IllegalArgumentException("passive recipes require a result");
+            }
+            if (match == RitualRecipe.MatchMode.MAX) {
+                throw new IllegalArgumentException("passive recipes must use exact matching");
+            }
+        }
     }
 
     /** 按挂靠仪式查询（minTier 升序 → id 稳定序）。 */

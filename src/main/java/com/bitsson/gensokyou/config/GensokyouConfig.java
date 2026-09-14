@@ -68,6 +68,12 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue KAGUTSUICHI_BASE_OUT_RATE_PER_SECOND;
     public static final ModConfigSpec.IntValue KAGUTSUICHI_BASE_CAPACITY;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> KAGUTSUICHI_FUEL_BLACKLIST;
+    public static final ModConfigSpec.IntValue ZAOHUA_CRAFT_DURATION_TICKS;
+    public static final ModConfigSpec.IntValue ZAOHUA_SPIRIT_IN_RATE_BASE;
+    public static final ModConfigSpec.IntValue ZAOHUA_SPIRIT_IN_RATE_MULT;
+    public static final ModConfigSpec.DoubleValue ZAOHUA_ORBIT_HEIGHT;
+    public static final ModConfigSpec.DoubleValue ZAOHUA_CONVERGE_Y;
+    public static final ModConfigSpec.IntValue ZAOHUA_RISING_PARTICLES_PER_SEC;
     public static final ModConfigSpec.IntValue SKILL_MUSOU_SP_COST;
     public static final ModConfigSpec.IntValue SKILL_MUSOU_COOLDOWN;
     public static final ModConfigSpec.IntValue SKILL_ICICLE_SP_COST;
@@ -211,6 +217,12 @@ public class GensokyouConfig {
         KAGUTSUICHI_BASE_OUT_RATE_PER_SECOND = BUILDER.comment("Kagutsuchi Flame: base max routed output (supply) rate per second at level 0 (level N multiplies by 4^N); independent of the production rate above, defaults equal").defineInRange("kagutsuchiBaseOutRatePerSecond", 20D, 0D, 1000000D);
         KAGUTSUICHI_BASE_CAPACITY = BUILDER.comment("Kagutsuchi Flame: base buffer capacity at level 0 (level N multiplies by 10^N)").defineInRange("kagutsuchiBaseCapacity", 1000, 1, Integer.MAX_VALUE);
         KAGUTSUICHI_FUEL_BLACKLIST = BUILDER.comment("Item ids the Kagutsuchi Flame refuses to digest (fuel-table items you consider unsuitable, e.g. minecraft:wool)").defineListAllowEmpty("kagutsuchiFuelBlacklist", List.of(), o -> o instanceof String);
+        ZAOHUA_CRAFT_DURATION_TICKS = BUILDER.comment("Zaohua rite: flight/convergence animation length in ticks (100 = 5s)").defineInRange("zaohuaCraftDurationTicks", 100, 20, 2400);
+        ZAOHUA_SPIRIT_IN_RATE_BASE = BUILDER.comment("Zaohua rite: routed spirit intake rate (per second) at level 0, so the resonance network can power it as a sink").defineInRange("zaohuaSpiritInRateBase", 10000, 0, Integer.MAX_VALUE);
+        ZAOHUA_SPIRIT_IN_RATE_MULT = BUILDER.comment("Zaohua rite: per-level multiplier on the intake rate above").defineInRange("zaohuaSpiritInRateMult", 8, 1, 1000);
+        ZAOHUA_ORBIT_HEIGHT = BUILDER.comment("Zaohua rite: orbit plane height above the core the ingredients spiral around").defineInRange("zaohuaOrbitHeight", 2.0D, 0D, 16D);
+        ZAOHUA_CONVERGE_Y = BUILDER.comment("Zaohua rite: convergence point height above the core").defineInRange("zaohuaConvergeY", 2.5D, 0.5D, 32D);
+        ZAOHUA_RISING_PARTICLES_PER_SEC = BUILDER.comment("Zaohua rite: purple rising particles generated across the structure per second during a craft").defineInRange("zaohuaRisingParticlesPerSec", 240, 0, 100000);
         BUILDER.pop();
         BUILDER.push("skills").comment("Learned spell card slots");
         SKILL_MUSOU_SP_COST = BUILDER.defineInRange("musouFuuinSpCost", 30, 0, 10000);

@@ -58,13 +58,13 @@ public class RitualCoreMenu extends AbstractContainerMenu {
             addSlot(new BatterySlot(core.batteryHandler(), BATTERY_SLOT_INDEX,
                     BATTERY_SLOT_X, BATTERY_SLOT_Y));
             this.batterySlot = (BatterySlot) this.slots.get(BATTERY_SLOT_INDEX);
-            // 槽显隐由行为声明（仅加具土命类注灵仪式）；隐藏槽 mayPlace 同步拒收；
+            // 槽显隐由行为声明（默认开放，仅路由/托管仪式豁免）；隐藏槽 mayPlace 同步拒收；
             // 槽内已有电池时强制可见——结构拆解失配也要能取出（防吞件）
             this.batterySlot.setShown(!core.batteryStack().isEmpty()
                     || (core.activeMatch() != null
                             && RitualBehaviors.get(core.activeMatch().patternId())
                                     .map(com.bitsson.gensokyou.ritual.RitualBehavior::usesCoreSocket)
-                                    .orElse(false)));
+                                    .orElse(true)));
             this.burnRemaining = addDataSlot(new DataSlot() {
                 @Override
                 public int get() {

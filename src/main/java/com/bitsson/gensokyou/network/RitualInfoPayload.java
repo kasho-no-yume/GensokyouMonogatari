@@ -23,8 +23,8 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
                                 List<Action> actions, String activeRecipeId,
                                 String statusKey, List<InfoLine> infoLines) implements CustomPacketPayload {
 
-    /** 行为注入的自定义操作按钮（labelKey 客户端本地化）。 */
-    public record Action(int id, String labelKey) {
+    /** 行为注入的自定义操作按钮（labelKey 客户端本地化；enabled=false 客户端置灰）。 */
+    public record Action(int id, String labelKey, boolean enabled) {
     }
 
     public static final Type<RitualInfoPayload> TYPE =
@@ -45,6 +45,7 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
         for (Action action : payload.actions) {
             buf.writeVarInt(action.id());
             buf.writeUtf(action.labelKey());
+            buf.writeBoolean(action.enabled());
         }
         buf.writeUtf(payload.activeRecipeId);
         buf.writeUtf(payload.statusKey);
@@ -65,7 +66,7 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
         int actionCount = buf.readVarInt();
         List<Action> actions = new ArrayList<>(actionCount);
         for (int i = 0; i < actionCount; i++) {
-            actions.add(new Action(buf.readVarInt(), buf.readUtf()));
+            actions.add(new Action(buf.readVarInt(), buf.readUtf(), buf.readBoolean()));
         }
         String activeRecipeId = buf.readUtf();
         String statusKey = buf.readUtf();
@@ -97,7 +98,7 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
             }
             RitualBehaviors.get(match.patternId()).ifPresentOrElse(behavior -> {
                 behavior.uiActions(level, pos, match, core).forEach(action ->
-                        actions.add(new Action(action.id(), action.labelKey())));
+                        actions.add(new Action(action.id(), action.labelKey(), action.enabled())));
                 infoLines.addAll(behavior.uiInfo(level, pos, match, core));
             }, () -> infoLines.addAll(RitualBehavior.defaultUiInfo(level, pos, match, core)));
         }

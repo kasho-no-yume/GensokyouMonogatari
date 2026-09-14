@@ -24,14 +24,15 @@ JEI 条目与祭品配方卡均由 rituals JSON 自动派生，无需改动任�
 
 ## 2. 配方（ritual_recipes）
 
-- 目录：`src/main/resources/data/gensokyou/ritual_recipes/<名称>.json`，一文件一条配方
-- 字段：`pattern`（挂靠仪式 id；引用不存在的 pattern 仅告警、配方永不生效）、
-  `mode`（activation 启动型 / passive 持续型，passive 必须给 `result`）、
-  `minTier`（最低仪式阶级 = 结构层级；默认 1，0 阶配方待程序侧放开钳制）、`ingredients[]`（`{item 或 #标签, count}`，无序）、
-  `result`（实物产物）与 `effect`（效果 id，解释权在行为）至少其一；可选 `spCost`
-- 匹配语义：**严格等值**——全部祭品台持有物构成多重集与原料表恰好相等，多余即不匹配；
-  摆放顺序与台位无关
-- 歧义规则：同 pattern + mode + 归一化原料集合相同的两条配方，后者拒载
+- 目录：`src/main/resources/data/gensokyou/ritual_recipes/<仪式名>.json`，**一仪式一文件**：顶层 `pattern` + `recipes[]`
+  （每条配方含可选 `name`（缺省用文件名派生稳定 id）、下略字段）。兼容旧式"一文件一配方"（无 `recipes` 字段即回退）
+- 字段（每条配方）：`mode`（activation 启动型 / passive 持续型，passive 必须给 `result`）、
+  `minTier`（最低仪式阶级 = 结构层级；默认 1，可取 0 表示 0 阶可用）、`match`（`exact` 缺省严格等值 / `max` 子集最大匹配）、
+  `ingredients[]`（`{item 或 #标签, count}`，无序）、`result`（实物产物）与 `effect`（效果 id，解释权在行为）至少其一；可选 `spCost`
+- 匹配语义：`exact` **严格等值**（全部祭品台持有物构成多重集与原料表恰好相等，多余即不匹配）；
+  `max` **子集命中 + 取消耗总量最大者**（多余原料留台不动，倍数只造一份）；摆放顺序与台位无关
+- 歧义规则：同 pattern + mode + 归一化原料集合相同的两条配方，后者拒载；签名互为真包含时输出 WARN（不拒载）
+- 配方目录展示归 JEI，**仪式 GUI 不罗列可用配方**
 - **供品/产物一律走配方文件**。pattern 内的 `requirements` 字段 loader 仍兼容，
   但现行仪式均未使用，**新仪式默认不要写**（SKILL §1）
 

@@ -7,6 +7,7 @@ import com.bitsson.gensokyou.dialogue.DialogueManager;
 import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
 import com.bitsson.gensokyou.registry.ModDataComponents;
+import com.bitsson.gensokyou.ritual.RitualMatch;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
 import com.bitsson.gensokyou.ritual.RitualPreviewState;
 import com.bitsson.gensokyou.spirit.ModAttachments;
@@ -40,6 +41,8 @@ public final class ModNetworking {
                 ClientPayloadHandler::handleSkillSync);
         registrar.playToClient(RitualInfoPayload.TYPE, RitualInfoPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleRitualInfo);
+        registrar.playToClient(RitualCraftFxPayload.TYPE, RitualCraftFxPayload.STREAM_CODEC,
+                ClientPayloadHandler::handleRitualCraftFx);
         registrar.playToServer(CastSkillPayload.TYPE, CastSkillPayload.STREAM_CODEC,
                 ModNetworking::handleCastSkill);
         registrar.playToServer(RitualTogglePayload.TYPE, RitualTogglePayload.STREAM_CODEC,
@@ -219,6 +222,37 @@ public final class ModNetworking {
                                       RitualCoreBlockEntity core, String statusKey) {
         PacketDistributor.sendToPlayer(player,
                 RitualInfoPayload.snapshot(level, pos, core, statusKey));
+    }
+
+    /** 造化合成演出指令：FLIGHT 起点单发给追踪该区块的玩家（客户端程序化升空粒子）。 */
+    public static void sendRitualCraftFx(ServerLevel level, BlockPos corePos,
+                                         RitualCoreBlockEntity core, int durationTicks) {
+        net.minecraft.core.BlockPos min = corePos.immutable();
+        net.minecraft.core.BlockPos max = corePos.immutable();
+        RitualMatch match = core.activeMatch();
+        if (match != null) {
+            int minX = corePos.getX();
+            int minY = corePos.getY();
+            int minZ = corePos.getZ();
+            int maxX = minX;
+            int maxY = minY;
+            int maxZ = minZ;
+            for (java.util.List<BlockPos> positions : match.keyedPositions().values()) {
+                for (BlockPos p : positions) {
+                    minX = Math.min(minX, p.getX());
+                    minY = Math.min(minY, p.getY());
+                    minZ = Math.min(minZ, p.getZ());
+                    maxX = Math.max(maxX, p.getX());
+                    maxY = Math.max(maxY, p.getY());
+                    maxZ = Math.max(maxZ, p.getZ());
+                }
+            }
+            min = new BlockPos(minX, minY, minZ);
+            max = new BlockPos(maxX, maxY, maxZ);
+        }
+        PacketDistributor.sendToPlayersTrackingChunk(level,
+                new net.minecraft.world.level.ChunkPos(corePos),
+                new RitualCraftFxPayload(corePos, min, max, durationTicks));
     }
 
     /** 向正打开该核心界面的玩家重推快照：核心 BE tick 的 1Hz 心跳（含停机态）与状态跃迁（点火/换批等）共用。 */

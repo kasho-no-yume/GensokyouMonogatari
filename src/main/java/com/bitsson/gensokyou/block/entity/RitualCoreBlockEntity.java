@@ -61,6 +61,18 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private static final String TAG_BURN_REMAINING = "RemainingTicks";
     private static final String TAG_RATE_ACCUM = "RateAccum";
     private static final String TAG_FILL_ACCUM = "FillAccum";
+    private static final String TAG_CRAFT_PHASE = "CraftPhase";
+    private static final String TAG_CRAFT_COLLECTED = "CraftCollected";
+    private static final String TAG_CRAFT_COST = "CraftCost";
+    private static final String TAG_CRAFT_FLIGHT_AGE = "CraftFlightAge";
+    private static final String TAG_CRAFT_SESSION = "CraftSession";
+    private static final String TAG_CRAFT_FLIGHT_IDS = "CraftFlightIds";
+    private static final String TAG_CRAFT_RECIPE = "CraftRecipe";
+    private static final String TAG_CRAFT_ID = "Id";
+    private static final String TAG_LAST_POWERED = "LastPowered";
+
+    /** 造化合成会话阶段（一次性合成型仪式共用存储；推进逻辑在行为侧）。 */
+    public enum CraftPhase { IDLE, PAYING, FLIGHT }
 
     private RitualMatch activeMatch;
     private long ageTicks;
@@ -90,6 +102,12 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 路由实搬单调累计计数（不持久化，BE 重建归零）：实测吞吐差分的唯一数据源。 */
     private long routedInTotal;
     private long routedOutTotal;
+
+    // ---- 造化合成会话（一次性合成型仪式的每核状态；推进逻辑在行为侧）----
+    /** 会话存储（换代/锁配方/聚灵进度/飞行计时/在飞实体 id；世界无关纯逻辑，可单测）。 */
+    private final CraftSession craft = new CraftSession();
+    /** 红石上升沿检测：上一拍邻居信号是否 >0（持久化，防重载后常亮信号误触发）。 */
+    private boolean lastPowered;
 
     public RitualCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RITUAL_CORE.get(), pos, state);
@@ -144,6 +162,11 @@ public class RitualCoreBlockEntity extends BlockEntity {
             }
             if (activeMatch.patternId().equals(RitualBehaviors.KAGUTSUICHI)) {
                 return kagutsuchiCapacity(activeMatch.level());
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.ZAOHUA)) {
+                // 不启动不缓存灵力：空闲容量 0（路由选不中、注不进）；
+                // 会话期容量 = 锁定配方 spCost（受灵缓冲上界恰为本次所需）
+                return craft.phase() == CraftPhase.IDLE ? 0L : craft.cost();
             }
         }
         return DEFAULT_CORE_CAPACITY;
@@ -265,6 +288,224 @@ public class RitualCoreBlockEntity extends BlockEntity {
     public void clearRoutedLedgers() {
         routedInLedger.clear();
         routedOutLedger.clear();
+    }
+
+    // ---- 造化合成会话（zaohua-crafting）：存储与跃迁，推进逻辑在行为侧 ----
+
+    /** 会话存储（世界无关纯逻辑，可单测）；推进逻辑在 ZaohuaCraftingService。 */
+    public static final class CraftSession {
+        private CraftPhase phase = CraftPhase.IDLE;
+        private long sessionId;
+        private @Nullable ResourceLocation recipeId;
+        private long collected;
+        /** 会话容量口径：锁定配方的 spCost；空闲为 0（不启动不缓存灵力）。 */
+        private long cost;
+        private int ticks;
+        private final List<Integer> flightIds = new ArrayList<>();
+
+        public CraftPhase phase() {
+            return phase;
+        }
+
+        public long sessionId() {
+            return sessionId;
+        }
+
+        public @Nullable ResourceLocation recipeId() {
+            return recipeId;
+        }
+
+        public long collected() {
+            return collected;
+        }
+
+        public long cost() {
+            return cost;
+        }
+
+        public int ticks() {
+            return ticks;
+        }
+
+        public List<Integer> flightIds() {
+            return List.copyOf(flightIds);
+        }
+
+        /** 启动新会话：换代、锁配方、进聚灵；返回新会话 id。 */
+        public long begin(ResourceLocation recipe, long spCost) {
+            sessionId++;
+            recipeId = recipe;
+            cost = spCost;
+            collected = 0L;
+            ticks = 0;
+            phase = CraftPhase.PAYING;
+            flightIds.clear();
+            return sessionId;
+        }
+
+        public void addCollected(long amount) {
+            collected += amount;
+        }
+
+        /** 聚灵足额 → 进入飞行阶段。 */
+        public void enterFlight(List<Integer> entities) {
+            flightIds.clear();
+            flightIds.addAll(entities);
+            phase = CraftPhase.FLIGHT;
+            ticks = 0;
+        }
+
+        /** 飞行计时推进一格。 */
+        public void advanceFlight() {
+            ticks++;
+        }
+
+        /** 清退回空闲（正常收尾/中止/取消共用；已抽灵力不退）。 */
+        public void clear() {
+            phase = CraftPhase.IDLE;
+            recipeId = null;
+            collected = 0L;
+            cost = 0L;
+            ticks = 0;
+            flightIds.clear();
+        }
+
+        /** 该代飞行实体是否仍在会话保护下（实体服务端自弃判据）。 */
+        public boolean holdsFlight(long id) {
+            return phase == CraftPhase.FLIGHT && sessionId == id;
+        }
+
+        public void save(CompoundTag tag) {
+            if (phase == CraftPhase.IDLE && flightIds.isEmpty() && collected == 0L && cost == 0L) {
+                return;
+            }
+            tag.putString(TAG_CRAFT_PHASE, phase.name());
+            tag.putLong(TAG_CRAFT_SESSION, sessionId);
+            tag.putLong(TAG_CRAFT_COLLECTED, collected);
+            tag.putLong(TAG_CRAFT_COST, cost);
+            tag.putInt(TAG_CRAFT_FLIGHT_AGE, ticks);
+            if (recipeId != null) {
+                tag.putString(TAG_CRAFT_RECIPE, recipeId.toString());
+            }
+            if (!flightIds.isEmpty()) {
+                ListTag ids = new ListTag();
+                for (int id : flightIds) {
+                    CompoundTag entry = new CompoundTag();
+                    entry.putInt(TAG_CRAFT_ID, id);
+                    ids.add(entry);
+                }
+                tag.put(TAG_CRAFT_FLIGHT_IDS, ids);
+            }
+        }
+
+        public void load(CompoundTag tag) {
+            if (!tag.contains(TAG_CRAFT_PHASE)) {
+                return;
+            }
+            try {
+                phase = CraftPhase.valueOf(tag.getString(TAG_CRAFT_PHASE));
+            } catch (IllegalArgumentException exception) {
+                phase = CraftPhase.IDLE;
+            }
+            sessionId = tag.getLong(TAG_CRAFT_SESSION);
+            collected = tag.getLong(TAG_CRAFT_COLLECTED);
+            cost = tag.getLong(TAG_CRAFT_COST);
+            ticks = tag.getInt(TAG_CRAFT_FLIGHT_AGE);
+            recipeId = tag.contains(TAG_CRAFT_RECIPE)
+                    ? ResourceLocation.tryParse(tag.getString(TAG_CRAFT_RECIPE)) : null;
+            flightIds.clear();
+            for (var item : tag.getList(TAG_CRAFT_FLIGHT_IDS, CompoundTag.TAG_COMPOUND)) {
+                flightIds.add(((CompoundTag) item).getInt(TAG_CRAFT_ID));
+            }
+        }
+    }
+
+    public CraftPhase craftPhase() {
+        return craft.phase();
+    }
+
+    public long craftSessionId() {
+        return craft.sessionId();
+    }
+
+    @Nullable
+    public ResourceLocation craftRecipeId() {
+        return craft.recipeId();
+    }
+
+    public long craftCollected() {
+        return craft.collected();
+    }
+
+    /** 本会话锁定配方的 spCost（= 会话期容量；IDLE 为 0）。 */
+    public long craftCost() {
+        return craft.cost();
+    }
+
+    public int craftTicks() {
+        return craft.ticks();
+    }
+
+    /** 本会话在飞实体 id（正常收尾时由行为逐个移除）。 */
+    public List<Integer> craftFlightIds() {
+        return craft.flightIds();
+    }
+
+    /** 聚灵入账一笔（抽取即消耗，不退）。 */
+    public void addCraftCollected(long amount) {
+        craft.addCollected(amount);
+        setChanged();
+    }
+
+    /** 该代飞行实体是否仍在会话保护下（实体服务端自弃判据）。 */
+    public boolean holdsFlightSession(long sessionId) {
+        return craft.holdsFlight(sessionId);
+    }
+
+    /** 启动新合成会话：换代、锁配方（含 spCost 容量）、进聚灵；返回新会话 id。 */
+    public long beginCraftSession(ResourceLocation recipeId, long spCost) {
+        long id = craft.begin(recipeId, spCost);
+        activeRecipeId = recipeId;
+        setChanged();
+        return id;
+    }
+
+    /** 聚灵足额 → 进入飞行阶段（扣料与飞行实体生成由行为同 tick 完成）。 */
+    public void enterCraftFlight(List<Integer> flightEntityIds) {
+        craft.enterFlight(flightEntityIds);
+        setChanged();
+    }
+
+    /** 飞行阶段计时推进一格。 */
+    public void advanceCraftFlightTick() {
+        craft.advanceFlight();
+    }
+
+    /** 会话清退回 IDLE（正常收尾/中止/取消共用；已抽灵力不退）。 */
+    public void clearCraftSession() {
+        craft.clear();
+        activeRecipeId = null;
+        setChanged();
+    }
+
+    // ---- 红石上升沿标志 ----
+
+    public boolean wasPowered() {
+        return lastPowered;
+    }
+
+    public void setWasPowered(boolean powered) {
+        if (lastPowered != powered) {
+            lastPowered = powered;
+            setChanged();
+        }
+    }
+
+    /** 广播激活态到结构内祭品台（一次性触发会话用；封装既有私有路径）。 */
+    public void broadcastPedestalsActive(boolean active) {
+        if (level instanceof ServerLevel serverLevel && activeMatch != null) {
+            setPedestalsActive(serverLevel, activeMatch, active);
+        }
     }
 
     // ---- 加具土命：电池槽与燃烧批次态 ----
@@ -450,7 +691,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
         Optional<RitualBehavior> behavior = RitualBehaviors.get(activeMatch.patternId());
 
-        // 配方解析：声明了 activation 配方的仪式必须命中一条当前等级可用配方
+        // 配方解析：声明了 activation 配方的仪式必须命中一条当前等级可用配方；
+        // EXACT 候选先行（既有严格等值语义），未中再对 MAX 候选取消耗总量最大的子集命中
         List<RitualRecipe> candidates = RitualRecipeLoader.forPattern(pattern.id()).stream()
                 .filter(RitualRecipe::activation)
                 .filter(r -> r.minTier() <= activeMatch.level())
@@ -458,23 +700,28 @@ public class RitualCoreBlockEntity extends BlockEntity {
         RitualRecipeMatcher.Match matched = null;
         if (!candidates.isEmpty()) {
             RitualRecipeLoader.warnIfPatternMissing(pattern.id(), true);
+            var pools = RitualRecipeMatcher.collectPools(activeMatch, serverLevel);
             for (RitualRecipe candidate : candidates) {
+                if (candidate.match() != RitualRecipe.MatchMode.EXACT) {
+                    continue;
+                }
                 Optional<RitualRecipeMatcher.Match> attempt =
-                        RitualRecipeMatcher.match(candidate, activeMatch, serverLevel);
+                        RitualRecipeMatcher.match(candidate, pools);
                 if (attempt.isPresent()) {
                     matched = attempt.get();
                     break;
                 }
             }
             if (matched == null) {
+                matched = RitualRecipeMatcher.matchMax(candidates, pools).orElse(null);
+            }
+            if (matched == null) {
                 player.displayClientMessage(
                         Component.translatable("msg.gensokyou.ritual_no_matching_recipe"), true);
                 return false;
             }
-            // 配方灵力消耗：从核心周边储灵预扣，不足即中止（尚未发生任何消耗）
-            if (matched.recipe().spCost() > 0
-                    && SpiritPowerHelper.drainStoragesAround(serverLevel, worldPosition, 3,
-                            matched.recipe().spCost()) < matched.recipe().spCost() - 0.01F) {
+            // 配方灵力消耗：三段式来源（槽核→自身储→周围兜底）全有全无预扣，不足即零消耗中止
+            if (!SpiritPowerHelper.payCost(serverLevel, worldPosition, this, matched.recipe().spCost())) {
                 player.displayClientMessage(Component.translatable(
                         "msg.gensokyou.ritual_no_power", matched.recipe().spCost()), true);
                 return false;
@@ -807,8 +1054,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
             if (result == null) {
                 continue;
             }
-            if (recipe.spCost() > 0
-                    && SpiritPowerHelper.drainStoragesAround(level, pos, 3, recipe.spCost()) < recipe.spCost() - 0.01F) {
+            // 三段式来源全有全无扣费（槽核→自身储→周围兜底），不足本轮跳过
+            if (!SpiritPowerHelper.payCost(level, pos, core, recipe.spCost())) {
                 continue;
             }
             RitualRecipeMatcher.apply(level, attempt.get().takes());
@@ -863,6 +1110,10 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (fillCarry != 0) {
             tag.putLong(TAG_FILL_ACCUM, fillCarry);
         }
+        craft.save(tag);
+        if (lastPowered) {
+            tag.putBoolean(TAG_LAST_POWERED, true);
+        }
     }
 
     @Override
@@ -896,5 +1147,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
         rateCarry = tag.getLong(TAG_RATE_ACCUM);
         fillCarry = tag.getLong(TAG_FILL_ACCUM);
+        craft.load(tag);
+        lastPowered = tag.getBoolean(TAG_LAST_POWERED);
     }
 }

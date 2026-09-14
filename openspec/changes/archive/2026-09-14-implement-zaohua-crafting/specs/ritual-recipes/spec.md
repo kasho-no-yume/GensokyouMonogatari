@@ -1,8 +1,5 @@
-# ritual-recipes Specification
+## MODIFIED Requirements
 
-## Purpose
-仪式配方一等公民化：独立数据文件、位置无关的无序多重集匹配（严格等值）、歧义配置期拒绝、activation/passive 双模式执行与 minTier 超集语义。
-## Requirements
 ### Requirement: 配方声明格式
 配方 SHALL 以 JSON 定义于 `data/gensokyou/ritual_recipes/`，**一仪式一文件**（文件名即仪式语义，如 `zaohua_circle.json`）：顶层 `pattern` 声明归属仪式、`recipes[]` 为该仪式的配方列表；每条配方含可选 `name`（缺省用文件名派生稳定 id）、`mode`（activation/passive，默认 activation）、`minTier`（默认 1，取值范围 0..5，0 表示对 0 阶成型结构可用）、`match`（`exact`/`max`，默认 `exact`）、无序 `ingredients[]`（物品 id 或 #标签 ×count，至少一项）；结果 SHALL 提供 `result` 实物产物与 `effect` 效果 id 中的至少其一；passive 配方 MUST 提供 result，且 passive MUST NOT 声明 `match:"max"`（周期语义仅严格等值）。兼容旧式单配方文件（顶层直接为配方字段 + 自带 `pattern`）。违规文件 SHALL 整文件拒载并日志报因。
 
@@ -94,18 +91,6 @@ activation 配方 SHALL 在仪式启动触发时解析：等级过滤后找到�
 - **WHEN** exact 过滤流程启动时台面同时子集命中多条 max 配方
 - **THEN** 以 Σcount 最大者为选中配方执行扣减
 
-### Requirement: 持续型执行
-passive 配方 SHALL 在结构成型期间按周期自动匹配：成功即扣减原料，产物 SHALL NOT 写入任何祭品台或容器，而是在以核心为圆心、水平半径 `RITUAL_OUTPUT_DROP_RADIUS`（config，默认 3）的圆盘内**均匀随机**的落点掉落为物品实体（完整结果栈一次掉落，y 取核心顶面上方，附带默认拾取延迟）。持续型执行 SHALL NOT 受 enabled 门控。加工类行为 SHALL 迁移为配方驱动，不再维护硬编码转换表。
+## RENAMED Requirements
 
-#### Scenario: 自动转换
-- **WHEN** 加工环台面摆齐符合 passive 配方的原料且周期到达
-- **THEN** 原料从台面消失，产物实体在核心周围半径 3 圆盘内的随机位置掉落
-
-#### Scenario: 多次执行落点随机
-- **WHEN** 同一 passive 配方在多个周期连续执行
-- **THEN** 各次产物落点位于圆盘内不同随机位置（概率意义上），不存在固定单点
-
-#### Scenario: 产物不再堵塞台面
-- **WHEN** passive 产物掉落后台面仍满足另一配方的严格等值条件
-- **THEN** 下一周期该配方照常命中——产物从不经停台面
-
+（无）

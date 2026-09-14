@@ -42,6 +42,12 @@ public class ResonanceRelayBehavior implements RitualBehavior {
     /** uiActions 注入的唯一按钮：清空全部链接。 */
     public static final int ACTION_CLEAR = 0;
 
+    /** 路由仪式豁免灵力核心槽（供能入口）——灵力只过路、不落地。 */
+    @Override
+    public boolean usesCoreSocket() {
+        return false;
+    }
+
     private static final long FIXED = 1000L; // 定点倍率：每 tick 预算 ×20 秒化
     private static final int[] SPIRAL_INTERVALS = {8, 6, 4, 2};
     private static final int BEAM_MAX_POINTS = 48;

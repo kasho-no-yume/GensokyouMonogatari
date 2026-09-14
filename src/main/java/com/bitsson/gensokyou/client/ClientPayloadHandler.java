@@ -26,6 +26,13 @@ public final class ClientPayloadHandler {
         context.enqueueWork(() -> ClientRitualState.update(payload));
     }
 
+    /** 造化合成演出：登记包围盒粒子程序，客户端本地生成至到期。 */
+    public static void handleRitualCraftFx(com.bitsson.gensokyou.network.RitualCraftFxPayload payload,
+                                           IPayloadContext context) {
+        context.enqueueWork(() -> ClientCraftFxState.add(payload,
+                net.minecraft.client.Minecraft.getInstance().level));
+    }
+
     public static void handleRitualConflict(RitualConflictPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> ClientRitualConflictState.update(payload.positions()));
     }

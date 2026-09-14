@@ -103,7 +103,7 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         }
     }
 
-    /** 该仪式是否声明灵力核心槽：由行为 usesCoreSocket 决定，客户端按 payload 图案判定。 */
+    /** 该仪式是否声明灵力核心槽：由行为 usesCoreSocket 决定（默认开放，路由/托管豁免），客户端按 payload 图案判定。 */
     private static boolean coreSocket(RitualInfoPayload info) {
         if (info.patternId().isEmpty()) {
             return false;
@@ -111,7 +111,7 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         return com.bitsson.gensokyou.ritual.RitualBehaviors
                 .get(ResourceLocation.parse(info.patternId()))
                 .map(com.bitsson.gensokyou.ritual.RitualBehavior::usesCoreSocket)
-                .orElse(false);
+                .orElse(true);
     }
 
     @Override
@@ -138,6 +138,8 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
             if (action != null) {
                 button.setMessage(Component.translatable(action.labelKey()));
                 button.visible = true;
+                // 服务端声明置灰（如造化合成飞行期）：禁用点击并走灰态渲染；服务端仍独立拒绝双保险
+                button.active = action.enabled();
             } else {
                 button.visible = false;
             }

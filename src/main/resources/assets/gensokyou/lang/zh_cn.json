@@ -58,6 +58,7 @@
 "gui.gensokyou.ritual.bafang.unrecognized_tip": "本仪式阶级至多识别 %s 阶灵核\n超阶核心占台不计容量与速率",
 "gui.gensokyou.ritual.bafang.empty": "台上无可用灵力核心，归元空转",
   "jei.gensokyou.ritual.kagutsuchi_flame_circle": "迦具土炎祭",
+  "jei.gensokyou.ritual.zaohua_circle": "源初造化之仪",
 
   "entity.gensokyou.fairy": "小妖精",
   "entity.gensokyou.big_fairy": "大妖精",
@@ -253,6 +254,13 @@
   "gui.gensokyou.ritual.kagutsuchi.stalled": "缓存已满：暂停消耗",
   "gui.gensokyou.ritual.kagutsuchi.remaining": "剩余 %1$s 秒",
   "gui.gensokyou.ritual.spirit_core_slot": "灵力核心槽",
+  "gui.gensokyou.ritual.zaohua.start": "开始合成",
+  "gui.gensokyou.ritual.zaohua.paying": "聚灵中：%s / %s",
+  "gui.gensokyou.ritual.zaohua.paying_tip": "精确：已抽 %s / 需 %s",
+  "gui.gensokyou.ritual.zaohua.flight": "合成中…",
+  "msg.gensokyou.zaohua_started": "源初造化之仪开始抽取灵力",
+  "msg.gensokyou.zaohua_cancelled": "已取消聚灵，已抽灵力不退还",
+  "msg.gensokyou.zaohua_recipe_lost": "台面配方已被破坏，合成中止（已抽灵力不退）",
   "gui.gensokyou.weapon.slot_bullet": "弹核",
   "gui.gensokyou.weapon.slot_level": "等级核",
   "gui.gensokyou.weapon.slot_amp": "增幅核"

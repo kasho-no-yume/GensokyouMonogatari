@@ -81,6 +81,7 @@
 "gui.gensokyou.ritual.bafang.unrecognized_tip": "This rite recognizes cores up to tier %s\nHigher-tier cores occupy pedestals but count for nothing",
 "gui.gensokyou.ritual.bafang.empty": "No usable spirit cores on the pedestals; the rite idles",
   "jei.gensokyou.ritual.kagutsuchi_flame_circle": "Kagutsuchi Flame Circle",
+  "jei.gensokyou.ritual.zaohua_circle": "Rite of Primordial Creation",
 
   "entity.gensokyou.fairy": "Fairy",
   "entity.gensokyou.big_fairy": "Big Fairy",
@@ -251,6 +252,13 @@
   "gui.gensokyou.ritual.kagutsuchi.stalled": "Buffer full: consumption paused",
   "gui.gensokyou.ritual.kagutsuchi.remaining": "%1$s s remaining",
   "gui.gensokyou.ritual.spirit_core_slot": "Spirit Core Slot",
+  "gui.gensokyou.ritual.zaohua.start": "Begin Crafting",
+  "gui.gensokyou.ritual.zaohua.paying": "Gathering spirit: %s / %s",
+  "gui.gensokyou.ritual.zaohua.paying_tip": "Exact: %s collected of %s required",
+  "gui.gensokyou.ritual.zaohua.flight": "Crafting...",
+  "msg.gensokyou.zaohua_started": "The rite begins drawing spirit power",
+  "msg.gensokyou.zaohua_cancelled": "Spirit gathering cancelled; drawn power is not refunded",
+  "msg.gensokyou.zaohua_recipe_lost": "Pedestal recipe broken; crafting aborted, drawn power kept",
   "gui.gensokyou.weapon.slot_bullet": "Bullet Core",
   "gui.gensokyou.weapon.slot_level": "Level Core",
   "gui.gensokyou.weapon.slot_amp": "Amp Core"

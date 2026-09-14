@@ -5,6 +5,7 @@ import com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior;
 import com.bitsson.gensokyou.ritual.behavior.BafangGuiyuanBehavior;
 import com.bitsson.gensokyou.ritual.behavior.KagutsuchiFlameBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ResonanceRelayBehavior;
+import com.bitsson.gensokyou.ritual.behavior.ZaohuaCraftingBehavior;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.HashMap;
@@ -20,12 +21,14 @@ public final class RitualBehaviors {
     public static final ResourceLocation BARRIER_BREAK = Gensokyou.id("barrier_break_circle");
     public static final ResourceLocation KAGUTSUICHI = Gensokyou.id("kagutsuchi_flame_circle");
     public static final ResourceLocation BAFANG_GUIYUAN = Gensokyou.id("bafang_guiyuan_circle");
+    public static final ResourceLocation ZAOHUA = Gensokyou.id("zaohua_circle");
 
     static {
         register(RESONANCE, new ResonanceRelayBehavior());
         register(BARRIER_BREAK, new BarrierBreakBehavior());
         register(KAGUTSUICHI, new KagutsuchiFlameBehavior());
         register(BAFANG_GUIYUAN, new BafangGuiyuanBehavior());
+        register(ZAOHUA, new ZaohuaCraftingBehavior());
     }
 
     private RitualBehaviors() {

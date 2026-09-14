@@ -50,6 +50,8 @@ public final class GensokyouClient {
                 LaserDanmakuRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.ORBIT_YIN_YANG_ORB.get(),
                 context -> new BillboardRenderer<>(context, 0.7F, GensokyouTextures.ORBIT_ORB));
+        event.registerEntityRenderer(ModEntityTypes.ZAOHUA_FLIGHT_ITEM.get(),
+                net.minecraft.client.renderer.entity.ItemEntityRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.FAIRY.get(),
                 context -> new SkinMobRenderer<>(context, 0.3F, 0.6F, GensokyouTextures.FAIRY));
         event.registerEntityRenderer(ModEntityTypes.BIG_FAIRY.get(),

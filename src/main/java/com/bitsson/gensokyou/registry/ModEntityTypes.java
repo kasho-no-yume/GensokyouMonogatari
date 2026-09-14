@@ -76,6 +76,17 @@ public final class ModEntityTypes {
                     .fireImmune()
                     .build("orbit_yin_yang_orb"));
 
+    /** 源初造化飞行原料（无重力、无碰撞拾取、服务端权威 + 双端曲线）。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.ZaohuaFlightItem>> ZAOHUA_FLIGHT_ITEM =
+            ENTITY_TYPES.register("zaohua_flight_item", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.ZaohuaFlightItem>of(
+                            com.bitsson.gensokyou.entity.ZaohuaFlightItem::new, MobCategory.MISC)
+                    .sized(0.25F, 0.25F)
+                    .clientTrackingRange(8)
+                    .updateInterval(2)
+                    .fireImmune()
+                    .build("zaohua_flight_item"));
+
     public static final DeferredHolder<EntityType<?>, EntityType<FairyEntity>> FAIRY =
             ENTITY_TYPES.register("fairy", () -> EntityType.Builder
                     .<FairyEntity>of(FairyEntity::new, MobCategory.MONSTER)
