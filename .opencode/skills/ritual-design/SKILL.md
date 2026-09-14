@@ -87,7 +87,7 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
 - **地板铺满、零悬浮**：建筑主体地面层（惯例 y=核心−1）必须连续铺实，不允许镂空洞口；每个连通块组都要逐面相邻接到主体（灯柱/路桩等孤立件补基础石）。生成脚本以 BFS 连通断言 + 地面全覆盖为准出。
 - 原版选材速记（紫色系基准）：purpur_block / purpur_pillar、amethyst_block、end_stone(_bricks)、deepslate(_bricks)、blackstone、basalt(_polished)、dark_oak_planks/log、cherry_log/planks、purple_stained_glass、magenta_stained_glass、crying_obsidian、soul_lantern、purple_banner、pink_petals、iron_bars、chain、cobweb、quartz_block、oxidized_copper、sea_lantern、glowstone、moss_block。完整目录见本目录 `BLOCKS.md`。
 - **为美感新增方块/新材质：允许，但不建议。** 流程：先向用户说明设计理由（贴图方向、用在哪几层）→ 用户同意才立项；贴图走 gen-textures skill，注册由程序侧做。能不开新方块就不开，优先用现有方块的组合达成效果。
-- **装饰花**：建议不要直接使用花，而是使用盆栽。
+- **装饰花（严厉禁止"石头/砖上栽花"）**：**严禁**把花、花瓣、树苗等需要土基底方块直接摆在石头、石砖、深板岩、玻璃、木板、金属等**非土壤方块上**——原版会因下方无有效基底而掉落或无法放置，落盘即残。用花只许两条合规路径：①用**盆栽**（`potted_*`，如 `potted_cherry_sapling`），盆栽本身可放任意方块；②**花正下方一格保证是土/草类承托方块**（`dirt`/`grass_block`/`moss_block`/`podzol`/`coarse_dirt`/`rooted_dirt`/`mud` 等），例如"花瓣压在苔藓块上"。`minecraft:pink_petals`、`*_sapling`、`*_flower` 一律受此约束。落盘后逐个花格自查其下方支撑，违规即返工。校验器不查此项，纯靠设计者自律。
 - **东方意象词库**（和风/神社轮廓元件，起形先从这里找）：鸟居 / 石灯籠 / 旗帜 / 花瓣 / 窗格 / 回廊 / 角楼 / 参道 / 注连绳（铁链代）。
 
 ## 4. 硬性设计不变量（违反即返工）
