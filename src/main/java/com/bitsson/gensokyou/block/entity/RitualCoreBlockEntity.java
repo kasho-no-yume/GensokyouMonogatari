@@ -2,6 +2,7 @@ package com.bitsson.gensokyou.block.entity;
 
 import com.bitsson.gensokyou.block.RitualPedestalBlock;
 import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -86,6 +87,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 路由面向（万象共鸣）的端点每 tick 速率账本：唯一权威，gameTime 锁存；运行时态不持久化。 */
     private final TickRateLedger routedInLedger = new TickRateLedger();
     private final TickRateLedger routedOutLedger = new TickRateLedger();
+    /** 路由实搬单调累计计数（不持久化，BE 重建归零）：实测吞吐差分的唯一数据源。 */
+    private long routedInTotal;
+    private long routedOutTotal;
 
     public RitualCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RITUAL_CORE.get(), pos, state);
@@ -222,7 +226,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
         long granted = routedOutLedger.grant(serverLevel.getGameTime(), rate,
                 GensokyouConfig.SETTLE_PERIOD_TICKS.get(), maxAmount);
-        return granted <= 0L ? 0L : extract(granted);
+        long taken = granted <= 0L ? 0L : extract(granted);
+        routedOutTotal += taken;
+        return taken;
     }
 
     /**
@@ -241,7 +247,18 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
         long granted = routedInLedger.grant(serverLevel.getGameTime(), rate,
                 GensokyouConfig.SETTLE_PERIOD_TICKS.get(), maxAmount);
-        return granted <= 0L ? 0L : receive(granted);
+        long put = granted <= 0L ? 0L : receive(granted);
+        routedInTotal += put;
+        return put;
+    }
+
+    /** 路由实搬累计（实测吞吐展示用；BE 重建后从 0 重新播种）。 */
+    public long routedInTotal() {
+        return routedInTotal;
+    }
+
+    public long routedOutTotal() {
+        return routedOutTotal;
     }
 
     /** 结构失效/移除时清空路由账本残留额度。 */
@@ -723,20 +740,24 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
         Optional<RitualPattern> pattern = RitualPatternLoader.byId(core.activeMatch.patternId());
         pattern.ifPresent(value -> tickPassiveRecipes(serverLevel, pos, core, value));
-        if (!core.enabled) {
-            return;
+        if (core.enabled) {
+            if (pattern.isPresent()
+                    && !RitualOfferings.upkeepTick(core.ageTicks, pattern.get(), core.activeMatch, serverLevel)) {
+                // 周期供给断供 → 自动停机，需玩家重新启动
+                core.setEnabled(false);
+                core.activeRecipeId = null;
+                core.setPedestalsActive(serverLevel, core.activeMatch, false);
+            } else {
+                Optional<RitualBehavior> behavior =
+                        RitualBehaviors.get(core.activeMatch.patternId());
+                behavior.ifPresent(value -> value.serverTick(serverLevel, pos, core.activeMatch, core));
+            }
         }
-        if (pattern.isPresent()
-                && !RitualOfferings.upkeepTick(core.ageTicks, pattern.get(), core.activeMatch, serverLevel)) {
-            // 周期供给断供 → 自动停机，需玩家重新启动
-            core.setEnabled(false);
-            core.activeRecipeId = null;
-            core.setPedestalsActive(serverLevel, core.activeMatch, false);
-            return;
+        // GUI 快照心跳：界面打开期间 1Hz 推送，停机/断供态同样收敛
+        // （缓存可被路由抽取等外部变化不依赖行为 enabled tick）
+        if (core.ageTicks % 20 == 0L) {
+            ModNetworking.sendRitualInfoToViewers(serverLevel, pos);
         }
-        Optional<RitualBehavior> behavior =
-                RitualBehaviors.get(core.activeMatch.patternId());
-        behavior.ifPresent(value -> value.serverTick(serverLevel, pos, core.activeMatch, core));
     }
 
     /** 将核心方块的 tier 属性更新为指定品阶（仅在变化时 setBlock，避免重扫循环）。 */

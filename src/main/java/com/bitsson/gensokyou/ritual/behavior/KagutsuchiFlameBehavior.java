@@ -23,6 +23,8 @@ import java.util.List;
 /**
  * 加具土命之焰：吞食祭品台上的可燃物产出灵力。
  *
+ * 缓存对路由（万象共鸣）的可抽取上限由独立的供灵基项声明（默认与产灵等值，语义分道）。
+ *
  * 点火即吞——选取成功的燃料当场从台面销毁（容器残留落回原台），
  * 批次只记于核心 BE 计时字段，不引用台位；烧完的当 tick 立即衔接下一批，
  * 无料/缓存满则停等，缓存回落即续火。产出进核心缓存（上限随等级
@@ -78,10 +80,9 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
             tryIgnite(level, corePos, match, core);
         }
         // 2) 每秒结算：产灵入账（缓存满则本秒产出作废=空烧）+ 注灵进电池
+        //    GUI 快照刷新已收编至核心 BE 的统一 1Hz 心跳（含停机态），此处不再自推
         if (core.ageTicks() % 20 == 0) {
             settlePerSecond(match, core);
-            // 缓存显示/sp 文本 1Hz 收敛（打开界面即持续收帧，无需事件级全状态推送）
-            ModNetworking.sendRitualInfoToViewers(level, corePos);
         }
         // 3) 燃烧中（含空烧期）飘火焰粒子；停等/待机零粒子
         emitFlameParticles(level, corePos, match, core);
@@ -140,15 +141,23 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
         return false;
     }
 
-    /** 产灵速率式（每秒，指定等级）：settlePerSecond 与端点 out 声明共用，防公式漂移。 */
+    /**
+     * 产灵速率式（每秒，指定等级）：内部生成入账口径，仅 settlePerSecond 引用。
+     * 与供灵输出上限（{@link #maxOutputRatePerSecond}）语义分道、配置基项独立。
+     */
     public static double productionRatePerSecond(int level) {
         return GensokyouConfig.KAGUTSUICHI_BASE_RATE_PER_SECOND.get() * pow4(level);
+    }
+
+    /** 供灵输出上限式（每秒，指定等级）：路由（万象共鸣）可抽取的全局上限，独立配置基项，默认数值与产灵相同。 */
+    public static double maxOutputRatePerSecond(int level) {
+        return GensokyouConfig.KAGUTSUICHI_BASE_OUT_RATE_PER_SECOND.get() * pow4(level);
     }
 
     @Override
     public long spiritOutRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
                                        RitualCoreBlockEntity core) {
-        return (long) Math.floor(productionRatePerSecond(match.level()));
+        return (long) Math.floor(maxOutputRatePerSecond(match.level()));
     }
 
     /** 每秒一次的产灵/注灵结算（速率 ×1000 定点进位，避免整除截断）。 */

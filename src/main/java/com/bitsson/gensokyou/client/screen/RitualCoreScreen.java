@@ -45,6 +45,8 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     private static final int INFO_Y_START = 60;
     private static final int INFO_MAX_Y = INFO_HEIGHT - 22;
     private static final int STATE_X = 124;
+    /** 信息盒右钳界：背景贴图分隔线 x=116 留 4px 余量，进度条/高亮/命中区不得越入按钮列。 */
+    private static final int INFO_BOX_RIGHT = 112;
     /** 启停按钮（头排右列）。 */
     private static final int TOGGLE_BUTTON_X = 120;
     private static final int TOGGLE_BUTTON_W = 50;
@@ -188,7 +190,7 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         int viewHeight = INFO_MAX_Y - INFO_Y_START;
-        boolean overInfo = mouseX >= leftPos + INFO_X && mouseX < leftPos + PANEL_WIDTH - 4
+        boolean overInfo = mouseX >= leftPos + INFO_X && mouseX < leftPos + INFO_BOX_RIGHT
                 && mouseY >= topPos + INFO_Y_START && mouseY < topPos + INFO_MAX_Y;
         if (overInfo && infoContentHeight > viewHeight) {
             infoScroll = Mth.clamp((int) (infoScroll - scrollY * 18D),
@@ -270,15 +272,17 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
             int rowH = line.iconItemId().isEmpty() ? 11 : 18;
             renderInfoLine(graphics, font, line, y, rowH);
             boolean visible = y + rowH > INFO_Y_START && y < INFO_MAX_Y;
+            // 命中区右缘钳至信息盒：启停/行为按钮列（x≥116）点击不被行交互吞掉
+            int rowW = INFO_BOX_RIGHT - (INFO_X - 4);
             if (line.interactive() && visible) {
                 interactiveRowHits.add(new int[]{leftPos + INFO_X - 4,
-                        topPos + Math.max(y, INFO_Y_START), PANEL_WIDTH - 8,
+                        topPos + Math.max(y, INFO_Y_START), rowW,
                         Math.min(y + rowH, INFO_MAX_Y) - Math.max(y, INFO_Y_START),
                         line.actionId()});
             }
             if (line.tipped() && visible) {
                 tipRowHits.add(new TipHit(leftPos + INFO_X - 4, topPos + Math.max(y, INFO_Y_START),
-                        PANEL_WIDTH - 8,
+                        rowW,
                         Math.min(y + rowH, INFO_MAX_Y) - Math.max(y, INFO_Y_START), line));
             }
             y += rowH;
@@ -294,8 +298,8 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         if (line.interactive()) {
             int mx = lastMouseX - leftPos;
             int my = lastMouseY - topPos;
-            if (mx >= INFO_X - 4 && mx < PANEL_WIDTH - 4 && my >= y && my < y + rowH) {
-                graphics.fill(INFO_X - 4, y, PANEL_WIDTH - 4, y + rowH, 0x22FFFFFF);
+            if (mx >= INFO_X - 4 && mx < INFO_BOX_RIGHT && my >= y && my < y + rowH) {
+                graphics.fill(INFO_X - 4, y, INFO_BOX_RIGHT, y + rowH, 0x22FFFFFF);
             }
         }
         if (!line.iconItemId().isEmpty()) {
@@ -320,8 +324,14 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         } else {
             text = null;
         }
+        // 注：renderLabels 处于面板相对 pose，坐标 MUST NOT 再叠 leftPos/topPos
+        int barX = textX + 52;
         if (text != null) {
             int maxW = (line.state() != null ? STATE_X - 10 : PANEL_WIDTH - 6) - textX;
+            if (line.progress() >= 0F) {
+                // 进度行文本让位进度条：可见文本不得压入 barX 起笔区
+                maxW = Math.min(maxW, barX - 2 - textX);
+            }
             // 横向溢出保护：超宽行按面板可用宽裁断（首行），杜绝画到框外
             if (maxW > 0 && font.width(text) > maxW) {
                 var wrapped = font.split(text, maxW);
@@ -331,13 +341,13 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
             }
         }
         if (line.progress() >= 0F) {
-            // 注：renderLabels 处于面板相对 pose，坐标 MUST NOT 再叠 leftPos/topPos
-            int barX = textX + 52;
-            int barW = 40;
+            int barW = Math.min(40, INFO_BOX_RIGHT - barX);
             int barY = y + 5;
-            graphics.fill(barX, barY, barX + barW, barY + 4, 0xFF202030);
-            graphics.fill(barX, barY, barX + (int) (barW * Math.min(1F, line.progress())),
-                    barY + 4, 0xFFE8912A);
+            if (barW > 0) {
+                graphics.fill(barX, barY, barX + barW, barY + 4, 0xFF202030);
+                graphics.fill(barX, barY, barX + (int) (barW * Math.min(1F, line.progress())),
+                        barY + 4, 0xFFE8912A);
+            }
         }
         if (line.state() != null) {
             String mark = line.state() ? "✓" : "✗";

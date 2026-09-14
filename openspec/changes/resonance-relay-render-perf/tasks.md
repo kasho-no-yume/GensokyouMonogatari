@@ -1,3 +1,11 @@
+# Tasks: resonance-relay-render-perf
+
+> **基线注记（2026-09-14，来自 ritual-ui-behavior-fixes）**：本变更实施时以已合入的
+> `ritual-ui-behavior-fixes` 为基线——`ResonanceRelayBehavior.serverTick` 尾部原有的
+> `ageTicks%20 → sendRitualInfoToViewers` 自推已删除（收编至 `RitualCoreBlockEntity.serverTick`
+> 统一 1Hz 心跳，含停机态）；`nextLinkState`（入→出→无 循环）与 `tipOf`（实测吞吐行）已重写；
+> BE 新增 `routedInTotal/routedOutTotal`。task 1.3 的渲染态推送与 task 4.x 粒子删除按新文件现状执行。
+
 ## 1. 渲染态同步（服务端）
 
 - [ ] 1.1 `RitualCoreBlockEntity` 增运行时渲染态字段：`enabled`、结构 minY/maxY、解析后的链接数组（按规范序：inLinks 再 outLinks，各含目标 BlockPos + in/out 方向）、`movingMask`(long)；并定义"渲染态版本值"用于变化比较

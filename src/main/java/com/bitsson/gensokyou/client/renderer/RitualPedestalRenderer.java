@@ -18,14 +18,16 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * 祭品台渲染：默认祭品平躺静置于台面；所属仪式激活时悬浮+旋转。
+ * 祭品台渲染：默认祭品平躺静置于台面；所属仪式激活时悬浮、立起并绕纵轴旋转
+ * （倾角随过渡进度从 90° 平躺渐变到 0° 竖直，无跳变）。
  * 使用 FIXED 上下文手动控制姿态（不受模型 ground 变换影响），
  * 光照采样台面上方一格（避免采到方块内部导致纯黑）。
  */
 public class RitualPedestalRenderer implements BlockEntityRenderer<RitualPedestalBlockEntity> {
 
     private static final double REST_Y = 1.01D;
-    private static final double FLOAT_Y = 1.22D;
+    /** 立姿半高 ~0.28 + 浮动 ±0.04：中心 1.34 保证立起物品底缘不切台面（顶面 y=1）。 */
+    private static final double FLOAT_Y = 1.34D;
     private static final float SPIN_DEGREES_PER_TICK = 1.2F;
     /** 每游戏刻的过渡速率（约 0.7 秒完成切换）。 */
     private static final float BLEND_PER_TICK = 0.06F;
@@ -63,9 +65,9 @@ public class RitualPedestalRenderer implements BlockEntityRenderer<RitualPedesta
         double y = restY + (floatBase - restY) * eased
                 + Math.sin(time * 0.08D) * 0.04D * eased;
         poseStack.translate(0.5D, y, 0.5D);
-        // 先绕世界 Y 轴慢旋，再放倒成平面（FIXED 上下文原始朝向为立牌）
+        // 先绕世界 Y 轴慢旋，倾角随进度立起：eased=0 平躺（FIXED 原始立牌放倒 90°）、eased=1 竖直
         poseStack.mulPose(Axis.YP.rotationDegrees((float) time * SPIN_DEGREES_PER_TICK * eased));
-        poseStack.mulPose(Axis.XP.rotationDegrees(90F));
+        poseStack.mulPose(Axis.XP.rotationDegrees(90F * (1F - eased)));
         poseStack.scale(SCALE, SCALE, SCALE);
         Minecraft.getInstance().getItemRenderer().renderStatic(held, ItemDisplayContext.FIXED,
                 light, OverlayTexture.NO_OVERLAY, poseStack, bufferSource, level,

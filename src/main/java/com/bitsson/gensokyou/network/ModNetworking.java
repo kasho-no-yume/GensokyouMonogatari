@@ -221,7 +221,7 @@ public final class ModNetworking {
                 RitualInfoPayload.snapshot(level, pos, core, statusKey));
     }
 
-    /** 状态跃迁（点火/换批/停等进出）时向正打开该核心界面的玩家重推快照。 */
+    /** 向正打开该核心界面的玩家重推快照：核心 BE tick 的 1Hz 心跳（含停机态）与状态跃迁（点火/换批等）共用。 */
     public static void sendRitualInfoToViewers(ServerLevel level, BlockPos pos) {
         if (!(level.getBlockEntity(pos) instanceof RitualCoreBlockEntity core)) {
             return;

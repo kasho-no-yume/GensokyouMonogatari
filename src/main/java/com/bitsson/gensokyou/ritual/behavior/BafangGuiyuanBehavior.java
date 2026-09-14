@@ -4,7 +4,6 @@ import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
-import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualMatch;
 import com.bitsson.gensokyou.ritual.RitualPedestals;
@@ -421,14 +420,6 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
         }
         lines.addAll(RitualBehavior.defaultUiInfo(level, corePos, match, core));
         return lines;
-    }
-
-    @Override
-    public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
-        if (core.ageTicks() % 20 == 0) {
-            ModNetworking.sendRitualInfoToViewers(level, corePos);
-        }
     }
 
     @Override

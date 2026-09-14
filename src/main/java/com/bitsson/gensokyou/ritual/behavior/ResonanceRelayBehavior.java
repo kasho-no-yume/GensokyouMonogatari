@@ -3,7 +3,6 @@ package com.bitsson.gensokyou.ritual.behavior;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
-import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualCoreRegistry;
@@ -214,9 +213,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         for (Beam beam : beams) {
             emitBeam(level, corePos, core.structureMaxY(), beam.target(), beam.out());
         }
-        if (core.ageTicks() % 20 == 0) {
-            ModNetworking.sendRitualInfoToViewers(level, corePos);
-        }
+        // GUI 快照刷新已收编至核心 BE 的统一 1Hz 心跳（含停机态），此处不再自推
     }
 
     /** 一次路由结算；返回本 tick 实搬 >0 的通道（供光束）。 */
@@ -412,8 +409,13 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         return -1;
     }
 
-    /** 循环次序：未选 → 首选属性方向 → 次选 → 未选；单属性仅在自身两态间往复。 */
-    private static int nextLinkState(int current, boolean canIn, boolean canOut) {
+    /**
+     * 三态循环：入 → 出 → 无 → 入……候选缺失的属性环节跳过（仅有 out 者 入↔无、
+     * 仅有 in 者 出↔无）；"无"恒在循环内——任何已链接候选均可单独取消。
+     * 属性失效的残余链接（current 不在循环中）→ 直接回"无"（点击即解除）。
+     * 包私有纯函数：单测矩阵直测。
+     */
+    static int nextLinkState(int current, boolean canIn, boolean canOut) {
         List<Integer> cycle = new ArrayList<>();
         if (canIn) {
             cycle.add(InfoLine.LINK_IN);
@@ -421,11 +423,9 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         if (canOut) {
             cycle.add(InfoLine.LINK_OUT);
         }
-        if (cycle.isEmpty()) {
-            return InfoLine.LINK_NONE;
-        }
+        cycle.add(InfoLine.LINK_NONE);
         int pos = cycle.indexOf(current);
-        return pos < 0 ? cycle.get(0) : cycle.get((pos + 1) % cycle.size());
+        return pos < 0 ? InfoLine.LINK_NONE : cycle.get((pos + 1) % cycle.size());
     }
 
     private static String displayKey(net.minecraft.resources.ResourceLocation patternId) {
@@ -434,6 +434,47 @@ public class ResonanceRelayBehavior implements RitualBehavior {
 
     /** 候选行悬浮明细（模板以 \n 分行，每项一行）；速率上限只展示目标实际具备的属性。 */
     private record TipSpec(String key, String[] args) {
+    }
+
+    /**
+     * 端点实测吞吐采样表：端点 pos → {上次 in 累计, 上次 out 累计, 上次采样 gameTime, 上次 in 读数, 上次 out 读数}。
+     * 键规模上界 = 被候选展示过的成型核心数；BE 重载致累计回退时自动重播种。
+     */
+    private static final Map<BlockPos, long[]> ENDPOINT_METERS = new ConcurrentHashMap<>();
+
+    /** 单调累计差分速率（纯函数）：窗不足结算周期沿用旧读数（基线不推进、窗自然拉长）；累计回退取 0。 */
+    static long monotonicRate(long deltaTotal, long deltaTicks, long lastRate, int periodTicks) {
+        if (deltaTotal < 0L || deltaTicks <= 0L) {
+            return 0L;
+        }
+        if (deltaTicks < Math.max(1, periodTicks)) {
+            return lastRate;
+        }
+        return deltaTotal * 20L / deltaTicks;
+    }
+
+    /** 端点实测 {入, 出} 每秒速率：跨全部路由链路聚合，来源为核心 BE 的落账单调计数。 */
+    static long[] actualEndpointRates(RitualCoreBlockEntity endpoint, long now, int periodTicks) {
+        BlockPos key = endpoint.getBlockPos().immutable();
+        long in = endpoint.routedInTotal();
+        long out = endpoint.routedOutTotal();
+        long[] m = ENDPOINT_METERS.get(key);
+        if (m == null || now < m[2] || in < m[0] || out < m[1]) {
+            ENDPOINT_METERS.put(key, new long[]{in, out, now, 0L, 0L});
+            return new long[]{0L, 0L};
+        }
+        long dt = now - m[2];
+        if (dt < Math.max(1, periodTicks)) {
+            return new long[]{m[3], m[4]}; // 短窗沿用旧读数，基线不推进
+        }
+        long rateIn = monotonicRate(in - m[0], dt, m[3], periodTicks);
+        long rateOut = monotonicRate(out - m[1], dt, m[4], periodTicks);
+        m[0] = in;
+        m[1] = out;
+        m[2] = now;
+        m[3] = rateIn;
+        m[4] = rateOut;
+        return new long[]{rateIn, rateOut};
     }
 
     private static TipSpec tipOf(BlockPos target, BlockPos tower,
@@ -447,17 +488,21 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         String tier = String.valueOf(endpoint.activeMatch().level());
         long out = outRateOf(level, endpoint);
         long in = inRateOf(level, endpoint);
+        long[] actual = out <= 0L && in <= 0L ? new long[]{0L, 0L}
+                : actualEndpointRates(endpoint, level.getGameTime(),
+                        Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get()));
         if (out > 0L && in > 0L) {
             return new TipSpec("gui.gensokyou.ritual.reso_row_both",
-                    new String[]{tier, dist, compactNumber(out), compactNumber(in), coord});
+                    new String[]{tier, dist, compactNumber(out), compactNumber(actual[1]),
+                            compactNumber(in), compactNumber(actual[0]), coord});
         }
         if (out > 0L) {
             return new TipSpec("gui.gensokyou.ritual.reso_row_drain",
-                    new String[]{tier, dist, compactNumber(out), coord});
+                    new String[]{tier, dist, compactNumber(out), compactNumber(actual[1]), coord});
         }
         if (in > 0L) {
             return new TipSpec("gui.gensokyou.ritual.reso_row_fill",
-                    new String[]{tier, dist, compactNumber(in), coord});
+                    new String[]{tier, dist, compactNumber(in), compactNumber(actual[0]), coord});
         }
         return new TipSpec("gui.gensokyou.ritual.reso_row_plain", new String[]{tier, dist, coord});
     }
