@@ -305,8 +305,10 @@ public final class ModNetworking {
             }
             ModAttachments.set(player, powerData.withCurrent(powerData.current() - spCost));
             SpellCardEffects.perform(cardId, player.level(), player);
+            // 冷却施放瞬间经套件 CDR 折减（中途属性变化不回溯）
             ModAttachments.setSkills(player,
-                    state.withCooldown(slot, now + entry.cooldownTicks().get()));
+                    state.withCooldown(slot, now + com.bitsson.gensokyou.spirit.attr.PlayerAttributes
+                            .effectiveSkillCooldown(player, entry.cooldownTicks().get())));
         });
     }
 }

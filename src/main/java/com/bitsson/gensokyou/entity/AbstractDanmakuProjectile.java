@@ -74,6 +74,15 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     /** 伤害值，仅服务端使用。 */
     protected float damage = 4.0F;
 
+    /**
+     * 发射时定值的暴击系数（player-attribute-suite：命中不重 roll，随弹 NBT 持久化）。
+     * 伤害已含该系数，字段作审计/未来按系数触发的特效消费。
+     */
+    private float critMult = 1.0F;
+
+    /** 是否主武器发射（灵力汲取只对武器弹生效，符卡等其他来源除外）。 */
+    private boolean fromWeapon = false;
+
     /** 白名单：其中的实体类型不会被伤害，也不会阻挡弹幕。仅服务端使用。 */
     protected Set<EntityType<?>> whitelist = new HashSet<>();
 
@@ -239,6 +248,24 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         this.damage = damage;
     }
 
+    /** 发射时 roll 出的暴击系数（1=未暴击），仅服务端使用。 */
+    public float getCritMult() {
+        return this.critMult;
+    }
+
+    public void setCritMult(float critMult) {
+        this.critMult = critMult;
+    }
+
+    /** 是否主武器发射。灵力汲取仅对武器弹生效。 */
+    public boolean isFromWeapon() {
+        return this.fromWeapon;
+    }
+
+    public void setFromWeapon(boolean fromWeapon) {
+        this.fromWeapon = fromWeapon;
+    }
+
     /** 覆写存活时间（tick），用于短射程发射行为。 */
     public void setLifetimeTicks(int ticks) {
         this.lifetimeTicks = Math.max(1, ticks);
@@ -257,6 +284,12 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         super.addAdditionalSaveData(tag);
         tag.putFloat("Damage", this.damage);
         tag.putInt("Color", this.getColor());
+        if (this.critMult != 1.0F) {
+            tag.putFloat("CritMult", this.critMult);
+        }
+        if (this.fromWeapon) {
+            tag.putBoolean("FromWeapon", true);
+        }
     }
 
     @Override
@@ -266,5 +299,9 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         if (tag.contains("Color")) {
             this.setColor(tag.getInt("Color"));
         }
+        if (tag.contains("CritMult")) {
+            this.critMult = tag.getFloat("CritMult");
+        }
+        this.fromWeapon = tag.getBoolean("FromWeapon");
     }
 }

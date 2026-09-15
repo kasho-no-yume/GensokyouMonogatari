@@ -144,7 +144,7 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
             // 用实体碰撞箱做距离判定，比用中心点公平
             AABB box = entity.getBoundingBox().inflate(radius);
             if (box.clip(start, end).isPresent()) {
-                entity.hurt(ModDamageTypes.danmaku(entity, this.getOwner()), this.damage);
+                entity.hurt(ModDamageTypes.danmaku(this, this.getOwner()), this.damage);
             }
         }
     }

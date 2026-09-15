@@ -35,6 +35,20 @@ public final class ModAttachments {
                     .copyOnDeath()
                     .build());
 
+    /** 玩家属性套件容器（player-attribute-suite）：持久层入档、死亡保留；旧档缺=空容器取基准。 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.bitsson.gensokyou.spirit.attr.PlayerAttributesData>> PLAYER_ATTRIBUTES =
+            ATTACHMENTS.register("player_attributes", () -> AttachmentType
+                    .<com.bitsson.gensokyou.spirit.attr.PlayerAttributesData>builder(com.bitsson.gensokyou.spirit.attr.PlayerAttributesData::empty)
+                    .serialize(com.bitsson.gensokyou.spirit.attr.PlayerAttributesData.CODEC)
+                    .copyOnDeath()
+                    .build());
+
+    /** 灵力汲取限速账本：会话级 transient（无 serialize/copyOnDeath）。 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.bitsson.gensokyou.spirit.attr.LedgerData>> SPIRIT_LEECH_LEDGER =
+            ATTACHMENTS.register("spirit_leech_ledger", () -> AttachmentType
+                    .<com.bitsson.gensokyou.spirit.attr.LedgerData>builder(com.bitsson.gensokyou.spirit.attr.LedgerData::initial)
+                    .build());
+
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<NpcOffenseData>> NPC_OFFENSE =
             ATTACHMENTS.register("npc_offense", () -> AttachmentType
                     .<NpcOffenseData>builder(NpcOffenseData::initial)
@@ -100,6 +114,7 @@ public final class ModAttachments {
     @SubscribeEvent
     public static void onLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            com.bitsson.gensokyou.spirit.attr.PlayerAttributes.refreshBridged(player);
             sync(player);
             syncSkills(player);
         }
@@ -109,6 +124,7 @@ public final class ModAttachments {
     public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             // 死亡规则：当前灵力清零由 Clone 处理；此处仅强制刷新客户端
+            com.bitsson.gensokyou.spirit.attr.PlayerAttributes.refreshBridged(player);
             sync(player);
             syncSkills(player);
         }
@@ -117,6 +133,7 @@ public final class ModAttachments {
     @SubscribeEvent
     public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            com.bitsson.gensokyou.spirit.attr.PlayerAttributes.refreshBridged(player);
             sync(player);
             syncSkills(player);
         }
@@ -142,12 +159,11 @@ public final class ModAttachments {
 
     private static void tickRegen(ServerPlayer player) {
         SpiritPowerData data = get(player);
-        if (data.current() >= data.max()) {
+        if (data.current() >= com.bitsson.gensokyou.spirit.attr.PlayerAttributes.effectiveMaxSpirit(player)) {
             return;
         }
-        float ratePerSecond = GensokyouConfig.BASE_REGEN_PER_SECOND.get().floatValue()
-                * (1F + data.temperLevel() * 0.1F);
-        float buffer = data.regenBuffer() + ratePerSecond;
+        double ratePerSecond = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.regenPerSecond(player);
+        float buffer = data.regenBuffer() + (float) ratePerSecond;
         float whole = (float) Math.floor(buffer);
         if (whole > 0F) {
             set(player, data.withAddedCurrent(whole).withRegenBuffer(buffer - whole));

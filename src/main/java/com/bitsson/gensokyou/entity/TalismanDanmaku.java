@@ -158,7 +158,7 @@ public class TalismanDanmaku extends AbstractDanmakuProjectile {
             return;
         }
         if (hit.isAlive()) {
-            hit.hurt(ModDamageTypes.danmaku(hit, this.getOwner()), this.damage);
+            hit.hurt(ModDamageTypes.danmaku(this, this.getOwner()), this.damage);
         }
         this.discard();
     }

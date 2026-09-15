@@ -82,7 +82,7 @@ public class KnifeDanmaku extends AbstractDanmakuProjectile {
             return;
         }
         if (hit.isAlive()) {
-            hit.hurt(ModDamageTypes.danmaku(hit, this.getOwner()), this.damage);
+            hit.hurt(ModDamageTypes.danmaku(this, this.getOwner()), this.damage);
         }
         // 不 discard：飞刀继续穿透
     }

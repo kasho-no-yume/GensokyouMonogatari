@@ -1,14 +1,6 @@
-# skill-slots-hud Specification
+# skill-slots-hud 增量
 
-## Purpose
-TBD - created by archiving change phase-c-gensokyo-gate. Update Purpose after archive.
-## Requirements
-### Requirement: 学卡数据
-每名玩家 SHALL 持有已学符卡列表（随存档持久化、死亡保留）；过渡期提供权限命令 `/gs_learn <card>` 写入（委托任务接入后移除）。
-
-#### Scenario: 学习与持久化
-- **WHEN** 玩家被授予 musou_fuuin 后退出重进或死亡重生
-- **THEN** 已学列表保持包含该卡
+## MODIFIED Requirements
 
 ### Requirement: 技能槽施放
 SHALL 提供三个技能槽键位（默认 G/H/J，可改键）：按下后 C2S 请求服务端校验——已学、冷却结束、灵力足够——通过则执行对应符卡效果并扣灵力进入冷却；任一条件不满足则提示且无消耗。冷却时长 SHALL 为配置基准值经玩家"符卡冷却缩减"属性折减后的值（`base × (1 − CDR)`，CDR 为套件封顶后的最终值），施放瞬间读取、冷却中途属性变化不回溯。
@@ -24,11 +16,3 @@ SHALL 提供三个技能槽键位（默认 G/H/J，可改键）：按下后 C2S 
 #### Scenario: 冷却缩减生效
 - **WHEN** CDR 最终值为 30% 的玩家施放基准冷却 20 秒的符卡
 - **THEN** 实际进入冷却 14 秒，HUD 倒数按 14 秒显示
-
-### Requirement: HUD 冷却显示
-HUD SHALL 在热键栏上方显示三个技能槽：已学卡绘制物品图标；冷却期间叠加遮罩与剩余秒数；未学习置灰。
-
-#### Scenario: 冷却可视化
-- **WHEN** 施放后观察 HUD
-- **THEN** 对应槽位出现遮罩并倒数至冷却结束消失
-

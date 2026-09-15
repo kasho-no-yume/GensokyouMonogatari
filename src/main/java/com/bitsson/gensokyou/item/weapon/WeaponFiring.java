@@ -47,18 +47,23 @@ public final class WeaponFiring {
         }
         ModAttachments.set(player, power.withCurrent(power.current() - cost));
 
-        float finalDamage = power.spiritDamage()
+        // 暴击：发射时服务端 roll 一次，系数烘入伤害（命中不重 roll），并随弹 NBT 持久化
+        float critMult = com.bitsson.gensokyou.spirit.attr.PlayerAttributes
+                .rollCrit(player, player.getRandom());
+
+        float finalDamage = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.spiritPower(player)
                 * stats.coreBaseMult().get()
                 * WeaponSlotsHelper.weaponLevelMult(weapon)
-                * (1F + runes.damagePct());
+                * (1F + runes.damagePct())
+                * critMult;
 
         int rate = Math.max(1, Math.round(stats.attackRateTicks().getAsInt()
                 * (1F - Math.min(0.8F, Math.max(0F, runes.attackRatePct())))));
-        fire(player, core.pattern(), finalDamage);
+        fire(player, core.pattern(), finalDamage, critMult);
         player.getCooldowns().addCooldown(weapon.getItem(), rate);
     }
 
-    private static void fire(ServerPlayer player, FirePattern pattern, float damage) {
+    private static void fire(ServerPlayer player, FirePattern pattern, float damage, float critMult) {
         Level level = player.level();
         Vec3 look = player.getLookAngle();
         Set<EntityType<?>> whitelist = Set.of();
@@ -71,6 +76,8 @@ public final class WeaponFiring {
                     pattern.laserDelaySeconds().getAsDouble(),
                     pattern.laserDurationSeconds().getAsDouble(),
                     player, whitelist);
+            laser.setCritMult(critMult);
+            laser.setFromWeapon(true);
             level.addFreshEntity(laser);
             return;
         }
@@ -79,6 +86,8 @@ public final class WeaponFiring {
             Entity target = DanmakuTargetPicker.pick(player);
             TalismanDanmaku talisman = new TalismanDanmaku(level, player, damage, 0, target,
                     pattern.talismanSensitivity().getAsDouble(), whitelist);
+            talisman.setCritMult(critMult);
+            talisman.setFromWeapon(true);
             aimFromEye(talisman, player);
             talisman.shoot(look.x, look.y, look.z,
                     (float) pattern.projectileSpeed().getAsDouble(), 0F);
@@ -95,6 +104,8 @@ public final class WeaponFiring {
                     : Math.toRadians(spread * (i - (count - 1) / 2.0D) / (count - 1));
             Vec3 direction = rotateAroundY(look, offset);
             AbstractDanmakuProjectile projectile = pattern.factory().create(level, player, damage);
+            projectile.setCritMult(critMult);
+            projectile.setFromWeapon(true);
             aimFromEye(projectile, player);
             if (lifetime > 0) {
                 projectile.setLifetimeTicks(lifetime);

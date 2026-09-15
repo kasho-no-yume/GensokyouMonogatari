@@ -79,6 +79,35 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue SKILL_ICICLE_SP_COST;
     public static final ModConfigSpec.IntValue SKILL_ICICLE_COOLDOWN;
 
+    // ---- player-attribute-suite：属性基准/封顶/受弹管线/汲取 ----
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_HEALTH_BONUS;
+    public static final ModConfigSpec.DoubleValue ATTR_HEALTH_BONUS_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_MOVE_SPEED;
+    public static final ModConfigSpec.DoubleValue ATTR_MOVE_SPEED_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_GRAZE_CHANCE;
+    public static final ModConfigSpec.DoubleValue ATTR_GRAZE_CHANCE_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_DANMAKU_REDUCE;
+    public static final ModConfigSpec.DoubleValue ATTR_DANMAKU_REDUCE_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_DANMAKU_RESIST;
+    public static final ModConfigSpec.DoubleValue ATTR_DANMAKU_RESIST_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_TENACITY;
+    public static final ModConfigSpec.DoubleValue ATTR_TENACITY_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_CRIT_CHANCE;
+    public static final ModConfigSpec.DoubleValue ATTR_CRIT_CHANCE_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_CRIT_DAMAGE;
+    public static final ModConfigSpec.DoubleValue ATTR_CRIT_DAMAGE_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_SPELL_AMP;
+    public static final ModConfigSpec.DoubleValue ATTR_SPELL_AMP_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_SPELL_CDR;
+    public static final ModConfigSpec.DoubleValue ATTR_SPELL_CDR_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_BUFF_EXTEND;
+    public static final ModConfigSpec.DoubleValue ATTR_BUFF_EXTEND_CAP;
+    public static final ModConfigSpec.DoubleValue DANMAKU_REDUCTION_GLOBAL_CAP;
+    public static final ModConfigSpec.DoubleValue SPIRIT_LEECH_RATE;
+    public static final ModConfigSpec.DoubleValue SPIRIT_LEECH_RATE_CAP;
+    public static final ModConfigSpec.DoubleValue SPIRIT_LEECH_MAX_PER_SECOND;
+
+
     public static final ModConfigSpec.ConfigValue<List<? extends Double>> WEAPON_LEVEL_MULT;
     public static final ModConfigSpec.DoubleValue WEAPON_TALISMAN_PICK_RANGE;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> RUNE_AFFIX_POOL;
@@ -229,6 +258,39 @@ public class GensokyouConfig {
         SKILL_MUSOU_COOLDOWN = BUILDER.defineInRange("musouFuuinCooldownTicks", 200, 1, 120000);
         SKILL_ICICLE_SP_COST = BUILDER.defineInRange("icicleSpCost", 15, 0, 10000);
         SKILL_ICICLE_COOLDOWN = BUILDER.defineInRange("icicleCooldownTicks", 100, 1, 120000);
+        BUILDER.pop();
+
+        BUILDER.push("playerAttributes").comment("player-attribute-suite: bases, caps, incoming pipeline, leech");
+        ATTR_BASE_HEALTH_BONUS = BUILDER.comment("Base extra health (flat HP on top of vanilla 20)").defineInRange("baseHealthBonus", 0D, 0D, 1024D);
+        ATTR_HEALTH_BONUS_CAP = BUILDER.defineInRange("healthBonusCap", 200D, 0D, 1024D);
+        ATTR_BASE_MOVE_SPEED = BUILDER.comment("Fraction of base speed, e.g. 0.2 = +20%").defineInRange("baseMoveSpeedBonus", 0D, 0D, 1D);
+        ATTR_MOVE_SPEED_CAP = BUILDER.defineInRange("moveSpeedBonusCap", 1D, 0D, 5D);
+        ATTR_BASE_GRAZE_CHANCE = BUILDER.comment("Dodge chance vs danmaku, probability").defineInRange("baseGrazeChance", 0D, 0D, 1D);
+        ATTR_GRAZE_CHANCE_CAP = BUILDER.defineInRange("grazeChanceCap", 0.5D, 0D, 1D);
+        ATTR_BASE_DANMAKU_REDUCE = BUILDER.comment("Percent danmaku damage reduction (before flat resist)").defineInRange("baseDanmakuReduce", 0D, 0D, 1D);
+        ATTR_DANMAKU_REDUCE_CAP = BUILDER.defineInRange("danmakuReduceCap", 0.9D, 0D, 1D);
+        ATTR_BASE_DANMAKU_RESIST = BUILDER.comment("Flat danmaku damage reduction applied after percent; may zero out damage").defineInRange("baseDanmakuResist", 0D, 0D, 256D);
+        ATTR_DANMAKU_RESIST_CAP = BUILDER.defineInRange("danmakuResistCap", 100D, 0D, 1024D);
+        ATTR_BASE_TENACITY = BUILDER.comment("Harmful effect duration reduction fraction").defineInRange("baseTenacity", 0D, 0D, 1D);
+        ATTR_TENACITY_CAP = BUILDER.defineInRange("tenacityCap", 0.75D, 0D, 1D);
+        ATTR_BASE_CRIT_CHANCE = BUILDER.comment("Player danmaku crit chance, rolled at fire time").defineInRange("baseCritChance", 0.05D, 0D, 1D);
+        ATTR_CRIT_CHANCE_CAP = BUILDER.defineInRange("critChanceCap", 1D, 0D, 1D);
+        ATTR_BASE_CRIT_DAMAGE = BUILDER.comment("Extra damage fraction on crit, 0.5 = x1.5").defineInRange("baseCritDamage", 0.5D, 0D, 10D);
+        ATTR_CRIT_DAMAGE_CAP = BUILDER.defineInRange("critDamageCap", 5D, 0D, 10D);
+        ATTR_BASE_SPELL_AMP = BUILDER.comment("Spell card damage amplification (reserved zone; no current consumer)")
+                .defineInRange("baseSpellAmp", 0D, 0D, 10D);
+        ATTR_SPELL_AMP_CAP = BUILDER.defineInRange("spellAmpCap", 10D, 0D, 100D);
+        ATTR_BASE_SPELL_CDR = BUILDER.comment("Learned spell cooldown reduction fraction").defineInRange("baseSpellCdr", 0D, 0D, 1D);
+        ATTR_SPELL_CDR_CAP = BUILDER.defineInRange("spellCdrCap", 0.4D, 0D, 1D);
+        ATTR_BASE_BUFF_EXTEND = BUILDER.comment("Beneficial effect duration extension fraction (applies to transformation too)")
+                .defineInRange("baseBuffExtend", 0D, 0D, 10D);
+        ATTR_BUFF_EXTEND_CAP = BUILDER.defineInRange("buffExtendCap", 1D, 0D, 10D);
+        DANMAKU_REDUCTION_GLOBAL_CAP = BUILDER.comment("Combined (attr reduce x shield) reduction cap; shield immunity (factor 0) bypasses it")
+                .defineInRange("danmakuReductionGlobalCap", 0.9D, 0D, 1D);
+        SPIRIT_LEECH_RATE = BUILDER.comment("Experiment: fraction of dealt danmaku damage returned as spirit; 0 = whole path disabled")
+                .defineInRange("spiritLeechRate", 0.1D, 0D, 1D);
+        SPIRIT_LEECH_RATE_CAP = BUILDER.defineInRange("spiritLeechRateCap", 0.5D, 0D, 1D);
+        SPIRIT_LEECH_MAX_PER_SECOND = BUILDER.comment("Leech refund quota per settle period (per second)").defineInRange("spiritLeechMaxPerSecond", 20D, 0D, 10000D);
         BUILDER.pop();
 
         BUILDER.push("weapon").comment("Danmaku main weapon (danmaku-weapon); placeholder values, dev phase");

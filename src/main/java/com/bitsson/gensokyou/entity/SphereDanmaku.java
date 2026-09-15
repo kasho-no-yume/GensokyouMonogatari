@@ -65,7 +65,8 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
             return;
         }
         if (hit.isAlive()) {
-            hit.hurt(ModDamageTypes.danmaku(hit, this.getOwner()), this.damage);
+            // directEntity=弹本体（原版投射物惯例；汲取据此区分武器弹），attacker=owner 归属不变
+            hit.hurt(ModDamageTypes.danmaku(this, this.getOwner()), this.damage);
         }
         this.discard();
     }
