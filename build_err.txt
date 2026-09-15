@@ -1,0 +1,40 @@
+﻿Reusing configuration cache.
+> Task :createMinecraftArtifacts UP-TO-DATE
+
+> Task :compileJava
+.\gradlew.bat : D:\code\Gensokyou\src\main\java\com\bitsson\gensokyou\block\entity\RitualCoreBlockEntity.java:978: 閿欒:
+ 鎵句笉鍒扮鍙?                    isBurning() ? RitualRenderState.MASK_KAGUTSUCHI_BURNING : 0L);
+所在位置 行:1 字符: 1
++ .\gradlew.bat compileJava --console=plain 2>&1 | Out-File -FilePath b ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (D:\code\Gensoky..._BURNING : 0L);:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                                   ^
+  绗﹀彿:   鍙橀噺 MASK_KAGUTSUCHI_BURNING
+  浣嶇疆: 绫?RitualRenderState
+1 涓敊璇?
+
+> Task :compileJava FAILED
+
+[Incubating] Problems report is available at: file:///D:/code/Gensokyou/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler output below.
+  D:\code\Gensokyou\src\main\java\com\bitsson\gensokyou\block\entity\RitualCoreBlockEntity.java:978: 閿欒: 鎵句笉鍒扮鍙?     
+                 isBurning() ? RitualRenderState.MASK_KAGUTSUCHI_BURNING : 0L);
+                                                     ^
+    绗﹀彿:   鍙橀噺 MASK_KAGUTSUCHI_BURNING
+    浣嶇疆: 绫?RitualRenderState
+  1 涓敊璇?
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to generate a Build Scan (powered by Develocity).
+
+BUILD FAILED in 3s
+2 actionable tasks: 1 executed, 1 up-to-date
+Configuration cache entry reused.

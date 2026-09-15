@@ -6,7 +6,6 @@ import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualMatch;
 import com.bitsson.gensokyou.spirit.ModAttachments;
-import com.bitsson.gensokyou.spirit.SkillStateData;
 import com.bitsson.gensokyou.spirit.SpiritPowerData;
 import com.bitsson.gensokyou.spirit.attr.AttributeKey;
 import com.bitsson.gensokyou.spirit.attr.PlayerAttributes;
@@ -29,7 +28,7 @@ import java.util.UUID;
  * <p>会话推进汇聚在 {@link YaoyorozuGraceService}；本类做框架钩子转接、受灵汇声明
  * 与按查看者组装的自主信息区——固定呈现查看者本人属性面板（阶级/池/15 键），
  * 会话期叠加进度行，REVIEW 期对 initiator 呈现洗练预览（新 vs 当前 + 采纳/保留），
- * 阶级≥1 提供飞行惯性切换按钮与已解锁槽位的配装轮换行。
+ * 阶级≥1 提供飞行惯性切换按钮。技能配装/切换不属于本界面职责（spec 红线）。
  */
 public class YaoyorozuGraceBehavior implements RitualBehavior {
 
@@ -98,11 +97,6 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
                         ? InteractionResult.SUCCESS : InteractionResult.FAIL;
             }
             default -> {
-                if (actionId >= YaoyorozuGraceService.ACTION_EQUIP_BASE) {
-                    return YaoyorozuGraceService.cycleEquip(player,
-                            actionId - YaoyorozuGraceService.ACTION_EQUIP_BASE)
-                            ? InteractionResult.SUCCESS : InteractionResult.FAIL;
-                }
             }
         }
         return InteractionResult.PASS;
@@ -160,7 +154,6 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
         }
         if (viewer != null) {
             appendAttributePanel(lines, viewer);
-            appendEquipLines(lines, viewer);
         }
         return lines;
     }
@@ -231,23 +224,6 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
                 new String[0], "", COLOR_KEEP_ACTION, -1F, null,
                 YaoyorozuGraceService.ACTION_REFINE_KEEP, InfoLine.CONTROL_BUTTON,
                 InfoLine.LINK_NONE, "", new String[0]));
-    }
-
-    /** 已解锁槽位配装行（图标=当前卡物品；点击在已学卡池内轮换）。 */
-    private static void appendEquipLines(List<InfoLine> lines, ServerPlayer viewer) {
-        int tier = GraceService.tierOf(viewer);
-        if (tier <= 0) {
-            return;
-        }
-        SkillStateData state = ModAttachments.skills(viewer);
-        for (int slot = 0; slot < Math.min(tier, SkillStateData.MAX_SLOTS); slot++) {
-            String card = state.equippedCard(slot);
-            lines.add(new InfoLine("gui.gensokyou.ritual.grace.equip",
-                    new String[]{String.valueOf(slot + 1), card == null ? "-" : card},
-                    card == null ? "" : "gensokyou:" + card, 0xFFB39DDB, -1F, null,
-                    YaoyorozuGraceService.ACTION_EQUIP_BASE + slot, InfoLine.CONTROL_BUTTON,
-                    InfoLine.LINK_NONE, "", new String[0]));
-        }
     }
 
     // ---- 格式化 ----

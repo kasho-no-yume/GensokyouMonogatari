@@ -18,6 +18,7 @@ import com.bitsson.gensokyou.ritual.RitualPedestals;
 import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipeMatcher;
+import com.bitsson.gensokyou.ritual.RitualRenderState;
 import com.bitsson.gensokyou.ritual.behavior.SpiritBank;
 import com.bitsson.gensokyou.ritual.behavior.TickRateLedger;
 import net.minecraft.core.BlockPos;
@@ -25,6 +26,9 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -47,6 +51,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private static final String TAG_STORED = "StoredSpiritPower";
     private static final String TAG_RESO_IN = "ResoInLinks";
     private static final String TAG_RESO_OUT = "ResoOutLinks";
+    private static final String TAG_RENDER_STATE = "Rendu";
     private static final String TAG_LINK_POS = "P";
     private static final String TAG_LINK_PATTERN = "I";
     private static final String TAG_ENABLED = "Enabled";
@@ -93,6 +98,11 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 万象共鸣：输入/输出链接（身份 = 目标核心坐标 + 图案）。 */
     private List<RitualLink> inLinks = List.of();
     private List<RitualLink> outLinks = List.of();
+    /** 万象共鸣：最近结算周期实搬通道位掩码（规范序同链接；链接变更即清零）。 */
+    private long resoMovingMask;
+    /** 渲染态：服务端=上次已推送态（变化比较基准），客户端=已接收态（只读绘制）。 */
+    private @Nullable RitualRenderState lastSentRenderState;
+    private RitualRenderState renderState = RitualRenderState.EMPTY;
     /** 万象共鸣：当前结构的 Y 包围盒（仅内存，重扫刷新；驱动螺旋高度）。 */
     private int boundsMinY;
     private int boundsMaxY;
@@ -853,11 +863,22 @@ public class RitualCoreBlockEntity extends BlockEntity {
         return outLinks;
     }
 
-    /** 整体替换两列链接（行为侧唯一写入口，raw 存储不再判）。 */
+    /** 整体替换两列链接（行为侧唯一写入口，raw 存储不再判）。链接变更即清搬运掩码（防旧位错位）。 */
     public void setSpiritLinks(List<RitualLink> in, List<RitualLink> out) {
         this.inLinks = List.copyOf(in);
         this.outLinks = List.copyOf(out);
+        this.resoMovingMask = 0L;
         setChanged();
+    }
+
+    /** 结算周期末由行为侧写入"本周期实搬 >0"掩码；稳态（值不变）不触发任何推送。 */
+    public void setResoMovingMask(long mask) {
+        this.resoMovingMask = mask;
+    }
+
+    /** 渲染态（客户端 BER 只读入口；服务端侧恒为计算基准，不参与结算）。 */
+    public RitualRenderState renderState() {
+        return renderState;
     }
 
     private static void writeLinks(CompoundTag tag, String key, List<RitualLink> links) {
@@ -913,6 +934,121 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
         boundsMinY = min;
         boundsMaxY = max;
+    }
+
+    // ---- 渲染态同步（resonance-relay-render-perf D1/D2）：仅共鸣塔产态，仅变化即推，稳态零包 ----
+
+    /**
+     * 每服务端 tick 末尾调用：重算渲染态并与上次已推送值比较，仅不同才
+     * {@code sendBlockUpdated}。非共鸣图案返回 null = 无渲染流量；曾推送过则补一次清零态。
+     */
+    private void syncRenderState() {
+        if (level == null || level.isClientSide) {
+            return;
+        }
+        RitualRenderState desired = buildRenderState();
+        if (desired == null) {
+            if (lastSentRenderState == null) {
+                return;
+            }
+            desired = RitualRenderState.EMPTY;
+        }
+        if (desired.equals(lastSentRenderState)) {
+            return;
+        }
+        lastSentRenderState = desired;
+        level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+    }
+
+    @Nullable
+    private RitualRenderState buildRenderState() {
+        if (activeMatch == null) {
+            return null;
+        }
+        ResourceLocation id = activeMatch.patternId();
+        if (id.equals(RitualBehaviors.RESONANCE)) {
+            return buildRelayRenderState();
+        }
+        if (id.equals(RitualBehaviors.KAGUTSUICHI)) {
+            // 注意：本 kind 的 maxY 语义 = 结构水平半径（格），供客户端火柱铺满台面用
+            // （台位坐标可能因结构判定差异缺失，半径是权威且稳定的散布依据）
+            return new RitualRenderState(RitualRenderState.KIND_KAGUTSUICHI, enabled,
+                    activeMatch.level(), boundsMinY, structureRadiusXZ(), 0,
+                    kagutsuchiPillarAnchors(), 0,
+                    isBurning() ? RitualRenderState.MASK_KAGUTSUCHI_BURNING : 0L);
+        }
+        if (id.equals(RitualBehaviors.BAFANG_GUIYUAN)) {
+            return new RitualRenderState(RitualRenderState.KIND_BAFANG, enabled,
+                    activeMatch.level(), 0, 0, 0, new long[0], 0, 0L);
+        }
+        return null;
+    }
+
+    /** 结构水平半径（格，向上取整）：核心到最远结构块的 XZ 距离，供迦具土火柱铺面参考。 */
+    private int structureRadiusXZ() {
+        if (activeMatch == null) {
+            return 0;
+        }
+        int radius = 0;
+        for (List<BlockPos> positions : activeMatch.keyedPositions().values()) {
+            for (BlockPos p : positions) {
+                radius = Math.max(radius, (int) Math.ceil(Math.hypot(
+                        p.getX() - worldPosition.getX(), p.getZ() - worldPosition.getZ())));
+            }
+        }
+        return radius;
+    }
+
+    /**
+     * 迦具土火柱发射锚点：复用既有规范序祭品台位（按 BE 类型判定），转 long[] 并截断到通道上限。
+     */
+    private long[] kagutsuchiPillarAnchors() {
+        List<BlockPos> peds = pedestalPositions();
+        int cap = RitualRenderState.MAX_CHANNELS;
+        long[] out = new long[Math.min(peds.size(), cap)];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = peds.get(i).asLong();
+        }
+        return out;
+    }
+
+    @Nullable
+    private RitualRenderState buildRelayRenderState() {
+        int cap = RitualRenderState.MAX_CHANNELS;
+        int total = Math.min(inLinks.size() + outLinks.size(), cap);
+        long[] links = new long[total];
+        int filled = 0;
+        for (RitualLink link : inLinks) {
+            if (filled >= cap) {
+                break;
+            }
+            links[filled++] = link.corePos().asLong();
+        }
+        int inCount = filled;
+        for (RitualLink link : outLinks) {
+            if (filled >= cap) {
+                break;
+            }
+            links[filled++] = link.corePos().asLong();
+        }
+        // 截断防御：配额翻倍越 64 时此处丢尾通道渲染（结算不受影响），届时掩码改 long[]
+        return new RitualRenderState(RitualRenderState.KIND_RELAY, enabled, activeMatch.level(),
+                boundsMinY, boundsMaxY,
+                Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get()), links, inCount,
+                RitualRenderState.clampMask(resoMovingMask, total));
+    }
+
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        CompoundTag tag = new CompoundTag();
+        RitualRenderState state = lastSentRenderState != null ? lastSentRenderState : renderState;
+        tag.put(TAG_RENDER_STATE, state.toTag());
+        return tag;
+    }
+
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
     }
 
     // ---- 生命周期：enabled 门控与启停 ----
@@ -1247,6 +1383,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 RitualBehaviors.get(previous.patternId())
                         .ifPresent(behavior -> behavior.onStructureLost(serverLevel, pos));
             }
+            core.syncRenderState();
             return;
         }
         Optional<RitualPattern> pattern = RitualPatternLoader.byId(core.activeMatch.patternId());
@@ -1266,6 +1403,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
         // GUI 快照心跳：界面打开期间 1Hz 推送，停机/断供态同样收敛
         // （缓存可被路由抽取等外部变化不依赖行为 enabled tick）
+        core.syncRenderState();
         if (core.ageTicks % 20 == 0L) {
             ModNetworking.sendRitualInfoToViewers(serverLevel, pos);
         }
@@ -1415,5 +1553,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
         craft.load(tag);
         grace.load(tag);
         lastPowered = tag.getBoolean(TAG_LAST_POWERED);
+        if (tag.contains(TAG_RENDER_STATE)) {
+            renderState = RitualRenderState.fromTag(tag.getCompound(TAG_RENDER_STATE));
+        }
     }
 }

@@ -4,12 +4,14 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.renderer.BillboardRenderer;
 import com.bitsson.gensokyou.client.renderer.SkinMobRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualPedestalRenderer;
+import com.bitsson.gensokyou.client.renderer.RitualCoreRenderer;
 import com.bitsson.gensokyou.client.renderer.SphereDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.KnifeDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.TalismanDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.LaserDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.SukimaPortalRenderer;
 import com.bitsson.gensokyou.client.renderer.SukimaPortalRenderTypes;
+import com.bitsson.gensokyou.client.renderer.SpiritOrbRenderTypes;
 import com.bitsson.gensokyou.client.renderer.RitualGhostRenderTypes;
 import com.bitsson.gensokyou.client.screen.RitualBuilderScreen;
 import com.bitsson.gensokyou.client.screen.RitualBuilderScreen;
@@ -65,6 +67,7 @@ public final class GensokyouClient {
         event.registerEntityRenderer(ModEntityTypes.RINNOSUKE.get(),
                 context -> new SkinMobRenderer<>(context, 0.5F, 1.0F, GensokyouTextures.RINNOSUKE));
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_PEDESTAL.get(), RitualPedestalRenderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_CORE.get(), RitualCoreRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.SUKIMA.get(), SukimaPortalRenderer::new);
     }
 
@@ -84,6 +87,15 @@ public final class GensokyouClient {
                 shader -> {
                     RitualGhostRenderTypes.ritualGhostShader = shader;
                     RitualGhostRenderTypes.tintUniform = shader.getUniform("Tint");
+                });
+        // 八方归元灵气球 fresnel 着色器（POSITION_COLOR_TEX_LIGHTMAP，采样雾噪声，Tint 默认绿）
+        event.registerShader(
+                new ShaderInstance(event.getResourceProvider(),
+                        ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "spirit_orb"),
+                        DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP),
+                shader -> {
+                    SpiritOrbRenderTypes.spiritOrbShader = shader;
+                    SpiritOrbRenderTypes.timeUniform = shader.getUniform("Time");
                 });
     }
 

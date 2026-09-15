@@ -1,28 +1,50 @@
 package com.bitsson.gensokyou.jei;
 
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.ritual.RitualPattern;
-import com.bitsson.gensokyou.ritual.RitualPatternLoader;
+import com.bitsson.gensokyou.registry.ModItems;
+import com.bitsson.gensokyou.ritual.RitualBehaviors;
+import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
+import mezz.jei.api.constants.VanillaTypes;
+import mezz.jei.api.gui.drawable.IDrawable;
+import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.recipe.IRecipeManager;
+import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
-import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * JEI 插件（grace-ux-and-jei-tabs）：仪式配方按仪式分页（静态登记 + 兜底页签，方案 C——
+ * JEI 19.44 无运行时 addCategories），全部数据由 ritual_recipes 派生；结构页签已删
+ * （结构查看唯一入口 = 仪式构建器）。热重载经 {@link #syncFromLoader} 逐页签增删卡片、
+ * 按空收敛显隐。
+ */
 @JeiPlugin
 public class GensokyouJeiPlugin implements IModPlugin {
 
+    /** 专属页签清单：新配方仪式要独立页签在此加一行（未登记的落兜底页签）。 */
+    private static final List<ResourceLocation> DEDICATED_TABS = List.of(
+            RitualBehaviors.ZAOHUA,
+            RitualBehaviors.KAMI_NO_MEGUMI);
+    private static final RecipeType<RitualRecipeCardWrapper> FALLBACK_TYPE =
+            RitualRecipeCategory.typeFor(null);
+
+    static boolean hasDedicatedTab(ResourceLocation patternId) {
+        return DEDICATED_TABS.contains(patternId);
+    }
+
     private static volatile IJeiRuntime runtime;
-    private static volatile Map<ResourceLocation, RitualPattern> syncedPatterns = Map.of();
-    private static volatile Map<ResourceLocation, RitualRecipeWrapper> syncedWrappers = Map.of();
     private static volatile Map<ResourceLocation, RitualRecipeCardWrapper> syncedRecipes = Map.of();
 
     @Override
@@ -32,91 +54,94 @@ public class GensokyouJeiPlugin implements IModPlugin {
 
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
-        registration.addRecipeCategories(new RitualCategory(registration.getJeiHelpers()));
-        registration.addRecipeCategories(new RitualRecipeCategory(registration.getJeiHelpers()));
+        IGuiHelper guiHelper = registration.getJeiHelpers().getGuiHelper();
+        List<RitualRecipeCategory> categories = new ArrayList<>();
+        for (ResourceLocation patternId : DEDICATED_TABS) {
+            categories.add(new RitualRecipeCategory(guiHelper,
+                    RitualRecipeCategory.typeFor(patternId), patternId, tabIcon(guiHelper, patternId)));
+        }
+        categories.add(new RitualRecipeCategory(guiHelper, FALLBACK_TYPE, null,
+                tabIcon(guiHelper, null)));
+        registration.addRecipeCategories(categories.toArray(new RitualRecipeCategory[0]));
+    }
+
+    private static IDrawable tabIcon(IGuiHelper guiHelper, @Nullable ResourceLocation patternId) {
+        ItemStack icon = RitualBehaviors.ZAOHUA.equals(patternId)
+                ? new ItemStack(ModItems.SPELLCARD_STAR.get())
+                : RitualBehaviors.KAMI_NO_MEGUMI.equals(patternId)
+                        ? new ItemStack(ModItems.SPIRIT_CORES.get(0).get())
+                        : new ItemStack(ModItems.RITUAL_CORE_ITEM.get());
+        return guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK, icon);
     }
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
         runtime = jeiRuntime;
-        syncFromLoader(RitualPatternLoader.all());
+        syncFromLoader(RitualRecipeLoader.all());
     }
 
-    static void syncFromLoader(List<RitualPattern> current) {
-        Map<ResourceLocation, RitualPattern> previousPatterns = syncedPatterns;
-        if (previousPatterns.size() == current.size()) {
-            boolean identical = true;
-            for (RitualPattern pattern : current) {
-                if (previousPatterns.get(pattern.id()) != pattern) {
-                    identical = false;
-                    break;
-                }
-            }
-            if (identical) {
-                return;
-            }
-        }
-
+    /** 配方集变化即逐页签增删卡片（稳态零操作，由 {@link JeiClientSync} 轮询触发）。 */
+    static void syncFromLoader(List<RitualRecipe> current) {
         IJeiRuntime rt = runtime;
         if (rt == null) {
             return;
         }
-
-        Map<ResourceLocation, RitualPattern> desiredPatterns = new HashMap<>();
-        Map<ResourceLocation, RitualRecipeWrapper> desiredWrappers = new HashMap<>();
-        Map<ResourceLocation, RitualRecipeCardWrapper> desiredRecipes = new HashMap<>();
-        for (RitualPattern pattern : current) {
-            desiredPatterns.put(pattern.id(), pattern);
-            desiredWrappers.put(pattern.id(), new RitualRecipeWrapper(pattern));
+        Map<ResourceLocation, RitualRecipeCardWrapper> previous = syncedRecipes;
+        Map<ResourceLocation, RitualRecipeCardWrapper> desired = new LinkedHashMap<>();
+        for (RitualRecipe recipe : current) {
+            RitualRecipeCardWrapper old = previous.get(recipe.id());
+            desired.put(recipe.id(), old != null && old.definition().equals(recipe)
+                    ? old : new RitualRecipeCardWrapper(recipe));
         }
-        for (var recipe : RitualRecipeLoader.all()) {
-            desiredRecipes.put(recipe.id(), new RitualRecipeCardWrapper(recipe));
+        if (desired.size() == previous.size() && desired.equals(previous)) {
+            return; // 稳态：无任何页签/卡片变化
         }
-
         IRecipeManager manager = rt.getRecipeManager();
-        List<RitualRecipeWrapper> removed = new ArrayList<>();
-        List<RitualRecipeWrapper> added = new ArrayList<>();
-        for (Map.Entry<ResourceLocation, RitualRecipeWrapper> entry : syncedWrappers.entrySet()) {
-            RitualPattern desiredPattern = desiredPatterns.get(entry.getKey());
-            if (desiredPattern == null || desiredPattern != previousPatterns.get(entry.getKey())) {
-                removed.add(entry.getValue());
+        Map<RecipeType<RitualRecipeCardWrapper>, List<RitualRecipeCardWrapper>> keep =
+                new HashMap<>();
+        Map<RecipeType<RitualRecipeCardWrapper>, List<RitualRecipeCardWrapper>> drop =
+                new HashMap<>();
+        for (RitualRecipeCardWrapper card : desired.values()) {
+            RitualRecipeCardWrapper old = previous.get(card.definition().id());
+            if (old == null || old != card) {
+                keep.computeIfAbsent(typeOf(card), k -> new ArrayList<>()).add(card);
             }
         }
-        for (Map.Entry<ResourceLocation, RitualRecipeWrapper> entry : desiredWrappers.entrySet()) {
-            RitualPattern previousPattern = previousPatterns.get(entry.getKey());
-            if (previousPattern == null || previousPattern != desiredPatterns.get(entry.getKey())) {
-                added.add(entry.getValue());
+        for (RitualRecipeCardWrapper old : previous.values()) {
+            if (desired.get(old.definition().id()) != old) {
+                drop.computeIfAbsent(typeOf(old), k -> new ArrayList<>()).add(old);
             }
         }
-        if (!removed.isEmpty()) {
-            manager.hideRecipes(RitualCategory.TYPE, removed);
+        for (Map.Entry<RecipeType<RitualRecipeCardWrapper>, List<RitualRecipeCardWrapper>> entry
+                : keep.entrySet()) {
+            manager.unhideRecipeCategory(entry.getKey());
+            manager.addRecipes(entry.getKey(), entry.getValue());
         }
-        if (!added.isEmpty()) {
-            manager.addRecipes(RitualCategory.TYPE, added);
+        for (Map.Entry<RecipeType<RitualRecipeCardWrapper>, List<RitualRecipeCardWrapper>> entry
+                : drop.entrySet()) {
+            manager.hideRecipes(entry.getKey(), entry.getValue());
         }
+        // 空页签不占侧栏（兜底页签常态下即此状态）
+        for (RecipeType<RitualRecipeCardWrapper> type : allTabTypes()) {
+            boolean empty = desired.values().stream().noneMatch(card -> typeOf(card) == type);
+            if (empty) {
+                manager.hideRecipeCategory(type);
+            }
+        }
+        syncedRecipes = Map.copyOf(desired);
+    }
 
-        List<RitualRecipeCardWrapper> recipesRemoved = new ArrayList<>();
-        List<RitualRecipeCardWrapper> recipesAdded = new ArrayList<>();
-        for (Map.Entry<ResourceLocation, RitualRecipeCardWrapper> entry : syncedRecipes.entrySet()) {
-            if (!desiredRecipes.containsKey(entry.getKey())) {
-                recipesRemoved.add(entry.getValue());
-            }
-        }
-        for (Map.Entry<ResourceLocation, RitualRecipeCardWrapper> entry : desiredRecipes.entrySet()) {
-            if (!syncedRecipes.containsKey(entry.getKey())
-                    || !entry.getValue().definition().equals(syncedRecipes.get(entry.getKey()).definition())) {
-                recipesAdded.add(entry.getValue());
-            }
-        }
-        if (!recipesRemoved.isEmpty()) {
-            manager.hideRecipes(RitualRecipeCategory.TYPE, recipesRemoved);
-        }
-        if (!recipesAdded.isEmpty()) {
-            manager.addRecipes(RitualRecipeCategory.TYPE, recipesAdded);
-        }
+    private static RecipeType<RitualRecipeCardWrapper> typeOf(RitualRecipeCardWrapper card) {
+        ResourceLocation patternId = card.definition().patternId();
+        return RitualRecipeCategory.typeFor(hasDedicatedTab(patternId) ? patternId : null);
+    }
 
-        syncedPatterns = Map.copyOf(desiredPatterns);
-        syncedWrappers = Map.copyOf(desiredWrappers);
-        syncedRecipes = Map.copyOf(desiredRecipes);
+    private static List<RecipeType<RitualRecipeCardWrapper>> allTabTypes() {
+        List<RecipeType<RitualRecipeCardWrapper>> types = new ArrayList<>();
+        for (ResourceLocation patternId : DEDICATED_TABS) {
+            types.add(RitualRecipeCategory.typeFor(patternId));
+        }
+        types.add(FALLBACK_TYPE);
+        return types;
     }
 }

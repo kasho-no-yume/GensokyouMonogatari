@@ -84,8 +84,8 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
         if (core.ageTicks() % 20 == 0) {
             settlePerSecond(match, core);
         }
-        // 3) 燃烧中（含空烧期）飘火焰粒子；停等/待机零粒子
-        emitFlameParticles(level, corePos, match, core);
+        // 3) 燃烧中（含空烧期）低频点缀烟柱；火柱主体=客户端网格（ritual-fx-overhaul）
+        emitSmokeAccents(level, corePos, match, core);
     }
 
     @Override
@@ -196,70 +196,25 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
     }
 
     /**
-     * 多点火柱粒子（方案 B v2）：每柱 FLAME 主簇 + SMALL_FLAME 细簇双层。
-     * 阶级 0 仅核心；≥1 每座祭品台一柱；≥2 环插值柱，半径铺到结构外扩边界的 40%~100%。
-     * 间隔 {6,4,3,2}、单簇数量随阶级线性放大 → 观感密度约每阶 ×2。
-     * 每 40t（L≥2 为 20t）补发 LARGE_SMOKE。非燃烧态（停等/待机）零粒子。
+     * 点缀烟（ritual-fx-overhaul D3）：火柱主体已网格化、客户端本地绘制，
+     * 服务端仅保留低频 LARGE_SMOKE 氛围烟柱（每 40t、L≥2 为 20t，随机选一台位），
+     * MUST NOT 再发射 FLAME/SMALL_FLAME 柱。非燃烧态（停等/待机）零点缀。
      */
-    private static void emitFlameParticles(ServerLevel level, BlockPos corePos,
-                                           RitualMatch match, RitualCoreBlockEntity core) {
+    private static void emitSmokeAccents(ServerLevel level, BlockPos corePos,
+                                          RitualMatch match, RitualCoreBlockEntity core) {
         if (!core.isBurning()) {
             return;
         }
         int l = Math.min(3, Math.max(0, match.level()));
-        int[] intervals = {6, 4, 3, 2};
-        var random = level.getRandom();
+        if (core.ageTicks() % (l >= 2 ? 20 : 40) != 0) {
+            return;
+        }
         List<BlockPos> pedestals = match.positionsOf('P');
-        double cx = corePos.getX() + 0.5D;
-        double cz = corePos.getZ() + 0.5D;
-        double baseY = corePos.getY() + 1.1D;
-        if (core.ageTicks() % (l >= 2 ? 20 : 40) == 0) {
-            BlockPos s = pedestals.isEmpty() ? corePos
-                    : pedestals.get(random.nextInt(pedestals.size()));
-            level.sendParticles(ParticleTypes.LARGE_SMOKE,
-                    s.getX() + 0.5D, s.getY() + 1.6D, s.getZ() + 0.5D,
-                    l >= 2 ? 2 : 1, 0.2D, 0.1D, 0.2D, 0.01D);
-        }
-        if (core.ageTicks() % intervals[l] != 0) {
-            return;
-        }
-        emitFlameColumn(level, cx, baseY, cz, 2 + 2 * l, 0.35D, random);
-        if (l < 1) {
-            return;
-        }
-        double avgPed = 0D;
-        for (BlockPos p : pedestals) {
-            avgPed += Math.hypot(p.getX() + 0.5D - cx, p.getZ() + 0.5D - cz);
-            emitFlameColumn(level, p.getX() + 0.5D, p.getY() + 1.1D, p.getZ() + 0.5D,
-                    2 + 2 * l, 0.3D, random);
-        }
-        if (l < 2) {
-            return;
-        }
-        double structR = 2D;
-        for (List<BlockPos> ps : match.keyedPositions().values()) {
-            for (BlockPos p : ps) {
-                structR = Math.max(structR,
-                        Math.hypot(p.getX() + 0.5D - cx, p.getZ() + 0.5D - cz));
-            }
-        }
-        double ringBase = Math.max(structR, avgPed / Math.max(1, pedestals.size()) * 1.2D);
-        for (int i = 0, points = 2 + 3 * l; i < points; i++) {
-            double angle = random.nextDouble() * Math.PI * 2D;
-            double radius = ringBase * (0.4D + random.nextDouble() * 0.6D);
-            emitFlameColumn(level, cx + Math.cos(angle) * radius, baseY,
-                    cz + Math.sin(angle) * radius, 3 + l, 0.25D, random);
-        }
-    }
-
-    /** 单点火柱：FLAME 主簇 + 半数 SMALL_FLAME 细簇，中心随机上浮。 */
-    private static void emitFlameColumn(ServerLevel level, double x, double y, double z,
-                                        int count, double spread, RandomSource random) {
-        level.sendParticles(ParticleTypes.FLAME,
-                x, y + random.nextDouble() * 0.4D, z,
-                count, spread, 0.1D, spread, 0.005D);
-        level.sendParticles(ParticleTypes.SMALL_FLAME,
-                x, y + random.nextDouble() * 0.4D, z,
-                (count + 1) / 2, spread, 0.14D, spread, 0.004D);
+        RandomSource random = level.getRandom();
+        BlockPos s = pedestals.isEmpty() ? corePos
+                : pedestals.get(random.nextInt(pedestals.size()));
+        level.sendParticles(ParticleTypes.LARGE_SMOKE,
+                s.getX() + 0.5D, s.getY() + 1.6D, s.getZ() + 0.5D,
+                l >= 2 ? 2 : 1, 0.2D, 0.1D, 0.2D, 0.01D);
     }
 }

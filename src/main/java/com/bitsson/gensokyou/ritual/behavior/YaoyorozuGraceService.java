@@ -9,7 +9,6 @@ import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipeMatcher;
 import com.bitsson.gensokyou.spirit.ModAttachments;
-import com.bitsson.gensokyou.spirit.SkillStateData;
 import com.bitsson.gensokyou.spirit.grace.GraceNumbers;
 import com.bitsson.gensokyou.spirit.grace.GraceService;
 import com.bitsson.gensokyou.spirit.SpiritPowerHelper;
@@ -45,10 +44,9 @@ public final class YaoyorozuGraceService {
     /** UiAction 按钮：列表位 0=启动仪式/取消，1=飞行惯性切换（按查看者注入）。 */
     public static final int ACTION_TRIGGER = 0;
     public static final int ACTION_INERTIA = 1;
-    /** 可交互信息行 actionId：10=采纳预览、11=保留原属性、20+槽位=轮换配装。 */
+    /** 可交互信息行 actionId：10=采纳预览、11=保留原属性。技能配装/切换不在本界面（spec 红线）。 */
     public static final int ACTION_REFINE_ACCEPT = 10;
     public static final int ACTION_REFINE_KEEP = 11;
-    public static final int ACTION_EQUIP_BASE = 20;
 
     /** effect 字段命名空间（解释权在行为侧）：{@code grace:advance_N} / {@code grace:refine_N}。 */
     public static final String EFFECT_NAMESPACE = "grace";
@@ -465,24 +463,6 @@ public final class YaoyorozuGraceService {
                 && viewer.getUUID().equals(session.initiator())) {
             core.clearGraceSession();
         }
-    }
-
-    /** 槽位轮换配装（点已解锁槽的配装行 → 轮换为下一张已学卡，原卡腾位互换）。 */
-    public static boolean cycleEquip(ServerPlayer viewer, int slot) {
-        int tier = GraceService.tierOf(viewer);
-        if (slot < 0 || slot >= SkillStateData.MAX_SLOTS || slot >= tier) {
-            return false;
-        }
-        SkillStateData state = ModAttachments.skills(viewer);
-        if (state.learned().isEmpty()) {
-            return false;
-        }
-        String current = state.equippedCard(slot);
-        List<String> learned = state.learned();
-        int from = current == null ? -1 : learned.indexOf(current);
-        String next = learned.get((from + 1 + learned.size()) % learned.size());
-        ModAttachments.setSkills(viewer, state.withEquipped(slot, next));
-        return true;
     }
 
     // ---- 查询/工具 ----

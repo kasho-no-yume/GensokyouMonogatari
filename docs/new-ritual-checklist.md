@@ -9,7 +9,8 @@
 > 已于 2026-09-09 全部删除，当前 rituals/ 与 ritual_recipes/ 为空；
 > 新设计一律直接按 SKILL 规范（0 基阶级）从零起。
 
-JEI 条目与祭品配方卡均由 rituals JSON 自动派生，无需改动任何集成代码。
+JEI 配方卡由 ritual_recipes JSON 自动派生，无需改动任何集成代码；结构查看唯一入口是**仪式构建器**
+（JEI 结构页签已于 grace-ux-and-jei-tabs 删除）。
 
 ## 1. 结构定义（必做）
 
@@ -33,6 +34,10 @@ JEI 条目与祭品配方卡均由 rituals JSON 自动派生，无需改动任�
   `max` **子集命中 + 取消耗总量最大者**（多余原料留台不动，倍数只造一份）；摆放顺序与台位无关
 - 歧义规则：同 pattern + mode + 归一化原料集合相同的两条配方，后者拒载；签名互为真包含时输出 WARN（不拒载）
 - 配方目录展示归 JEI，**仪式 GUI 不罗列可用配方**
+- **配方页签**：JEI 一仪式一页签；要独立页签需在 `GensokyouJeiPlugin.DEDICATED_TABS` 加一行
+  （不加也无需任何代码即可查看——配方自动落"仪式配方（其他）"兜底页签）
+- 语言键：界面 `gui.gensokyou.ritual.*`、提示 `msg.gensokyou.*`、配方名 `jei.gensokyou.recipe.<name>`、
+  效果名 `jei.<effect命名空间>.effect.<path>`——全部须双语落 lang，跑 `python tools/lang_audit.py` 验零缺失
 - **供品/产物一律走配方文件**。pattern 内的 `requirements` 字段 loader 仍兼容，
   但现行仪式均未使用，**新仪式默认不要写**（SKILL §1）
 
@@ -41,8 +46,7 @@ JEI 条目与祭品配方卡均由 rituals JSON 自动派生，无需改动任�
 - 仪式行为由程序侧按 pattern id 注册（`RitualBehaviors`）；设计者只写需求说明，
   不读代码。空手右键核心是否直连交互、启动前置、成型瞬间扩展点等期望行为，
   在需求说明中写清输入/输出即可
-- 语言键：界面 `gui.gensokyou.ritual.*`、提示 `msg.gensokyou.*`、JEI 效果名 `jei.gensokyou.effect.<文件名>`
-- 合成配方、战利品表、创造标签页等按需补齐
+- 语言键、配方页签等 JEI 相关事项见 §2；合成配方、战利品表、创造标签页等按需补齐
 
 ## 4. 游戏内采集工具
 
@@ -57,8 +61,6 @@ JEI 条目与祭品配方卡均由 rituals JSON 自动派生，无需改动任�
 
 - dedicated server 远程客户端的 JEI 图鉴为空（数据在服务端 JVM，未做网络同步），
   远程客户端空手右键核心也不会弹出界面（本地无 pattern 数据）
-- 结构视图为固定视口 + 拖拽/滚轮平移；多层级仪式在条目内以翻层控件查看各层（不拆分条目）
-- palette 标签无有效成员时，该格显示屏障方块并提示标签名
 
 ## 6. 多层级仪式
 

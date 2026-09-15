@@ -69,6 +69,23 @@ metadata:
   并覆写 `getUpdateTag`（内部 saveAdditional）与 `getUpdatePacket`（返回
   `Packet<ClientGamePacketListener>`，用 `ClientboundBlockEntityDataPacket.create(this)`）。
   范例：`block/entity/RitualPedestalBlockEntity.java`。
+- **仪式/方块表现为红线：服务端粒子 = 网络包**。`level.sendParticles` 在服务端是逐追踪玩家广播
+  `ClientboundLevelParticlesPacket`，持续表现（螺旋/光束等）成本极高——MUST 改为**客户端 BER 本地
+  `level.addParticle` + 仅变化同步最小渲染态**（仿 Mekanism currentScale：只下发渲染所需的标量/位掩码，
+  稳态零持续包）。范式：BE 持 `lastSentRenderState` 做相等比较，tick 尾 diff 才 `sendBlockUpdated`；
+  `getUpdateTag` 只回紧凑渲染态子 tag（NeoForge 1.21.1 默认 `getUpdateTag` 返回**裸** `new CompoundTag()`，
+  不含 id/pos/saveAdditional，客户端经 `loadCustomOnly` 直入 `loadAdditional`——自定义最小 payload 安全）。
+  区块首次追踪走 `getUpdateTag`，"载入即可见"免写钩子。BER 逐帧回调，按 tick 节奏发射须用
+  `level.getGameTime()` + per-pos 去重守卫（范例 `WeakHashMap`）。
+  范例：`ritual/RitualRenderState.java` + `client/renderer/RitualCoreRenderer.java`。
+- **JEI 页签无运行时注册**：MC1.21.1 的 JEI 19.44 `IRecipeManager` 只有
+  `addRecipes/hideRecipes/unhideRecipes/hideRecipeCategory/unhideRecipeCategory`，**没有 `addCategories`**
+  （javap 实测，勿信旧教程）→ 动态多页签的架构只能是"启动期静态注册全部页签 + 兜底页签收未登记项"；
+  `RecipeType` 以**实例身份**为键，必须经统一工厂缓存（每 uid 恰一实例），否则 add/hide 对不上号。
+  范例：`jei/GensokyouJeiPlugin.java`（DEDICATED_TABS + typeFor 缓存 + 空类 hide）。
+- **lang 覆盖回归**：新增任何玩家可见文本后跑 `python tools/lang_audit.py`（Java 字面量键↔lang 差集 +
+  动态前缀清单 + ritual_recipes/damage_type 数据键展开，零缺失退出码 0）；`translatableWithFallback`
+  的裸路径回退就是玩家眼里的"没翻译的英语"。
 - **交互入口**：持物走 `useItemOn`→ItemInteractionResult；空手走 `useWithoutItem`→InteractionResult。
   **主手 `useItemOn` 返回 `PASS_TO_DEFAULT_BLOCK_INTERACTION` 并不会直接跳到物品 `useOn`**——
   `ServerPlayerGameMode.useItemOn` 会先补调一次 `useWithoutItem`（消耗则终止；副手不补调），

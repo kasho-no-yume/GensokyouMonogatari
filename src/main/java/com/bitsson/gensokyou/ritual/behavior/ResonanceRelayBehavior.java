@@ -8,13 +8,12 @@ import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualCoreRegistry;
 import com.bitsson.gensokyou.ritual.RitualLink;
 import com.bitsson.gensokyou.ritual.RitualMatch;
+import com.bitsson.gensokyou.ritual.RitualRenderState;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionResult;
-import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -24,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.ToLongFunction;
 
 /**
  * 万象共鸣之仪：零缓存的无线灵力路由塔。
@@ -31,9 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * 本体容量恒 0（{@link RitualCoreBlockEntity#getCapacity()} 分派），链接（输入/输出两集）
  * 在核心 GUI 中选取：候选 = 共鸣范围内有对应 in/out 属性的成型仪式（不含其他共鸣塔）。
  * 每 tick 对（源, 汇）配对结算：预算 = min(源 out 份额, 汇 in 份额)/20（×1000 定点进位），
- * 端点速率在"当前仍需传输的对端"间平均分配，实搬受存量/空位截断；灵力直推不经己身。
- * 目标不成型/图案不符 = 静默删链；同图案升级保留。运行中塔身环绕紫色螺旋；
- * 仅实搬 tick 亮"塔顶→目标"光束（出绿/入青蓝）。
+ * 端点速率每结算周期经 per-period memo 各解析一次，实搬受存量/空位截断；灵力直推不经己身。
+ * 目标不成型/图案不符 = 静默删链；同图案升级保留。螺旋与光束表现已移交客户端
+ * （{@code RitualCoreRenderer} 据同步渲染态本地绘制；服务端仅按周期发布实搬通道掩码）。
  */
 public class ResonanceRelayBehavior implements RitualBehavior {
 
@@ -49,11 +49,6 @@ public class ResonanceRelayBehavior implements RitualBehavior {
     }
 
     private static final long FIXED = 1000L; // 定点倍率：每 tick 预算 ×20 秒化
-    private static final int[] SPIRAL_INTERVALS = {8, 6, 4, 2};
-    private static final int BEAM_MAX_POINTS = 48;
-    private static final Vector3f SPIRAL_PURPLE = new Vector3f(0.78F, 0.36F, 0.98F);
-    private static final Vector3f BEAM_IN = new Vector3f(0.30F, 0.75F, 0.95F);
-    private static final Vector3f BEAM_OUT = new Vector3f(0.30F, 0.85F, 0.35F);
     private static final int COLOR_IN = 0xFF4FC3F7;
     private static final int COLOR_OUT = 0xFF66BB6A;
     private static final int COLOR_NONE = 0xFF9E9E9E;
@@ -72,9 +67,6 @@ public class ResonanceRelayBehavior implements RitualBehavior {
     }
 
     private record PairKey(BlockPos source, BlockPos sink) {
-    }
-
-    private record Beam(BlockPos target, boolean out) {
     }
 
     // ---- 配额 / 范围公式（2 阶基值配置，逐级翻倍） ----
@@ -204,45 +196,44 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         if (linksChanged) {
             st.carry = new HashMap<>();
         }
-        // 仅在结算周期边界搬运（D7）；非边界 tick 无实搬，lastMoved 归零
+        // 仅在结算周期边界搬运（D7）；非边界 tick 无实搬，lastMoved 归零。
+        // 表现全部移交客户端 BER：此处只按周期发布"实搬通道"掩码（变化推送在 BE 侧收敛）。
         int period = Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get());
-        List<Beam> beams = List.of();
         if (level.getGameTime() % period == 0L) {
-            beams = routeTick(level, core, st, period);
+            core.setResoMovingMask(routeTick(level, core, st, period));
             // 展示取本周期精确实搬量的每秒化值（不做窗口差分 → 关/开界面无相位波动）
             st.flowRate = st.lastMovedPerTick * 20L / period;
             st.flowPeriod = Math.floorDiv(level.getGameTime(), period);
         } else {
             st.lastMovedPerTick = 0L;
         }
-        emitSpiral(level, corePos, match, core);
-        for (Beam beam : beams) {
-            emitBeam(level, corePos, core.structureMaxY(), beam.target(), beam.out());
-        }
         // GUI 快照刷新已收编至核心 BE 的统一 1Hz 心跳（含停机态），此处不再自推
     }
 
-    /** 一次路由结算；返回本 tick 实搬 >0 的通道（供光束）。 */
-    private List<Beam> routeTick(ServerLevel level, RitualCoreBlockEntity core, TowerState st,
-                                 int period) {
+    /** 一次路由结算；返回本周期实搬 >0 的通道位掩码（规范序：inLinks 再 outLinks）。 */
+    private long routeTick(ServerLevel level, RitualCoreBlockEntity core, TowerState st,
+                           int period) {
         st.lastMovedPerTick = 0L;
-        List<Beam> beams = new ArrayList<>();
-        List<RitualCoreBlockEntity> sources = needyEndpoints(level, core.inLinks(), true);
-        List<RitualCoreBlockEntity> sinks = needyEndpoints(level, core.outLinks(), false);
+        Map<BlockPos, Long> outRates = new HashMap<>();
+        Map<BlockPos, Long> inRates = new HashMap<>();
+        List<RitualCoreBlockEntity> sources = needyEndpoints(level, core.inLinks(), true, outRates);
+        List<RitualCoreBlockEntity> sinks = needyEndpoints(level, core.outLinks(), false, inRates);
         if (sources.isEmpty() || sinks.isEmpty()) {
-            return beams;
+            return 0L;
         }
+        Map<BlockPos, Integer> channels = channelIndexMap(core.inLinks(), core.outLinks());
+        long mask = 0L;
         // 每对预算仅为"建议值"（塔内把源速率在自家多汇间分摊、汇 in 速率在多源间分摊）；
         // 真正不超发由端点自身账本（extractRouted/receiveRouted）保证：
         // 多塔同 tick 争用同一端点额度 = 先到先得，次序 = 各路由 tick 顺序，与启停历史无关。
         for (RitualCoreBlockEntity source : sources) {
-            double sShare = outRateOf(level, source) / (double) sinks.size();
+            double sShare = outRates.get(source.getBlockPos()) / (double) sinks.size();
             for (RitualCoreBlockEntity sink : sinks) {
                 if (source.getStored() <= 0L) {
                     break;
                 }
                 double budgetPerSecond = Math.min(sShare,
-                        inRateOf(level, sink) / (double) sources.size());
+                        inRates.get(sink.getBlockPos()) / (double) sources.size());
                 long perPeriodUnits = (long) Math.floor(budgetPerSecond * FIXED * period / 20D);
                 PairKey key = new PairKey(source.getBlockPos(), sink.getBlockPos());
                 long allowance = perPeriodUnits + st.carry.getOrDefault(key, 0L);
@@ -261,14 +252,14 @@ public class ResonanceRelayBehavior implements RitualBehavior {
                 if (put > 0L) {
                     st.carry.put(key, Math.min(allowance - put * FIXED, carryCap));
                     st.lastMovedPerTick += put;
-                    beams.add(new Beam(sink.getBlockPos(), true));
-                    beams.add(new Beam(source.getBlockPos(), false));
+                    mask = setChannelBit(mask, channels, source.getBlockPos());
+                    mask = setChannelBit(mask, channels, sink.getBlockPos());
                 } else {
                     st.carry.put(key, Math.min(allowance, carryCap));
                 }
             }
         }
-        return beams;
+        return mask;
     }
 
     @Override
@@ -334,24 +325,65 @@ public class ResonanceRelayBehavior implements RitualBehavior {
                 .orElse(0L);
     }
 
-    /** 结算用端点集：链上解析 + 属性与供需现状过滤（needy 每 tick 现算）。 */
-    private static List<RitualCoreBlockEntity> needyEndpoints(ServerLevel level, List<RitualLink> links,
-                                                              boolean asSource) {
+    /**
+     * 结算用端点集：链上解析 + 属性与供需现状过滤（needy 每结算周期现算）。
+     * 速率经 rateCache per-period memo——每端点每周期至多解析一次（值与逐次重扫逐位一致）。
+     */
+    private static List<RitualCoreBlockEntity> needyEndpoints(ServerLevel level,
+                                                              List<RitualLink> links,
+                                                              boolean asSource,
+                                                              Map<BlockPos, Long> rateCache) {
         List<RitualCoreBlockEntity> out = new ArrayList<>();
         for (RitualLink link : links) {
             RitualCoreBlockEntity core = formedAt(level, link);
             if (core == null) {
                 continue;
             }
-            if (asSource && outRateOf(level, core) > 0L && core.getStored() > 0L
+            BlockPos pos = core.getBlockPos();
+            long rate = memoizedRate(rateCache, pos,
+                    p -> asSource ? outRateOf(level, core) : inRateOf(level, core));
+            if (asSource && rate > 0L && core.getStored() > 0L
                     && !core.isPattern(RitualBehaviors.RESONANCE)) {
                 out.add(core);
-            } else if (!asSource && inRateOf(level, core) > 0L
-                    && core.getStored() < core.getCapacity()) {
+            } else if (!asSource && rate > 0L && core.getStored() < core.getCapacity()) {
                 out.add(core);
             }
         }
         return out;
+    }
+
+    /** per-period 速率 memo（纯缓存）：miss 时经 resolver 解析一次并回填。包私有：单测直测。 */
+    static long memoizedRate(Map<BlockPos, Long> cache, BlockPos key,
+                             ToLongFunction<BlockPos> resolver) {
+        Long hit = cache.get(key);
+        if (hit != null) {
+            return hit;
+        }
+        long value = resolver.applyAsLong(key);
+        cache.put(key, value);
+        return value;
+    }
+
+    /** 通道规范序索引表：inLinks 在前、outLinks 接续（与渲染态链接数组同序）。 */
+    static Map<BlockPos, Integer> channelIndexMap(List<RitualLink> in, List<RitualLink> out) {
+        Map<BlockPos, Integer> map = new HashMap<>();
+        int index = 0;
+        for (RitualLink link : in) {
+            map.putIfAbsent(link.corePos(), index++);
+        }
+        for (RitualLink link : out) {
+            map.putIfAbsent(link.corePos(), index++);
+        }
+        return map;
+    }
+
+    /** 置位一条通道；未知坐标或越出 long 位宽（防御，配额翻倍越 64 时改 long[]）则原样返回。 */
+    static long setChannelBit(long mask, Map<BlockPos, Integer> channels, BlockPos pos) {
+        Integer index = channels.get(pos);
+        if (index == null || index >= RitualRenderState.MAX_CHANNELS) {
+            return mask;
+        }
+        return mask | (1L << index);
     }
 
     /** 候选行集合：范围内有 in 或 out 属性的非共鸣成型核心 ∪ 已链接目标，确定序（距离→y,z,x）。 */
@@ -520,53 +552,5 @@ public class ResonanceRelayBehavior implements RitualBehavior {
 
     private static void resetState(BlockPos corePos) {
         TOWERS.remove(corePos);
-    }
-
-    // ---- 视觉 ----
-
-    /** 运行态紫色螺旋：绕核心纵轴、覆盖结构包围盒高度，间隔 {8,6,4,2}、单帧量随阶级翻倍。 */
-    private static void emitSpiral(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                   RitualCoreBlockEntity core) {
-        int idx = Mth.clamp(match.level() - 2, 0, SPIRAL_INTERVALS.length - 1);
-        if (core.ageTicks() % SPIRAL_INTERVALS[idx] != 0) {
-            return;
-        }
-        double cx = corePos.getX() + 0.5D;
-        double cz = corePos.getZ() + 0.5D;
-        double minY = core.structureMinY();
-        double maxY = Math.max(minY + 1, core.structureMaxY() + 1D);
-        int count = 8 << idx;
-        double age = core.ageTicks() * 0.05D;
-        DustParticleOptions dust = new DustParticleOptions(SPIRAL_PURPLE, 1.1F);
-        var random = level.getRandom();
-        for (int i = 0; i < count; i++) {
-            double u = i / (double) count;
-            double angle = u * Math.PI * 5D + age;
-            double radiusNow = 3.0D + random.nextDouble() * 0.6D;
-            level.sendParticles(dust,
-                    cx + Math.cos(angle) * radiusNow,
-                    Mth.lerp(u, minY, maxY) + random.nextDouble() * 0.5D,
-                    cz + Math.sin(angle) * radiusNow,
-                    1, 0.0D, 0.0D, 0.0D, 0.0D);
-        }
-    }
-
-    /** 实搬通道光束：塔顶→目标核心上方连线，密度随距离自动降采样（≤48 粒/束）。 */
-    private static void emitBeam(ServerLevel level, BlockPos corePos, int topY,
-                                 BlockPos target, boolean out) {
-        double sx = corePos.getX() + 0.5D;
-        double sy = topY + 1.2D;
-        double sz = corePos.getZ() + 0.5D;
-        double ex = target.getX() + 0.5D;
-        double ey = target.getY() + 1.2D;
-        double ez = target.getZ() + 0.5D;
-        double dist = Math.sqrt((ex - sx) * (ex - sx) + (ey - sy) * (ey - sy) + (ez - sz) * (ez - sz));
-        int points = Mth.clamp((int) (dist / 2D), 4, BEAM_MAX_POINTS);
-        DustParticleOptions dust = new DustParticleOptions(out ? BEAM_OUT : BEAM_IN, 1.3F);
-        for (int i = 1; i <= points; i++) {
-            double t = (double) i / (points + 1);
-            level.sendParticles(dust, Mth.lerp(t, sx, ex), Mth.lerp(t, sy, ey),
-                    Mth.lerp(t, sz, ez), 1, 0.04D, 0.04D, 0.04D, 0.0D);
-        }
     }
 }
