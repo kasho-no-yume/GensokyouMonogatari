@@ -37,6 +37,16 @@ public interface RitualBehavior {
     }
 
     /**
+     * 按查看者注入的自定义操作（默认转调无查看者版）。
+     * 快照本就按玩家点对点组装，需要"按人显示/置灰"的行为覆写本重载（如神恩惯性开关）。
+     */
+    default List<UiAction> uiActions(ServerLevel level, BlockPos corePos, RitualMatch match,
+                                      RitualCoreBlockEntity core,
+                                      @javax.annotation.Nullable ServerPlayer viewer) {
+        return uiActions(level, corePos, match, core);
+    }
+
+    /**
      * 信息区内容行（随 RitualInfoPayload 推送，客户端照画）。
      * 默认实现 = 通用清单（祭品 ✓✗ + 配方 ✓✗/缺料摘要）；
      * 行为可覆写追加自定义行（燃烧行/产出速率等），可调 {@code defaultUiInfo} 复用通用清单。
@@ -44,6 +54,13 @@ public interface RitualBehavior {
     default List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
                                   RitualCoreBlockEntity core) {
         return defaultUiInfo(level, corePos, match, core);
+    }
+
+    /** 按查看者组装信息行（默认转调无查看者版）；"查看者本人属性"类需求覆写本重载。 */
+    default List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
+                                  RitualCoreBlockEntity core,
+                                  @javax.annotation.Nullable ServerPlayer viewer) {
+        return uiInfo(level, corePos, match, core);
     }
 
     /** 通用信息行：祭品核对清单 + 当前激活配方标记（配方目录不在 GUI 展示，归 JEI）。 */
@@ -126,6 +143,14 @@ public interface RitualBehavior {
     default InteractionResult onStart(ServerLevel level, BlockPos corePos, RitualMatch match,
                                       RitualCoreBlockEntity core, ServerPlayer player) {
         return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * true = 本仪式启动唯一走自定义 UiAction 会话（造化/神恩）：
+     * 通用 start()/stop() 与启停按钮通道对其整体让位，杜绝绕会话直接执行配方。
+     */
+    default boolean handlesStartViaUiAction() {
+        return false;
     }
 
     /**

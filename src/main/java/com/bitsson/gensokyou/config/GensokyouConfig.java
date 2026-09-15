@@ -44,11 +44,7 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue PROTECT_REDUCTION_NUMERATOR;
     public static final ModConfigSpec.DoubleValue PROTECT_REDUCTION_DENOMINATOR;
 
-    public static final ModConfigSpec.DoubleValue BASE_MAX_SP;
     public static final ModConfigSpec.DoubleValue BASE_REGEN_PER_SECOND;
-    public static final ModConfigSpec.DoubleValue MAX_SP_GAIN_PER_TEMPER;
-    public static final ModConfigSpec.DoubleValue BASE_SPIRIT_DAMAGE;
-    public static final ModConfigSpec.DoubleValue SPIRIT_DAMAGE_PER_TEMPER;
     public static final ModConfigSpec.IntValue RESONANCE_BASE_IN_QUOTA;
     public static final ModConfigSpec.IntValue RESONANCE_BASE_OUT_QUOTA;
     public static final ModConfigSpec.IntValue RESONANCE_BASE_RADIUS;
@@ -78,6 +74,18 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue SKILL_MUSOU_COOLDOWN;
     public static final ModConfigSpec.IntValue SKILL_ICICLE_SP_COST;
     public static final ModConfigSpec.IntValue SKILL_ICICLE_COOLDOWN;
+
+    // ---- superhuman-temper：八百万神恩（玩家 0-5 阶级进阶/洗练/飞行）----
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> GRACE_TIER_TABLE;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> GRACE_FLIGHT_COST_PCT;
+    public static final ModConfigSpec.IntValue GRACE_PERFORM_TICKS;
+    public static final ModConfigSpec.IntValue GRACE_SPIRIT_IN_RATE;
+    public static final ModConfigSpec.DoubleValue GRACE_PERFORM_DAMAGE_PER_SECOND;
+    public static final ModConfigSpec.DoubleValue GRACE_PERFORM_HEAL_PER_SECOND;
+    public static final ModConfigSpec.IntValue GRACE_PERFORM_LIGHTNING_INTERVAL;
+    public static final ModConfigSpec.IntValue GRACE_PERFORM_LIGHT_COUNT;
+    public static final ModConfigSpec.IntValue GRACE_PERFORM_MAX_DISTANCE;
+    public static final ModConfigSpec.IntValue GRACE_PRESENCE_RADIUS;
 
     // ---- player-attribute-suite：属性基准/封顶/受弹管线/汲取 ----
     public static final ModConfigSpec.DoubleValue ATTR_BASE_HEALTH_BONUS;
@@ -217,13 +225,7 @@ public class GensokyouConfig {
         BUILDER.pop();
 
         BUILDER.push("power").comment("Spirit power pool & infrastructure");
-        BASE_MAX_SP = BUILDER.defineInRange("baseMaxSP", 100D, 1D, 1000000D);
         BASE_REGEN_PER_SECOND = BUILDER.defineInRange("baseRegenPerSecond", 2D, 0D, 1000D);
-        MAX_SP_GAIN_PER_TEMPER = BUILDER.defineInRange("maxSPGainPerTemper", 25D, 1D, 10000D);
-        BUILDER.push("spiritDamage").comment("Player spirit damage attribute (base; debug-settable per level)");
-        BASE_SPIRIT_DAMAGE = BUILDER.defineInRange("baseSpiritDamage", 5D, 0D, 1000000D);
-        SPIRIT_DAMAGE_PER_TEMPER = BUILDER.defineInRange("spiritDamagePerTemper", 1D, 0D, 1000000D);
-        BUILDER.pop();
         RESONANCE_BASE_IN_QUOTA = BUILDER.comment("resonance relay: base input-link quota at tier 2, doubled per level").defineInRange("resonanceBaseInQuota", 1, 1, 1024);
         RESONANCE_BASE_OUT_QUOTA = BUILDER.comment("resonance relay: base output-link quota at tier 2, doubled per level").defineInRange("resonanceBaseOutQuota", 4, 1, 1024);
         RESONANCE_BASE_RADIUS = BUILDER.comment("resonance relay: base XZ radius at tier 2, doubled per level (Y unlimited, same dimension)").defineInRange("resonanceBaseRadius", 10, 1, 1024);
@@ -234,7 +236,7 @@ public class GensokyouConfig {
         ICICLE_COUNT = BUILDER.defineInRange("icicleCardCount", 5, 1, 32);
         ICICLE_SPEED = BUILDER.defineInRange("icicleCardSpeed", 0.9D, 0.05D, 4D);
         BUILDER.push("barrier");
-        BARRIER_SP_COST = BUILDER.comment("One-time spirit power cost to break the barrier").defineInRange("barrierSpCost", 2000, 0, 100000000);
+        BARRIER_SP_COST = BUILDER.comment("One-time spirit power cost to break the barrier").defineInRange("barrierSpCost", 8000, 0, 100000000);
         BUILDER.pop();
         BUILDER.push("ritual");
         WAND_MAX_DIMENSION = BUILDER.comment("Max AABB dimension (blocks) the ritual wand can capture").defineInRange("wandMaxDimension", 16, 1, 64);
@@ -254,10 +256,61 @@ public class GensokyouConfig {
         ZAOHUA_RISING_PARTICLES_PER_SEC = BUILDER.comment("Zaohua rite: purple rising particles generated across the structure per second during a craft").defineInRange("zaohuaRisingParticlesPerSec", 240, 0, 100000);
         BUILDER.pop();
         BUILDER.push("skills").comment("Learned spell card slots");
-        SKILL_MUSOU_SP_COST = BUILDER.defineInRange("musouFuuinSpCost", 30, 0, 10000);
+        SKILL_MUSOU_SP_COST = BUILDER.defineInRange("musouFuuinSpCost", 120, 0, 10000);
         SKILL_MUSOU_COOLDOWN = BUILDER.defineInRange("musouFuuinCooldownTicks", 200, 1, 120000);
-        SKILL_ICICLE_SP_COST = BUILDER.defineInRange("icicleSpCost", 15, 0, 10000);
+        SKILL_ICICLE_SP_COST = BUILDER.defineInRange("icicleSpCost", 60, 0, 10000);
         SKILL_ICICLE_COOLDOWN = BUILDER.defineInRange("icicleCooldownTicks", 100, 1, 120000);
+        BUILDER.pop();
+
+        BUILDER.push("grace").comment("superhuman-temper: yaoorozu no megumi advancement/refinement/flight");
+        GRACE_TIER_TABLE = BUILDER.comment("Per-tier attribute increments rolled on advancement, entries 'tier,key,base,roll'"
+                        + " (roll fraction: final = base*(1±roll); core four keys 0.15, others 0.3)."
+                        + " max_spirit/spirit_power write the pool ledger; the rest go to permanent contributions grace_tier_N")
+                .defineListAllowEmpty("graceTierTable",
+                        List.of(
+                                "1,max_spirit,200,0.15", "1,spirit_power,8,0.15", "1,spirit_regen_rate,2,0.15",
+                                "1,danmaku_reduce,0.10,0.15",
+                                "1,health_bonus,6,0.3", "1,move_speed_bonus,0.04,0.3", "1,graze_chance,0.05,0.3",
+                                "1,danmaku_resist,2,0.3", "1,tenacity,0.05,0.3", "1,crit_chance,0.04,0.3",
+                                "1,crit_damage,0.15,0.3", "1,spell_amp,0.05,0.3", "1,spell_cdr,0.04,0.3",
+                                "1,buff_extend,0.05,0.3", "1,spirit_leech_rate,0.02,0.3",
+                                "2,max_spirit,400,0.15", "2,spirit_power,16,0.15", "2,spirit_regen_rate,8,0.15",
+                                "2,danmaku_reduce,0.12,0.15",
+                                "2,health_bonus,12,0.3", "2,move_speed_bonus,0.06,0.3", "2,graze_chance,0.06,0.3",
+                                "2,danmaku_resist,4,0.3", "2,tenacity,0.08,0.3", "2,crit_chance,0.06,0.3",
+                                "2,crit_damage,0.25,0.3", "2,spell_amp,0.10,0.3", "2,spell_cdr,0.08,0.3",
+                                "2,buff_extend,0.10,0.3", "2,spirit_leech_rate,0.04,0.3",
+                                "3,max_spirit,1000,0.15", "3,spirit_power,40,0.15", "3,spirit_regen_rate,20,0.15",
+                                "3,danmaku_reduce,0.16,0.15",
+                                "3,health_bonus,20,0.3", "3,move_speed_bonus,0.08,0.3", "3,graze_chance,0.08,0.3",
+                                "3,danmaku_resist,8,0.3", "3,tenacity,0.12,0.3", "3,crit_chance,0.09,0.3",
+                                "3,crit_damage,0.40,0.3", "3,spell_amp,0.20,0.3", "3,spell_cdr,0.12,0.3",
+                                "3,buff_extend,0.15,0.3", "3,spirit_leech_rate,0.08,0.3",
+                                "4,max_spirit,2400,0.15", "4,spirit_power,96,0.15", "4,spirit_regen_rate,48,0.15",
+                                "4,danmaku_reduce,0.17,0.15",
+                                "4,health_bonus,30,0.3", "4,move_speed_bonus,0.10,0.3", "4,graze_chance,0.10,0.3",
+                                "4,danmaku_resist,14,0.3", "4,tenacity,0.17,0.3", "4,crit_chance,0.12,0.3",
+                                "4,crit_damage,0.60,0.3", "4,spell_amp,0.35,0.3", "4,spell_cdr,0.16,0.3",
+                                "4,buff_extend,0.20,0.3", "4,spirit_leech_rate,0.15,0.3",
+                                "5,max_spirit,6000,0.15", "5,spirit_power,240,0.15", "5,spirit_regen_rate,120,0.15",
+                                "5,danmaku_reduce,0.17,0.15",
+                                "5,health_bonus,45,0.3", "5,move_speed_bonus,0.15,0.3", "5,graze_chance,0.13,0.3",
+                                "5,danmaku_resist,22,0.3", "5,tenacity,0.23,0.3", "5,crit_chance,0.17,0.3",
+                                "5,crit_damage,0.90,0.3", "5,spell_amp,0.60,0.3", "5,spell_cdr,0.20,0.3",
+                                "5,buff_extend,0.30,0.3", "5,spirit_leech_rate,0.25,0.3"),
+                        o -> o instanceof String);
+        GRACE_FLIGHT_COST_PCT = BUILDER.comment("Flight spirit drain per second, percent of max spirit, index = tier-1"
+                        + " (5/2/1/0.5/0). Tier 5 flies for free.")
+                .defineListAllowEmpty("graceFlightCostPct",
+                        List.of(5D, 2D, 1D, 0.5D, 0D), o -> o instanceof Double);
+        GRACE_PERFORM_TICKS = BUILDER.comment("Grace rite performance length in ticks (100 = 5s)").defineInRange("gracePerformTicks", 100, 20, 2400);
+        GRACE_SPIRIT_IN_RATE = BUILDER.comment("Grace rite PAYING intake rate per second (large: the cache fills the moment supply exists)").defineInRange("graceSpiritInRate", 20000, 1, Integer.MAX_VALUE);
+        GRACE_PERFORM_DAMAGE_PER_SECOND = BUILDER.comment("Scripted self-damage per second during the performance (flat hearts/2)").defineInRange("gracePerformDamagePerSecond", 3D, 0D, 20D);
+        GRACE_PERFORM_HEAL_PER_SECOND = BUILDER.comment("Scripted heal per second during the performance (must far exceed damage)").defineInRange("gracePerformHealPerSecond", 8D, 0D, 64D);
+        GRACE_PERFORM_LIGHTNING_INTERVAL = BUILDER.comment("Ticks between cosmetic lightning strikes").defineInRange("gracePerformLightningInterval", 15, 1, 200);
+        GRACE_PERFORM_LIGHT_COUNT = BUILDER.comment("Cosmetic lightning bolts per strike wave").defineInRange("gracePerformLightCount", 2, 1, 16);
+        GRACE_PERFORM_MAX_DISTANCE = BUILDER.comment("Initiator leaves this radius around the core during the performance -> session ends immediately").defineInRange("gracePerformMaxDistance", 8, 2, 64);
+        GRACE_PRESENCE_RADIUS = BUILDER.comment("Initiator must stay within this radius of the core while PAYING for the session to proceed").defineInRange("gracePresenceRadius", 8, 1, 64);
         BUILDER.pop();
 
         BUILDER.push("playerAttributes").comment("player-attribute-suite: bases, caps, incoming pipeline, leech");
@@ -307,13 +360,13 @@ public class GensokyouConfig {
                 .defineInRange("runeAffixCount", 2, 1, 6);
         BUILDER.push("coreSphere");
         CORE_SPHERE_MULT = BUILDER.defineInRange("coreBaseMult", 1.0D, 0D, 100D);
-        CORE_SPHERE_SP_COST = BUILDER.defineInRange("spiritCost", 2, 0, 10000);
+        CORE_SPHERE_SP_COST = BUILDER.defineInRange("spiritCost", 8, 0, 10000);
         CORE_SPHERE_RATE = BUILDER.comment("Attack cooldown ticks per shot").defineInRange("attackRateTicks", 8, 1, 12000);
         CORE_SPHERE_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
         BUILDER.pop();
         BUILDER.push("coreShotgun");
         CORE_SHOTGUN_MULT = BUILDER.defineInRange("coreBaseMult", 0.45D, 0D, 100D);
-        CORE_SHOTGUN_SP_COST = BUILDER.defineInRange("spiritCost", 8, 0, 10000);
+        CORE_SHOTGUN_SP_COST = BUILDER.defineInRange("spiritCost", 32, 0, 10000);
         CORE_SHOTGUN_RATE = BUILDER.defineInRange("attackRateTicks", 24, 1, 12000);
         CORE_SHOTGUN_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
         CORE_SHOTGUN_COUNT = BUILDER.defineInRange("pelletCount", 5, 1, 32);
@@ -323,7 +376,7 @@ public class GensokyouConfig {
         BUILDER.pop();
         BUILDER.push("coreKnife");
         CORE_KNIFE_MULT = BUILDER.defineInRange("coreBaseMult", 1.4D, 0D, 100D);
-        CORE_KNIFE_SP_COST = BUILDER.defineInRange("spiritCost", 4, 0, 10000);
+        CORE_KNIFE_SP_COST = BUILDER.defineInRange("spiritCost", 16, 0, 10000);
         CORE_KNIFE_RATE = BUILDER.defineInRange("attackRateTicks", 12, 1, 12000);
         CORE_KNIFE_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
         CORE_KNIFE_SPEED = BUILDER.defineInRange("projectileSpeed", 1.2D, 0.05D, 4D);
@@ -332,7 +385,7 @@ public class GensokyouConfig {
         BUILDER.pop();
         BUILDER.push("coreTalisman");
         CORE_TALISMAN_MULT = BUILDER.defineInRange("coreBaseMult", 1.2D, 0D, 100D);
-        CORE_TALISMAN_SP_COST = BUILDER.defineInRange("spiritCost", 6, 0, 10000);
+        CORE_TALISMAN_SP_COST = BUILDER.defineInRange("spiritCost", 24, 0, 10000);
         CORE_TALISMAN_RATE = BUILDER.defineInRange("attackRateTicks", 16, 1, 12000);
         CORE_TALISMAN_REQ_TIER = BUILDER.defineInRange("requiredTier", 2, 1, 10);
         CORE_TALISMAN_SPEED = BUILDER.defineInRange("projectileSpeed", 0.7D, 0.05D, 4D);
@@ -340,7 +393,7 @@ public class GensokyouConfig {
         BUILDER.pop();
         BUILDER.push("coreLaserGun");
         CORE_LASER_GUN_MULT = BUILDER.defineInRange("coreBaseMult", 0.5D, 0D, 100D);
-        CORE_LASER_GUN_SP_COST = BUILDER.defineInRange("spiritCost", 3, 0, 10000);
+        CORE_LASER_GUN_SP_COST = BUILDER.defineInRange("spiritCost", 12, 0, 10000);
         CORE_LASER_GUN_RATE = BUILDER.defineInRange("attackRateTicks", 10, 1, 12000);
         CORE_LASER_GUN_REQ_TIER = BUILDER.defineInRange("requiredTier", 2, 1, 10);
         CORE_LASER_GUN_LENGTH = BUILDER.defineInRange("maxLength", 16D, 1D, 128D);
@@ -350,7 +403,7 @@ public class GensokyouConfig {
         BUILDER.pop();
         BUILDER.push("coreLaserCannon");
         CORE_LASER_CANNON_MULT = BUILDER.defineInRange("coreBaseMult", 2.5D, 0D, 100D);
-        CORE_LASER_CANNON_SP_COST = BUILDER.defineInRange("spiritCost", 30, 0, 10000);
+        CORE_LASER_CANNON_SP_COST = BUILDER.defineInRange("spiritCost", 120, 0, 10000);
         CORE_LASER_CANNON_RATE = BUILDER.defineInRange("attackRateTicks", 60, 1, 12000);
         CORE_LASER_CANNON_REQ_TIER = BUILDER.defineInRange("requiredTier", 3, 1, 10);
         CORE_LASER_CANNON_LENGTH = BUILDER.defineInRange("maxLength", 40D, 1D, 128D);

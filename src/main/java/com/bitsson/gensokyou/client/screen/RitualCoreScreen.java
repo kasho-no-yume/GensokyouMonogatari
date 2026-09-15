@@ -321,6 +321,10 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
             };
             text = Component.translatable(stateKey)
                     .append(Component.translatable(line.textKey()));
+        } else if (line.controlKind() == InfoLine.CONTROL_ATTR) {
+            // 属性名客户端本地化（服务端只有 key），值字符串已由行为格式化
+            text = Component.translatable(line.textKey())
+                    .append(Component.literal(": " + (line.textArgs().length > 0 ? line.textArgs()[0] : "")));
         } else if (!line.textKey().isEmpty()) {
             text = Component.translatable(line.textKey(), (Object[]) line.textArgs());
         } else {

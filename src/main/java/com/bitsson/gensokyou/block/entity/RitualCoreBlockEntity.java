@@ -70,6 +70,15 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private static final String TAG_CRAFT_RECIPE = "CraftRecipe";
     private static final String TAG_CRAFT_ID = "Id";
     private static final String TAG_LAST_POWERED = "LastPowered";
+    private static final String TAG_GRACE_PHASE = "GracePhase";
+    private static final String TAG_GRACE_SESSION = "GraceSession";
+    private static final String TAG_GRACE_COLLECTED = "GraceCollected";
+    private static final String TAG_GRACE_COST = "GraceCost";
+    private static final String TAG_GRACE_TICKS = "GraceTicks";
+    private static final String TAG_GRACE_TIER = "GraceTier";
+    private static final String TAG_GRACE_REFINE = "GraceRefine";
+    private static final String TAG_GRACE_RECIPE = "GraceRecipe";
+    private static final String TAG_GRACE_INITIATOR = "GraceInitiator";
 
     /** 造化合成会话阶段（一次性合成型仪式共用存储；推进逻辑在行为侧）。 */
     public enum CraftPhase { IDLE, PAYING, FLIGHT }
@@ -167,6 +176,12 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 // 不启动不缓存灵力：空闲容量 0（路由选不中、注不进）；
                 // 会话期容量 = 锁定配方 spCost（受灵缓冲上界恰为本次所需）
                 return craft.phase() == CraftPhase.IDLE ? 0L : craft.cost();
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.KAMI_NO_MEGUMI)) {
+                // 神恩同造化口径：不启动不缓存；会话（聚灵/演出）容量 = 锁定配方 spCost
+                GracePhase phase = grace.phase();
+                return phase == GracePhase.PAYING || phase == GracePhase.PERFORM
+                        ? grace.cost() : 0L;
             }
         }
         return DEFAULT_CORE_CAPACITY;
@@ -501,6 +516,251 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
     }
 
+    // ---- 八百万神恩会话（yaoyorozu-grace-ritual）：存储与跃迁，推进逻辑在行为侧 ----
+
+    /** 神恩会话阶段：IDLE→PAYING（聚灵）→PERFORM（演出，效果已入账）→[REVIEW（洗练预览待决）]→IDLE。 */
+    public enum GracePhase { IDLE, PAYING, PERFORM, REVIEW }
+
+    /** 会话存储（世界无关纯逻辑，可单测）；推进逻辑在 YaoyorozuGraceService。 */
+    public static final class GraceSession {
+        private GracePhase phase = GracePhase.IDLE;
+        private long sessionId;
+        private @Nullable ResourceLocation recipeId;
+        private @Nullable java.util.UUID initiator;
+        /** 配方阶级（effect 的 N；1..5）。 */
+        private int tier;
+        /** true=洗练配方；false=进阶配方。 */
+        private boolean refine;
+        private long collected;
+        /** 会话容量口径：锁定配方的 spCost；空闲为 0（不启动不缓存灵力）。 */
+        private long cost;
+        private int ticks;
+        /** 洗练预览（当场制：不入 NBT，重启/清退即作废）。 */
+        private @Nullable com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll pendingRefine;
+
+        public GracePhase phase() {
+            return phase;
+        }
+
+        public long sessionId() {
+            return sessionId;
+        }
+
+        public @Nullable ResourceLocation recipeId() {
+            return recipeId;
+        }
+
+        public @Nullable java.util.UUID initiator() {
+            return initiator;
+        }
+
+        public int tier() {
+            return tier;
+        }
+
+        public boolean refine() {
+            return refine;
+        }
+
+        public long collected() {
+            return collected;
+        }
+
+        public long cost() {
+            return cost;
+        }
+
+        public int ticks() {
+            return ticks;
+        }
+
+        public @Nullable com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll pendingRefine() {
+            return pendingRefine;
+        }
+
+        /** 启动新会话：换代、锁配方/阶级/类型与 initiator，进聚灵；返回新会话 id。 */
+        public long begin(ResourceLocation recipe, long spCost, java.util.UUID who,
+                          int recipeTier, boolean isRefine) {
+            sessionId++;
+            recipeId = recipe;
+            cost = spCost;
+            initiator = who;
+            tier = recipeTier;
+            refine = isRefine;
+            collected = 0L;
+            ticks = 0;
+            phase = GracePhase.PAYING;
+            pendingRefine = null;
+            return sessionId;
+        }
+
+        public void addCollected(long amount) {
+            collected += amount;
+        }
+
+        /** 聚灵足额 → 效果已 apply，进入演出。 */
+        public void enterPerform() {
+            phase = GracePhase.PERFORM;
+            ticks = 0;
+        }
+
+        public void advancePerform() {
+            ticks++;
+        }
+
+        /** 演出结束（洗练线）：预览挂会话等待当场决策。 */
+        public void enterReview(com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll roll) {
+            pendingRefine = roll;
+            phase = GracePhase.REVIEW;
+            ticks = 0;
+        }
+
+        /** 洗练 roll 在 apply 瞬间挂上（跨演出期携带；REVIEW 提升时转正）。 */
+        public void stageRefine(com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll roll) {
+            pendingRefine = roll;
+        }
+
+        /** 演出结束升为待决策态（保留 staged 预览）。 */
+        public void promoteReview() {
+            phase = GracePhase.REVIEW;
+            ticks = 0;
+        }
+
+        public void clearPendingRefine() {
+            pendingRefine = null;
+            if (phase == GracePhase.REVIEW) {
+                phase = GracePhase.IDLE;
+            }
+        }
+
+        /** 清退回空闲（正常收尾/中止/取消共用）。 */
+        public void clear() {
+            phase = GracePhase.IDLE;
+            recipeId = null;
+            initiator = null;
+            tier = 0;
+            refine = false;
+            collected = 0L;
+            cost = 0L;
+            ticks = 0;
+            pendingRefine = null;
+        }
+
+        public void save(CompoundTag tag) {
+            if (phase == GracePhase.IDLE || phase == GracePhase.REVIEW) {
+                return; // 预览当场制：REVIEW 不持久化（重启即作废）
+            }
+            tag.putString(TAG_GRACE_PHASE, phase.name());
+            tag.putLong(TAG_GRACE_SESSION, sessionId);
+            tag.putLong(TAG_GRACE_COLLECTED, collected);
+            tag.putLong(TAG_GRACE_COST, cost);
+            tag.putInt(TAG_GRACE_TICKS, ticks);
+            tag.putInt(TAG_GRACE_TIER, tier);
+            tag.putBoolean(TAG_GRACE_REFINE, refine);
+            if (recipeId != null) {
+                tag.putString(TAG_GRACE_RECIPE, recipeId.toString());
+            }
+            if (initiator != null) {
+                tag.putUUID(TAG_GRACE_INITIATOR, initiator);
+            }
+        }
+
+        /** 读档：仅 PAYING 复活（initiator 离线时由服务侧首 tick 取消退还）；其余脏态清退。 */
+        public void load(CompoundTag tag) {
+            if (!tag.contains(TAG_GRACE_PHASE)) {
+                return;
+            }
+            try {
+                phase = GracePhase.valueOf(tag.getString(TAG_GRACE_PHASE));
+            } catch (IllegalArgumentException exception) {
+                phase = GracePhase.IDLE;
+            }
+            if (phase != GracePhase.PAYING) {
+                clear();
+                return;
+            }
+            sessionId = tag.getLong(TAG_GRACE_SESSION);
+            collected = tag.getLong(TAG_GRACE_COLLECTED);
+            cost = tag.getLong(TAG_GRACE_COST);
+            ticks = tag.getInt(TAG_GRACE_TICKS);
+            tier = tag.getInt(TAG_GRACE_TIER);
+            refine = tag.getBoolean(TAG_GRACE_REFINE);
+            recipeId = tag.contains(TAG_GRACE_RECIPE)
+                    ? ResourceLocation.tryParse(tag.getString(TAG_GRACE_RECIPE)) : null;
+            initiator = tag.hasUUID(TAG_GRACE_INITIATOR) ? tag.getUUID(TAG_GRACE_INITIATOR) : null;
+            pendingRefine = null;
+        }
+    }
+
+    private final GraceSession grace = new GraceSession();
+
+    public GraceSession graceSession() {
+        return grace;
+    }
+
+    public GracePhase gracePhase() {
+        return grace.phase();
+    }
+
+    public long beginGraceSession(ResourceLocation recipeId, long spCost, java.util.UUID who,
+                                  int tier, boolean refine) {
+        long id = grace.begin(recipeId, spCost, who, tier, refine);
+        activeRecipeId = recipeId;
+        setChanged();
+        return id;
+    }
+
+    public void addGraceCollected(long amount) {
+        grace.addCollected(amount);
+        setChanged();
+    }
+
+    public void enterGracePerform() {
+        grace.enterPerform();
+        setChanged();
+    }
+
+    public void advanceGracePerformTick() {
+        grace.advancePerform();
+    }
+
+    public void enterGraceReview(com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll roll) {
+        grace.enterReview(roll);
+        setChanged();
+    }
+
+    /** 演出收尾升 REVIEW（staged 预览已在会话内，无需再传）。 */
+    public void promoteGraceReview() {
+        grace.promoteReview();
+        setChanged();
+    }
+
+    /** 神恩会话清退（收尾/中止/取消/预览作废共用）。 */
+    public void clearGraceSession() {
+        grace.clear();
+        activeRecipeId = null;
+        setChanged();
+    }
+
+    /**
+     * PAYING 取消/中止退还：先回槽内灵力核心（不限速率），剩余直回核心自身储灵
+     * （退还旁路容量闸——容量口径=会话 spCost，逐段退会截断丢灵）。
+     */
+    public void refundCached(long amount) {
+        if (amount <= 0L) {
+            return;
+        }
+        long rest = amount;
+        if (batteryStack.getItem() instanceof com.bitsson.gensokyou.spirit.SpiritCoreItem) {
+            rest -= com.bitsson.gensokyou.spirit.SpiritCoreItem.receive(batteryStack, rest);
+            setBatteryStack(batteryStack);
+        }
+        if (rest > 0L) {
+            storedSpiritPower += rest;
+            setChanged();
+        }
+    }
+
     /** 广播激活态到结构内祭品台（一次性触发会话用；封装既有私有路径）。 */
     public void broadcastPedestalsActive(boolean active) {
         if (level instanceof ServerLevel serverLevel && activeMatch != null) {
@@ -690,6 +950,10 @@ public class RitualCoreBlockEntity extends BlockEntity {
             }
         }
         Optional<RitualBehavior> behavior = RitualBehaviors.get(activeMatch.patternId());
+        // 会话型仪式（造化/神恩）不响应通用启停：启动唯一入口是行为的 UiAction 会话触发
+        if (behavior.isPresent() && behavior.get().handlesStartViaUiAction()) {
+            return false;
+        }
 
         // 配方解析：声明了 activation 配方的仪式必须命中一条当前等级可用配方；
         // EXACT 候选先行（既有严格等值语义），未中再对 MAX 候选取消耗总量最大的子集命中
@@ -1111,6 +1375,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
             tag.putLong(TAG_FILL_ACCUM, fillCarry);
         }
         craft.save(tag);
+        grace.save(tag);
         if (lastPowered) {
             tag.putBoolean(TAG_LAST_POWERED, true);
         }
@@ -1148,6 +1413,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
         rateCarry = tag.getLong(TAG_RATE_ACCUM);
         fillCarry = tag.getLong(TAG_FILL_ACCUM);
         craft.load(tag);
+        grace.load(tag);
         lastPowered = tag.getBoolean(TAG_LAST_POWERED);
     }
 }

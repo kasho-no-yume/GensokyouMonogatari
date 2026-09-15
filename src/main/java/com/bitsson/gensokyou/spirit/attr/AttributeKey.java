@@ -16,12 +16,11 @@ import java.util.function.ToDoubleFunction;
  */
 public enum AttributeKey {
 
-    // ---- 成长核心（灵力池三键基准由池字段/淬炼层级驱动，单一事实来源在 SpiritPowerData，不双写） ----
+    // ---- 成长核心（池两键基准=池字段/阶级台账，灵力恢复基准=配置 + grace_tier_N 增量；单一事实来源在 SpiritPowerData，不双写） ----
     MAX_SPIRIT("max_spirit", true, false,
             p -> ModAttachments.get(p).max(), () -> -1D),
     SPIRIT_REGEN_RATE("spirit_regen_rate", false, true,
-            p -> GensokyouConfig.BASE_REGEN_PER_SECOND.get()
-                    * (1D + ModAttachments.get(p).temperLevel() * 0.1D), () -> -1D),
+            p -> GensokyouConfig.BASE_REGEN_PER_SECOND.get(), () -> -1D),
     SPIRIT_POWER("spirit_power", false, true,
             p -> ModAttachments.get(p).spiritDamage(), () -> -1D),
     HEALTH_BONUS("health_bonus", true, true,

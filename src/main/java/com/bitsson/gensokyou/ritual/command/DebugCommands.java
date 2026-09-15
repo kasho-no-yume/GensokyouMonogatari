@@ -1,9 +1,7 @@
 package com.bitsson.gensokyou.ritual.command;
 
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.spirit.ModAttachments;
-import com.bitsson.gensokyou.spirit.SkillStateData;
 import com.bitsson.gensokyou.spirit.SpiritPowerData;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -55,31 +53,22 @@ public final class DebugCommands {
                                         .then(Commands.argument("value", DoubleArgumentType.doubleArg(-1000000))
                                                 .executes(context -> modifySpirit(context.getSource().getPlayerOrException(),
                                                         true, true, DoubleArgumentType.getDouble(context, "value")))))))
-                .then(Commands.literal("temper")
-                        .then(Commands.argument("level", IntegerArgumentType.integer(0))
+                .then(Commands.literal("grace")
+                        .then(Commands.argument("tier", IntegerArgumentType.integer(0, 5))
                                 .executes(context -> {
                                     ServerPlayer player = context.getSource().getPlayerOrException();
-                                    int level = IntegerArgumentType.getInteger(context, "level");
+                                    int tier = IntegerArgumentType.getInteger(context, "tier");
+                                    setGraceTier(player, tier);
                                     var data = ModAttachments.get(player);
-                                    float baseMax = GensokyouConfig.BASE_MAX_SP.get().floatValue();
-                                    float gain = GensokyouConfig.MAX_SP_GAIN_PER_TEMPER.get().floatValue();
-                                    float newMax = baseMax + gain * level;
-                                    float baseDamage = GensokyouConfig.BASE_SPIRIT_DAMAGE.get().floatValue();
-                                    float damageGain = GensokyouConfig.SPIRIT_DAMAGE_PER_TEMPER.get().floatValue();
-                                    float newDamage = baseDamage + damageGain * level;
-                                    ModAttachments.set(player, new SpiritPowerData(
-                                            Math.min(data.current(), newMax), newMax, level, data.regenBuffer(),
-                                            newDamage));
-                                    feedback(player, "debug_temper_set", level,
-                                            String.format("%.1f", newMax));
+                                    feedback(player, "debug_grace_set", tier,
+                                            String.format("%.1f", data.max()));
                                     return 1;
                                 })))
                 .then(Commands.literal("cooldown")
                         .then(Commands.literal("clear").executes(context -> {
                             ServerPlayer player = context.getSource().getPlayerOrException();
                             var state = ModAttachments.skills(player);
-                            ModAttachments.setSkills(player,
-                                    new SkillStateData(state.learned(), 0L, 0L, 0L));
+                            ModAttachments.setSkills(player, state.cleared());
                             feedback(player, "debug_cd_cleared");
                             return 1;
                         })))
@@ -176,6 +165,25 @@ public final class DebugCommands {
         return 1;
     }
 
+    /** 调试直设阶级：清空全部神恩贡献与台账后按新表逐阶重 roll（0=凡人重置；满池便于测试）。 */
+    private static void setGraceTier(ServerPlayer player, int tier) {
+        for (int n = 1; n <= SpiritPowerData.MAX_TIER; n++) {
+            for (com.bitsson.gensokyou.spirit.attr.AttributeKey key
+                    : com.bitsson.gensokyou.spirit.attr.AttributeKey.values()) {
+                com.bitsson.gensokyou.spirit.attr.PlayerAttributes
+                        .setPermanent(player, key, com.bitsson.gensokyou.spirit.grace.GraceService.sourceId(n), 0F);
+            }
+        }
+        var base = ModAttachments.get(player);
+        ModAttachments.set(player, new SpiritPowerData(0F, 0F, 0, 0F, 0F,
+                java.util.List.of(), 0F, base.flightInertia()));
+        for (int n = 1; n <= tier; n++) {
+            com.bitsson.gensokyou.spirit.grace.GraceService.advance(player, n, player.getRandom());
+        }
+        var data = ModAttachments.get(player);
+        ModAttachments.set(player, data.withCurrent(data.max()));
+    }
+
     /** target=true 改上限，否则改当前值；add=true 在原值基础上累加。 */
     private static int modifySpirit(ServerPlayer player, boolean targetMax, boolean add, double value) {
         var data = ModAttachments.get(player);
@@ -188,8 +196,9 @@ public final class DebugCommands {
             newCurrent = (float) Math.max(0D, add ? newCurrent + value : value);
         }
         newCurrent = Math.min(newCurrent, newMax);
-        ModAttachments.set(player, new SpiritPowerData(newCurrent, newMax, data.temperLevel(), data.regenBuffer(),
-                data.spiritDamage()));
+        ModAttachments.set(player, new SpiritPowerData(newCurrent, newMax, data.temperLevel(),
+                data.regenBuffer(), data.spiritDamage(), data.graceLedger(), data.flightBuffer(),
+                data.flightInertia()));
         feedback(player, "debug_spirit_set", String.format("%.1f", newCurrent), String.format("%.1f", newMax));
         return 1;
     }

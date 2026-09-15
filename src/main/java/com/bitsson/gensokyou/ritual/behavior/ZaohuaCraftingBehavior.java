@@ -20,6 +20,11 @@ import java.util.List;
  */
 public class ZaohuaCraftingBehavior implements RitualBehavior {
 
+    @Override
+    public boolean handlesStartViaUiAction() {
+        return true; // 会话是唯一启动路径，通用启停通道让位
+    }
+
     /** 受灵汇速率：基项 × 倍率^等级（量级取大，担当合成供能主干）。 */
     public static long spiritInRatePerSecond(int level) {
         long rate = GensokyouConfig.ZAOHUA_SPIRIT_IN_RATE_BASE.get();

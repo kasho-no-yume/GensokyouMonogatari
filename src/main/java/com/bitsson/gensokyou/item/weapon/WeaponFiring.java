@@ -30,6 +30,10 @@ public final class WeaponFiring {
         if (player.getCooldowns().isOnCooldown(weapon.getItem())) {
             return;
         }
+        // 凡人零灵力统一拦截（superhuman-temper）：0 阶不可使用弹幕主武器
+        if (!com.bitsson.gensokyou.spirit.grace.GraceService.requireGrace(player)) {
+            return;
+        }
         WeaponSlots slots = WeaponSlotsHelper.read(weapon);
         if (!(slots.slot1().getItem() instanceof BulletCoreItem core)) {
             return;

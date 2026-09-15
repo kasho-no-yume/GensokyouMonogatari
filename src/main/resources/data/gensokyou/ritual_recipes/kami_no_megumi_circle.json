@@ -1,0 +1,140 @@
+{
+  "pattern": "gensokyou:kami_no_megumi_circle",
+  "recipes": [
+    {
+      "name": "grace_advance_1",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "minPlayerTier": 0,
+      "spCost": 200,
+      "ingredients": [
+        { "item": "minecraft:glowstone", "count": 4 },
+        { "item": "minecraft:redstone", "count": 4 },
+        { "item": "minecraft:quartz_block", "count": 2 }
+      ],
+      "effect": "grace:advance_1"
+    },
+    {
+      "name": "grace_refine_1",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "minPlayerTier": 1,
+      "spCost": 1000,
+      "ingredients": [
+        { "item": "minecraft:lapis_block", "count": 2 },
+        { "item": "minecraft:amethyst_shard", "count": 8 }
+      ],
+      "effect": "grace:refine_1"
+    },
+    {
+      "name": "grace_advance_2",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 2,
+      "minPlayerTier": 1,
+      "spCost": 800,
+      "ingredients": [
+        { "item": "minecraft:gold_block", "count": 4 },
+        { "item": "minecraft:iron_block", "count": 4 },
+        { "item": "minecraft:redstone_block", "count": 2 }
+      ],
+      "effect": "grace:advance_2"
+    },
+    {
+      "name": "grace_refine_2",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 2,
+      "minPlayerTier": 2,
+      "spCost": 3000,
+      "ingredients": [
+        { "item": "minecraft:diamond", "count": 8 },
+        { "item": "minecraft:quartz_block", "count": 4 }
+      ],
+      "effect": "grace:refine_2"
+    },
+    {
+      "name": "grace_advance_3",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 3,
+      "minPlayerTier": 2,
+      "spCost": 3000,
+      "ingredients": [
+        { "item": "minecraft:diamond_block", "count": 4 },
+        { "item": "minecraft:emerald_block", "count": 2 },
+        { "item": "minecraft:sea_lantern", "count": 4 }
+      ],
+      "effect": "grace:advance_3"
+    },
+    {
+      "name": "grace_refine_3",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 3,
+      "minPlayerTier": 3,
+      "spCost": 9000,
+      "ingredients": [
+        { "item": "minecraft:diamond_block", "count": 2 },
+        { "item": "minecraft:gold_block", "count": 8 }
+      ],
+      "effect": "grace:refine_3"
+    },
+    {
+      "name": "grace_advance_4",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 4,
+      "minPlayerTier": 3,
+      "spCost": 10000,
+      "ingredients": [
+        { "item": "minecraft:netherite_scrap", "count": 4 },
+        { "item": "minecraft:diamond_block", "count": 4 },
+        { "item": "minecraft:end_rod", "count": 4 }
+      ],
+      "effect": "grace:advance_4"
+    },
+    {
+      "name": "grace_refine_4",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 4,
+      "minPlayerTier": 4,
+      "spCost": 30000,
+      "ingredients": [
+        { "item": "minecraft:netherite_scrap", "count": 2 },
+        { "item": "minecraft:emerald_block", "count": 6 }
+      ],
+      "effect": "grace:refine_4"
+    },
+    {
+      "name": "grace_advance_5",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 5,
+      "minPlayerTier": 4,
+      "spCost": 30000,
+      "ingredients": [
+        { "item": "minecraft:netherite_ingot", "count": 2 },
+        { "item": "minecraft:beacon", "count": 1 },
+        { "item": "minecraft:amethyst_block", "count": 8 }
+      ],
+      "effect": "grace:advance_5"
+    },
+    {
+      "name": "grace_refine_5",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 5,
+      "minPlayerTier": 5,
+      "spCost": 90000,
+      "ingredients": [
+        { "item": "minecraft:netherite_ingot", "count": 1 },
+        { "item": "minecraft:echo_shard", "count": 8 }
+      ],
+      "effect": "grace:refine_5"
+    }
+  ]
+}

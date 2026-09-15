@@ -1,11 +1,14 @@
 package com.bitsson.gensokyou.client;
 
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.registry.ModItems;
+import com.bitsson.gensokyou.spirit.SkillStateData;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.AirItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -49,23 +52,20 @@ public final class HudRenderer {
                 x + width - mc.font.width(text), y - 10, 0xFF88DDFF, false);
     }
 
+    /** 技能槽排（skill-slots-hud v2）：显示槽数=超人类阶级（凡人整排隐藏），图标按配装卡解析。 */
     private static void renderSkillSlots(GuiGraphics graphics, DeltaTracker deltaTracker) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.options.hideGui) {
+        int slotCount = Math.min(SpiritPowerClientState.temper(), SkillStateData.MAX_SLOTS);
+        if (mc.player == null || mc.options.hideGui || slotCount <= 0) {
             return;
         }
-        ItemStack[] icons = {
-                new ItemStack(ModItems.MUSOU_FUUIN.get()),
-                new ItemStack(ModItems.ICICLE_FALL.get()),
-                new ItemStack(ModItems.LIGHT_REFLECT.get())
-        };
         int size = 20;
         int gap = 2;
-        int totalWidth = 3 * size + 2 * gap;
+        int totalWidth = slotCount * size + (slotCount - 1) * gap;
         int startX = graphics.guiWidth() / 2 + 91 - totalWidth;
         int y = graphics.guiHeight() - 49 - size - 2;
 
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < slotCount; i++) {
             int x = startX + i * (size + gap);
             boolean learned = ClientSkillState.learned(i);
             int remaining = ClientSkillState.remaining(i);
@@ -74,19 +74,17 @@ public final class HudRenderer {
                     learned ? 0xAA000000 : 0x88333333);
 
             if (learned) {
-                graphics.renderItem(icons[i], x + 1, y + 1);
+                ItemStack icon = iconForCard(ClientSkillState.equipped(i));
+                if (!icon.isEmpty()) {
+                    graphics.renderItem(icon, x + 1, y + 1);
+                }
                 if (remaining > 0) {
                     graphics.fill(x, y, x + size, y + size, 0xAA000088);
                     String seconds = String.valueOf((remaining + 19) / 20);
                     graphics.drawCenteredString(mc.font, seconds,
                             x + size / 2, y + size / 2 - 4, 0xFFFFFFFF);
                 }
-                String keyName = switch (i) {
-                    case 0 -> "G";
-                    case 1 -> "H";
-                    default -> "J";
-                };
-                graphics.drawString(mc.font, keyName, x + 1, y + 1, 0xFFFFFF88, false);
+                graphics.drawString(mc.font, HOTKEY_LABELS[i], x + 1, y + 1, 0xFFFFFF88, false);
             } else {
                 graphics.drawCenteredString(mc.font, "—",
                         x + size / 2, y + size / 2 - 4, 0xFF666666);
@@ -94,5 +92,17 @@ public final class HudRenderer {
         }
         Component title = Component.translatable("hud.gensokyou.skills");
         graphics.drawString(mc.font, title, startX, y - 10, 0xFF88DDFF, false);
+    }
+
+    /** 键位展示标签（与 ClientKeyBindings 默认键一致，可改键仅影响实际绑定）。 */
+    private static final String[] HOTKEY_LABELS = {"G", "H", "J", "K", "L"};
+
+    /** 卡 id → 同名符卡物品图标（注册表缺项/空气=无图标）。 */
+    private static ItemStack iconForCard(String cardId) {
+        if (cardId == null || cardId.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+        Item item = BuiltInRegistries.ITEM.get(Gensokyou.id(cardId));
+        return item == null || item instanceof AirItem ? ItemStack.EMPTY : new ItemStack(item);
     }
 }

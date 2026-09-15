@@ -30,6 +30,10 @@ public record InfoLine(String textKey, String[] textArgs, String iconItemId, int
     public static final int CONTROL_NONE = 0;
     /** 三态行控件：textKey 为对象名称键；明细（坐标/距离/上限等）放 tipArgs。 */
     public static final int CONTROL_LINK = 1;
+    /** 可点击按钮行（点击回报 actionId）；文本 = translatable(textKey, textArgs)。 */
+    public static final int CONTROL_BUTTON = 2;
+    /** 本地化属性行：可见 = 客户端按 textKey 译属性名 + ": " + textArgs[0]（值侧格式化在服务端）。 */
+    public static final int CONTROL_ATTR = 3;
 
     public static final int LINK_NONE = 0;
     public static final int LINK_IN = 1;

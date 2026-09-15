@@ -3,7 +3,6 @@ package com.bitsson.gensokyou.spirit;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.SkillSyncPayload;
-import com.bitsson.gensokyou.network.SpiritPowerSyncPayload;
 import com.bitsson.gensokyou.ritual.RitualPreviewState;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -80,9 +79,7 @@ public final class ModAttachments {
     }
 
     public static void sync(ServerPlayer player) {
-        SpiritPowerData data = get(player);
-        PacketDistributor.sendToPlayer(player,
-                new SpiritPowerSyncPayload(Math.round(data.current()), Math.round(data.max())));
+        com.bitsson.gensokyou.spirit.grace.GraceFlight.syncGraceState(player);
     }
 
     public static SkillStateData skills(ServerPlayer player) {
@@ -102,13 +99,15 @@ public final class ModAttachments {
     public static void syncSkills(ServerPlayer player) {
         SkillStateData state = skills(player);
         long now = player.level().getGameTime();
-        boolean[] learned = new boolean[SpellCardEffects.SLOT_ORDER.length];
-        int[] remaining = new int[SpellCardEffects.SLOT_ORDER.length];
-        for (int i = 0; i < learned.length; i++) {
-            learned[i] = state.hasLearned(SpellCardEffects.SLOT_ORDER[i]);
+        boolean[] learned = new boolean[SkillStateData.MAX_SLOTS];
+        int[] remaining = new int[SkillStateData.MAX_SLOTS];
+        String[] equipped = new String[SkillStateData.MAX_SLOTS];
+        for (int i = 0; i < SkillStateData.MAX_SLOTS; i++) {
+            equipped[i] = state.equippedCard(i) == null ? SkillStateData.EMPTY : state.equippedCard(i);
+            learned[i] = !equipped[i].isEmpty() && state.hasLearned(equipped[i]);
             remaining[i] = (int) Math.max(0, state.cooldownUntil(i) - now);
         }
-        PacketDistributor.sendToPlayer(player, new SkillSyncPayload(learned, remaining));
+        PacketDistributor.sendToPlayer(player, new SkillSyncPayload(learned, remaining, equipped));
     }
 
     @SubscribeEvent
@@ -143,8 +142,10 @@ public final class ModAttachments {
     public static void onClone(PlayerEvent.Clone event) {
         SpiritPowerData old = event.getOriginal().getData(SPIRIT_POWER.get());
         if (event.isWasDeath()) {
+            // 死亡规则：仅当前灵力清零；上限/阶级/台账/惯性开关全部保留
             event.getEntity().setData(SPIRIT_POWER.get(),
-                    new SpiritPowerData(0F, old.max(), old.temperLevel(), 0F, old.spiritDamage()));
+                    new SpiritPowerData(0F, old.max(), old.temperLevel(), 0F, old.spiritDamage(),
+                            old.graceLedger(), 0F, old.flightInertia()));
         }
     }
 

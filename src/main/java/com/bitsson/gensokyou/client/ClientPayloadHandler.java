@@ -14,12 +14,13 @@ public final class ClientPayloadHandler {
     }
 
     public static void handleSpiritPowerSync(SpiritPowerSyncPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> SpiritPowerClientState.update(payload.current(), payload.max()));
+        context.enqueueWork(() -> SpiritPowerClientState.update(
+                payload.current(), payload.max(), payload.temper(), payload.flightInertia()));
     }
 
     public static void handleSkillSync(SkillSyncPayload payload, IPayloadContext context) {
-        context.enqueueWork(() ->
-                ClientSkillState.update(payload.learned(), payload.remainingTicks()));
+        context.enqueueWork(() -> ClientSkillState.update(
+                payload.learned(), payload.remainingTicks(), payload.equipped()));
     }
 
     public static void handleRitualInfo(RitualInfoPayload payload, IPayloadContext context) {

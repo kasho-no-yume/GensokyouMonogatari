@@ -173,6 +173,7 @@ public class RitualRecipeLoader extends SimpleJsonResourceReloadListener {
         RitualRecipe.MatchMode matchMode =
                 parseMatch(GsonHelper.getAsString(json, "match", "exact"));
         int minTier = clampMinTier(GsonHelper.getAsInt(json, "minTier", 1));
+        int minPlayerTier = Math.max(0, GsonHelper.getAsInt(json, "minPlayerTier", 0));
         List<RitualRecipe.Ingredient> ingredients = new ArrayList<>();
         for (JsonElement element : GsonHelper.getAsJsonArray(json, "ingredients")) {
             JsonObject entry = GsonHelper.convertToJsonObject(element, "ingredient");
@@ -198,7 +199,7 @@ public class RitualRecipeLoader extends SimpleJsonResourceReloadListener {
             throw new IllegalArgumentException("result and effect must not both be absent");
         }
         validateModeMatch(mode, matchMode, result != null);
-        return new RitualRecipe(id, patternId, mode, matchMode, minTier,
+        return new RitualRecipe(id, patternId, mode, matchMode, minTier, minPlayerTier,
                 List.copyOf(ingredients), spCost, result, effect);
     }
 

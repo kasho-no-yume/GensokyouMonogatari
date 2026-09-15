@@ -23,7 +23,10 @@ public final class SpellCardEffects {
     public static final String ICICLE_FALL = "icicle_fall";
     public static final String LIGHT_REFLECT = "light_reflect";
 
-    /** 技能槽 1~3 对应的卡（与 HUD、键位一一对应）。 */
+    /**
+     * 卡注册表顺序（旧"槽位=固定卡"时代的槽序，v2 起仅作展示顺序与旧档迁移映射；
+     * 槽位本体已与卡牌解绑，见 {@link SkillStateData}）。
+     */
     public static final String[] SLOT_ORDER = {MUSOU_FUUIN, ICICLE_FALL, LIGHT_REFLECT};
 
     /**

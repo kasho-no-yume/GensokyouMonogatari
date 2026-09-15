@@ -13,6 +13,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerLevel;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -80,9 +81,10 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
                 List.copyOf(infoLines));
     }
 
-    /** 服务端快照：由核心 BE 当前态 + 行为侧信息行组装（清单/燃烧行等语义全在 behavior）。 */
+    /** 服务端快照：由核心 BE 当前态 + 行为侧信息行组装（按查看者组装，行为可读 viewer 本人状态）。 */
     public static RitualInfoPayload snapshot(ServerLevel level, BlockPos pos,
-                                             RitualCoreBlockEntity core, String statusKey) {
+                                             RitualCoreBlockEntity core, String statusKey,
+                                             @Nullable net.minecraft.server.level.ServerPlayer viewer) {
         RitualMatch match = core.activeMatch();
         List<Action> actions = new ArrayList<>();
         List<InfoLine> infoLines = new ArrayList<>();
@@ -97,9 +99,9 @@ public record RitualInfoPayload(long pos, String patternId, int tier, boolean en
                 toggleable = patternOpt.get().toggleable();
             }
             RitualBehaviors.get(match.patternId()).ifPresentOrElse(behavior -> {
-                behavior.uiActions(level, pos, match, core).forEach(action ->
+                behavior.uiActions(level, pos, match, core, viewer).forEach(action ->
                         actions.add(new Action(action.id(), action.labelKey(), action.enabled())));
-                infoLines.addAll(behavior.uiInfo(level, pos, match, core));
+                infoLines.addAll(behavior.uiInfo(level, pos, match, core, viewer));
             }, () -> infoLines.addAll(RitualBehavior.defaultUiInfo(level, pos, match, core)));
         }
         return new RitualInfoPayload(pos.asLong(), patternId, tier, core.isEnabled(), toggleable,

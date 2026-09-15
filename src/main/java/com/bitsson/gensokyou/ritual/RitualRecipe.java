@@ -20,9 +20,12 @@ import java.util.List;
  *   <li>{@code MAX}：子集命中——台面覆盖全部条目即匹配、多余物品留台不动；
  *       跨候选由 {@link RitualRecipeMatcher#matchMax} 取消耗总量最大者。</li>
  * </ul>
+ *
+ * <p>{@code minPlayerTier}：玩家超人类阶级前置（八百万神恩等效果型配方用；缺省 0=不校验，
+ * 校验语义由行为侧解释——进阶=恰好等于、洗练=大于等于且该阶级台账存在）。
  */
 public record RitualRecipe(ResourceLocation id, ResourceLocation patternId, Mode mode, MatchMode match,
-                           int minTier,
+                           int minTier, int minPlayerTier,
                            List<Ingredient> ingredients, int spCost,
                            @Nullable ResultHolder result, @Nullable String effect) {
 

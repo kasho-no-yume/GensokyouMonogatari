@@ -25,6 +25,12 @@ public final class ClientSkillTickHandler {
         while (ClientKeyBindings.SKILL_SLOT_3.consumeClick()) {
             PacketDistributor.sendToServer(new CastSkillPayload(2));
         }
+        while (ClientKeyBindings.SKILL_SLOT_4.consumeClick()) {
+            PacketDistributor.sendToServer(new CastSkillPayload(3));
+        }
+        while (ClientKeyBindings.SKILL_SLOT_5.consumeClick()) {
+            PacketDistributor.sendToServer(new CastSkillPayload(4));
+        }
         ClientSkillState.tickDown();
     }
 }

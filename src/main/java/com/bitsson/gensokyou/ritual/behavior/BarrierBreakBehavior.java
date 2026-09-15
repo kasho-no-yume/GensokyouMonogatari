@@ -23,6 +23,10 @@ public class BarrierBreakBehavior implements RitualBehavior {
     @Override
     public InteractionResult onStart(ServerLevel level, BlockPos corePos, RitualMatch match,
                                      RitualCoreBlockEntity core, ServerPlayer player) {
+        // 凡人零灵力统一拦截（superhuman-temper）
+        if (!com.bitsson.gensokyou.spirit.grace.GraceService.requireGrace(player)) {
+            return InteractionResult.FAIL;
+        }
         double cost = GensokyouConfig.BARRIER_SP_COST.get();
         var data = ModAttachments.get(player);
         float paidFromPlayer = Math.min(data.current(), (float) cost);

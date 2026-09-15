@@ -217,11 +217,11 @@ public final class ModNetworking {
         });
     }
 
-    /** 组装并下发仪式界面全量信息。 */
+    /** 组装并下发仪式界面全量信息（按接收者作为查看者组装）。 */
     public static void sendRitualInfo(ServerPlayer player, ServerLevel level, BlockPos pos,
                                       RitualCoreBlockEntity core, String statusKey) {
         PacketDistributor.sendToPlayer(player,
-                RitualInfoPayload.snapshot(level, pos, core, statusKey));
+                RitualInfoPayload.snapshot(level, pos, core, statusKey, player));
     }
 
     /** 造化合成演出指令：FLIGHT 起点单发给追踪该区块的玩家（客户端程序化升空粒子）。 */
@@ -275,15 +275,29 @@ public final class ModNetworking {
                 return;
             }
             int slot = payload.slot();
-            if (slot < 0 || slot >= SpellCardEffects.SLOT_ORDER.length) {
+            if (slot < 0 || slot >= SkillStateData.MAX_SLOTS) {
                 return;
             }
-            String cardId = SpellCardEffects.SLOT_ORDER[slot];
-            var entry = SpellCardEffects.get(cardId);
-            if (entry == null) {
+            // 阶级门（superhuman-temper）：凡人拦"需进阶"，未解锁槽位单独提示
+            int tier = com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player);
+            if (tier <= 0) {
+                player.displayClientMessage(
+                        Component.translatable("msg.gensokyou.grace_required"), true);
+                return;
+            }
+            if (slot >= tier) {
+                player.displayClientMessage(
+                        Component.translatable("msg.gensokyou.skill_slot_locked"), true);
                 return;
             }
             SkillStateData state = ModAttachments.skills(player);
+            String cardId = state.equippedCard(slot);
+            var entry = cardId == null ? null : SpellCardEffects.get(cardId);
+            if (entry == null) {
+                player.displayClientMessage(
+                        Component.translatable("msg.gensokyou.skill_slot_empty"), true);
+                return;
+            }
             if (!state.hasLearned(cardId)) {
                 player.displayClientMessage(
                         Component.translatable("msg.gensokyou.skill_not_learned"), true);
