@@ -90,6 +90,34 @@ public final class DebugCommands {
                                                     .getLoadedBlockPos(context, "core");
                                     return probeKagutsuchi(context.getSource().getPlayerOrException(), pos);
                                 })))
+                .then(Commands.literal("nichirin")
+                        .then(Commands.literal("at")
+                                .then(Commands.argument("daytime", IntegerArgumentType.integer(0, 23999))
+                                        .then(Commands.argument("core",
+                                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                                .executes(context -> probeDaycycle(context.getSource(),
+                                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                                .getLoadedBlockPos(context, "core"),
+                                                        IntegerArgumentType.getInteger(context, "daytime"), true)))))
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeDaycycle(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core"), -1L, true))))
+                .then(Commands.literal("tsukikage")
+                        .then(Commands.literal("at")
+                                .then(Commands.argument("daytime", IntegerArgumentType.integer(0, 23999))
+                                        .then(Commands.argument("core",
+                                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                                .executes(context -> probeDaycycle(context.getSource(),
+                                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                                .getLoadedBlockPos(context, "core"),
+                                                        IntegerArgumentType.getInteger(context, "daytime"), false)))))
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeDaycycle(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core"), -1L, false))))
                 .then(Commands.literal("yumewatari")
                         .then(Commands.literal("beds")
                                 .then(Commands.argument("core",
@@ -107,7 +135,13 @@ public final class DebugCommands {
                                                 .executes(context -> probeYumewatari(context.getSource(),
                                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument
                                                                 .getLoadedBlockPos(context, "core"),
-                                                        IntegerArgumentType.getInteger(context, "sleepers"))))))));
+                                                        IntegerArgumentType.getInteger(context, "sleepers")))))))
+                .then(Commands.literal("sacrifice")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeSacrifice(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core"))))));
     }
 
     /** 梦渡之座探针：包围盒/合规床清单/占用者。forcedSleepers：-1 只查看；-2 真实快照结算；≥0 注入数结算
@@ -175,6 +209,51 @@ public final class DebugCommands {
         source.sendSystemMessage(Component.literal(msg));
     }
 
+    /** 昼夜发电机探针（日轮/月影共用）：时刻/比例/实际产灵/峰值/缓存/槽核。forcedDayTime <0 = 用真实时刻。 */
+    private static int probeDaycycle(net.minecraft.commands.CommandSourceStack source,
+                                     net.minecraft.core.BlockPos pos, long forcedDayTime, boolean solar) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        if (!(serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core)
+                || core.activeMatch() == null
+                || !core.activeMatch().patternId().equals(solar
+                        ? com.bitsson.gensokyou.ritual.RitualBehaviors.NICHIRIN
+                        : com.bitsson.gensokyou.ritual.RitualBehaviors.TSUKIKAGE)) {
+            source.sendSystemMessage(Component.literal("[daygen] no formed "
+                    + (solar ? "nichirin" : "tsukikage") + " core at " + pos.toShortString()));
+            Gensokyou.LOGGER.info("[daygen] no formed {} core at {}",
+                    solar ? "nichirin" : "tsukikage", pos.toShortString());
+            return 0;
+        }
+        var am = core.activeMatch();
+        long dayTime = forcedDayTime >= 0L
+                ? forcedDayTime
+                : com.bitsson.gensokyou.ritual.behavior.DayCycleGeneratorBehavior.dayTimeOf(serverLevel);
+        double base = solar
+                ? com.bitsson.gensokyou.config.GensokyouConfig.NICHIRIN_BASE_RATE_PER_SECOND.get()
+                : com.bitsson.gensokyou.config.GensokyouConfig.TSUKIKAGE_BASE_RATE_PER_SECOND.get();
+        double frac = com.bitsson.gensokyou.ritual.behavior.DayCycleGeneratorBehavior
+                .fraction(dayTime, solar);
+        long produced = com.bitsson.gensokyou.ritual.behavior.DayCycleGeneratorBehavior
+                .producedPerSecond(dayTime, am.level(), base, solar);
+        long bat = core.batteryStack().getItem()
+                instanceof com.bitsson.gensokyou.spirit.SpiritCoreItem
+                ? com.bitsson.gensokyou.spirit.SpiritCoreItem.getStored(core.batteryStack())
+                : -1L;
+        String msg = "[GS-AUTO] DAYGEN " + (solar ? "NICHIRIN" : "TSUKIKAGE")
+                + " L" + am.level() + " dayTime=" + Math.floorMod(dayTime, 24000L)
+                + " frac=" + String.format(java.util.Locale.ROOT, "%.4f", frac)
+                + " produced=" + produced
+                + " sp=" + core.getStored() + "/" + core.getCapacity()
+                + " bat=" + bat
+                + " enabled=" + core.isEnabled();
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
     /** 加具土命现场探针：匹配态/启用/批次/缓存 + 每台燃料识别值，逐项打到聊天栏。 */
     private static int probeKagutsuchi(ServerPlayer player, net.minecraft.core.BlockPos pos) {
         if (!(player.level() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
@@ -216,6 +295,68 @@ public final class DebugCommands {
                         + (be == null ? "null" : be.getClass().getSimpleName()));
             }
         }
+        return 1;
+    }
+
+    /** 献祭仪式权重表探针：单行 [GS-AUTO] SACRIFICE，含材质/条件/成本/总数/池（权重+约%）。 */
+    private static int probeSacrifice(net.minecraft.commands.CommandSourceStack source,
+                                      net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null) {
+            var am = core.activeMatch();
+            var tableOpt = com.bitsson.gensokyou.ritual.RitualLootLoader.byPattern(am.patternId());
+            if (tableOpt.isEmpty()) {
+                msg = "[GS-AUTO] SACRIFICE NO-DATA pattern=" + am.patternId();
+            } else {
+                var table = tableOpt.get();
+                int skulls = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                        .countSkulls(serverLevel, am);
+                int heads = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                        .countDragonHeads(serverLevel, am);
+                boolean nether = skulls >= table.skullsRequired();
+                boolean end = heads >= table.dragonHeadsRequired();
+                String tier = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                        .debugTier(serverLevel, am, table);
+                if (tier == null) {
+                    tier = "none";
+                }
+                var pool = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                        .debugPool(table, tier, nether, end);
+                double total = 0D;
+                for (double w : pool.values()) {
+                    total += w;
+                }
+                StringBuilder sb = new StringBuilder();
+                for (var e : pool.entrySet()) {
+                    double pct = total > 0D ? e.getValue() / total * 100D : 0D;
+                    sb.append(e.getKey()).append('=')
+                            .append(String.format(java.util.Locale.ROOT, "%.2f", e.getValue()))
+                            .append("~")
+                            .append(String.format(java.util.Locale.ROOT, "%.2f", pct))
+                            .append("% ");
+                }
+                msg = "[GS-AUTO] SACRIFICE pattern=" + am.patternId() + " level=" + am.level()
+                        + " ped=" + com.bitsson.gensokyou.ritual.RitualPedestals.positions(am).size()
+                        + " tools=" + com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                                .scanTools(serverLevel, am, table).size()
+                        + " tier=" + tier + " skulls=" + skulls + " heads=" + heads
+                        + " nether=" + nether + " end=" + end
+                        + " cost=" + com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                                .spiritCost(am.level())
+                        + " count=" + com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                                .producedCount(am.level())
+                        + " pool={" + sb.toString().trim() + "}";
+            }
+        } else {
+            msg = "[GS-AUTO] SACRIFICE NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
         return 1;
     }
 

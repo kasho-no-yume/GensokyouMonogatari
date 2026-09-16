@@ -1,7 +1,7 @@
 {
   "id": "gensokyou:oyamatsumi_circle",
   "anchorKey": "C",
-  "toggleable": false,
+  "toggleable": true,
   "tiers": [
     0,
     1,
@@ -28,7 +28,7 @@
     "m": "minecraft:polished_deepslate",
     "n": "minecraft:chiseled_stone_bricks",
     "o": "minecraft:coal_block",
-    "p": "minecraft:copper_block",
+    "p": "minecraft:waxed_copper_block",
     "q": "minecraft:raw_iron_block",
     "r": "minecraft:raw_copper_block",
     "s": "minecraft:lapis_block",

@@ -3,6 +3,8 @@ package com.bitsson.gensokyou.jei;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.registry.ModItems;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
+import com.bitsson.gensokyou.ritual.RitualLootLoader;
+import com.bitsson.gensokyou.ritual.RitualLootTable;
 import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import mezz.jei.api.IModPlugin;
@@ -37,6 +39,13 @@ public class GensokyouJeiPlugin implements IModPlugin {
     private static final List<ResourceLocation> DEDICATED_TABS = List.of(
             RitualBehaviors.ZAOHUA,
             RitualBehaviors.KAMI_NO_MEGUMI);
+
+    /** 献祭工具仪式：各自一页签，页签内按工具材质翻页（数据源 ritual_loot）。 */
+    private static final List<ResourceLocation> SACRIFICE_TABS = List.of(
+            RitualBehaviors.OYAMATSUMI,
+            RitualBehaviors.KUKUNOCHI,
+            RitualBehaviors.HANIYASU,
+            RitualBehaviors.KAYA_NO_HIME);
     private static final RecipeType<RitualRecipeCardWrapper> FALLBACK_TYPE =
             RitualRecipeCategory.typeFor(null);
 
@@ -46,6 +55,8 @@ public class GensokyouJeiPlugin implements IModPlugin {
 
     private static volatile IJeiRuntime runtime;
     private static volatile Map<ResourceLocation, RitualRecipeCardWrapper> syncedRecipes = Map.of();
+    private static volatile Map<ResourceLocation, List<RitualLootCardWrapper>> syncedLoot = Map.of();
+    private static volatile int syncedLootSignature = Integer.MIN_VALUE;
 
     @Override
     public ResourceLocation getPluginUid() {
@@ -63,6 +74,13 @@ public class GensokyouJeiPlugin implements IModPlugin {
         categories.add(new RitualRecipeCategory(guiHelper, FALLBACK_TYPE, null,
                 tabIcon(guiHelper, null)));
         registration.addRecipeCategories(categories.toArray(new RitualRecipeCategory[0]));
+
+        List<RitualLootCategory> lootCategories = new ArrayList<>();
+        for (ResourceLocation patternId : SACRIFICE_TABS) {
+            lootCategories.add(new RitualLootCategory(guiHelper, patternId,
+                    tabIcon(guiHelper, null)));
+        }
+        registration.addRecipeCategories(lootCategories.toArray(new RitualLootCategory[0]));
     }
 
     private static IDrawable tabIcon(IGuiHelper guiHelper, @Nullable ResourceLocation patternId) {
@@ -78,6 +96,56 @@ public class GensokyouJeiPlugin implements IModPlugin {
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
         runtime = jeiRuntime;
         syncFromLoader(RitualRecipeLoader.all());
+        syncLoot(RitualLootLoader.all());
+    }
+
+    /** 献祭权重卡同步：按仪式增删卡片；无内容（数据未载入）时隐藏页签。 */
+    static void syncLoot(List<RitualLootTable> tables) {
+        IJeiRuntime rt = runtime;
+        if (rt == null) {
+            return;
+        }
+        int signature = tables.hashCode();
+        if (signature == syncedLootSignature) {
+            return;
+        }
+        Map<ResourceLocation, List<RitualLootCardWrapper>> desired = new LinkedHashMap<>();
+        for (ResourceLocation patternId : SACRIFICE_TABS) {
+            List<RitualLootCardWrapper> cards = new ArrayList<>();
+            for (RitualLootTable table : tables) {
+                if (!table.patternId().equals(patternId)) {
+                    continue;
+                }
+                for (RitualLootTable.TierTable tierTable : table.tables()) {
+                    cards.add(RitualLootCardWrapper.of(table, tierTable.tier()));
+                }
+            }
+            desired.put(patternId, cards);
+        }
+        if (desired.equals(syncedLoot)) {
+            syncedLootSignature = signature;
+            return;
+        }
+        IRecipeManager manager = rt.getRecipeManager();
+        for (ResourceLocation patternId : SACRIFICE_TABS) {
+            RecipeType<RitualLootCardWrapper> type = RitualLootCategory.typeFor(patternId);
+            List<RitualLootCardWrapper> old = syncedLoot.getOrDefault(patternId, List.of());
+            List<RitualLootCardWrapper> neu = desired.getOrDefault(patternId, List.of());
+            if (old.equals(neu)) {
+                continue;
+            }
+            if (!old.isEmpty()) {
+                manager.hideRecipes(type, old);
+            }
+            if (neu.isEmpty()) {
+                manager.hideRecipeCategory(type);
+            } else {
+                manager.unhideRecipeCategory(type);
+                manager.addRecipes(type, neu);
+            }
+        }
+        syncedLoot = Map.copyOf(desired);
+        syncedLootSignature = signature;
     }
 
     /** 配方集变化即逐页签增删卡片（稳态零操作，由 {@link JeiClientSync} 轮询触发）。 */

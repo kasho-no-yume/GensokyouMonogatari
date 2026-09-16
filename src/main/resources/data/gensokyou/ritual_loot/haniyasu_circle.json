@@ -1,0 +1,49 @@
+{
+  "pattern": "gensokyou:haniyasu_circle",
+  "toolTag": "#minecraft:shovels",
+  "commonsTotal": 100,
+  "skullsRequired": 3,
+  "dragonHeadsRequired": 1,
+  "commons": [
+    ["minecraft:dirt", 30],
+    ["minecraft:coarse_dirt", 12],
+    ["minecraft:rooted_dirt", 12],
+    ["minecraft:mud", 10],
+    ["minecraft:sand", 12],
+    ["minecraft:red_sand", 8],
+    ["minecraft:gravel", 10],
+    ["minecraft:moss_block", 6]
+  ],
+  "tables": [
+    {
+      "tier": "wood",
+      "special": [["minecraft:clay_ball", 0.5]],
+      "nether": [["minecraft:soul_sand", 0.4], ["minecraft:soul_soil", 0.3]]
+    },
+    {
+      "tier": "stone",
+      "special": [["minecraft:clay", 1], ["minecraft:flint", 0.5]],
+      "nether": [["minecraft:soul_sand", 0.8], ["minecraft:soul_soil", 0.6]]
+    },
+    {
+      "tier": "gold",
+      "special": [["minecraft:flint", 1], ["minecraft:clay", 2]],
+      "nether": [["minecraft:soul_sand", 1.6], ["minecraft:soul_soil", 1.2]]
+    },
+    {
+      "tier": "iron",
+      "special": [["minecraft:clay", 5], ["minecraft:flint", 1]],
+      "nether": [["minecraft:soul_sand", 4], ["minecraft:soul_soil", 3]]
+    },
+    {
+      "tier": "diamond",
+      "special": [["minecraft:clay", 10], ["minecraft:flint", 3]],
+      "nether": [["minecraft:soul_sand", 8], ["minecraft:soul_soil", 6]]
+    },
+    {
+      "tier": "netherite",
+      "special": [["minecraft:clay", 5], ["minecraft:flint", 25]],
+      "nether": [["minecraft:soul_sand", 4], ["minecraft:soul_soil", 3]]
+    }
+  ]
+}

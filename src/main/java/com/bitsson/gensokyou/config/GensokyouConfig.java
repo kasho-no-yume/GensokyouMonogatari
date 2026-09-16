@@ -70,6 +70,30 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue YUMEWATARI_BASE_CAPACITY;
     public static final ModConfigSpec.IntValue YUMEWATARI_OUT_RATE_PER_SECOND;
 
+    // ---- daycycle-generator-ritual：日轮天台/月影水镜（昼夜线性产能发电机）----
+    public static final ModConfigSpec.DoubleValue NICHIRIN_BASE_RATE_PER_SECOND;
+    public static final ModConfigSpec.DoubleValue TSUKIKAGE_BASE_RATE_PER_SECOND;
+    public static final ModConfigSpec.IntValue NICHIRIN_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue TSUKIKAGE_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue NICHIRIN_OUT_RATE_PER_SECOND;
+    public static final ModConfigSpec.IntValue TSUKIKAGE_OUT_RATE_PER_SECOND;
+    public static final ModConfigSpec.BooleanValue TSUKIKAGE_MOON_PHASE_SCALING;
+
+    // ---- tool-sacrifice-rituals：大山祇/久久能智/埴山姬/草野姬（献祭工具加权产资源）----
+    public static final ModConfigSpec.IntValue SACRIFICE_BASE_COUNT;
+    public static final ModConfigSpec.IntValue SACRIFICE_COUNT_MULT;
+    public static final ModConfigSpec.IntValue SACRIFICE_BASE_SP_COST;
+    public static final ModConfigSpec.IntValue SACRIFICE_SP_COST_MULT;
+    public static final ModConfigSpec.IntValue SACRIFICE_SPIRIT_IN_RATE;
+    public static final ModConfigSpec.IntValue SACRIFICE_COOLDOWN_TICKS;
+    public static final ModConfigSpec.IntValue SACRIFICE_FALL_MAX_HEIGHT;
+    public static final ModConfigSpec.IntValue SACRIFICE_SKULLS_REQUIRED;
+    public static final ModConfigSpec.IntValue SACRIFICE_DRAGON_HEADS_REQUIRED;
+    public static final ModConfigSpec.IntValue SACRIFICE_BASE_CAPACITY;
+    public static final ModConfigSpec.DoubleValue FX_PILLAR_HEIGHT;
+    public static final ModConfigSpec.IntValue FX_PILLAR_TICKS;
+    public static final ModConfigSpec.DoubleValue FX_PILLAR_WIDTH;
+
     // ---- ritual-presentation-polish：迦具土贴地烈火场（原炎柱场重设计）----
     public static final ModConfigSpec.IntValue FX_FIRE_DENSITY_BASE;
     public static final ModConfigSpec.IntValue FX_FIRE_DENSITY_PER_TIER;
@@ -294,6 +318,26 @@ public class GensokyouConfig {
         YUMEWATARI_PRODUCTION_PER_SLEEPER = BUILDER.comment("Yumewatari (dream-crossing seat): spirit granted per mob sleeping on a qualifying bed when a sleep-caused time skip finishes, level 0 value (level N multiplies by 4^N)").defineInRange("yumewatariProductionPerSleeper", 10000, 0, Integer.MAX_VALUE);
         YUMEWATARI_BASE_CAPACITY = BUILDER.comment("Yumewatari: spirit buffer capacity at level 0 (level N multiplies by 4^N); overflow goes into the socketed spirit core at unlimited rate").defineInRange("yumewatariBaseCapacity", 40000, 1, Integer.MAX_VALUE);
         YUMEWATARI_OUT_RATE_PER_SECOND = BUILDER.comment("Yumewatari: routed spirit output (supply) rate per second, fixed across levels").defineInRange("yumewatariOutRatePerSecond", 1000000, 0, Integer.MAX_VALUE);
+        NICHIRIN_BASE_RATE_PER_SECOND = BUILDER.comment("Nichirin (sun-disc terrace): peak spirit per second at noon, level 0 (level N multiplies by 4^N); linear ramp from sunrise (0) to noon and back to sunset (0)").defineInRange("nichirinBaseRatePerSecond", 5D, 0D, 1000000D);
+        TSUKIKAGE_BASE_RATE_PER_SECOND = BUILDER.comment("Tsukikage (moonshadow mirror): peak spirit per second at midnight, level 0 (level N multiplies by 4^N); linear ramp from sunset (0) to midnight and back to sunrise (0)").defineInRange("tsukikageBaseRatePerSecond", 5D, 0D, 1000000D);
+        NICHIRIN_BASE_CAPACITY = BUILDER.comment("Nichirin: spirit buffer capacity at level 0 (level N multiplies by 4^N); production charges the socketed core first, the buffer only takes the overflow").defineInRange("nichirinBaseCapacity", 10000, 1, Integer.MAX_VALUE);
+        TSUKIKAGE_BASE_CAPACITY = BUILDER.comment("Tsukikage: spirit buffer capacity at level 0 (level N multiplies by 4^N); production charges the socketed core first, the buffer only takes the overflow").defineInRange("tsukikageBaseCapacity", 10000, 1, Integer.MAX_VALUE);
+        NICHIRIN_OUT_RATE_PER_SECOND = BUILDER.comment("Nichirin: routed spirit output (supply) rate per second, fixed across levels and time of day (MUST stay static for routing)").defineInRange("nichirinOutRatePerSecond", 10000, 0, Integer.MAX_VALUE);
+        TSUKIKAGE_OUT_RATE_PER_SECOND = BUILDER.comment("Tsukikage: routed spirit output (supply) rate per second, fixed across levels and time of day (MUST stay static for routing)").defineInRange("tsukikageOutRatePerSecond", 10000, 0, Integer.MAX_VALUE);
+        TSUKIKAGE_MOON_PHASE_SCALING = BUILDER.comment("Tsukikage: reserved placeholder to scale output by moon phase (new moon = 0); NOT used in v1").define("tsukikageMoonPhaseScaling", false);
+        SACRIFICE_BASE_COUNT = BUILDER.comment("Tool-sacrifice rites: base produced item count at level 0 (level N multiplies by sacrificeCountMult^N)").defineInRange("sacrificeBaseCount", 20, 1, 1000000);
+        SACRIFICE_COUNT_MULT = BUILDER.comment("Tool-sacrifice rites: produced-count multiplier per level").defineInRange("sacrificeCountMult", 4, 1, 1000);
+        SACRIFICE_BASE_SP_COST = BUILDER.comment("Tool-sacrifice rites: base spirit cost per settlement at level 0 (level N multiplies by sacrificeSpCostMult^N)").defineInRange("sacrificeBaseSpCost", 4000, 0, Integer.MAX_VALUE);
+        SACRIFICE_SP_COST_MULT = BUILDER.comment("Tool-sacrifice rites: spirit-cost multiplier per level").defineInRange("sacrificeSpCostMult", 4, 1, 1000);
+        SACRIFICE_SPIRIT_IN_RATE = BUILDER.comment("Tool-sacrifice rites: routed spirit intake rate (per second) so the resonance network can power them as sinks").defineInRange("sacrificeSpiritInRate", 100000, 0, Integer.MAX_VALUE);
+        SACRIFICE_COOLDOWN_TICKS = BUILDER.comment("Tool-sacrifice rites: forced cooldown in ticks after each settlement (1200 = 60s)").defineInRange("sacrificeCooldownTicks", 1200, 0, 72000);
+        SACRIFICE_FALL_MAX_HEIGHT = BUILDER.comment("Tool-sacrifice rites: max height (blocks) above the core products fall from; clamped to the highest unobstructed cell").defineInRange("sacrificeFallMaxHeight", 20, 1, 200);
+        SACRIFICE_SKULLS_REQUIRED = BUILDER.comment("Tool-sacrifice rites: wither skeleton skulls on pedestals required to unlock the nether pool (not consumed)").defineInRange("sacrificeSkullsRequired", 3, 0, 64);
+        SACRIFICE_DRAGON_HEADS_REQUIRED = BUILDER.comment("Tool-sacrifice rites: dragon heads on pedestals required to unlock the end pool (not consumed)").defineInRange("sacrificeDragonHeadsRequired", 1, 0, 64);
+        SACRIFICE_BASE_CAPACITY = BUILDER.comment("Tool-sacrifice rites: spirit buffer capacity at level 0 (level N multiplies by 4^N)").defineInRange("sacrificeBaseCapacity", 10000, 1, Integer.MAX_VALUE);
+        FX_PILLAR_HEIGHT = BUILDER.comment("Tool-sacrifice rites: sky pillar height (blocks) at the production moment").defineInRange("fxPillarHeight", 48.0D, 4.0D, 256.0D);
+        FX_PILLAR_TICKS = BUILDER.comment("Tool-sacrifice rites: sky pillar visible duration in ticks").defineInRange("fxPillarTicks", 30, 5, 400);
+        FX_PILLAR_WIDTH = BUILDER.comment("Tool-sacrifice rites: sky pillar half-width (blocks)").defineInRange("fxPillarWidth", 1.6D, 0.2D, 8.0D);
         BUILDER.pop();
         BUILDER.push("ritualFx").comment("Ritual runtime grid/shader FX (ritual-presentation-polish): fire bed, mist ribbon, bolt arcs, spirit orb");
         FX_FIRE_DENSITY_BASE = BUILDER.comment("Kagutsuchi fire bed: deterministic ground fire points at tier 0").defineInRange("fxFireDensityBase", 26, 1, 256);

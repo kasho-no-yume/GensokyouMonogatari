@@ -34,4 +34,4 @@
 - [ ] 6.2 离线自测（需进游戏）：对含盆栽的仪式（`oyamatsumi_circle` / `yumewatari_circle` / `zaohua_circle` / `tsukikage_circle` / `nichirin_circle` / `kami_no_megumi_circle`）逐阶核对菜单/tooltip/HUD 无「空气」行，盆栽行图标与名称正确、不标红、不产生缺口
 - [ ] 6.3 回归（需进游戏）：不含盆栽的仪式（`bafang_guiyuan_circle` / `resonance_relay` / `kagutsuchi_flame_circle`）材料行口径与改动前一致
 - [ ] 6.4 实机验收（用户执行）：生存模式搭建含盆栽仪式，确认盆栽格正常落位且不消耗背包；创造模式全部格位放置成功
-- [x] 6.5 记录遗留：全图案 `NEG_FAIL: low stones wrongly formed top level!` 为存量负查缺陷（`add-yumewatari-behavior` 已登记），本变更不处理
+- [x] 6.5 记录遗留：全图案 `NEG_FAIL: low stones wrongly formed top level!` 为存量负查缺陷（`2026-09-16-add-yumewatari-behavior` 已登记），本变更不处理

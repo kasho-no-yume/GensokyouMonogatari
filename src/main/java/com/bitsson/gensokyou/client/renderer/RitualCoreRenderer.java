@@ -84,6 +84,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                     renderFlame(blockEntity, state, now, poseStack, bufferSource);
             case RitualRenderState.KIND_BAFANG ->
                     renderOrb(blockEntity, state, now, poseStack, bufferSource);
+            case RitualRenderState.KIND_SACRIFICE ->
+                    renderPillar(blockEntity, state, now, poseStack, bufferSource);
             default -> {
             }
         }
@@ -474,6 +476,53 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         FxGeometry.emitUnitSphere(orb, poseStack.last(), scale,
                 255, 255, 255, (int) (220F * env));
         poseStack.popPose();
+    }
+
+    // ============================================================ 献祭光柱
+
+    /**
+     * 献祭产出瞬间的巨大光柱（tool-sacrifice-rituals）：核心处竖直米字面片，按剩余刻淡入淡出，
+     * 结束即消失。复用激光弹幕几何（{@link FxGeometry#emitCrossPlanes}）与既有光束贴图，
+     * 不新增贴图资源；服务端只在产出那刻下发起始态，无持续粒子包。
+     */
+    private void renderPillar(RitualCoreBlockEntity be, RitualRenderState state, double now,
+                              PoseStack poseStack, MultiBufferSource buffers) {
+        int total = Math.max(1, GensokyouConfig.FX_PILLAR_TICKS.get());
+        int remain = Math.max(0, state.maxY());
+        float ramp = Math.max(1, GensokyouConfig.FX_RAMP_TICKS.get());
+        float fadeIn = Mth.clamp((total - remain) / ramp, 0F, 1F);
+        float fadeOut = Mth.clamp(remain / ramp, 0F, 1F);
+        float env = Math.min(fadeIn, fadeOut);
+        if (env <= 0F) {
+            return;
+        }
+        float height = Math.max(1, state.minY());
+        float half = GensokyouConfig.FX_PILLAR_WIDTH.get().floatValue();
+        float scroll = (float) (now * 0.9D);
+        int[] rgb = pillarColor(state.period());
+        float pulse = 0.85F + 0.15F * Mth.sin((float) (now * 0.6D));
+
+        poseStack.pushPose();
+        poseStack.translate(0.5D, 0.0D, 0.5D);
+        VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(BOLT_GLOW_TEXTURE));
+        FxGeometry.emitCrossPlanes(poseStack, glow, 4, half * env, height,
+                scroll, scroll + height, rgb[0], rgb[1], rgb[2], (int) (150F * env * pulse));
+        VertexConsumer coreBuf = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(BOLT_CORE_TEXTURE));
+        FxGeometry.emitCrossPlanes(poseStack, coreBuf, 3, half * 0.45F * env, height,
+                scroll * 1.3F, scroll + height,
+                (int) Mth.lerp(0.5F, rgb[0], 255), (int) Mth.lerp(0.5F, rgb[1], 255),
+                (int) Mth.lerp(0.5F, rgb[2], 255), (int) (220F * env));
+        poseStack.popPose();
+    }
+
+    /** 献祭光柱色（0=石 1=木 2=土 3=草）。 */
+    private static int[] pillarColor(int index) {
+        return switch (index) {
+            case 1 -> new int[]{141, 110, 99};
+            case 2 -> new int[]{188, 170, 164};
+            case 3 -> new int[]{129, 199, 132};
+            default -> new int[]{176, 190, 197};
+        };
     }
 
     // ================================================================= 公用

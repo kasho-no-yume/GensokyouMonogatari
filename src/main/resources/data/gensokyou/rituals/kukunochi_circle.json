@@ -1,7 +1,7 @@
 {
   "id": "gensokyou:kukunochi_circle",
   "anchorKey": "C",
-  "toggleable": false,
+  "toggleable": true,
   "tiers": [
     0,
     1,

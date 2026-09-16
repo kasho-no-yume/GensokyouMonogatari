@@ -84,6 +84,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private static final String TAG_GRACE_REFINE = "GraceRefine";
     private static final String TAG_GRACE_RECIPE = "GraceRecipe";
     private static final String TAG_GRACE_INITIATOR = "GraceInitiator";
+    /** 献祭仪式：结算后强制冷却剩余 tick（通用字段，仅该行为族使用）。 */
+    private static final String TAG_ACTION_COOLDOWN = "ActionCooldown";
 
     /** 造化合成会话阶段（一次性合成型仪式共用存储；推进逻辑在行为侧）。 */
     public enum CraftPhase { IDLE, PAYING, FLIGHT }
@@ -127,6 +129,10 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private final CraftSession craft = new CraftSession();
     /** 红石上升沿检测：上一拍邻居信号是否 >0（持久化，防重载后常亮信号误触发）。 */
     private boolean lastPowered;
+    /** 献祭仪式：结算后强制冷却剩余 tick（每 tick 递减；持久化防重载连发）。 */
+    private int actionCooldown;
+    /** 献祭仪式：产出光柱剩余渲染刻（瞬态，仅驱动客户端 BER，不持久化）。 */
+    private int sacrificeFxTicks;
 
     public RitualCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RITUAL_CORE.get(), pos, state);
@@ -151,6 +157,35 @@ public class RitualCoreBlockEntity extends BlockEntity {
 
     public RitualMatch activeMatch() {
         return activeMatch;
+    }
+
+    /** 献祭仪式冷却剩余 tick（0 = 就绪）。 */
+    public int actionCooldown() {
+        return actionCooldown;
+    }
+
+    /** 设置冷却剩余 tick（行为结算后调用；负值夹 0）。 */
+    public void setActionCooldown(int ticks) {
+        int value = Math.max(0, ticks);
+        if (actionCooldown != value) {
+            actionCooldown = value;
+            setChanged();
+        }
+    }
+
+    /** 每 tick 递减冷却（核心 tick 统一调用）。 */
+    private void tickActionCooldown() {
+        if (actionCooldown > 0) {
+            actionCooldown--;
+        }
+        if (sacrificeFxTicks > 0) {
+            sacrificeFxTicks--;
+        }
+    }
+
+    /** 献祭产出瞬间触发光柱（剩余刻写入渲染态，仅此一次）。 */
+    public void triggerSacrificeFx(int ticks) {
+        sacrificeFxTicks = Math.max(0, ticks);
     }
 
     public ResourceLocation activeRecipeId() {
@@ -184,6 +219,17 @@ public class RitualCoreBlockEntity extends BlockEntity {
             }
             if (activeMatch.patternId().equals(RitualBehaviors.YUMEWATARI)) {
                 return yumewatariCapacity(activeMatch.level());
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.NICHIRIN)) {
+                return daycycleCapacity(activeMatch.level(),
+                        GensokyouConfig.NICHIRIN_BASE_CAPACITY.get());
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.TSUKIKAGE)) {
+                return daycycleCapacity(activeMatch.level(),
+                        GensokyouConfig.TSUKIKAGE_BASE_CAPACITY.get());
+            }
+            if (RitualBehaviors.isToolSacrifice(activeMatch.patternId())) {
+                return sacrificeCapacity(activeMatch.level());
             }
             if (activeMatch.patternId().equals(RitualBehaviors.ZAOHUA)) {
                 // 不启动不缓存灵力：空闲容量 0（路由选不中、注不进）；
@@ -219,6 +265,20 @@ public class RitualCoreBlockEntity extends BlockEntity {
             cap *= 4L;
         }
         return cap;
+    }
+
+    /** 昼夜发电机（日轮天台/月影水镜）缓存上限 = 基值 × 4^等级。 */
+    public static long daycycleCapacity(int level, long base) {
+        long cap = base;
+        for (int i = 0; i < level; i++) {
+            cap *= 4L;
+        }
+        return cap;
+    }
+
+    /** 献祭工具仪式缓存上限 = 基值 × 4^等级。 */
+    public static long sacrificeCapacity(int level) {
+        return daycycleCapacity(level, GensokyouConfig.SACRIFICE_BASE_CAPACITY.get());
     }
 
     /** 托管型储灵行为（如八方归元）：图案命中且行为实现 SpiritBank 时灵力四件套整体转发。 */
@@ -1019,6 +1079,18 @@ public class RitualCoreBlockEntity extends BlockEntity {
             return new RitualRenderState(RitualRenderState.KIND_BAFANG, enabled,
                     activeMatch.level(), 0, 0, 0, new long[0], 0, 0L);
         }
+        if (RitualBehaviors.isToolSacrifice(id)) {
+            if (sacrificeFxTicks <= 0) {
+                return null;
+            }
+            // 复用字段：minY=光柱高度(格)、maxY=剩余刻、period=色索引(0..3)
+            return new RitualRenderState(RitualRenderState.KIND_SACRIFICE, enabled,
+                    activeMatch.level(),
+                    (int) Math.round(GensokyouConfig.FX_PILLAR_HEIGHT.get()),
+                    sacrificeFxTicks,
+                    RitualBehaviors.sacrificeColorIndex(id),
+                    new long[0], 0, 0L);
+        }
         return null;
     }
 
@@ -1383,6 +1455,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
             return;
         }
         core.ageTicks++;
+        core.tickActionCooldown();
         boolean rescan = core.ageTicks % 20 == 1L || core.activeMatch == null;
         RitualMatch previous = core.activeMatch;
         if (rescan) {
@@ -1560,6 +1633,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (lastPowered) {
             tag.putBoolean(TAG_LAST_POWERED, true);
         }
+        if (actionCooldown > 0) {
+            tag.putInt(TAG_ACTION_COOLDOWN, actionCooldown);
+        }
     }
 
     @Override
@@ -1596,6 +1672,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
         craft.load(tag);
         grace.load(tag);
         lastPowered = tag.getBoolean(TAG_LAST_POWERED);
+        actionCooldown = Math.max(0, tag.getInt(TAG_ACTION_COOLDOWN));
         if (tag.contains(TAG_RENDER_STATE)) {
             renderState = RitualRenderState.fromTag(tag.getCompound(TAG_RENDER_STATE));
         }

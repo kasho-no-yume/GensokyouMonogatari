@@ -1,0 +1,43 @@
+{
+  "pattern": "gensokyou:kukunochi_circle",
+  "toolTag": "#minecraft:axes",
+  "commonsTotal": 100,
+  "skullsRequired": 3,
+  "dragonHeadsRequired": 1,
+  "commons": [
+    ["minecraft:oak_log", 20],
+    ["minecraft:spruce_log", 12],
+    ["minecraft:birch_log", 12],
+    ["minecraft:cherry_log", 8],
+    ["minecraft:dark_oak_log", 8],
+    ["minecraft:acacia_log", 6],
+    ["minecraft:jungle_log", 6],
+    ["minecraft:mangrove_log", 4],
+    ["minecraft:oak_planks", 12],
+    ["minecraft:stick", 8],
+    ["minecraft:oak_sapling", 1],
+    ["minecraft:spruce_sapling", 0.5],
+    ["minecraft:cherry_sapling", 0.5]
+  ],
+  "nether": [
+    ["minecraft:crimson_stem", 6],
+    ["minecraft:warped_stem", 6],
+    ["minecraft:nether_wart_block", 3],
+    ["minecraft:shroomlight", 0.5]
+  ],
+  "end": [
+    ["minecraft:chorus_flower", 2],
+    ["minecraft:chorus_fruit", 1]
+  ],
+  "tables": [
+    { "tier": "wood", "special": [["minecraft:apple", 0.5]] },
+    { "tier": "stone", "special": [["minecraft:apple", 1], ["minecraft:cocoa_beans", 0.5]] },
+    { "tier": "gold", "special": [["minecraft:bamboo", 1], ["minecraft:apple", 2]] },
+    { "tier": "iron", "special": [
+      ["minecraft:apple", 5], ["minecraft:bamboo", 1], ["minecraft:cocoa_beans", 3]] },
+    { "tier": "diamond", "special": [["minecraft:apple", 10], ["minecraft:bamboo", 3]] },
+    { "tier": "netherite", "special": [
+      ["minecraft:apple", 5], ["minecraft:bamboo", 25],
+      ["minecraft:cocoa_beans", 10], ["minecraft:honeycomb", 30]] }
+  ]
+}

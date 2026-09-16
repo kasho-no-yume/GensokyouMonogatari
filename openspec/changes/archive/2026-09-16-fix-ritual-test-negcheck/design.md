@@ -30,9 +30,16 @@
 
 `expected_tier(hi, hi)=0` 的图案（顶阶切片无品阶仪式石信号）断言 `unless block [tier=0]` 必然失败（全新核心默认 state tier 就是 0）。与正查 SKIP 对齐：仅 `hi_exp>=1` 时生成 FAIL/OK 两行，否则生成单行 `say [GS-TEST] NEG_SKIP:<path> no-tier-signal`，链条衔接不变。
 
+## Findings（2026-09-16 实施前复核，代码级实证）
+
+- **磁盘产物是旧代，重建为硬前置**：`run/world/datapacks/gs_ritual_test` 现存的 32 个 mcfunction 仍是 `schedule gs_test:x 1s`（缺 `function` 关键字，1.21.1 非法）；而脚本 L583/604/617 已吐合法形态。故未跑 2.1 前起服，整包零加载，3.1 无意义。
+- **`hi_exp>=1` 对全部 12 个图案成立**（顶阶累积切片均含 `#gensokyou:ritual_stones_N_plus` 成员），D2 守卫在当前数据集**永不触发**。3.1 实测预期收敛为「12×NEG_OK、零 NEG_SKIP」；spec 的"无信号图案"场景暂无数据覆盖，属纯防御分支。
+- **全仓 palette 无任何 EXACT 高阶仪式石**（扫描 12 文件：0 命中）。负查只能产出 ≤low 品阶石，故修复后 `core.tier != hi` 是被结构保证的，不存在"清场后仍漏高阶"的残余路径。
+- **`resonance_relay` 是唯一的 `skipped=0` 图案**（顶阶 2039 格中 1979 格本就不分阶，低阶可 100% 重建）。清场后 matcher 会命中顶阶、但 `ritualTier`=物理 maxTier=low(2)≠5 → NEG_OK。其绿来自"tier 属性不被污染"而非"缺格"，机制与其余 11 图不同，勿按同一逻辑解读日志。
+
 ## Risks / Trade-offs
 
-- **[正查覆盖铺设的 destroy 掉落噪声]** 正查 `setblock` 覆盖已有方块会掉落旧方块实体（存量行为，每轮跑测试区多一堆石头）→ 本次不扩大范围；如嫌脏，后续可把正查铺设统一加 `replace`（一行正则的事，另案）。
+- **[正查覆盖铺设无掉落，原风险条已作废]** MC `setblock` 缺省模式即 `replace`（不产掉落），生成行也未写 `destroy`；因此"每轮多一堆石头"与该条"另案统一加 replace"均为误判，不设 follow-up。（清场行仍显式写 `replace`：意图明确且 spec 明文要求，非为防掉落。）
 - **[清场后残留空气与缺席格语义]** pattern 的缺席格=自由：neg 场地里顶阶专属格是空气、其余被低阶填满，matcher 可能匹配到低层级（如梦渡 L0 成立）并把 tier 写成低阶值——这正是期望行为，断言只禁"顶阶值"，不受影响。
 - **[链式时长]** 每图案多 ~3k 条 setblock，全链总时长增加数十秒量级，驱动脚本轮询窗口（9 min）不变可容纳。
 

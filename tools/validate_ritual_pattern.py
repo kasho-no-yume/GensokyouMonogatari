@@ -593,22 +593,31 @@ def emit_test_pack(patterns, out_dir):
                 lines = [f'say [GS-TEST] SKIP:{path}:L{lvl} no-tier-signal']
             wire(check, lines)
         # 负查：以最低阶品阶常量铺最高阶全量切片——高阶标签解析不出即跳格，
-        # 不得虚高匹配到顶阶（tier 不等于顶阶预期值）
+        # 不得虚高匹配到顶阶（tier 不等于顶阶预期值）。
+        # 先对顶阶累积切片全量清场（replace 抑制掉落），保证负查面对确定性空白场地，
+        # 而非正查遗留的高阶石废墟（残留会让物理 maxTier 恒为顶阶，NEG_FAIL 必现）。
         low = levels[0]
         hi = levels[-1]
         setup_neg, check_neg = f'setup_{path}_neg', f'check_{path}_neg'
         seq.append(setup_neg)
-        body = place_commands(pattern, hi, (ax, ay, az),
-                              lambda _key: low, only_additions=False,
-                              resolver=resolve_block_test)
+        clear = [f'setblock {ax + x} {ay + y} {az + z} minecraft:air replace'
+                 for _key, x, y, z, *_ in pattern_level(pattern, hi)['expanded']]
+        body = clear + place_commands(pattern, hi, (ax, ay, az),
+                                      lambda _key: low, only_additions=False,
+                                      resolver=resolve_block_test)
         wire(setup_neg, body + [f'schedule function gs_test:{check_neg} 4s'])
         hi_exp = expected_tier(pattern, hi, hi)
-        wire(check_neg, [
-            f'execute if block {ax} {ay} {az} gensokyou:ritual_core[tier={hi_exp}] '
-            f'run say [GS-TEST] NEG_FAIL:{path} low stones wrongly formed top level!',
-            f'execute unless block {ax} {ay} {az} gensokyou:ritual_core[tier={hi_exp}] '
-            f'run say [GS-TEST] NEG_OK:{path}',
-        ])
+        if hi_exp >= 1:
+            check_body = [
+                f'execute if block {ax} {ay} {az} gensokyou:ritual_core[tier={hi_exp}] '
+                f'run say [GS-TEST] NEG_FAIL:{path} low stones wrongly formed top level!',
+                f'execute unless block {ax} {ay} {az} gensokyou:ritual_core[tier={hi_exp}] '
+                f'run say [GS-TEST] NEG_OK:{path}',
+            ]
+        else:
+            # 顶阶切片无品阶信号：全新核心默认 tier=0，断言 tier!=0 必误报 → 与正查 SKIP 对齐
+            check_body = [f'say [GS-TEST] NEG_SKIP:{path} no-tier-signal']
+        wire(check_neg, check_body)
 
     # 链式串接：每个 check 完成后衔接下一个 setup（串行执行）
     for i, name in enumerate(seq):

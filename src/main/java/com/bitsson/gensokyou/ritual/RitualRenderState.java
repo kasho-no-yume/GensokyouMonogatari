@@ -29,6 +29,8 @@ public record RitualRenderState(int kind, boolean enabled, int tier, int minY, i
     public static final int KIND_RELAY = 1;
     public static final int KIND_KAGUTSUICHI = 2;
     public static final int KIND_BAFANG = 3;
+    /** 献祭仪式产出光柱：minY=光柱高度(格)、maxY=剩余刻、period=色索引(0..3)。 */
+    public static final int KIND_SACRIFICE = 4;
 
     /** 位掩码通道上限（当前 L5 配额合计 40 &lt; 64）。 */
     public static final int MAX_CHANNELS = 64;

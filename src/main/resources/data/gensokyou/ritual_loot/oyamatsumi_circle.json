@@ -1,0 +1,94 @@
+{
+  "pattern": "gensokyou:oyamatsumi_circle",
+  "toolTag": "#minecraft:pickaxes",
+  "commonsTotal": 100,
+  "skullsRequired": 3,
+  "dragonHeadsRequired": 1,
+  "commons": [
+    ["minecraft:stone", 60],
+    ["minecraft:deepslate", 12],
+    ["minecraft:cobblestone", 8],
+    ["minecraft:granite", 4],
+    ["minecraft:diorite", 4],
+    ["minecraft:andesite", 4],
+    ["minecraft:tuff", 2],
+    ["minecraft:calcite", 0.6],
+    ["minecraft:dripstone_block", 0.6],
+    ["minecraft:amethyst_block", 0.2]
+  ],
+  "end": [
+    ["minecraft:end_stone", 12],
+    ["minecraft:purpur_block", 0.2]
+  ],
+  "tables": [
+    {
+      "tier": "wood",
+      "special": [["minecraft:coal", 0.5]],
+      "nether": [
+        ["minecraft:netherrack", 12],
+        ["minecraft:magma_block", 0.2]
+      ]
+    },
+    {
+      "tier": "stone",
+      "special": [["minecraft:coal_ore", 1], ["minecraft:iron_ore", 0.5]],
+      "nether": [
+        ["minecraft:netherrack", 12],
+        ["minecraft:magma_block", 0.2]
+      ]
+    },
+    {
+      "tier": "gold",
+      "special": [["minecraft:lapis_ore", 1], ["minecraft:coal_ore", 2]],
+      "nether": [
+        ["minecraft:netherrack", 12],
+        ["minecraft:magma_block", 0.2],
+        ["minecraft:nether_quartz_ore", 1]
+      ]
+    },
+    {
+      "tier": "iron",
+      "special": [
+        ["minecraft:iron_ore", 5],
+        ["minecraft:gold_ore", 1],
+        ["minecraft:lapis_ore", 3],
+        ["minecraft:redstone_ore", 3],
+        ["minecraft:diamond_ore", 0.1]
+      ],
+      "nether": [
+        ["minecraft:netherrack", 12],
+        ["minecraft:magma_block", 0.2],
+        ["minecraft:nether_quartz_ore", 3]
+      ]
+    },
+    {
+      "tier": "diamond",
+      "special": [
+        ["minecraft:iron_ore", 10],
+        ["minecraft:gold_ore", 3],
+        ["minecraft:diamond_ore", 1]
+      ],
+      "nether": [
+        ["minecraft:netherrack", 12],
+        ["minecraft:magma_block", 0.2],
+        ["minecraft:ancient_debris", 0.1]
+      ]
+    },
+    {
+      "tier": "netherite",
+      "special": [
+        ["minecraft:diamond_ore", 5],
+        ["minecraft:iron_ore", 25],
+        ["minecraft:gold_ore", 10],
+        ["minecraft:lapis_ore", 30],
+        ["minecraft:redstone_ore", 30]
+      ],
+      "nether": [
+        ["minecraft:netherrack", 12],
+        ["minecraft:magma_block", 0.2],
+        ["minecraft:nether_quartz_ore", 30],
+        ["minecraft:ancient_debris", 0.5]
+      ]
+    }
+  ]
+}

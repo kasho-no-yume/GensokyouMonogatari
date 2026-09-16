@@ -28,7 +28,7 @@
 - [x] 5.1 `DebugCommands` 增 `/gs_debug yumewatari beds <corePos>`（打印包围盒/合规床清单/占用者）与 `settle <corePos>`（走与事件完全相同的结算路径）
 - [x] 5.2 `gradlew compileJava` 通过；离线自测：`validate_ritual_pattern.py` 不受影响确认
 - [x] 5.3 `runServer` 日志断言：启动无 registry 错误；用调试命令验证 0/1/2 阶产灵数值、缓存截断、溢出直注核心、无核心作废四场景（gs_yume_autotest 探针链全中：unit 10000/40000/160000、cap 40000/160000/640000、cache=480000+discarded=160000、直注 spiritCore=50000+discarded=110000；副产物：顺带修活 gs_ritual_test——schedule 语法 1.21.1 化 + resolve_block_test 无阶标签回退，官方 suite 现报 yumewatari L1/L2 OK；遗留：全图案 NEG_FAIL 为存量负查缺陷，另案处理）
-- [ ] 5.4 实机夜跳过验收（用户执行）：凑玩家+村民睡合规床触发跳夜，核对 GUI 床数与灵力入账；`/time set day` 不产灵；`doDaylightCycle=false` 不产灵
+- [x] 5.4 实机夜跳过验收（用户执行）：凑玩家+村民睡合规床触发跳夜，核对 GUI 床数与灵力入账；`/time set day` 不产灵；`doDaylightCycle=false` 不产灵
 
 ## 6. 缓存自发注灵（用户追加：产能仪式属性）
 
