@@ -129,6 +129,28 @@ public final class FxGeometry {
     }
 
     /**
+     * 贴地辉光：单张水平面全幅贴图（加法），用于"地面被炙烤"的地面光斑。
+     * 与 {@link #emitCrossGlow}（三轴交叉、呈体积光晕）不同，此面片只铺一个水平面，
+     * 配合贴地火舌给出火床地面感。调用方负责 translate 到光斑中心。
+     */
+    public static void emitGroundGlow(PoseStack pose, VertexConsumer c,
+                                      float cx, float cy, float cz, float half,
+                                      int r, int g, int b, int a) {
+        if (half <= 0F || a <= 0) {
+            return;
+        }
+        pose.pushPose();
+        pose.translate(cx, cy, cz);
+        pose.mulPose(Axis.XP.rotationDegrees(-90.0F));
+        PoseStack.Pose p = pose.last();
+        vertex(c, p, -half, -half, 0.0F, 0.0F, 1.0F, r, g, b, a);
+        vertex(c, p, half, -half, 0.0F, 1.0F, 1.0F, r, g, b, a);
+        vertex(c, p, half, half, 0.0F, 1.0F, 0.0F, r, g, b, a);
+        vertex(c, p, -half, half, 0.0F, 0.0F, 0.0F, r, g, b, a);
+        pose.popPose();
+    }
+
+    /**
      * 发射一颗中心在局部原点、半径 {@code radius} 的经纬球（POSITION_COLOR_TEX_LIGHTMAP 格式（多出的 lightmap 槽着色器未声明即忽略），
      * 供 {@link SpiritOrbRenderTypes} 用）。UV=（极角、方位角）参数化，着色器按 Time
      * 滚动采样雾噪声出"气"的流动；法线由 normalize(Position) 推导。

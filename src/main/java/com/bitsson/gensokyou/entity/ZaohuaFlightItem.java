@@ -154,6 +154,17 @@ public class ZaohuaFlightItem extends ItemEntity {
         }
     }
 
+    /**
+     * 位置由客户端确定性曲线独占（纯表现，不同步）：忽略服务端位置包。
+     * 1.21.1 的 {@code lerpTo} 直接 {@code setPos}（无插值）；原版 {@code ServerEntity}
+     * 每 60 tick 无条件补发一次位置包（{@code tickCount % 60 == 0}），若不忽略，
+     * 客户端飞行物会被拉回起点（祭品台）一帧再被曲线拉回。
+     */
+    @Override
+    public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps) {
+        // no-op：世界坐标仅由 tick() 的 pathPos 解算
+    }
+
     /** 服务端会话是否仍在保护本代飞行实体。 */
     private boolean sessionAlive() {
         return level().getBlockEntity(BlockPos.of(entityData.get(DATA_CORE)))

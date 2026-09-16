@@ -2,9 +2,7 @@
 
 ## Purpose
 仪式运行态特效基建：以单一渲染态通道把"该画什么"送到客户端，特效主体由客户端逐帧网格几何 + 加法混合 RenderType 承担（粒子仅作低频点缀），参数全部配置化、资产走 gen_tex 管道。
-
 ## Requirements
-
 ### Requirement: 仪式渲染态共享通道
 仪式核心 SHALL 以单一 `RitualRenderState` 通道向客户端同步运行态特效所需最小状态：`kind`（none/relay/kagutsuchi/bafang）、`enabled`、`tier`、按 kind 复用的辅助字段（包围盒、位坐标列表、方向位图）。通道 MUST 保持既有不变量：仅状态变化时推送、稳态零持续包、区块首次载入即下发、未 enabled/结构失效下发清零态。kind 语义 MUST 相互独立：任一 kind 的字段解释变更 MUST NOT 影响其他 kind 的读取。服务端结算 MUST NOT 读取本通道数据。
 
@@ -24,8 +22,9 @@
 - **THEN** 特效全量渲染且该玩家与服务器之间无逐 tick 粒子包
 
 ### Requirement: 特效参数配置化与资产管道
-火柱柱数/层数、雾带宽与层数、闪电分段与重掷频率、灵气球呼吸幅度/速率、各贴图 uv 滚动速率 SHALL 全部为 `GensokyouConfig`（COMMON）项，代码内 MUST NOT 硬编码魔数。新增 fx 贴图（火焰条带、雾带、闪电芯/晕）SHALL 经 `tools/gen_tex.py` 数据管道产出，MUST NOT 使用坐标循环脚本。
+火焰场的采样密度/火舌尺寸/辉光强度与脉动速率、雾带宽与层数、闪电分段与重掷频率、灵气球呼吸幅度/速率、各贴图 uv 滚动速率 SHALL 全部为 `GensokyouConfig`（COMMON）项，代码内 MUST NOT 硬编码魔数。新增 fx 贴图（火床、火舌、雾带、闪电芯/晕）SHALL 经 `tools/gen_tex.py` 数据管道产出，MUST NOT 使用坐标循环脚本。
 
 #### Scenario: 调参不重编译
 - **WHEN** 修改任一特效密度/速率配置项并重载
 - **THEN** 运行态表现随之变化，无需改动代码
+

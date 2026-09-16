@@ -11,6 +11,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -22,8 +23,8 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * 仪式核心运行态特效渲染器（ritual-fx-overhaul）：据只读渲染态按 {@code kind} 分发——
- * 共鸣塔=宽幅紫雾带 + 持续闪电弧、迦具土=台位密集网格火柱、八方归元=fresnel 灵气球。
+ * 仪式核心运行态特效渲染器：据只读渲染态按 {@code kind} 分发——
+ * 共鸣塔=宽幅紫雾带 + 持续闪电弧、迦具土=贴地烈火场、八方归元=fresnel 灵气球。
  *
  * <p>几何统一走激光弹幕已实机验证的"方向对齐 + 米字交叉面片"路线（{@link FxGeometry
  * #emitAlignedBeam}）——单面摄像机朝向条带在掠射/平行视线时会棱边消失（正是旧版"紫气
@@ -33,8 +34,10 @@ import java.util.WeakHashMap;
 public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEntity> {
 
     // ---- fx 贴图 ----
-    private static final ResourceLocation FLAME_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/flame_column.png");
+    private static final ResourceLocation FIRE_TONGUE_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/fire_tongue.png");
+    private static final ResourceLocation FIRE_BED_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/fire_bed.png");
     private static final ResourceLocation MIST_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/spirit_mist.png");
     private static final ResourceLocation BOLT_CORE_TEXTURE =
@@ -360,9 +363,13 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         return envs;
     }
 
-    // ================================================================= 火柱
+    // ============================================================ 贴地烈火场
 
-    /** 迦具土网格火柱：台位密集发射点（布局纯函数），米字交叉面片 + V 滚动 + 闪烁。 */
+    /**
+     * 迦具土贴地烈火场（ritual-presentation-polish D6）：结构半径内均匀铺地火（布局纯函数），
+     * 贴地火舌 + 脉动地面辉光 + 客户端本地余烬。整体观感为"仪式被烈火炙烤"，
+     * MUST NOT 使用离散炎柱复制体；采样点半径硬钳于结构半径内（含抖动）。
+     */
     private void renderFlame(RitualCoreBlockEntity be, RitualRenderState state, double now,
                              PoseStack poseStack, MultiBufferSource buffers) {
         BlockPos core = be.getBlockPos();
@@ -371,30 +378,69 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         if (env <= 0F) {
             return;
         }
-        List<RitualFxLayout.Pillar> pillars = RitualFxLayout.flamePillars(
+        List<RitualFxLayout.FirePoint> points = RitualFxLayout.fireBed(
                 core, state.linkPos(), tier,
-                GensokyouConfig.FX_FLAME_PILLARS_PER_PEDESTAL_BASE.get(),
-                GensokyouConfig.FX_FLAME_RING_POINTS.get(),
-                state.maxY());   // kind=KAGUTSUCHI 时 maxY 语义为结构水平半径
-        int planes = GensokyouConfig.FX_FLAME_PLANES.get();
-        // 阶级放大三维度：更粗（每阶 +35%）、更高、（经布局）更多
-        float halfWidth = GensokyouConfig.FX_FLAME_WIDTH.get().floatValue() * (1.0F + 0.35F * tier);
-        float height = GensokyouConfig.FX_FLAME_HEIGHT_BASE.get().floatValue()
-                + GensokyouConfig.FX_FLAME_HEIGHT_PER_TIER.get().floatValue() * tier;
-        float scroll = (float) (now * GensokyouConfig.FX_FLAME_SCROLL_SPEED.get());
+                GensokyouConfig.FX_FIRE_DENSITY_BASE.get(),
+                GensokyouConfig.FX_FIRE_DENSITY_PER_TIER.get(),
+                state.maxY(),   // kind=KAGUTSUCHI 时 maxY 语义为结构水平半径
+                GensokyouConfig.FX_FIRE_RADIUS_RATIO.get());
+        int planes = GensokyouConfig.FX_FIRE_TONGUE_PLANES.get();
+        float halfWidth = GensokyouConfig.FX_FIRE_TONGUE_WIDTH.get().floatValue();
+        float height = GensokyouConfig.FX_FIRE_TONGUE_HEIGHT_BASE.get().floatValue()
+                + GensokyouConfig.FX_FIRE_TONGUE_HEIGHT_PER_TIER.get().floatValue() * tier;
+        float glow = GensokyouConfig.FX_FIRE_GLOW_RADIUS.get().floatValue() + 0.25F * tier;
+        float glowAlpha = GensokyouConfig.FX_FIRE_GLOW_INTENSITY.get().floatValue();
+        double pulseSpeed = GensokyouConfig.FX_FIRE_GLOW_PULSE_SPEED.get();
+        float scroll = (float) (now * GensokyouConfig.FX_FIRE_SCROLL_SPEED.get());
 
-        VertexConsumer flame = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(FLAME_TEXTURE));
-        for (RitualFxLayout.Pillar pillar : pillars) {
-            RandomSource phase = RandomSource.create(pillar.seed());
-            float flicker = 0.85F + 0.3F * Mth.sin((float) (now * 0.3D + phase.nextDouble() * 12D));
+        // 两遍严格顺序提交（不同 RenderType 会立即结算上一批）：先地面辉光，再火舌
+        VertexConsumer ground = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(FIRE_BED_TEXTURE));
+        for (RitualFxLayout.FirePoint point : points) {
+            float edgeFade = 1.0F - 0.7F * point.edge();
+            if (edgeFade <= 0.01F) {
+                continue;
+            }
+            RandomSource phase = RandomSource.create(point.seed());
+            float wobble = 0.8F + 0.35F * Mth.sin((float) (now * 0.22D + phase.nextDouble() * 12D));
+            float pulse = 0.75F + 0.25F * Mth.sin((float) (now * pulseSpeed + phase.nextDouble() * 6.28D));
+            FxGeometry.emitGroundGlow(poseStack, ground, (float) point.x(),
+                    (float) point.y() + 1.02F, (float) point.z(),
+                    glow * edgeFade * wobble,
+                    255, 150, 60, (int) (110F * env * glowAlpha * pulse * edgeFade));
+        }
+        VertexConsumer tongue = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(FIRE_TONGUE_TEXTURE));
+        for (RitualFxLayout.FirePoint point : points) {
+            float edgeFade = 1.0F - 0.7F * point.edge();
+            if (edgeFade <= 0.01F) {
+                continue;
+            }
+            RandomSource phase = RandomSource.create(point.seed());
+            float wobble = 0.8F + 0.35F * Mth.sin((float) (now * 0.22D + phase.nextDouble() * 12D));
+            float pulse = 0.75F + 0.25F * Mth.sin((float) (now * pulseSpeed + phase.nextDouble() * 6.28D));
             poseStack.pushPose();
-            poseStack.translate(pillar.x(), pillar.y() + 1.0D, pillar.z());
-            FxGeometry.emitCrossPlanes(poseStack, flame, planes,
-                    halfWidth * flicker, height * (0.92F + 0.16F * flicker),
+            poseStack.translate(point.x(), point.y() + 1.0D, point.z());
+            FxGeometry.emitCrossPlanes(poseStack, tongue, planes,
+                    halfWidth * edgeFade * wobble, height * (0.9F + 0.2F * pulse),
                     scroll, scroll + height,
-                    255, 255, 255, (int) (170F * env * flicker));
+                    255, 205, 130, (int) (185F * env * edgeFade * wobble));
             poseStack.popPose();
         }
+        emitEmbers(be, points);
+    }
+
+    /** 客户端本地余烬/火星（低频点缀）：MUST NOT 引入服务端粒子包。 */
+    private static void emitEmbers(RitualCoreBlockEntity be, List<RitualFxLayout.FirePoint> points) {
+        Level level = be.getLevel();
+        if (level == null || points.isEmpty() || level.getRandom().nextFloat() > 0.45F) {
+            return;
+        }
+        RitualFxLayout.FirePoint point = points.get(level.getRandom().nextInt(points.size()));
+        level.addParticle(level.getRandom().nextFloat() < 0.5F
+                        ? ParticleTypes.SMALL_FLAME : ParticleTypes.FLAME,
+                be.getBlockPos().getX() + point.x(),
+                be.getBlockPos().getY() + 1.05D,
+                be.getBlockPos().getZ() + point.z(),
+                0.0D, 0.02D, 0.0D);
     }
 
     // ================================================================ 灵气球

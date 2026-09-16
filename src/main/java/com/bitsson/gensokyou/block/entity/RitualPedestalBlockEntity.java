@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -14,14 +15,13 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class RitualPedestalBlockEntity extends BlockEntity {
     private static final String TAG_HELD = "Held";
-    private static final String TAG_RITUAL_ACTIVE = "RitualActive";
 
     /**
      * 台面持有物（单件不变量：常规上限 1 个物品，经 {@link #setHeld} 强制）。
      * 加载路径不 clamp——历史超限栈视为满槽（不可再插入），随消耗/抽出逐件自然回落。
      */
     private ItemStack held = ItemStack.EMPTY;
-    /** 所属仪式是否处于激活态（由核心广播；激活时祭品悬浮旋转）。 */
+    /** 所属仪式是否处于激活态（纯渲染态，由核心广播；MUST NOT 持久化——唯一事实源为核心）。 */
     private boolean ritualActive;
 
     public RitualPedestalBlockEntity(BlockPos pos, BlockState state) {
@@ -88,13 +88,24 @@ public class RitualPedestalBlockEntity extends BlockEntity {
         return ClientboundBlockEntityDataPacket.create(this);
     }
 
+    /**
+     * NeoForge 默认实现（{@code IBlockEntityExtension#onDataPacket}）在 update tag 为**空**时
+     * 直接跳过 {@code loadWithComponents}。本 BE 的「台面清空」正对应空 tag（Held 不写入），
+     * 若沿用默认实现，清空后客户端会残留上一件物品的渲染（重登/区块重载才消失）。
+     * 故此处无条件载入，保证空 tag 也把 held 清成 EMPTY。
+     */
+    @Override
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket packet,
+                             HolderLookup.Provider registries) {
+        loadWithComponents(packet.getTag(), registries);
+    }
+
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         if (!held.isEmpty()) {
             tag.put(TAG_HELD, held.save(registries));
         }
-        tag.putBoolean(TAG_RITUAL_ACTIVE, ritualActive);
     }
 
     @Override
@@ -103,6 +114,6 @@ public class RitualPedestalBlockEntity extends BlockEntity {
         held = tag.contains(TAG_HELD)
                 ? ItemStack.parse(registries, tag.getCompound(TAG_HELD)).orElse(ItemStack.EMPTY)
                 : ItemStack.EMPTY;
-        ritualActive = tag.getBoolean(TAG_RITUAL_ACTIVE);
+        // ritualActive 不持久化（旧档多余键静默忽略）：由所属核心在成型/启停时广播为唯一事实源
     }
 }

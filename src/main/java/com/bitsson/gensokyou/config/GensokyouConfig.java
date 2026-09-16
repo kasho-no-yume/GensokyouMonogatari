@@ -65,14 +65,18 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue KAGUTSUICHI_BASE_CAPACITY;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> KAGUTSUICHI_FUEL_BLACKLIST;
 
-    // ---- ritual-fx-overhaul：运行态网格/shader 特效（火柱/紫雾带/闪电弧/灵气球）----
-    public static final ModConfigSpec.IntValue FX_FLAME_PILLARS_PER_PEDESTAL_BASE;
-    public static final ModConfigSpec.IntValue FX_FLAME_RING_POINTS;
-    public static final ModConfigSpec.IntValue FX_FLAME_PLANES;
-    public static final ModConfigSpec.DoubleValue FX_FLAME_WIDTH;
-    public static final ModConfigSpec.DoubleValue FX_FLAME_HEIGHT_BASE;
-    public static final ModConfigSpec.DoubleValue FX_FLAME_HEIGHT_PER_TIER;
-    public static final ModConfigSpec.DoubleValue FX_FLAME_SCROLL_SPEED;
+    // ---- ritual-presentation-polish：迦具土贴地烈火场（原炎柱场重设计）----
+    public static final ModConfigSpec.IntValue FX_FIRE_DENSITY_BASE;
+    public static final ModConfigSpec.IntValue FX_FIRE_DENSITY_PER_TIER;
+    public static final ModConfigSpec.DoubleValue FX_FIRE_RADIUS_RATIO;
+    public static final ModConfigSpec.IntValue FX_FIRE_TONGUE_PLANES;
+    public static final ModConfigSpec.DoubleValue FX_FIRE_TONGUE_WIDTH;
+    public static final ModConfigSpec.DoubleValue FX_FIRE_TONGUE_HEIGHT_BASE;
+    public static final ModConfigSpec.DoubleValue FX_FIRE_TONGUE_HEIGHT_PER_TIER;
+    public static final ModConfigSpec.DoubleValue FX_FIRE_GLOW_RADIUS;
+    public static final ModConfigSpec.DoubleValue FX_FIRE_GLOW_INTENSITY;
+    public static final ModConfigSpec.DoubleValue FX_FIRE_GLOW_PULSE_SPEED;
+    public static final ModConfigSpec.DoubleValue FX_FIRE_SCROLL_SPEED;
     public static final ModConfigSpec.IntValue FX_RAMP_TICKS;
     public static final ModConfigSpec.DoubleValue FX_MIST_RADIUS;
     public static final ModConfigSpec.DoubleValue FX_MIST_BAND_WIDTH;
@@ -283,14 +287,18 @@ public class GensokyouConfig {
         ZAOHUA_CONVERGE_Y = BUILDER.comment("Zaohua rite: convergence point height above the core").defineInRange("zaohuaConvergeY", 2.5D, 0.5D, 32D);
         ZAOHUA_RISING_PARTICLES_PER_SEC = BUILDER.comment("Zaohua rite: purple rising particles generated across the structure per second during a craft").defineInRange("zaohuaRisingParticlesPerSec", 240, 0, 100000);
         BUILDER.pop();
-        BUILDER.push("ritualFx").comment("Ritual runtime grid/shader FX (ritual-fx-overhaul): flame columns, mist ribbon, bolt arcs, spirit orb");
-        FX_FLAME_PILLARS_PER_PEDESTAL_BASE = BUILDER.comment("Flame pillars seeded per pedestal at tier 0 (adds tier/2 per pedestal)").defineInRange("fxFlamePillarsPerPedestalBase", 3, 1, 12);
-        FX_FLAME_RING_POINTS = BUILDER.comment("Extra interpolated flame pillars around the outer ring (tier>=2 only); 0 disables").defineInRange("fxFlameRingPoints", 14, 0, 64);
-        FX_FLAME_PLANES = BUILDER.comment("Cross planes per flame column (mice-x section; more planes = rounder, pricier)").defineInRange("fxFlamePlanes", 3, 1, 8);
-        FX_FLAME_WIDTH = BUILDER.comment("Flame column half-width in blocks").defineInRange("fxFlameWidth", 0.7D, 0.05D, 4.0D);
-        FX_FLAME_HEIGHT_BASE = BUILDER.comment("Flame column height at tier 0 (blocks)").defineInRange("fxFlameHeightBase", 3.0D, 0.2D, 12.0D);
-        FX_FLAME_HEIGHT_PER_TIER = BUILDER.comment("Flame column height added per tier").defineInRange("fxFlameHeightPerTier", 1.3D, 0.0D, 6.0D);
-        FX_FLAME_SCROLL_SPEED = BUILDER.comment("Flame texture V scroll speed (uv per tick) -> upward flow").defineInRange("fxFlameScrollSpeed", 0.06D, 0.0D, 0.5D);
+        BUILDER.push("ritualFx").comment("Ritual runtime grid/shader FX (ritual-presentation-polish): fire bed, mist ribbon, bolt arcs, spirit orb");
+        FX_FIRE_DENSITY_BASE = BUILDER.comment("Kagutsuchi fire bed: deterministic ground fire points at tier 0").defineInRange("fxFireDensityBase", 26, 1, 256);
+        FX_FIRE_DENSITY_PER_TIER = BUILDER.comment("Kagutsuchi fire bed: extra ground fire points per tier").defineInRange("fxFireDensityPerTier", 10, 0, 128);
+        FX_FIRE_RADIUS_RATIO = BUILDER.comment("Kagutsuchi fire bed: fraction of structure horizontal radius covered (hard-clamped <= structure radius, never spills outside)").defineInRange("fxFireRadiusRatio", 0.92D, 0.1D, 1.0D);
+        FX_FIRE_TONGUE_PLANES = BUILDER.comment("Kagutsuchi fire bed: cross planes per low tongue (more = rounder, pricier)").defineInRange("fxFireTonguePlanes", 3, 1, 8);
+        FX_FIRE_TONGUE_WIDTH = BUILDER.comment("Kagutsuchi fire bed: tongue half-width in blocks").defineInRange("fxFireTongueWidth", 0.55D, 0.05D, 3.0D);
+        FX_FIRE_TONGUE_HEIGHT_BASE = BUILDER.comment("Kagutsuchi fire bed: low tongue height at tier 0 (blocks)").defineInRange("fxFireTongueHeightBase", 0.9D, 0.1D, 6.0D);
+        FX_FIRE_TONGUE_HEIGHT_PER_TIER = BUILDER.comment("Kagutsuchi fire bed: tongue height added per tier").defineInRange("fxFireTongueHeightPerTier", 0.28D, 0.0D, 3.0D);
+        FX_FIRE_GLOW_RADIUS = BUILDER.comment("Kagutsuchi fire bed: ground glow half-radius per point (blocks)").defineInRange("fxFireGlowRadius", 1.5D, 0.1D, 8.0D);
+        FX_FIRE_GLOW_INTENSITY = BUILDER.comment("Kagutsuchi fire bed: ground glow alpha scale (0..1)").defineInRange("fxFireGlowIntensity", 0.55D, 0.0D, 1.0D);
+        FX_FIRE_GLOW_PULSE_SPEED = BUILDER.comment("Kagutsuchi fire bed: ground glow pulse angular speed (rad/tick)").defineInRange("fxFireGlowPulseSpeed", 0.08D, 0.0D, 1.0D);
+        FX_FIRE_SCROLL_SPEED = BUILDER.comment("Kagutsuchi fire bed: tongue texture V scroll speed (uv per tick) -> upward lick").defineInRange("fxFireScrollSpeed", 0.08D, 0.0D, 0.5D);
         FX_RAMP_TICKS = BUILDER.comment("Fade in/out envelope length in ticks for all ritual FX (no single-frame pop)").defineInRange("fxRampTicks", 4, 1, 20);
         FX_MIST_RADIUS = BUILDER.comment("Spirit mist ribbon base orbit radius around the tower axis (blocks)").defineInRange("fxMistRadius", 3.0D, 0.5D, 10.0D);
         FX_MIST_BAND_WIDTH = BUILDER.comment("Spirit mist ribbon half-width (blocks); thick & visible per requirement").defineInRange("fxMistBandWidth", 1.6D, 0.2D, 4.0D);

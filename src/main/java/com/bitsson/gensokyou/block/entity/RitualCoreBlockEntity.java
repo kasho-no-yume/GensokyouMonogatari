@@ -1359,6 +1359,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
             if (core.activeMatch != null && previous == null) {
                 // 成型瞬间：代理箱从无槽变有槽，失效块 cap 缓存让漏斗等消费者重查
                 serverLevel.invalidateCapabilities(pos);
+                // 台面激活态不持久化：成型/重载后按核心当前 enabled 补广播（唯一事实源）
+                core.setPedestalsActive(serverLevel, core.activeMatch, core.enabled);
                 // 成型替换扩展点：命中瞬间调用（当前为空实现占位）
                 RitualBehaviors.get(core.activeMatch.patternId())
                         .ifPresent(behavior -> behavior.onFormed(serverLevel, pos, core.activeMatch));
