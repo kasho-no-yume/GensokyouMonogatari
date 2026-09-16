@@ -119,4 +119,36 @@ public final class RitualCoreRegistry {
                 });
         return out;
     }
+
+    /**
+     * 按图案遍历该维度全部登记条目（无中心/半径）：live 现场校验与陈旧剔除语义同范围查询。
+     * 消费方为跳夜结算——事件只给出维度，需枚举全部成型梦渡核心。
+     */
+    public static List<RitualCoreBlockEntity> formedOfPattern(ServerLevel level, ResourceLocation patternId) {
+        RitualCoreRegistry registry = peek(level);
+        if (registry == null) {
+            return List.of();
+        }
+        List<RitualCoreBlockEntity> out = new ArrayList<>();
+        List<BlockPos> stale = null;
+        for (Map.Entry<BlockPos, Entry> e : registry.entries.entrySet()) {
+            if (!e.getValue().patternId().equals(patternId)) {
+                continue;
+            }
+            if (level.getBlockEntity(e.getKey()) instanceof RitualCoreBlockEntity core
+                    && core.activeMatch() != null
+                    && core.activeMatch().patternId().equals(e.getValue().patternId())) {
+                out.add(core);
+            } else {
+                if (stale == null) {
+                    stale = new ArrayList<>();
+                }
+                stale.add(e.getKey());
+            }
+        }
+        if (stale != null) {
+            stale.forEach(registry.entries::remove);
+        }
+        return out;
+    }
 }

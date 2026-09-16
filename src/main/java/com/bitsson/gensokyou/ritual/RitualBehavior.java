@@ -120,6 +120,14 @@ public interface RitualBehavior {
                             RitualCoreBlockEntity core) {
     }
 
+    /**
+     * 结构存续期间的周期逻辑，**不受 enabled 门控**（成型即每 tick 调用，自行按 core.ageTicks() 控频）。
+     * 被动产能仪式的常驻搬运在此（如梦渡缓存→灵力核心自发注灵）；启动型仪式照旧用 serverTick。
+     */
+    default void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,
+                                   RitualCoreBlockEntity core) {
+    }
+
     /** 红石上升沿脉冲回调（0→>0 跳变触发一次）；仅覆写的仪式响应，默认零副作用。 */
     default void onRedstonePulse(ServerLevel level, BlockPos corePos, RitualMatch match,
                                  RitualCoreBlockEntity core) {

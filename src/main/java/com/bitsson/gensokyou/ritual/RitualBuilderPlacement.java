@@ -12,6 +12,7 @@ import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -43,6 +44,15 @@ public final class RitualBuilderPlacement {
 
     /** 一条材料需求：具体方块 + 全图案所需总数。 */
     public record Requirement(Block block, int count) {
+        /** 该方块是否没有物品形态（盆栽等）：不可作为物品获得，不参与持有统计与扣料。 */
+        public boolean itemLess() {
+            return RitualBuilderPlacement.itemLess(block);
+        }
+    }
+
+    /** 方块是否没有对应物品（`asItem() == Items.AIR`，如各类盆栽）。 */
+    public static boolean itemLess(Block block) {
+        return block.asItem() == Items.AIR;
     }
 
     /**
@@ -260,6 +270,9 @@ public final class RitualBuilderPlacement {
     /** 从背包扣一个该方块的物品（精确匹配，忽略 NBT）。返回是否成功。 */
     private static boolean consumeOne(Inventory inventory, Block block) {
         Item item = block.asItem();
+        if (item == Items.AIR) {
+            return true; // 无物品形态的方块（盆栽等）：构建杖直接生成，不参与扣料
+        }
         for (int i = 0; i < inventory.getContainerSize(); i++) {
             ItemStack stack = inventory.getItem(i);
             if (!stack.isEmpty() && stack.is(item)) {

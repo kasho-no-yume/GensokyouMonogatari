@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client.screen;
 
+import com.bitsson.gensokyou.client.MaterialIcons;
 import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.menu.RitualBuilderMenu;
 import com.bitsson.gensokyou.network.RitualSelectPayload;
@@ -160,18 +161,22 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
         this.matScroll = Math.max(0, Math.min(this.matScroll, matMaxScroll));
         for (int i = 0; i < MAT_ROWS && i + matScroll < reqs.size(); i++) {
             RitualBuilderPlacement.Requirement req = reqs.get(i + matScroll);
-            ItemStack probe = new ItemStack(req.block());
-            int have = this.minecraft.player.getInventory().countItem(req.block().asItem());
-            boolean enough = have >= req.count();
+            boolean itemLess = req.itemLess();
+            int have = itemLess ? 0
+                    : this.minecraft.player.getInventory().countItem(req.block().asItem());
+            boolean enough = itemLess || have >= req.count();
             int y = MAT_Y + i * 18;
-            graphics.renderItem(probe, RIGHT_X, y);
+            MaterialIcons.render(graphics, req.block(), RIGHT_X, y);
             graphics.drawString(this.font,
-                    Component.translatable("gui.gensokyou.builder.material_count",
-                            req.count(), have),
+                    itemLess
+                            ? Component.translatable("gui.gensokyou.builder.material_itemless",
+                                    req.count())
+                            : Component.translatable("gui.gensokyou.builder.material_count",
+                                    req.count(), have),
                     RIGHT_X + 20, y + 6, enough ? COLOR_OK : COLOR_BAD, false);
             if (mouseX >= leftPos + RIGHT_X && mouseX < leftPos + RIGHT_X + 16
                     && mouseY >= topPos + y && mouseY < topPos + y + 16) {
-                this.hoveredMaterial = probe.getHoverName();
+                this.hoveredMaterial = req.block().getName();
             }
         }
         renderScrollbar(graphics, MAT_BAR_X, MAT_Y, MAT_ROWS * 18, reqs.size(), MAT_ROWS, matScroll);

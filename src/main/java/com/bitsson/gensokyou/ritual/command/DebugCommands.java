@@ -89,7 +89,90 @@ public final class DebugCommands {
                                             net.minecraft.commands.arguments.coordinates.BlockPosArgument
                                                     .getLoadedBlockPos(context, "core");
                                     return probeKagutsuchi(context.getSource().getPlayerOrException(), pos);
-                                }))));
+                                })))
+                .then(Commands.literal("yumewatari")
+                        .then(Commands.literal("beds")
+                                .then(Commands.argument("core",
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                        .executes(context -> probeYumewatari(context.getSource(),
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                        .getLoadedBlockPos(context, "core"), -1))))
+                        .then(Commands.literal("settle")
+                                .then(Commands.argument("core",
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                        .executes(context -> probeYumewatari(context.getSource(),
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                        .getLoadedBlockPos(context, "core"), -2))
+                                        .then(Commands.argument("sleepers", IntegerArgumentType.integer(0, 1000000))
+                                                .executes(context -> probeYumewatari(context.getSource(),
+                                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                                .getLoadedBlockPos(context, "core"),
+                                                        IntegerArgumentType.getInteger(context, "sleepers"))))))));
+    }
+
+    /** 梦渡之座探针：包围盒/合规床清单/占用者。forcedSleepers：-1 只查看；-2 真实快照结算；≥0 注入数结算
+     *  （分流路径与跳夜事件同源，仅调试）。 */
+    private static int probeYumewatari(net.minecraft.commands.CommandSourceStack source,
+                                       net.minecraft.core.BlockPos pos, int forcedSleepers) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        if (!(serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core)
+                || core.activeMatch() == null
+                || !core.activeMatch().patternId()
+                        .equals(com.bitsson.gensokyou.ritual.RitualBehaviors.YUMEWATARI)) {
+            source.sendSystemMessage(Component.literal(
+                    "[yume] no formed yumewatari core at " + pos.toShortString()));
+            Gensokyou.LOGGER.info("[yume] no formed yumewatari core at {}", pos.toShortString());
+            return 0;
+        }
+        var am = core.activeMatch();
+        var rect = com.bitsson.gensokyou.ritual.behavior.YumewatariBehavior.scanRect(am, pos);
+        long bat = core.batteryStack().getItem()
+                instanceof com.bitsson.gensokyou.spirit.SpiritCoreItem
+                ? com.bitsson.gensokyou.spirit.SpiritCoreItem.getStored(core.batteryStack())
+                : -1L;
+        String probe = "[yume] L" + am.level()
+                + " rect x[" + rect.minX() + ".." + rect.maxX() + "] z[" + rect.minZ() + ".." + rect.maxZ()
+                + "] y=" + rect.y() + " sp=" + core.getStored() + "/" + core.getCapacity()
+                + " bat=" + bat
+                + " unit=" + com.bitsson.gensokyou.ritual.behavior.YumewatariBehavior
+                        .unitPerSleeper(am.level());
+        Gensokyou.LOGGER.info(probe);
+        source.sendSystemMessage(Component.literal(probe));
+        var beds = com.bitsson.gensokyou.ritual.behavior.YumewatariBehavior
+                .scanBeds(serverLevel, am, pos);
+        if (beds.isEmpty()) {
+            source.sendSystemMessage(Component.literal("[yume] no qualifying beds"));
+        }
+        for (var bed : beds) {
+            source.sendSystemMessage(Component.literal("[yume] bed head=" + bed.head().toShortString()
+                    + " foot=" + bed.foot().toShortString() + " sleeper="
+                    + (bed.sleeper() == null ? "none"
+                    : bed.sleeper() instanceof net.minecraft.server.level.ServerPlayer sp
+                            ? "player:" + sp.getName().getString()
+                            : bed.sleeper().getType().getDescriptionId())));
+        }
+        if (forcedSleepers >= 0) {
+            var r = com.bitsson.gensokyou.ritual.behavior.YumewatariBehavior
+                    .settleWith(serverLevel, pos, am, core, forcedSleepers);
+            logSettle(source, pos, r);
+        } else if (forcedSleepers == -2) {
+            logSettle(source, pos, com.bitsson.gensokyou.ritual.behavior.YumewatariBehavior
+                    .settle(serverLevel, pos, am, core));
+        }
+        return 1;
+    }
+
+    private static void logSettle(net.minecraft.commands.CommandSourceStack source,
+                                  net.minecraft.core.BlockPos pos,
+                                  com.bitsson.gensokyou.ritual.behavior.YumewatariBehavior.Settlement r) {
+        String msg = "[yume] settle at " + pos.toShortString() + " sleepers=" + r.sleepers()
+                + " produced=" + r.produced() + " cache=" + r.toCache()
+                + " spiritCore=" + r.toCore() + " discarded=" + r.discarded();
+        Gensokyou.LOGGER.info(msg); // 函数上下文吞 sendSystemMessage，全量分流必须可见
+        source.sendSystemMessage(Component.literal(msg));
     }
 
     /** 加具土命现场探针：匹配态/启用/批次/缓存 + 每台燃料识别值，逐项打到聊天栏。 */

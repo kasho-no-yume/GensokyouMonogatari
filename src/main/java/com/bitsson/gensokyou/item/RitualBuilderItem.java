@@ -206,12 +206,18 @@ public class RitualBuilderItem extends Item {
             holder = ClientProbe.player();
         }
         for (RitualBuilderPlacement.Requirement req : RitualBuilderPlacement.requirements(pattern, selection.tier())) {
-            ItemStack probe = new ItemStack(req.block());
-            int have = holder == null ? 0 : holder.getInventory().countItem(req.block().asItem());
-            boolean enough = have >= req.count();
-            tooltip.add(Component.translatable("gui.gensokyou.builder.material_line",
-                            probe.getHoverName(), req.count(), have)
-                    .withStyle(enough ? ChatFormatting.GREEN : ChatFormatting.RED));
+            boolean itemLess = req.itemLess();
+            int have = (itemLess || holder == null)
+                    ? 0 : holder.getInventory().countItem(req.block().asItem());
+            boolean enough = itemLess || have >= req.count();
+            Component line = itemLess
+                    ? Component.translatable("gui.gensokyou.builder.material_line_itemless",
+                            req.block().getName(), req.count())
+                    : Component.translatable("gui.gensokyou.builder.material_line",
+                            req.block().getName(), req.count(), have);
+            tooltip.add(line.copy().withStyle(itemLess
+                    ? ChatFormatting.GRAY
+                    : (enough ? ChatFormatting.GREEN : ChatFormatting.RED)));
         }
     }
 

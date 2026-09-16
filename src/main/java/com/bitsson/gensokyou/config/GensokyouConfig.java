@@ -65,6 +65,11 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue KAGUTSUICHI_BASE_CAPACITY;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> KAGUTSUICHI_FUEL_BLACKLIST;
 
+    // ---- yumewatari-ritual：梦渡之座（跳夜按睡眠生物一次性产灵）----
+    public static final ModConfigSpec.IntValue YUMEWATARI_PRODUCTION_PER_SLEEPER;
+    public static final ModConfigSpec.IntValue YUMEWATARI_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue YUMEWATARI_OUT_RATE_PER_SECOND;
+
     // ---- ritual-presentation-polish：迦具土贴地烈火场（原炎柱场重设计）----
     public static final ModConfigSpec.IntValue FX_FIRE_DENSITY_BASE;
     public static final ModConfigSpec.IntValue FX_FIRE_DENSITY_PER_TIER;
@@ -258,7 +263,7 @@ public class GensokyouConfig {
 
         BUILDER.push("power").comment("Spirit power pool & infrastructure");
         BASE_REGEN_PER_SECOND = BUILDER.defineInRange("baseRegenPerSecond", 2D, 0D, 1000D);
-        RESONANCE_BASE_IN_QUOTA = BUILDER.comment("resonance relay: base input-link quota at tier 2, doubled per level").defineInRange("resonanceBaseInQuota", 1, 1, 1024);
+        RESONANCE_BASE_IN_QUOTA = BUILDER.comment("resonance relay: base input-link quota at tier 2, doubled per level").defineInRange("resonanceBaseInQuota", 2, 1, 1024);
         RESONANCE_BASE_OUT_QUOTA = BUILDER.comment("resonance relay: base output-link quota at tier 2, doubled per level").defineInRange("resonanceBaseOutQuota", 4, 1, 1024);
         RESONANCE_BASE_RADIUS = BUILDER.comment("resonance relay: base XZ radius at tier 2, doubled per level (Y unlimited, same dimension)").defineInRange("resonanceBaseRadius", 10, 1, 1024);
         SETTLE_PERIOD_TICKS = BUILDER.comment("spirit transfer settlement period in ticks (20 = 1s); rates are per second, transfers settle in batches of this period").defineInRange("settlePeriodTicks", 20, 1, 200);
@@ -286,6 +291,9 @@ public class GensokyouConfig {
         ZAOHUA_ORBIT_HEIGHT = BUILDER.comment("Zaohua rite: orbit plane height above the core the ingredients spiral around").defineInRange("zaohuaOrbitHeight", 2.0D, 0D, 16D);
         ZAOHUA_CONVERGE_Y = BUILDER.comment("Zaohua rite: convergence point height above the core").defineInRange("zaohuaConvergeY", 2.5D, 0.5D, 32D);
         ZAOHUA_RISING_PARTICLES_PER_SEC = BUILDER.comment("Zaohua rite: purple rising particles generated across the structure per second during a craft").defineInRange("zaohuaRisingParticlesPerSec", 240, 0, 100000);
+        YUMEWATARI_PRODUCTION_PER_SLEEPER = BUILDER.comment("Yumewatari (dream-crossing seat): spirit granted per mob sleeping on a qualifying bed when a sleep-caused time skip finishes, level 0 value (level N multiplies by 4^N)").defineInRange("yumewatariProductionPerSleeper", 10000, 0, Integer.MAX_VALUE);
+        YUMEWATARI_BASE_CAPACITY = BUILDER.comment("Yumewatari: spirit buffer capacity at level 0 (level N multiplies by 4^N); overflow goes into the socketed spirit core at unlimited rate").defineInRange("yumewatariBaseCapacity", 40000, 1, Integer.MAX_VALUE);
+        YUMEWATARI_OUT_RATE_PER_SECOND = BUILDER.comment("Yumewatari: routed spirit output (supply) rate per second, fixed across levels").defineInRange("yumewatariOutRatePerSecond", 1000000, 0, Integer.MAX_VALUE);
         BUILDER.pop();
         BUILDER.push("ritualFx").comment("Ritual runtime grid/shader FX (ritual-presentation-polish): fire bed, mist ribbon, bolt arcs, spirit orb");
         FX_FIRE_DENSITY_BASE = BUILDER.comment("Kagutsuchi fire bed: deterministic ground fire points at tier 0").defineInRange("fxFireDensityBase", 26, 1, 256);

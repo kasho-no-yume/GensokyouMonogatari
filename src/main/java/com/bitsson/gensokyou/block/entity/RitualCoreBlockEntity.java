@@ -106,7 +106,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 万象共鸣：当前结构的 Y 包围盒（仅内存，重扫刷新；驱动螺旋高度）。 */
     private int boundsMinY;
     private int boundsMaxY;
-    /** 加具土命：输出槽内灵力核心（单件，NBT 持久化）。 */
+    /** 产能仪式输出槽内灵力核心（单件，NBT 持久化；迦具土结算段/梦渡自发注灵共用）。 */
     private ItemStack batteryStack = ItemStack.EMPTY;
     /** 加具土命：当前燃烧批次的燃料显示图标（点火即吞，仅存身份，供 GUI 与掉落不回流）。 */
     private ItemStack burnFuelIcon = ItemStack.EMPTY;
@@ -182,6 +182,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
             if (activeMatch.patternId().equals(RitualBehaviors.KAGUTSUICHI)) {
                 return kagutsuchiCapacity(activeMatch.level());
             }
+            if (activeMatch.patternId().equals(RitualBehaviors.YUMEWATARI)) {
+                return yumewatariCapacity(activeMatch.level());
+            }
             if (activeMatch.patternId().equals(RitualBehaviors.ZAOHUA)) {
                 // 不启动不缓存灵力：空闲容量 0（路由选不中、注不进）；
                 // 会话期容量 = 锁定配方 spCost（受灵缓冲上界恰为本次所需）
@@ -203,6 +206,15 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 加具土命缓存上限 = 基础值 × 4^等级。 */
     public static long kagutsuchiCapacity(int level) {
         long cap = GensokyouConfig.KAGUTSUICHI_BASE_CAPACITY.get();
+        for (int i = 0; i < level; i++) {
+            cap *= 4L;
+        }
+        return cap;
+    }
+
+    /** 梦渡之座缓存上限 = 基础值 × 4^等级（溢出直注槽内灵力核心，见 YumewatariBehavior）。 */
+    public static long yumewatariCapacity(int level) {
+        long cap = GensokyouConfig.YUMEWATARI_BASE_CAPACITY.get();
         for (int i = 0; i < level; i++) {
             cap *= 4L;
         }
@@ -787,6 +799,32 @@ public class RitualCoreBlockEntity extends BlockEntity {
     public void setBatteryStack(ItemStack stack) {
         this.batteryStack = stack;
         setChanged();
+    }
+
+    /**
+     * 产能仪式自发注灵：缓存 → 槽内灵力核心，按核心注灵速率每秒搬运
+     * （逐秒 carry 进位口径同迦具土第二段）。无核心/空缓存/核心已满返回 0。
+     */
+    public long tickBatteryAutoFill() {
+        if (!(batteryStack.getItem()
+                instanceof com.bitsson.gensokyou.spirit.SpiritCoreItem spiritCore)) {
+            return 0L;
+        }
+        long stored = getStored();
+        if (stored <= 0L) {
+            return 0L;
+        }
+        long carry = fillCarry + (long) spiritCore.fillRatePerSecond() * 1000L;
+        fillCarry = carry % 1000L;
+        long want = Math.min(carry / 1000L, stored);
+        if (want <= 0L) {
+            return 0L;
+        }
+        long pushed = com.bitsson.gensokyou.spirit.SpiritCoreItem.receive(batteryStack, want);
+        if (pushed > 0L) {
+            extract(pushed);
+        }
+        return pushed;
     }
 
     /** 电池槽活代理（服务端菜单用；单槽，仅收灵力核心）。 */
@@ -1390,6 +1428,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
         Optional<RitualPattern> pattern = RitualPatternLoader.byId(core.activeMatch.patternId());
         pattern.ifPresent(value -> tickPassiveRecipes(serverLevel, pos, core, value));
+        // 被动行为通道（产能注灵等）：成型即走，不经 enabled 门控
+        RitualBehaviors.get(core.activeMatch.patternId()).ifPresent(
+                value -> value.serverPassiveTick(serverLevel, pos, core.activeMatch, core));
         if (core.enabled) {
             if (pattern.isPresent()
                     && !RitualOfferings.upkeepTick(core.ageTicks, pattern.get(), core.activeMatch, serverLevel)) {

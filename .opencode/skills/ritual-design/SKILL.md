@@ -78,7 +78,7 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
 
 ## 3. 选材规则：仪式石硬性，其余全是建议
 
-- **硬性材料约束**：第 N 阶**新增**结构的仪式石，palette 下限**必须恰好 = N**——用 `#ritual_stones_N_plus`；（**祭品台不分品阶**：只有 `#ritual_pedestals` 全含标签，台位 palette 统一用它、不参与下限语义；本条与 §4.4 均只对仪式石硬性执行）新增结构必须是该阶的新 key。**不要下标越级**（如 2 阶新环用 `3_plus`）：构建器把 TAG 格**精确实例化**为玩家所选品阶的那一档方块，下限一旦高于本阶编号，玩家按"本阶级"选品阶搭建时该格解析不出方块、被静默跳过，结构永远建不全，只能整体换更高品阶重建——这正是"升级=换装"假象的病根。品阶下限标签不存在 pedestal 版（祭品台不分阶，见上）；1 阶即可摆台。
+- **硬性材料约束**：第 N 阶**新增**结构的仪式石，palette 下限**必须恰好 = N**——用 `#ritual_stones_N_plus`；（**祭品台不分品阶**：只有 `#ritual_pedestals` 全含标签，台位 palette 统一用它、不参与下限语义；本条与 §4.4 均只对仪式石硬性执行）新增结构必须是该阶的新 key。**不要下标越级**（如 2 阶新环用 `3_plus`）：构建器把 TAG 格**精确实例化**为玩家所选品阶的那一档方块，下限一旦高于本阶编号，玩家按"本阶级"选品阶搭建时该格解析不出方块、被静默跳过，结构永远建不全，只能整体换更高品阶重建——这正是"升级=换装"假象的病根。品阶下限标签不存在 pedestal 版（祭品台不分阶，见上）；0 阶即可摆台。
 - **除此之外一切方块（含仪式石台阶/楼梯/墙变体与全部原版装饰块）材质上只做建议，没有品阶递进关系**。旧的"末地石→紫珀→深橡木→樱花木逐级递进"作废：每层用什么材料完全由美感决定（唯一约束是下面的品阶材料禁忌），同级混用、越级使用、重复使用都允许。**但**——仪式石满块与其 slab/stairs/wall 变种同属"仪式石族"，计入 §4.8 的 30% 占比预算，不能拿"变种不算品阶石"来规避装饰占比要求；真正撑起美感的是**普通原版方块**。
 - **品阶材料禁忌（建议，按"该阶新增结构"逐阶检查）**：
   - **0 阶**：避开下界与末地阶段产物——黑石系（含磨制/砖）、玄武岩系、下界石、下界砖、**黑曜石及其变种**（哭泣的黑曜石等）、灵魂系衍生物（灵魂灯等）；末地石、紫珀及其变种。暗色熔炉感改用石砖、深板岩系、煤炭块等主世界方块表达。
@@ -88,6 +88,7 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
 - 原版选材速记（紫色系基准）：purpur_block / purpur_pillar、amethyst_block、end_stone(_bricks)、deepslate(_bricks)、blackstone、basalt(_polished)、dark_oak_planks/log、cherry_log/planks、purple_stained_glass、magenta_stained_glass、crying_obsidian、soul_lantern、purple_banner、pink_petals、iron_bars、chain、cobweb、quartz_block、oxidized_copper、sea_lantern、glowstone、moss_block。完整目录见本目录 `BLOCKS.md`。
 - **为美感新增方块/新材质：允许，但不建议。** 流程：先向用户说明设计理由（贴图方向、用在哪几层）→ 用户同意才立项；贴图走 gen-textures skill，注册由程序侧做。能不开新方块就不开，优先用现有方块的组合达成效果。
 - **装饰花（严厉禁止"石头/砖上栽花"）**：**严禁**把花、花瓣、树苗等需要土基底方块直接摆在石头、石砖、深板岩、玻璃、木板、金属等**非土壤方块上**——原版会因下方无有效基底而掉落或无法放置，落盘即残。用花只许两条合规路径：①用**盆栽**（`potted_*`，如 `potted_cherry_sapling`），盆栽本身可放任意方块；②**花正下方一格保证是土/草类承托方块**（`dirt`/`grass_block`/`moss_block`/`podzol`/`coarse_dirt`/`rooted_dirt`/`mud` 等），例如"花瓣压在苔藓块上"。`minecraft:pink_petals`、`*_sapling`、`*_flower` 一律受此约束。落盘后逐个花格自查其下方支撑，违规即返工。校验器不查此项，纯靠设计者自律。
+- **承托方块必须「永不变质」（kaya_no_hime 实测踩坑）**：palette 的 EXACT 格**禁用 `minecraft:grass_block`（含 podzol）做地基**——正上方压实心块（柱/台/塔）、长期无光、降雪都会让它退化为泥土或带上 `snowy`，**匹配永久失效**（玩家搭好也判定不成立）；**也禁用裸 `minecraft:dirt`**——会被邻近草方块蔓延成草方块。土色地基一律用 `minecraft:moss_block` / `minecraft:coarse_dirt` / `minecraft:rooted_dirt` / `minecraft:mud` / `minecraft:clay`（永不变质、无状态属性），它们同样能正常承托花/花瓣/矮草。**实心件（柱/台/塔）下方的地面尤其别用 grass_block。** 校验器不查此项，纯靠设计者自律。
 - **东方意象词库**（和风/神社轮廓元件，起形先从这里找）：鸟居 / 石灯籠 / 旗帜 / 花瓣 / 窗格 / 回廊 / 角楼 / 参道 / 注连绳（铁链代）。
 
 ## 4. 硬性设计不变量（违反即返工）
@@ -122,12 +123,14 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
    - **pattern 就是构建器的一键成品**：构建器只会放置你写进切片的格位，缺席格它不会替你补装饰。所以美感必须靠 pattern 内的格位表达——**每一阶的新增里都要有非功能性的装饰 EXACT 格**（灯/柱/门框/冠顶/参道石等），只堆仪式石 + 祭品台 = 没设计，一律返工。功能环用 `#ritual_stones` / `#ritual_pedestals`（含全部装饰变体以外的满块），装饰用具体方块 id（不受品阶体系约束）。
    - 蓝图一经用户确认，**逐条落实**（台数/环数/高度/轮廓），落盘后对照蓝图自查有无缩水；要改动设计先回去找用户，不许静默简化。
    - 大面积规则形体（环、盘、柱）可用生成脚本省力（canon/put/slab/pillar 骨架，见 §6）；
+- **程序化生成三条硬规矩（oyamatsumi 实测踩坑）**：① 材质 maker 必须吃**规范格坐标**（canon 后的 (|x|,|z|)），否则轴轨道 (0,d)/(d,0) 两个代表算出不同值 → 同格冲突拒载；② 脚本 `put()` 一律拒绝 (0,0) 格（含核心自身），锚点须直接 `levels[0][(0,0,0)] = 'C'`；③ 核心悬在 y=核心−1 地板之上时，(0,−1,0) 写不进去（守卫），该格留给世界原地形即可（被四周地板与核心包住、不可见）。
    - **为保美感逐方块手写坐标是完全正当的路径**——装饰细节、标志性轮廓、不对称点缀等直接手写 JSON 条目，不必为了"用上工具"而扭曲设计；
    - 两法可混用：脚本出骨架、手写补细节。
    - 无论哪条路径，落盘的 levels 只含**每级新增**（低级格位不再复制进高级增量）；脚本骨架的累积字典照旧自检，输出段已内置差分，见 §1。
 5. 校验：`python tools/validate_ritual_pattern.py --test-out run/world/datapacks/gs_ritual_test`——新 pattern 要求 0 ERROR、0 WARN；每次改 pattern 后必须重建测试包。存量占位仪式是 1 基编号的历史产物，勿效仿。如果有问题建议让用户检查。
    **已存在仪式的迭代改走编辑杖闭环**（§6）：进游戏锚定→力建→实地改块→捕获存阶→仪式保存（游戏内校验+直接覆写文件+/reload 秒生效），不再"改 JSON→重启→看"；首稿仍按本流程落文件。编辑杖产出的 adds 与手搓同格式，python 校验兜底不变。
-6. 实机验证由用户运行 `powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1`（agent 不启动服务器）。美观评审进游戏实地看。现有测试 harness 只认 generator_circle 形状的仪式——新仪式的自动化实机测试需程序侧扩展 harness，需求说明中写清测试锚点坐标与期望输出。
+6. **补语言文件（设计者顺手做）**：pattern 落盘后，在 `src/main/resources/assets/gensokyou/lang/zh_cn.json` 与 `en_us.json` 各补一行 `jei.gensokyou.ritual.<pattern 文件名主干>`（`gensokyou:oyamatsumi_circle` → `jei.gensokyou.ritual.oyamatsumi_circle`）；zh 写仪式本名、en 写意译。漏写则 JEI/核心界面直接裸露原始 key。其余配方/贴图仍归程序侧。
+7. 实机验证由用户运行 `powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1`（agent 不启动服务器）。美观评审进游戏实地看。现有测试 harness 只认 generator_circle 形状的仪式——新仪式的自动化实机测试需程序侧扩展 harness，需求说明中写清测试锚点坐标与期望输出。
 
 ## 6. 工具清单
 

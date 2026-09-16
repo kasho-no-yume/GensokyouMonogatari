@@ -499,15 +499,25 @@ def tier_of_any(block_id):
 
 
 def resolve_block_test(pattern, key, tier_choice):
-    """测试包解析器：标签按所选品阶精确取块（含祭品台变体）。"""
+    """测试包解析器：标签按所选品阶精确取块（含祭品台变体）。
+    对齐 Java 侧 RitualBuilderPlacement#blockOfTier：纯无阶标签回退唯一成员
+    （祭品台等不分品阶标签在任意品阶选择下都必须可解析，否则格位被静默跳格，
+    结构永远升不了级——dream-crossing autotest 实测踩坑）。"""
     kind, value, members = pattern['palette'][key]
     if kind == 'EXACT':
         return value
     want = tier_choice(key)
+    sole_untiered = None
+    mixed = False
     for member in members:
-        if tier_of_any(member) == want:
+        t = tier_of_any(member)
+        if t == want:
             return member
-    return None
+        if t >= 0:
+            mixed = True
+        elif sole_untiered is None:
+            sole_untiered = member
+    return None if mixed else sole_untiered
 
 
 def footprint_radius(pattern):
@@ -570,7 +580,7 @@ def emit_test_pack(patterns, out_dir):
             body = place_commands(pattern, lvl, (ax, ay, az),
                                   lambda _key, _l=lvl: _l, only_additions=False,
                                   resolver=resolve_block_test)
-            wire(setup, body + [f'schedule gs_test:{check} 4s'])
+            wire(setup, body + [f'schedule function gs_test:{check} 4s'])
             exp = expected_tier(pattern, lvl, lvl)
             if exp >= 1:
                 lines = [
@@ -591,7 +601,7 @@ def emit_test_pack(patterns, out_dir):
         body = place_commands(pattern, hi, (ax, ay, az),
                               lambda _key: low, only_additions=False,
                               resolver=resolve_block_test)
-        wire(setup_neg, body + [f'schedule gs_test:{check_neg} 4s'])
+        wire(setup_neg, body + [f'schedule function gs_test:{check_neg} 4s'])
         hi_exp = expected_tier(pattern, hi, hi)
         wire(check_neg, [
             f'execute if block {ax} {ay} {az} gensokyou:ritual_core[tier={hi_exp}] '
@@ -604,17 +614,17 @@ def emit_test_pack(patterns, out_dir):
     for i, name in enumerate(seq):
         if i + 1 < len(seq):
             check_name = name.replace('setup_', 'check_')
-            funcs[check_name] = funcs[check_name] + [f'schedule gs_test:{seq[i + 1]} 1s']
+            funcs[check_name] = funcs[check_name] + [f'schedule function gs_test:{seq[i + 1]} 1s']
     funcs['finish'] = ['say [GS-TEST] ALL_DONE']
     if seq:
         funcs[seq[-1].replace('setup_', 'check_')] = \
-            funcs[seq[-1].replace('setup_', 'check_')] + ['schedule gs_test:finish 1s']
+            funcs[seq[-1].replace('setup_', 'check_')] + ['schedule function gs_test:finish 1s']
         funcs['run_all'] = [f'forceload add {min_x} {min_z} {max_x} {max_z}',
                             'scoreboard objectives add gs dummy',
-                            f'schedule gs_test:{seq[0]} 2s']
+                            f'schedule function gs_test:{seq[0]} 2s']
     else:
         funcs['run_all'] = ['say [GS-TEST] INFO no multi-level patterns',
-                            'schedule gs_test:finish 1s']
+                            'schedule function gs_test:finish 1s']
     for name, lines in funcs.items():
         (functions / f'{name}.mcfunction').write_text('\n'.join(lines) + '\n',
                                                       encoding='utf-8')

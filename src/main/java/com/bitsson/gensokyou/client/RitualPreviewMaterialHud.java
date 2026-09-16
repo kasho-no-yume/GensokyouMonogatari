@@ -107,6 +107,9 @@ public final class RitualPreviewMaterialHud {
         }
         List<Shortage> out = new ArrayList<>();
         need.forEach((block, count) -> {
+            if (RitualBuilderPlacement.itemLess(block)) {
+                return; // 无物品形态的方块（盆栽等）不可作为物品获得，不计缺口、不点亮 HUD
+            }
             int have = inventory.countItem(block.asItem());
             if (count > have) {
                 out.add(new Shortage(block, count, count - have));

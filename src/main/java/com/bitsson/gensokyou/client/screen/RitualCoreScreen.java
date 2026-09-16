@@ -225,11 +225,15 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         graphics.drawString(font,
                 Component.translatableWithFallback("jei." + id.getNamespace() + ".ritual." + id.getPath(),
                         id.getPath().replace('_', ' ')), INFO_X, 4, COLOR_TEXT, false);
-        Component state = info.enabled()
-                ? Component.translatable("gui.gensokyou.ritual.running")
-                : Component.translatable("gui.gensokyou.ritual.idle");
+        // 启停状态标签只对 toggleable 仪式有意义；被动产能仪式（梦渡等）显示中性"已成型"，
+        // 不得渲染"已停止"误导为可启动而未启动
+        boolean passive = !info.toggleable();
+        Component state = passive
+                ? Component.translatable("gui.gensokyou.ritual.formed")
+                : Component.translatable(info.enabled()
+                        ? "gui.gensokyou.ritual.running" : "gui.gensokyou.ritual.idle");
         graphics.drawString(font, state, PANEL_WIDTH - 8 - font.width(state), 4,
-                info.enabled() ? COLOR_OK : COLOR_BAD, false);
+                passive || info.enabled() ? COLOR_OK : COLOR_BAD, false);
         graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.tier", info.tier()),
                 INFO_X, 15, COLOR_TEXT, false);
         // 零缓存核心（共鸣塔）不显示"灵力 0/0"行，概要数据由行为信息行替代；
