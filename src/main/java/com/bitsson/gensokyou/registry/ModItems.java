@@ -82,6 +82,9 @@ public final class ModItems {
     /** 祭品台物品：单一默认 0 阶外观，名字不染品阶色（变色是放置后台子的视觉）。 */
     public static final DeferredItem<BlockItem> RITUAL_PEDESTAL_ITEM =
             ITEMS.registerSimpleBlockItem("ritual_pedestal", ModBlocks.RITUAL_PEDESTAL);
+    /** 虹彩水晶：独立装饰方块物品。 */
+    public static final DeferredItem<BlockItem> CRYSTAL_ITEM =
+            ITEMS.registerSimpleBlockItem("crystal", ModBlocks.CRYSTAL);
     /** 仪式石装饰变种物品（台阶/楼梯/墙 × 品阶 0-5，名字染品阶色）。 */
     public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_SLAB_ITEMS = new ArrayList<>();
     public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_STAIRS_ITEMS = new ArrayList<>();

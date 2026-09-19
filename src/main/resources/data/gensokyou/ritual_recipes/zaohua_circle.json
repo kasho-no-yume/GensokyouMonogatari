@@ -23,6 +23,19 @@
         { "item": "gensokyou:broken_spell_card_star", "count": 8 }
       ],
       "result": { "item": "gensokyou:spellcard_star", "count": 1 }
+    },
+    {
+      "name": "zaohua_crystal_storage",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 0,
+      "spCost": 12000,
+      "ingredients": [
+        { "item": "minecraft:chest", "count": 6 },
+        { "item": "minecraft:diamond_block", "count": 1 },
+        { "item": "minecraft:gold_block", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:crystal", "count": 1 }
     }
   ]
 }

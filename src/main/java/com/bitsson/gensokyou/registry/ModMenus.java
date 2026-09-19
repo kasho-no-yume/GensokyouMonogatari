@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.registry;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.menu.CrystalStorageMenu;
 import com.bitsson.gensokyou.menu.RitualBuilderMenu;
 import com.bitsson.gensokyou.menu.RitualCoreMenu;
 import com.bitsson.gensokyou.menu.WeaponCoreMenu;
@@ -35,6 +36,11 @@ public final class ModMenus {
             MENUS.register("ritual_editor", () -> new MenuType<>(
                     (IContainerFactory<com.bitsson.gensokyou.menu.RitualEditorMenu>)
                             com.bitsson.gensokyou.menu.RitualEditorMenu::new,
+                    FeatureFlags.VANILLA_SET));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<CrystalStorageMenu>> CRYSTAL_STORAGE =
+            MENUS.register("crystal_storage", () -> new MenuType<>(
+                    (IContainerFactory<CrystalStorageMenu>) CrystalStorageMenu::new,
                     FeatureFlags.VANILLA_SET));
 
     private ModMenus() {

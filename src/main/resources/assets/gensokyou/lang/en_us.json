@@ -46,6 +46,7 @@
   "block.gensokyou.ritual_stone_4": "Ritual Stone",
   "block.gensokyou.ritual_stone_5": "Ritual Stone",
   "block.gensokyou.ritual_pedestal": "Ritual Pedestal",
+  "block.gensokyou.crystal": "Endless Treasury Crystal",
   "block.gensokyou.ritual_stone_slab_0": "Ritual Stone Slab",
   "block.gensokyou.ritual_stone_slab_1": "Ritual Stone Slab",
   "block.gensokyou.ritual_stone_slab_2": "Ritual Stone Slab",
@@ -424,5 +425,21 @@
   "gui.gensokyou.ritual.tsukikage.lore_2": "At dusk the water stirs,",
   "gui.gensokyou.ritual.tsukikage.lore_3": "at midnight it brims full,",
   "gui.gensokyou.ritual.tsukikage.lore_4": "and at dawn it fades.",
-  "gui.gensokyou.ritual.tsukikage.lore_5": "By the moon's hour, radiance turns to spirit."
+  "gui.gensokyou.ritual.tsukikage.lore_5": "By the moon's hour, radiance turns to spirit.",
+
+  "container.gensokyou.crystal_storage": "Endless Treasury Crystal",
+  "gui.gensokyou.crystal_storage.search": "Search",
+  "gui.gensokyou.crystal_storage.search_hint": "Search items...",
+  "gui.gensokyou.crystal_storage.page": "Page %s/%s",
+  "gui.gensokyou.crystal_storage.count": "Items %s/%s",
+  "msg.gensokyou.crystal_rejected_container": "Cannot store: this item holds a container or can store other items",
+  "msg.gensokyou.crystal_rejected_too_large": "Cannot store: this item carries too much data",
+  "gui.gensokyou.crystal_storage.sort": "Sort %s",
+  "gui.gensokyou.crystal_storage.sort.count": "Count",
+  "gui.gensokyou.crystal_storage.sort.name": "Name",
+  "gui.gensokyou.crystal_storage.sort.id": "ID",
+  "gui.gensokyou.crystal_storage.sort.tip": "Click to cycle sort: count desc / name / id",
+  "gui.gensokyou.crystal_storage.page_up": "Page up",
+  "gui.gensokyou.crystal_storage.page_down": "Page down",
+  "gui.gensokyou.crystal_storage.tooltip_count": "Count: %s"
 }

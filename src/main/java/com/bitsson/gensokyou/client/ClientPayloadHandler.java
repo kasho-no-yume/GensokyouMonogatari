@@ -51,4 +51,10 @@ public final class ClientPayloadHandler {
     public static void handleDialogSync(DialogSyncPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> ClientDialog.handle(payload));
     }
+
+    /** 无尽藏晶可见页快照：暂存供界面渲染。 */
+    public static void handleCrystalPage(
+            com.bitsson.gensokyou.network.CrystalStoragePagePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> ClientCrystalStorageState.update(payload));
+    }
 }

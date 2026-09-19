@@ -23,6 +23,7 @@
   "block.gensokyou.ritual_stone_4": "仪式石",
   "block.gensokyou.ritual_stone_5": "仪式石",
   "block.gensokyou.ritual_pedestal": "祭品台",
+  "block.gensokyou.crystal": "无尽藏晶",
   "block.gensokyou.ritual_stone_slab_0": "仪式石台阶",
   "block.gensokyou.ritual_stone_slab_1": "仪式石台阶",
   "block.gensokyou.ritual_stone_slab_2": "仪式石台阶",
@@ -426,5 +427,21 @@
   "gui.gensokyou.ritual.tsukikage.lore_2": "日落而始明，",
   "gui.gensokyou.ritual.tsukikage.lore_3": "至夜半而盈满，",
   "gui.gensokyou.ritual.tsukikage.lore_4": "及破晓而隐没。",
-  "gui.gensokyou.ritual.tsukikage.lore_5": "循月时而转，聚华为灵。"
+  "gui.gensokyou.ritual.tsukikage.lore_5": "循月时而转，聚华为灵。",
+
+  "container.gensokyou.crystal_storage": "无尽藏晶",
+  "gui.gensokyou.crystal_storage.search": "搜索",
+  "gui.gensokyou.crystal_storage.search_hint": "搜索物品…",
+  "gui.gensokyou.crystal_storage.page": "第 %s/%s 页",
+  "gui.gensokyou.crystal_storage.count": "物品 %s/%s",
+  "msg.gensokyou.crystal_rejected_container": "无法收纳：此类物品内含容器或可存储其他物品",
+  "msg.gensokyou.crystal_rejected_too_large": "无法收纳：该物品附带数据过大",
+  "gui.gensokyou.crystal_storage.sort": "排序 %s",
+  "gui.gensokyou.crystal_storage.sort.count": "数量",
+  "gui.gensokyou.crystal_storage.sort.name": "名称",
+  "gui.gensokyou.crystal_storage.sort.id": "ID",
+  "gui.gensokyou.crystal_storage.sort.tip": "点击切换排序：数量降序 / 名称 / ID",
+  "gui.gensokyou.crystal_storage.page_up": "上一页",
+  "gui.gensokyou.crystal_storage.page_down": "下一页",
+  "gui.gensokyou.crystal_storage.tooltip_count": "数量：%s"
 }

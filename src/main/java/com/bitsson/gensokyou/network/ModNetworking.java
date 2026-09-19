@@ -63,6 +63,37 @@ public final class ModNetworking {
                 ModNetworking::handleDialogAction);
         registrar.playToServer(DialogClosePayload.TYPE, DialogClosePayload.STREAM_CODEC,
                 ModNetworking::handleDialogClose);
+        registrar.playToServer(com.bitsson.gensokyou.network.CrystalStorageNavPayload.TYPE,
+                CrystalStorageNavPayload.STREAM_CODEC,
+                ModNetworking::handleCrystalNav);
+        registrar.playToServer(com.bitsson.gensokyou.network.CrystalStorageClickPayload.TYPE,
+                CrystalStorageClickPayload.STREAM_CODEC,
+                ModNetworking::handleCrystalClick);
+        registrar.playToClient(com.bitsson.gensokyou.network.CrystalStoragePagePayload.TYPE,
+                CrystalStoragePagePayload.STREAM_CODEC,
+                ClientPayloadHandler::handleCrystalPage);
+    }
+
+    /** C2S 无尽藏晶导航：校验容器 id 后应用搜索/滚动/排序并重推可见页。 */
+    private static void handleCrystalNav(CrystalStorageNavPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player
+                    && player.containerMenu instanceof com.bitsson.gensokyou.menu.CrystalStorageMenu menu
+                    && menu.containerId == payload.containerId()) {
+                menu.applyNav(payload.query(), payload.scrollDelta(), payload.sortMode());
+            }
+        });
+    }
+
+    /** C2S 无尽藏晶网格手势：定位条目并执行取放（服务端权威）。 */
+    private static void handleCrystalClick(CrystalStorageClickPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player
+                    && player.containerMenu instanceof com.bitsson.gensokyou.menu.CrystalStorageMenu menu
+                    && menu.containerId == payload.containerId()) {
+                menu.handleClick(player, payload.action(), payload.key());
+            }
+        });
     }
 
     /** C2S 对话选项：服务端权威校验后推进。 */

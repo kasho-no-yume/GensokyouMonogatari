@@ -2,6 +2,7 @@ package com.bitsson.gensokyou.client;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.renderer.BillboardRenderer;
+import com.bitsson.gensokyou.client.renderer.CrystalRenderer;
 import com.bitsson.gensokyou.client.renderer.SkinMobRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualPedestalRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualCoreRenderer;
@@ -69,6 +70,7 @@ public final class GensokyouClient {
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_PEDESTAL.get(), RitualPedestalRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_CORE.get(), RitualCoreRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.SUKIMA.get(), SukimaPortalRenderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.CRYSTAL.get(), CrystalRenderer::new);
     }
 
     @SubscribeEvent
@@ -105,5 +107,7 @@ public final class GensokyouClient {
         event.register(ModMenus.WEAPON_CORE.get(), WeaponCoreScreen::new);
         event.register(ModMenus.RITUAL_BUILDER.get(), RitualBuilderScreen::new);
         event.register(ModMenus.RITUAL_EDITOR.get(), com.bitsson.gensokyou.client.screen.RitualEditorScreen::new);
+        event.register(ModMenus.CRYSTAL_STORAGE.get(),
+                com.bitsson.gensokyou.client.screen.CrystalStorageScreen::new);
     }
 }

@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.registry;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.block.entity.CrystalBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -19,5 +20,8 @@ public final class ModCapabilities {
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.RITUAL_CORE.get(),
                 (RitualCoreBlockEntity core, net.minecraft.core.Direction side) -> core.itemHandler());
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK,
+                ModBlockEntities.CRYSTAL.get(),
+                (CrystalBlockEntity crystal, net.minecraft.core.Direction side) -> crystal.itemHandler());
     }
 }

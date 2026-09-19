@@ -250,6 +250,11 @@ public class GensokyouConfig {
     // ---- codex-of-beings：众生典籍（收容 mob，供众生余录仪式读取）----
     public static final ModConfigSpec.ConfigValue<List<? extends String>> CAPTURE_BLACKLIST;
 
+    // ---- add-crystal-storage：无尽藏晶物品存储 ----
+    public static final ModConfigSpec.IntValue STORAGE_TOTAL_CAPACITY;
+    public static final ModConfigSpec.IntValue STORAGE_ITEM_NBT_LIMIT_BYTES;
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> STORAGE_BLACKLIST;
+
     public static final ModConfigSpec SPEC;
 
     static {
@@ -573,6 +578,15 @@ public class GensokyouConfig {
         CORE_LASER_CANNON_DURATION = BUILDER.comment("Active phase seconds").defineInRange("durationSeconds", 3.0D, 0.05D, 30D);
         BUILDER.pop();
         BUILDER.pop();
+        BUILDER.pop();
+
+        BUILDER.push("crystal").comment("Endless Treasury Crystal item storage (add-crystal-storage)");
+        STORAGE_TOTAL_CAPACITY = BUILDER.comment("Total item count the crystal can hold, any mix of types (a count budget, not a fixed slot count)")
+                .defineInRange("storageTotalCapacity", 2000, 1, 1000000);
+        STORAGE_ITEM_NBT_LIMIT_BYTES = BUILDER.comment("Refuse a single item whose serialized NBT exceeds this many bytes (0 = no limit); catches over-long written books etc.")
+                .defineInRange("storageItemNbtLimitBytes", 4096, 0, 16777216);
+        STORAGE_BLACKLIST = BUILDER.comment("Extra item ids the crystal refuses, on top of the built-in container/size gates")
+                .defineListAllowEmpty("storageBlacklist", List.of(), o -> o instanceof String);
         BUILDER.pop();
 
         SPEC = BUILDER.build();

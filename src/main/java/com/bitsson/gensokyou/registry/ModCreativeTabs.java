@@ -38,6 +38,7 @@ public final class ModCreativeTabs {
                         ModItems.RITUAL_STONE_WALL_ITEMS.forEach(item -> output.accept(item.get()));
                         output.accept(ModItems.RITUAL_CORE_ITEM.get());
                         output.accept(ModItems.RITUAL_PEDESTAL_ITEM.get());
+                        output.accept(ModItems.CRYSTAL_ITEM.get());
                         output.accept(ModItems.RITUAL_WAND.get());
                         output.accept(ModItems.RITUAL_BUILDER.get());
                         ModItems.SPIRIT_CORES.forEach(core -> output.accept(core.get()));

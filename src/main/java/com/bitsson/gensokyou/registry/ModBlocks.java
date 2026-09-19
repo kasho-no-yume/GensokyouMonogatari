@@ -1,12 +1,14 @@
 package com.bitsson.gensokyou.registry;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.block.CrystalBlock;
 import com.bitsson.gensokyou.block.RitualCoreBlock;
 import com.bitsson.gensokyou.block.RitualPedestalBlock;
 import com.bitsson.gensokyou.block.SukimaBlock;
 import com.bitsson.gensokyou.block.TieredBlock;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.WallBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -72,6 +74,13 @@ public final class ModBlocks {
                     BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_PURPLE)
                             .strength(-1.0F, 3600000.0F).noLootTable()
                             .noCollission());
+
+    /** 虹彩水晶：独立装饰方块，本体空模型，1.5 格高正菱形水晶由 BER 绘制、可穿行。 */
+    public static final DeferredBlock<CrystalBlock> CRYSTAL =
+            BLOCKS.registerBlock("crystal", CrystalBlock::new,
+                    BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_CYAN)
+                            .strength(0.5F).sound(SoundType.AMETHYST_CLUSTER)
+                            .lightLevel(state -> 12).noOcclusion());
 
     /** 查询方块的仪式品阶；非品阶方块返回 -1（如仪式核心、单方块化后的祭品台）。 */
     public static int tierOf(Block block) {
