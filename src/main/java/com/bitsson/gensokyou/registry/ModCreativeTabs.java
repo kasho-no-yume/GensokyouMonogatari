@@ -20,6 +20,7 @@ public final class ModCreativeTabs {
                     .icon(() -> new ItemStack(ModItems.GUIDE_BOOK.get()))
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.GUIDE_BOOK.get());
+                        output.accept(ModItems.CODEX_OF_BEINGS.get());
                         output.accept(ModItems.MUSOU_FUUIN.get());
                         output.accept(ModItems.LIGHT_REFLECT.get());
                         output.accept(ModItems.ICICLE_FALL.get());

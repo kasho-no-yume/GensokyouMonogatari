@@ -220,6 +220,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
             if (activeMatch.patternId().equals(RitualBehaviors.YUMEWATARI)) {
                 return yumewatariCapacity(activeMatch.level());
             }
+            if (activeMatch.patternId().equals(RitualBehaviors.SHUJOU)) {
+                return shujouCapacity(activeMatch.level());
+            }
             if (activeMatch.patternId().equals(RitualBehaviors.NICHIRIN)) {
                 return daycycleCapacity(activeMatch.level(),
                         GensokyouConfig.NICHIRIN_BASE_CAPACITY.get());
@@ -272,6 +275,16 @@ public class RitualCoreBlockEntity extends BlockEntity {
         long cap = base;
         for (int i = 0; i < level; i++) {
             cap *= 4L;
+        }
+        return cap;
+    }
+
+    /** 众生余录缓存上限 = 基值 × 容量倍率^等级（默认 40000 × 20^L）。 */
+    public static long shujouCapacity(int level) {
+        long cap = GensokyouConfig.SHUJOU_BASE_CAPACITY.get();
+        long mult = GensokyouConfig.SHUJOU_CAPACITY_MULT.get();
+        for (int i = 0; i < level; i++) {
+            cap *= mult;
         }
         return cap;
     }
@@ -1079,11 +1092,11 @@ public class RitualCoreBlockEntity extends BlockEntity {
             return new RitualRenderState(RitualRenderState.KIND_BAFANG, enabled,
                     activeMatch.level(), 0, 0, 0, new long[0], 0, 0L);
         }
-        if (RitualBehaviors.isToolSacrifice(id)) {
+        if (RitualBehaviors.isToolSacrifice(id) || id.equals(RitualBehaviors.SHUJOU)) {
             if (sacrificeFxTicks <= 0) {
                 return null;
             }
-            // 复用字段：minY=光柱高度(格)、maxY=剩余刻、period=色索引(0..3)
+            // 复用字段：minY=光柱高度(格)、maxY=剩余刻、period=色索引(0..5)
             return new RitualRenderState(RitualRenderState.KIND_SACRIFICE, enabled,
                     activeMatch.level(),
                     (int) Math.round(GensokyouConfig.FX_PILLAR_HEIGHT.get()),

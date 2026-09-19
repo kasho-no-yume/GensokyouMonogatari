@@ -6,6 +6,7 @@ import com.bitsson.gensokyou.entity.KnifeDanmaku;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import com.bitsson.gensokyou.item.GuideBookItem;
+import com.bitsson.gensokyou.item.CodexOfBeingsItem;
 import com.bitsson.gensokyou.item.LaevateinTier;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
 import com.bitsson.gensokyou.item.RitualWandItem;
@@ -54,6 +55,8 @@ public final class ModItems {
 
     public static final DeferredItem<GuideBookItem> GUIDE_BOOK =
             ITEMS.register("guide_book", () -> new GuideBookItem(new Item.Properties().stacksTo(1)));
+    public static final DeferredItem<CodexOfBeingsItem> CODEX_OF_BEINGS =
+            ITEMS.register("codex_of_beings", () -> new CodexOfBeingsItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<SummonCatalystItem> SUMMON_CATALYST =
             ITEMS.register("summon_catalyst", () -> new SummonCatalystItem(
                     new Item.Properties().stacksTo(16), () -> ModEntityTypes.FLANDRE.get()));

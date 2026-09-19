@@ -94,6 +94,23 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue FX_PILLAR_TICKS;
     public static final ModConfigSpec.DoubleValue FX_PILLAR_WIDTH;
 
+    // ---- watatsumi-fishing-ritual：绵津见神之藏（献祭钓鱼竿产水产/海洋特产）----
+    public static final ModConfigSpec.IntValue WATATSUMI_BASE_COUNT;
+    public static final ModConfigSpec.IntValue WATATSUMI_COUNT_MULT;
+    public static final ModConfigSpec.IntValue WATATSUMI_BASE_COOLDOWN_TICKS;
+    public static final ModConfigSpec.IntValue WATATSUMI_BONUS_COOLDOWN_TICKS;
+    public static final ModConfigSpec.DoubleValue WATATSUMI_BONUS_CHANCE;
+
+    // ---- shujou-yoroku-ritual：众生余录（满态典籍按实体战利品表产出的持续转化仪式）----
+    public static final ModConfigSpec.IntValue SHUJOU_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue SHUJOU_CAPACITY_MULT;
+    public static final ModConfigSpec.IntValue SHUJOU_BASE_SP_COST;
+    public static final ModConfigSpec.IntValue SHUJOU_SP_COST_MULT;
+    public static final ModConfigSpec.IntValue SHUJOU_CYCLE_TICKS;
+    public static final ModConfigSpec.IntValue SHUJOU_SPIRIT_IN_RATE;
+    public static final ModConfigSpec.IntValue SHUJOU_L2_OUTPUT_MULT;
+    public static final ModConfigSpec.IntValue SHUJOU_LOOTING_LEVEL;
+
     // ---- ritual-presentation-polish：迦具土贴地烈火场（原炎柱场重设计）----
     public static final ModConfigSpec.IntValue FX_FIRE_DENSITY_BASE;
     public static final ModConfigSpec.IntValue FX_FIRE_DENSITY_PER_TIER;
@@ -230,6 +247,9 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue NPC_KICK_XZ_MAX;
     public static final ModConfigSpec.IntValue NPC_KICK_Y;
 
+    // ---- codex-of-beings：众生典籍（收容 mob，供众生余录仪式读取）----
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> CAPTURE_BLACKLIST;
+
     public static final ModConfigSpec SPEC;
 
     static {
@@ -240,6 +260,14 @@ public class GensokyouConfig {
         NPC_KICK_XZ_MIN = BUILDER.comment("Ejection landing: overworld x/z lower bound").defineInRange("npcKickXzMin", 50000, 0, 29999999);
         NPC_KICK_XZ_MAX = BUILDER.comment("Ejection landing: overworld x/z upper bound").defineInRange("npcKickXzMax", 150000, 1, 30000000);
         NPC_KICK_Y = BUILDER.comment("Ejection landing height (above build limit by design; falling is part of the punishment)").defineInRange("npcKickY", 500, -64, 10000);
+        BUILDER.pop();
+
+        BUILDER.push("codex").comment("Codex of Beings (codex-of-beings capability)");
+        CAPTURE_BLACKLIST = BUILDER.comment("Entity type ids the Codex refuses to capture (defaults: mobs that drop nothing)")
+                .defineListAllowEmpty("captureBlacklist", List.of(
+                        "minecraft:bat", "minecraft:silverfish", "minecraft:endermite", "minecraft:vex",
+                        "minecraft:illusioner", "minecraft:giant", "minecraft:allay", "minecraft:tadpole"),
+                        o -> o instanceof String);
         BUILDER.pop();
 
         BUILDER.push("boss").comment("Flandre Scarlet boss stats (legacy 1.12.2 baseline)");
@@ -338,7 +366,24 @@ public class GensokyouConfig {
         FX_PILLAR_HEIGHT = BUILDER.comment("Tool-sacrifice rites: sky pillar height (blocks) at the production moment").defineInRange("fxPillarHeight", 48.0D, 4.0D, 256.0D);
         FX_PILLAR_TICKS = BUILDER.comment("Tool-sacrifice rites: sky pillar visible duration in ticks").defineInRange("fxPillarTicks", 30, 5, 400);
         FX_PILLAR_WIDTH = BUILDER.comment("Tool-sacrifice rites: sky pillar half-width (blocks)").defineInRange("fxPillarWidth", 1.6D, 0.2D, 8.0D);
+        WATATSUMI_BASE_COUNT = BUILDER.comment("Watatsumi treasure rite: total produced item count at level 0 (level N multiplies by watatsumiCountMult^N); from level 1 it is split half/half between the fishing pool and the ocean-special pool").defineInRange("watatsumiBaseCount", 5, 1, 1000000);
+        WATATSUMI_COUNT_MULT = BUILDER.comment("Watatsumi treasure rite: produced-count multiplier per level").defineInRange("watatsumiCountMult", 4, 1, 1000);
+        WATATSUMI_BASE_COOLDOWN_TICKS = BUILDER.comment("Watatsumi treasure rite: forced cooldown in ticks after a normal settlement (1200 = 60s)").defineInRange("watatsumiBaseCooldownTicks", 1200, 0, 72000);
+        WATATSUMI_BONUS_COOLDOWN_TICKS = BUILDER.comment("Watatsumi treasure rite: forced cooldown in ticks after the level-2 buried-treasure bonus triggers (12000 = 10min)").defineInRange("watatsumiBonusCooldownTicks", 12000, 0, 720000);
+        WATATSUMI_BONUS_CHANCE = BUILDER.comment("Watatsumi treasure rite: per-settlement chance at level 2 to additionally roll a full buried-treasure chest").defineInRange("watatsumiBonusChance", 0.001D, 0.0D, 1.0D);
         BUILDER.pop();
+
+        BUILDER.push("shujou").comment("Shujou Yoroku (Miscellany of All Beings): per-cycle spirit converted into the death loot of recorded entities");
+        SHUJOU_BASE_CAPACITY = BUILDER.comment("Shujou: spirit buffer capacity at level 0 (level N multiplies by shujouCapacityMult^N)").defineInRange("shujouBaseCapacity", 40000, 1, Integer.MAX_VALUE);
+        SHUJOU_CAPACITY_MULT = BUILDER.comment("Shujou: capacity multiplier per level").defineInRange("shujouCapacityMult", 20, 1, 1000);
+        SHUJOU_BASE_SP_COST = BUILDER.comment("Shujou: base spirit cost per settlement per distinct recorded species at level 0 (level N multiplies by shujouSpCostMult^N)").defineInRange("shujouBaseSpCost", 10000, 0, Integer.MAX_VALUE);
+        SHUJOU_SP_COST_MULT = BUILDER.comment("Shujou: spirit cost multiplier per level").defineInRange("shujouSpCostMult", 4, 1, 1000);
+        SHUJOU_CYCLE_TICKS = BUILDER.comment("Shujou: fixed production interval in ticks (1200 = 60s)").defineInRange("shujouCycleTicks", 1200, 1, 72000);
+        SHUJOU_SPIRIT_IN_RATE = BUILDER.comment("Shujou: routed spirit intake rate per second so the resonance network can power it as a sink (fixed across levels)").defineInRange("shujouSpiritInRate", 1000000, 0, Integer.MAX_VALUE);
+        SHUJOU_L2_OUTPUT_MULT = BUILDER.comment("Shujou: level-2 output multiplier applied on top of the looting-3 roll").defineInRange("shujouL2OutputMult", 4, 1, 1000);
+        SHUJOU_LOOTING_LEVEL = BUILDER.comment("Shujou: looting level simulated from level 1 onward (0 = no looting)").defineInRange("shujouLootingLevel", 3, 0, 10);
+        BUILDER.pop();
+
         BUILDER.push("ritualFx").comment("Ritual runtime grid/shader FX (ritual-presentation-polish): fire bed, mist ribbon, bolt arcs, spirit orb");
         FX_FIRE_DENSITY_BASE = BUILDER.comment("Kagutsuchi fire bed: deterministic ground fire points at tier 0").defineInRange("fxFireDensityBase", 26, 1, 256);
         FX_FIRE_DENSITY_PER_TIER = BUILDER.comment("Kagutsuchi fire bed: extra ground fire points per tier").defineInRange("fxFireDensityPerTier", 10, 0, 128);

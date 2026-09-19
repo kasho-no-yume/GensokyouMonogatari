@@ -18,6 +18,7 @@ import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -57,6 +58,7 @@ public class GensokyouJeiPlugin implements IModPlugin {
     private static volatile Map<ResourceLocation, RitualRecipeCardWrapper> syncedRecipes = Map.of();
     private static volatile Map<ResourceLocation, List<RitualLootCardWrapper>> syncedLoot = Map.of();
     private static volatile int syncedLootSignature = Integer.MIN_VALUE;
+    private static volatile List<WatatsumiLootCardWrapper> syncedWatatsumi = List.of();
 
     @Override
     public ResourceLocation getPluginUid() {
@@ -81,6 +83,10 @@ public class GensokyouJeiPlugin implements IModPlugin {
                     tabIcon(guiHelper, null)));
         }
         registration.addRecipeCategories(lootCategories.toArray(new RitualLootCategory[0]));
+
+        registration.addRecipeCategories(new WatatsumiLootCategory(guiHelper, RitualBehaviors.WATATSUMI,
+                guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK,
+                        new ItemStack(Items.FISHING_ROD))));
     }
 
     private static IDrawable tabIcon(IGuiHelper guiHelper, @Nullable ResourceLocation patternId) {
@@ -97,6 +103,7 @@ public class GensokyouJeiPlugin implements IModPlugin {
         runtime = jeiRuntime;
         syncFromLoader(RitualRecipeLoader.all());
         syncLoot(RitualLootLoader.all());
+        syncWatatsumi();
     }
 
     /** 献祭权重卡同步：按仪式增删卡片；无内容（数据未载入）时隐藏页签。 */
@@ -146,6 +153,30 @@ public class GensokyouJeiPlugin implements IModPlugin {
         }
         syncedLoot = Map.copyOf(desired);
         syncedLootSignature = signature;
+    }
+
+    /** 绵津见卡同步：固定 3 张（等级 0/1/2）；特产池数据变化即刷新。 */
+    static void syncWatatsumi() {
+        IJeiRuntime rt = runtime;
+        if (rt == null) {
+            return;
+        }
+        List<WatatsumiLootCardWrapper> desired = List.of(
+                WatatsumiLootCardWrapper.of(0),
+                WatatsumiLootCardWrapper.of(1),
+                WatatsumiLootCardWrapper.of(2));
+        if (desired.equals(syncedWatatsumi)) {
+            return;
+        }
+        IRecipeManager manager = rt.getRecipeManager();
+        RecipeType<WatatsumiLootCardWrapper> type =
+                WatatsumiLootCategory.typeFor(RitualBehaviors.WATATSUMI);
+        if (!syncedWatatsumi.isEmpty()) {
+            manager.hideRecipes(type, syncedWatatsumi);
+        }
+        manager.unhideRecipeCategory(type);
+        manager.addRecipes(type, desired);
+        syncedWatatsumi = desired;
     }
 
     /** 配方集变化即逐页签增删卡片（稳态零操作，由 {@link JeiClientSync} 轮询触发）。 */

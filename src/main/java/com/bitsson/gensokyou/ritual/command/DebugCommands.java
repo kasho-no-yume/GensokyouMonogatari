@@ -5,6 +5,7 @@ import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.bitsson.gensokyou.spirit.SpiritPowerData;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -141,7 +142,25 @@ public final class DebugCommands {
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
                                 .executes(context -> probeSacrifice(context.getSource(),
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument
-                                                .getLoadedBlockPos(context, "core"))))));
+                                                .getLoadedBlockPos(context, "core")))))
+                .then(Commands.literal("watatsumi")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeWatatsumi(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core")))))
+                .then(Commands.literal("shujou")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeShujou(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core")))))
+                .then(Commands.literal("shujou_roll")
+                        .then(Commands.argument("species", StringArgumentType.string())
+                                .then(Commands.argument("level", IntegerArgumentType.integer(0, 5))
+                                        .executes(context -> probeShujouRoll(context.getSource(),
+                                                StringArgumentType.getString(context, "species"),
+                                                IntegerArgumentType.getInteger(context, "level")))))));
     }
 
     /** 梦渡之座探针：包围盒/合规床清单/占用者。forcedSleepers：-1 只查看；-2 真实快照结算；≥0 注入数结算
@@ -363,6 +382,101 @@ public final class DebugCommands {
     private static void line(ServerPlayer player, String text) {
         player.displayClientMessage(
                 Component.literal(text).withStyle(net.minecraft.ChatFormatting.GRAY), false);
+    }
+
+    /** 绵津见神之藏探针：单行 [GS-AUTO] WATATSUMI，含等级/竿数/两池掷数/解锁/成本/特产池（权重+约%）。 */
+    private static int probeWatatsumi(net.minecraft.commands.CommandSourceStack source,
+                                      net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null
+                && com.bitsson.gensokyou.ritual.RitualBehaviors.WATATSUMI
+                        .equals(core.activeMatch().patternId())) {
+            msg = "[GS-AUTO] WATATSUMI "
+                    + com.bitsson.gensokyou.ritual.behavior.WatatsumiBehavior
+                            .debugSummary(serverLevel, core.activeMatch())
+                    + " enabled=" + core.isEnabled()
+                    + " be=" + core.getStored() + "/" + core.getCapacity();
+        } else {
+            msg = "[GS-AUTO] WATATSUMI NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
+    /** 众生余录探针：单行 [GS-AUTO] SHUJOU，含等级/祭品台/有效典籍/去重 species/成本/容量/L2/试掷。 */
+    private static int probeShujou(net.minecraft.commands.CommandSourceStack source,
+                                   net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null
+                && com.bitsson.gensokyou.ritual.RitualBehaviors.SHUJOU
+                        .equals(core.activeMatch().patternId())) {
+            msg = "[GS-AUTO] SHUJOU "
+                    + com.bitsson.gensokyou.ritual.behavior.ShujouYorokuBehavior
+                            .debugSummary(serverLevel, core.activeMatch())
+                    + " enabled=" + core.isEnabled()
+                    + " be=" + core.getStored() + "/" + core.getCapacity()
+                    + " " + com.bitsson.gensokyou.ritual.behavior.ShujouYorokuBehavior
+                            .debugRoll(serverLevel, pos, core.activeMatch());
+        } else {
+            msg = "[GS-AUTO] SHUJOU NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
+    /** 无结构依赖掷骰探针：以假玩家凭证掷指定 species 的死亡表，并按结算口径套用 L2 倍率。 */
+    private static int probeShujouRoll(net.minecraft.commands.CommandSourceStack source,
+                                       String rawId, int level) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        net.minecraft.resources.ResourceLocation id =
+                net.minecraft.resources.ResourceLocation.tryParse(rawId.trim());
+        String msg;
+        if (id == null) {
+            msg = "[GS-AUTO] SHUJOU-ROLL bad-id=" + rawId;
+        } else {
+            net.minecraft.core.BlockPos pos =
+                    net.minecraft.core.BlockPos.containing(source.getPosition());
+            int mult = com.bitsson.gensokyou.ritual.behavior.ShujouYorokuBehavior.l2Multiplier(level);
+            java.util.List<net.minecraft.world.item.ItemStack> out =
+                    com.bitsson.gensokyou.ritual.behavior.ShujouYorokuBehavior
+                            .rollSpecies(serverLevel, pos, id, level);
+            java.util.Map<String, Integer> agg = new java.util.LinkedHashMap<>();
+            for (net.minecraft.world.item.ItemStack stack : out) {
+                if (!stack.isEmpty()) {
+                    agg.merge(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                            .getKey(stack.getItem()).toString(), stack.getCount(), Integer::sum);
+                }
+            }
+            // 与结算口径一致：2 阶在抢夺结果上再乘倍率
+            if (mult > 1) {
+                agg.replaceAll((k, v) -> (int) Math.min(Integer.MAX_VALUE, (long) v * mult));
+            }
+            StringBuilder sb = new StringBuilder();
+            agg.forEach((k, v) -> sb.append(sb.length() == 0 ? "" : " ")
+                    .append(k).append('x').append(v));
+            msg = "[GS-AUTO] SHUJOU-ROLL species=" + id + " level=" + level
+                    + " looting=" + (level >= 1
+                            ? com.bitsson.gensokyou.config.GensokyouConfig.SHUJOU_LOOTING_LEVEL.get() : 0)
+                    + " mult=" + mult
+                    + " -> " + (sb.length() == 0 ? "<empty>" : sb.toString());
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
     }
 
     /** 八方归元储灵池探针：聚合态单行 [GS-AUTO]，日志+指令源双输出（服务器函数上下文可跑）。 */

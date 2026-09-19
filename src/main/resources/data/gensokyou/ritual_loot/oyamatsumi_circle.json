@@ -23,7 +23,7 @@
   "tables": [
     {
       "tier": "wood",
-      "special": [["minecraft:coal", 0.5]],
+      "special": [["minecraft:coal", 1]],
       "nether": [
         ["minecraft:netherrack", 12],
         ["minecraft:magma_block", 0.2]
@@ -31,7 +31,7 @@
     },
     {
       "tier": "stone",
-      "special": [["minecraft:coal_ore", 1], ["minecraft:iron_ore", 0.5]],
+      "special": [["minecraft:coal_ore", 2], ["minecraft:iron_ore", 0.5], ["minecraft:copper_ore", 1]],
       "nether": [
         ["minecraft:netherrack", 12],
         ["minecraft:magma_block", 0.2]
@@ -39,7 +39,7 @@
     },
     {
       "tier": "gold",
-      "special": [["minecraft:lapis_ore", 1], ["minecraft:coal_ore", 2]],
+      "special": [["minecraft:lapis_ore", 1], ["minecraft:coal_ore", 3]],
       "nether": [
         ["minecraft:netherrack", 12],
         ["minecraft:magma_block", 0.2],
@@ -53,7 +53,8 @@
         ["minecraft:gold_ore", 1],
         ["minecraft:lapis_ore", 3],
         ["minecraft:redstone_ore", 3],
-        ["minecraft:diamond_ore", 0.1]
+        ["minecraft:diamond_ore", 0.1],
+        ["minecraft:copper_ore", 5]
       ],
       "nether": [
         ["minecraft:netherrack", 12],
@@ -66,7 +67,8 @@
       "special": [
         ["minecraft:iron_ore", 10],
         ["minecraft:gold_ore", 3],
-        ["minecraft:diamond_ore", 1]
+        ["minecraft:diamond_ore", 1],
+        ["minecraft:copper_ore", 10]
       ],
       "nether": [
         ["minecraft:netherrack", 12],
@@ -78,10 +80,11 @@
       "tier": "netherite",
       "special": [
         ["minecraft:diamond_ore", 5],
-        ["minecraft:iron_ore", 25],
+        ["minecraft:iron_ore", 20],
         ["minecraft:gold_ore", 10],
-        ["minecraft:lapis_ore", 30],
-        ["minecraft:redstone_ore", 30]
+        ["minecraft:lapis_ore", 20],
+        ["minecraft:redstone_ore", 20],
+        ["minecraft:copper_ore", 25]
       ],
       "nether": [
         ["minecraft:netherrack", 12],

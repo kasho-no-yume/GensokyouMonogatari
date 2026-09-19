@@ -1,0 +1,13 @@
+{
+  "replace": false,
+  "values": [
+    "gensokyou:flandre",
+    "gensokyou:fake_flandre",
+    "gensokyou:cirno",
+    "gensokyou:big_fairy",
+    "minecraft:wither",
+    "minecraft:ender_dragon",
+    "minecraft:warden",
+    "minecraft:elder_guardian"
+  ]
+}

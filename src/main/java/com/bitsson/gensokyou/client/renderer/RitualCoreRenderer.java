@@ -515,12 +515,14 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         poseStack.popPose();
     }
 
-    /** 献祭光柱色（0=石 1=木 2=土 3=草）。 */
+    /** 献祭光柱色（0=石 1=木 2=土 3=草 4=绵津见水蓝 5=众生余录灵魂紫）。 */
     private static int[] pillarColor(int index) {
         return switch (index) {
             case 1 -> new int[]{141, 110, 99};
             case 2 -> new int[]{188, 170, 164};
             case 3 -> new int[]{129, 199, 132};
+            case 4 -> new int[]{90, 180, 200};
+            case 5 -> new int[]{156, 111, 214};
             default -> new int[]{176, 190, 197};
         };
     }

@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.ritual.RitualLootLoader;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
+import com.bitsson.gensokyou.ritual.WatatsumiSpecialLootLoader;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.AddReloadListenerEvent;
@@ -19,5 +20,6 @@ public final class ReloadListenerHandler {
         event.addListener(new RitualPatternLoader());
         event.addListener(new RitualRecipeLoader());
         event.addListener(new RitualLootLoader());
+        event.addListener(new WatatsumiSpecialLootLoader());
     }
 }

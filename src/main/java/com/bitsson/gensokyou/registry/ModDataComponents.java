@@ -2,6 +2,7 @@ package com.bitsson.gensokyou.registry;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.item.BuilderSelection;
+import com.bitsson.gensokyou.item.codex.CodexData;
 import com.bitsson.gensokyou.item.weapon.RuneAffix;
 import com.bitsson.gensokyou.item.weapon.WeaponSlots;
 import net.minecraft.core.component.DataComponentType;
@@ -59,6 +60,13 @@ public final class ModDataComponents {
                             .persistent(com.bitsson.gensokyou.spirit.SpiritCoreData.CODEC)
                             .networkSynchronized(com.bitsson.gensokyou.spirit.SpiritCoreData.STREAM_CODEC)
                             .build());
+
+    /** 众生典籍收容状态（mob 类型 + 数量 + 驯服警告标记）。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<CodexData>> CODEX_DATA =
+            DATA_COMPONENTS.register("codex_data", () -> DataComponentType.<CodexData>builder()
+                    .persistent(CodexData.CODEC)
+                    .networkSynchronized(CodexData.STREAM_CODEC)
+                    .build());
 
     private ModDataComponents() {
     }

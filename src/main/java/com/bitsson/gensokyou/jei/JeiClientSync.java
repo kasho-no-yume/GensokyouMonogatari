@@ -21,6 +21,7 @@ public final class JeiClientSync {
         if (ModList.get().isLoaded("jei")) {
             GensokyouJeiPlugin.syncFromLoader(RitualRecipeLoader.all());
             GensokyouJeiPlugin.syncLoot(RitualLootLoader.all());
+            GensokyouJeiPlugin.syncWatatsumi();
         }
     }
 }

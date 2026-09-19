@@ -10,7 +10,9 @@ import com.bitsson.gensokyou.ritual.behavior.HaniyasuBehavior;
 import com.bitsson.gensokyou.ritual.behavior.NichirinBehavior;
 import com.bitsson.gensokyou.ritual.behavior.OyamatsumiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ResonanceRelayBehavior;
+import com.bitsson.gensokyou.ritual.behavior.ShujouYorokuBehavior;
 import com.bitsson.gensokyou.ritual.behavior.TsukikageBehavior;
+import com.bitsson.gensokyou.ritual.behavior.WatatsumiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.YaoyorozuGraceBehavior;
 import com.bitsson.gensokyou.ritual.behavior.YumewatariBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ZaohuaCraftingBehavior;
@@ -38,6 +40,8 @@ public final class RitualBehaviors {
     public static final ResourceLocation KUKUNOCHI = Gensokyou.id("kukunochi_circle");
     public static final ResourceLocation HANIYASU = Gensokyou.id("haniyasu_circle");
     public static final ResourceLocation KAYA_NO_HIME = Gensokyou.id("kaya_no_hime_circle");
+    public static final ResourceLocation WATATSUMI = Gensokyou.id("watatsumi_circle");
+    public static final ResourceLocation SHUJOU = Gensokyou.id("shujou_yoroku_circle");
 
     static {
         register(RESONANCE, new ResonanceRelayBehavior());
@@ -53,6 +57,8 @@ public final class RitualBehaviors {
         register(KUKUNOCHI, new KukunochiBehavior());
         register(HANIYASU, new HaniyasuBehavior());
         register(KAYA_NO_HIME, new KayaNoHimeBehavior());
+        register(WATATSUMI, new WatatsumiBehavior());
+        register(SHUJOU, new ShujouYorokuBehavior());
     }
 
     private RitualBehaviors() {
@@ -62,13 +68,14 @@ public final class RitualBehaviors {
         REGISTRY.put(patternId, behavior);
     }
 
-    /** 四个献祭工具仪式（共享缓存/冷却语义）。 */
+    /** 献祭工具/竿仪式（共享缓存分派与产出光柱语义；绵津见献祭钓鱼竿）。 */
     public static boolean isToolSacrifice(ResourceLocation patternId) {
         return patternId.equals(OYAMATSUMI) || patternId.equals(KUKUNOCHI)
-                || patternId.equals(HANIYASU) || patternId.equals(KAYA_NO_HIME);
+                || patternId.equals(HANIYASU) || patternId.equals(KAYA_NO_HIME)
+                || patternId.equals(WATATSUMI);
     }
 
-    /** 献祭光柱色索引（服务端写入渲染态；客户端映射 RGB）：石0/木1/土2/草3。 */
+    /** 献祭光柱色索引（服务端写入渲染态；客户端映射 RGB）：石0/木1/土2/草3/绵津见4水蓝/众生余录5紫。 */
     public static int sacrificeColorIndex(ResourceLocation patternId) {
         if (patternId.equals(KUKUNOCHI)) {
             return 1;
@@ -78,6 +85,12 @@ public final class RitualBehaviors {
         }
         if (patternId.equals(KAYA_NO_HIME)) {
             return 3;
+        }
+        if (patternId.equals(WATATSUMI)) {
+            return 4;
+        }
+        if (patternId.equals(SHUJOU)) {
+            return 5;
         }
         return 0;
     }
