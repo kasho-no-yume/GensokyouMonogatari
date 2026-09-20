@@ -89,6 +89,9 @@ public class CrystalRenderer implements BlockEntityRenderer<CrystalBlockEntity> 
     public void render(CrystalBlockEntity blockEntity, float partialTick, PoseStack poseStack,
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
         Level level = blockEntity.getLevel();
+        if (blockEntity.getBlockState().getValue(com.bitsson.gensokyou.block.CrystalBlock.CONCEALED)) {
+            return;
+        }
         float time = (level == null ? 0.0F : level.getGameTime()) + partialTick;
         if (level != null) {
             emitAmbientParticles(level, blockEntity.getBlockPos(), level.getGameTime());

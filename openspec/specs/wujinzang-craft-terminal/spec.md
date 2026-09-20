@@ -1,0 +1,53 @@
+# wujinzang-craft-terminal Specification
+
+## Purpose
+TBD - created by archiving change add-wujinzang-craft-terminal. Update Purpose after archive.
+## Requirements
+### Requirement: 仓储取料填充合成格
+
+终端 SHALL 支持从无尽藏仓储取料填入其原版 3×3 合成格。执行时 SHALL 先清空合成格现有内容（优先放回玩家背包，其次存回仓储，均不可行时掉落，MUST NOT 静默销毁），再逐格处理配方输入：优先从仓储取 1 件，仓储不足则从玩家背包取 1 件，两者皆无则该格留空。取料 SHALL 在服务端权威执行。
+
+#### Scenario: 从仓储取料
+- **WHEN** 配方某格需要圆石且无尽藏仓储内有圆石
+- **THEN** 该格被填入 1 个圆石，仓储计数减 1
+
+#### Scenario: 仓储不足回退背包
+- **WHEN** 配方某格需要圆石、仓储无圆石但玩家背包有
+- **THEN** 该格被填入 1 个圆石，背包该物品减 1
+
+#### Scenario: 缺料留空
+- **WHEN** 某格材料仓储与背包都没有
+- **THEN** 该格留空，不报错
+
+#### Scenario: 清空不销毁
+- **WHEN** 填充前合成格已有物品
+- **THEN** 这些物品进入玩家背包或仓储；两者都放不下时掉落到玩家脚下
+
+### Requirement: JEI 配方转移联动
+
+终端 SHALL 注册 JEI 配方转移处理器，使 JEI 合成配方界面在终端打开时显示 `+` 按钮；点击 `+` SHALL 把该配方输入一键发往服务端并触发仓储取料填充。转移处理器 SHALL 仅对无尽藏终端菜单生效，MUST NOT 影响其他容器界面。
+
+#### Scenario: 显示加号
+- **WHEN** 玩家打开无尽藏终端并查看 JEI 合成配方
+- **THEN** 配方界面出现可用的 `+` 按钮
+
+#### Scenario: 一键填充
+- **WHEN** 玩家点击 `+`
+- **THEN** 客户端发送配方输入，服务端据此填充终端合成格（材料优先来自仓储）
+
+#### Scenario: 不影响其他界面
+- **WHEN** 玩家打开非无尽藏终端界面查看同一合成配方
+- **THEN** 该转移处理器不介入
+
+### Requirement: 合成仍为原版语义
+
+填充后 SHALL 由原版合成规则产出结果并显示于结果格，玩家取走产物。本版本 SHALL NOT 自动执行循环合成，MUST NOT 自动把产物写回仓储。
+
+#### Scenario: 结果格产出
+- **WHEN** 合成格被正确填满
+- **THEN** 结果格按原版规则显示产物，玩家可取出
+
+#### Scenario: 无自动循环
+- **WHEN** 玩家未手动取走结果
+- **THEN** 系统不自动消耗材料重复合成
+

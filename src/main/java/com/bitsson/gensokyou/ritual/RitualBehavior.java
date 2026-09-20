@@ -103,6 +103,19 @@ public interface RitualBehavior {
         return true;
     }
 
+    /**
+     * 非产灵耗能仪式：true = 核心每 tick 把槽内灵力核心的灵力补入核心缓存（电池→缓存），
+     * 仪式运行只从缓存扣除。默认 false，保持既有产能仪式（缓存→电池）不变。
+     */
+    default boolean refillsCacheFromSocket() {
+        return false;
+    }
+
+    /** 行为专属界面菜单 id（null = 通用仪式面板）。由核心右键按图案分派。 */
+    default @javax.annotation.Nullable net.minecraft.resources.ResourceLocation screenMenuId() {
+        return null;
+    }
+
     /** 作为受灵汇的最大每秒输入速率；0 = 不具备该属性，不可被路由选为输出目标。值为上限，非保证带宽。 */
     default long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
                                        RitualCoreBlockEntity core) {

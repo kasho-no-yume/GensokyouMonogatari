@@ -10,9 +10,11 @@ import com.bitsson.gensokyou.ritual.behavior.HaniyasuBehavior;
 import com.bitsson.gensokyou.ritual.behavior.NichirinBehavior;
 import com.bitsson.gensokyou.ritual.behavior.OyamatsumiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ResonanceRelayBehavior;
+import com.bitsson.gensokyou.ritual.behavior.SairEnergyBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ShujouYorokuBehavior;
 import com.bitsson.gensokyou.ritual.behavior.TsukikageBehavior;
 import com.bitsson.gensokyou.ritual.behavior.WatatsumiBehavior;
+import com.bitsson.gensokyou.ritual.behavior.WujinzangBehavior;
 import com.bitsson.gensokyou.ritual.behavior.YaoyorozuGraceBehavior;
 import com.bitsson.gensokyou.ritual.behavior.YumewatariBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ZaohuaCraftingBehavior;
@@ -42,6 +44,8 @@ public final class RitualBehaviors {
     public static final ResourceLocation KAYA_NO_HIME = Gensokyou.id("kaya_no_hime_circle");
     public static final ResourceLocation WATATSUMI = Gensokyou.id("watatsumi_circle");
     public static final ResourceLocation SHUJOU = Gensokyou.id("shujou_yoroku_circle");
+    public static final ResourceLocation WUJINZANG = Gensokyou.id("wujinzang_circle");
+    public static final ResourceLocation SAIR_ENERGY = Gensokyou.id("sair_energy_circle");
 
     static {
         register(RESONANCE, new ResonanceRelayBehavior());
@@ -59,6 +63,8 @@ public final class RitualBehaviors {
         register(KAYA_NO_HIME, new KayaNoHimeBehavior());
         register(WATATSUMI, new WatatsumiBehavior());
         register(SHUJOU, new ShujouYorokuBehavior());
+        register(WUJINZANG, new WujinzangBehavior());
+        register(SAIR_ENERGY, new SairEnergyBehavior());
     }
 
     private RitualBehaviors() {

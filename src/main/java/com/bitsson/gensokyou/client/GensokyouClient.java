@@ -109,5 +109,7 @@ public final class GensokyouClient {
         event.register(ModMenus.RITUAL_EDITOR.get(), com.bitsson.gensokyou.client.screen.RitualEditorScreen::new);
         event.register(ModMenus.CRYSTAL_STORAGE.get(),
                 com.bitsson.gensokyou.client.screen.CrystalStorageScreen::new);
+        event.register(ModMenus.WUJINZANG_TERMINAL.get(),
+                com.bitsson.gensokyou.client.screen.WujinzangTerminalScreen::new);
     }
 }

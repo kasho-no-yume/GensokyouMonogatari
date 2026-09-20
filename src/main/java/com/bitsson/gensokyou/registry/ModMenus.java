@@ -43,6 +43,12 @@ public final class ModMenus {
                     (IContainerFactory<CrystalStorageMenu>) CrystalStorageMenu::new,
                     FeatureFlags.VANILLA_SET));
 
+    public static final DeferredHolder<MenuType<?>, MenuType<com.bitsson.gensokyou.menu.WujinzangTerminalMenu>> WUJINZANG_TERMINAL =
+            MENUS.register("wujinzang_terminal", () -> new MenuType<>(
+                    (IContainerFactory<com.bitsson.gensokyou.menu.WujinzangTerminalMenu>)
+                            com.bitsson.gensokyou.menu.WujinzangTerminalMenu::new,
+                    FeatureFlags.VANILLA_SET));
+
     private ModMenus() {
     }
 }

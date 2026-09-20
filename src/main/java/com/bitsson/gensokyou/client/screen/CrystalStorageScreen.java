@@ -260,8 +260,11 @@ public class CrystalStorageScreen extends AbstractContainerScreen<CrystalStorage
                         : (page.entryCount() + CrystalStorageMenu.PAGE_SIZE - 1) / CrystalStorageMenu.PAGE_SIZE));
         graphics.drawString(this.font, pageText,
                 imageWidth - 8 - this.font.width(pageText), 6, COLOR_TEXT, false);
-        Component counts = Component.translatable("gui.gensokyou.crystal_storage.count",
-                page == null ? 0 : page.totalCount(), page == null ? 0 : page.capacity());
+        String countKey = page != null && page.mode() == CrystalStoragePagePayload.MODE_TYPED
+                ? "gui.gensokyou.crystal_storage.count_types"
+                : "gui.gensokyou.crystal_storage.count_total";
+        Component counts = Component.translatable(countKey,
+                page == null ? 0L : page.used(), page == null ? 0L : page.limit());
         graphics.drawString(this.font, counts, 8, PANEL_HEIGHT - 14, COLOR_TEXT, false);
     }
 

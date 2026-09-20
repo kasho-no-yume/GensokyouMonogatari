@@ -52,4 +52,24 @@ TEXES = {
         "......oMMo......",
         ".......MM.......",
     ],
+    # block/crystal_shard : 破坏碎屑粒子用（block 图集，完全不透明）。
+    # 4x4 拼块各为一个棱面色块（青/蓝/紫罗兰/品红），带左上高光；避免近黑像素。
+    "block/crystal_shard": [
+        "HCCBHCCBHBVVHBVV",
+        "CCCCCCCCBBBBBBBB",
+        "CCCCCCCCBBBBBBBB",
+        "BCCCBCCCVBBBVBBB",
+        "HCCBHBVVHBVVHVMM",
+        "CCCCBBBBBBBBVVVV",
+        "CCCCBBBBBBBBVVVV",
+        "BCCCVBBBVBBBMVVV",
+        "HBVVHBVVHVMMHVMM",
+        "BBBBBBBBVVVVVVVV",
+        "BBBBBBBBVVVVVVVV",
+        "VBBBVBBBMVVVMVVV",
+        "HBVVHVMMHVMMMPVV",
+        "BBBBVVVVVVVVMMMM",
+        "BBBBVVVVVVVVMMMM",
+        "VBBBMVVVMVVVVMMM",
+    ],
 }

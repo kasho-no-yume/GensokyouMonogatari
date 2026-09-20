@@ -86,6 +86,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private static final String TAG_GRACE_INITIATOR = "GraceInitiator";
     /** 献祭仪式：结算后强制冷却剩余 tick（通用字段，仅该行为族使用）。 */
     private static final String TAG_ACTION_COOLDOWN = "ActionCooldown";
+    /** 无尽藏之仪托管数据段键：分区组表 + 孤儿段 + 段位坐标（由 {@code WujinzangStorage} 读写）。 */
+    public static final String TAG_WUJINZANG_VAULT = "WujinzangVault";
 
     /** 造化合成会话阶段（一次性合成型仪式共用存储；推进逻辑在行为侧）。 */
     public enum CraftPhase { IDLE, PAYING, FLIGHT }
@@ -133,6 +135,10 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private int actionCooldown;
     /** 献祭仪式：产出光柱剩余渲染刻（瞬态，仅驱动客户端 BER，不持久化）。 */
     private int sacrificeFxTicks;
+    /** 无尽藏之仪托管数据段（键 {@link #TAG_WUJINZANG_VAULT}）：分区组表 + 孤儿段 + 段位坐标。 */
+    private CompoundTag wujinzangVault;
+    /** 无尽藏：电池核心→缓存的定点进位累加器（与产能方向的 fillCarry 分道）。 */
+    private long cacheFillCarry;
 
     public RitualCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RITUAL_CORE.get(), pos, state);
@@ -171,6 +177,34 @@ public class RitualCoreBlockEntity extends BlockEntity {
             actionCooldown = value;
             setChanged();
         }
+    }
+
+    /** 无尽藏之仪 vault 段（可为 null）；由 WujinzangStorage 读写。 */
+    public CompoundTag getWujinzangVault() {
+        return wujinzangVault;
+    }
+
+    /** 设置无尽藏 vault 段；null 清除。 */
+    public void setWujinzangVault(CompoundTag vault) {
+        this.wujinzangVault = vault;
+        setChanged();
+    }
+
+    /** 取 vault（不存在则新建并挂上）。 */
+    public CompoundTag wujinzangVault() {
+        if (wujinzangVault == null) {
+            wujinzangVault = new CompoundTag();
+        }
+        return wujinzangVault;
+    }
+
+    /** 无尽藏：电池核心→缓存的定点进位余额（供 Vault 与持久化）。 */
+    public long cacheFillCarry() {
+        return cacheFillCarry;
+    }
+
+    public void setCacheFillCarry(long value) {
+        this.cacheFillCarry = value;
     }
 
     /** 每 tick 递减冷却（核心 tick 统一调用）。 */
@@ -222,6 +256,12 @@ public class RitualCoreBlockEntity extends BlockEntity {
             }
             if (activeMatch.patternId().equals(RitualBehaviors.SHUJOU)) {
                 return shujouCapacity(activeMatch.level());
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.WUJINZANG)) {
+                return wujinzangCapacity(activeMatch.level());
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.SAIR_ENERGY)) {
+                return GensokyouConfig.SAIR_ENERGY_BASE_CAPACITY.get();
             }
             if (activeMatch.patternId().equals(RitualBehaviors.NICHIRIN)) {
                 return daycycleCapacity(activeMatch.level(),
@@ -292,6 +332,28 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 献祭工具仪式缓存上限 = 基值 × 4^等级。 */
     public static long sacrificeCapacity(int level) {
         return daycycleCapacity(level, GensokyouConfig.SACRIFICE_BASE_CAPACITY.get());
+    }
+
+    /** 无尽藏之仪缓存上限 = 基值 × mult^等级。 */
+    public static long wujinzangCapacity(int level) {
+        return scaledWujinzang(GensokyouConfig.WUJINZANG_BASE_CAPACITY.get(), level);
+    }
+
+    /** 无尽藏之仪每秒耗电 = 基值 × mult^等级（饱和防溢出）。 */
+    public static long wujinzangDrain(int level) {
+        return scaledWujinzang(GensokyouConfig.WUJINZANG_BASE_DRAIN.get(), level);
+    }
+
+    private static long scaledWujinzang(long base, int level) {
+        long mult = GensokyouConfig.WUJINZANG_MULT.get();
+        long value = base;
+        for (int i = 0; i < level; i++) {
+            if (value > Long.MAX_VALUE / Math.max(1L, mult)) {
+                return Long.MAX_VALUE;
+            }
+            value *= mult;
+        }
+        return value;
     }
 
     /** 托管型储灵行为（如八方归元）：图案命中且行为实现 SpiritBank 时灵力四件套整体转发。 */
@@ -1092,6 +1154,13 @@ public class RitualCoreBlockEntity extends BlockEntity {
             return new RitualRenderState(RitualRenderState.KIND_BAFANG, enabled,
                     activeMatch.level(), 0, 0, 0, new long[0], 0, 0L);
         }
+        if (id.equals(RitualBehaviors.WUJINZANG)) {
+            return new RitualRenderState(RitualRenderState.KIND_WUJINZANG, enabled,
+                    activeMatch.level(), boundsMinY, boundsMaxY, 0,
+                    com.bitsson.gensokyou.ritual.behavior.WujinzangStorage
+                            .laserAnchors(this, activeMatch),
+                    0, 0L);
+        }
         if (RitualBehaviors.isToolSacrifice(id) || id.equals(RitualBehaviors.SHUJOU)) {
             if (sacrificeFxTicks <= 0) {
                 return null;
@@ -1312,9 +1381,38 @@ public class RitualCoreBlockEntity extends BlockEntity {
 
     /** 代理箱 handler（稳定单例：NeoForge 按返回实例缓存 capability）。 */
     private final IItemHandler itemHandler = new PedestalItemHandler();
+    private final IItemHandler wujinzangHandler =
+            new com.bitsson.gensokyou.ritual.behavior.WujinzangStorage.ProxyHandler(this);
 
+    /** 物品接入面按图案分派：无尽藏 = 跨晶块合并箱，其余 = 祭品台代理箱。 */
     public IItemHandler itemHandler() {
+        if (activeMatch != null && RitualBehaviors.WUJINZANG.equals(activeMatch.patternId())) {
+            return wujinzangHandler;
+        }
         return itemHandler;
+    }
+
+    /** 无尽藏：电池核心→缓存的补料（每 tick 由 WujinzangStorage 调用；非产灵方向）。 */
+    public long tickBatteryToCacheFill() {
+        if (!(batteryStack.getItem() instanceof com.bitsson.gensokyou.spirit.SpiritCoreItem spiritCore)) {
+            return 0L;
+        }
+        long space = getCapacity() - storedSpiritPower;
+        if (space <= 0L) {
+            return 0L;
+        }
+        long carry = cacheFillCarry + (long) spiritCore.fillRatePerSecond() * 1000L;
+        cacheFillCarry = carry % 1000L;
+        long want = Math.min(carry / 1000L, space);
+        if (want <= 0L) {
+            return 0L;
+        }
+        long pulled = com.bitsson.gensokyou.spirit.SpiritCoreItem.extract(batteryStack, want);
+        if (pulled > 0L) {
+            setBatteryStack(batteryStack);
+            receive(pulled);
+        }
+        return pulled;
     }
 
     /** 成型结构内全部祭品台位（按 BE 类型判定、跨 key 汇总后规范序 y,z,x）；未成型为空。 */
@@ -1480,12 +1578,24 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 registry.unregister(pos, previous.patternId());
             }
             core.refreshStructureBounds();
-            if (core.activeMatch != null && previous == null) {
+            // 图案直接切换（A 命中 → B 命中）：先按 A 失效清理，再按 B 成型（ritual-lifecycle 增量）
+            boolean patternChanged = previous != null && core.activeMatch != null
+                    && !previous.patternId().equals(core.activeMatch.patternId());
+            if (patternChanged) {
+                core.clearRoutedLedgers();
+                core.setEnabled(false);
+                core.activeRecipeId = null;
+                core.setPedestalsActive(serverLevel, previous, false);
+                writePedestalTiers(serverLevel, previous, 0);
+                RitualBehaviors.get(previous.patternId())
+                        .ifPresent(behavior -> behavior.onStructureLost(serverLevel, pos));
+            }
+            if (core.activeMatch != null && (previous == null || patternChanged)) {
                 // 成型瞬间：代理箱从无槽变有槽，失效块 cap 缓存让漏斗等消费者重查
                 serverLevel.invalidateCapabilities(pos);
                 // 台面激活态不持久化：成型/重载后按核心当前 enabled 补广播（唯一事实源）
                 core.setPedestalsActive(serverLevel, core.activeMatch, core.enabled);
-                // 成型替换扩展点：命中瞬间调用（当前为空实现占位）
+                // 成型替换扩展点：命中瞬间调用（含图案切换的新图案）
                 RitualBehaviors.get(core.activeMatch.patternId())
                         .ifPresent(behavior -> behavior.onFormed(serverLevel, pos, core.activeMatch));
             }
@@ -1649,6 +1759,12 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (actionCooldown > 0) {
             tag.putInt(TAG_ACTION_COOLDOWN, actionCooldown);
         }
+        if (wujinzangVault != null) {
+            tag.put(TAG_WUJINZANG_VAULT, wujinzangVault.copy());
+        }
+        if (cacheFillCarry != 0L) {
+            tag.putLong("WujinzangCacheCarry", cacheFillCarry);
+        }
     }
 
     @Override
@@ -1686,6 +1802,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
         grace.load(tag);
         lastPowered = tag.getBoolean(TAG_LAST_POWERED);
         actionCooldown = Math.max(0, tag.getInt(TAG_ACTION_COOLDOWN));
+        wujinzangVault = tag.contains(TAG_WUJINZANG_VAULT)
+                ? tag.getCompound(TAG_WUJINZANG_VAULT).copy() : null;
+        cacheFillCarry = tag.getLong("WujinzangCacheCarry");
         if (tag.contains(TAG_RENDER_STATE)) {
             renderState = RitualRenderState.fromTag(tag.getCompound(TAG_RENDER_STATE));
         }

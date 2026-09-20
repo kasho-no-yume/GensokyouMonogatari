@@ -75,11 +75,15 @@ public final class ModBlocks {
                             .strength(-1.0F, 3600000.0F).noLootTable()
                             .noCollission());
 
-    /** 虹彩水晶：独立装饰方块，本体空模型，1.5 格高正菱形水晶由 BER 绘制、可穿行。 */
+    /**
+     * 无尽藏晶：仪式产物与托管载体。本体空模型，1.5 格高正菱形水晶由 BER 绘制、可穿行。
+     * 不可破坏、无掉落（玩家/爆炸均无法摧毁）；仪式经 setBlock/removeBlock 仍可移除。
+     */
     public static final DeferredBlock<CrystalBlock> CRYSTAL =
             BLOCKS.registerBlock("crystal", CrystalBlock::new,
                     BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_CYAN)
-                            .strength(0.5F).sound(SoundType.AMETHYST_CLUSTER)
+                            .strength(-1.0F, 3600000.0F).noLootTable()
+                            .sound(SoundType.AMETHYST_CLUSTER)
                             .lightLevel(state -> 12).noOcclusion());
 
     /** 查询方块的仪式品阶；非品阶方块返回 -1（如仪式核心、单方块化后的祭品台）。 */

@@ -31,7 +31,7 @@ import java.util.Locale;
  * <p>服务端持有搜索/滚动/排序状态与过滤排序列，按需向查看者推送可见页快照；
  * 取放经 C2S 手势包在"条目 ↔ 光标/玩家背包"间完成（不占用原版光标承载上限）。
  */
-public class CrystalStorageMenu extends AbstractContainerMenu {
+public class CrystalStorageMenu extends AbstractContainerMenu implements CrystalGridHost {
 
     public static final int COLUMNS = 9;
     public static final int ROWS = 6;
@@ -91,9 +91,15 @@ public class CrystalStorageMenu extends AbstractContainerMenu {
         return pos;
     }
 
+    @Override
+    public int containerId() {
+        return containerId;
+    }
+
     // ---- 服务端导航与手势 ----
 
     /** 应用一次导航（搜索 / 滚动 / 排序）并立即重推可见页。 */
+    @Override
     public void applyNav(String newQuery, int scrollDelta, int newSortMode) {
         if (this.be == null) {
             return;
@@ -114,6 +120,7 @@ public class CrystalStorageMenu extends AbstractContainerMenu {
     }
 
     /** 网格手势分发（服务端权威）。 */
+    @Override
     public void handleClick(ServerPlayer player, int action, ItemStack key) {
         if (this.be == null) {
             return;
@@ -258,10 +265,21 @@ public class CrystalStorageMenu extends AbstractContainerMenu {
                 }
             }
         }
+        int mode = CrystalBlockEntity.Mode.TYPED.ordinal();
+        long used = 0L;
+        long limit = 0L;
+        if (this.be != null) {
+            mode = this.be.mode().ordinal();
+            if (this.be.mode() == CrystalBlockEntity.Mode.TYPED) {
+                used = this.be.entryCount();
+                limit = this.be.maxTypes();
+            } else {
+                used = this.be.totalCount();
+                limit = this.be.totalCapacity();
+            }
+        }
         return new CrystalStoragePagePayload(containerId, this.offset, this.filtered.size(),
-                this.be == null ? 0 : (int) this.be.totalCount(),
-                this.be == null ? 0 : this.be.capacity(),
-                this.sortMode, List.copyOf(views));
+                mode, used, limit, this.sortMode, List.copyOf(views));
     }
 
     private void sendPage() {

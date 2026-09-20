@@ -81,6 +81,13 @@ public class RitualCoreBlock extends Block implements EntityBlock {
                             BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())
                 && level.getBlockEntity(pos) instanceof RitualCoreBlockEntity core) {
+            if (level instanceof ServerLevel serverLevel
+                    && core.activeMatch() != null
+                    && com.bitsson.gensokyou.ritual.RitualBehaviors.WUJINZANG
+                            .equals(core.activeMatch().patternId())) {
+                com.bitsson.gensokyou.ritual.behavior.WujinzangStorage
+                        .releaseForceLoads(core, serverLevel);
+            }
             ItemStack battery = core.batteryStack();
             if (!battery.isEmpty()) {
                 core.setBatteryStack(ItemStack.EMPTY);
@@ -178,10 +185,23 @@ public class RitualCoreBlock extends Block implements EntityBlock {
             }
             return false;
         }
-        serverPlayer.openMenu(new net.minecraft.world.SimpleMenuProvider(
-                        (id, inventory, p) -> new RitualCoreMenu(id, inventory, pos),
-                        Component.translatable("container.gensokyou.ritual_core")),
-                pos);
+        RitualMatch ritualMatch = match.get();
+        boolean terminal = RitualBehaviors.get(ritualMatch.patternId())
+                .map(behavior -> com.bitsson.gensokyou.Gensokyou.id("wujinzang_terminal")
+                        .equals(behavior.screenMenuId()))
+                .orElse(false);
+        if (terminal) {
+            serverPlayer.openMenu(new net.minecraft.world.SimpleMenuProvider(
+                            (id, inventory, p) -> new com.bitsson.gensokyou.menu.WujinzangTerminalMenu(
+                                    id, inventory, pos),
+                            Component.translatable("container.gensokyou.wujinzang_terminal")),
+                    pos);
+        } else {
+            serverPlayer.openMenu(new net.minecraft.world.SimpleMenuProvider(
+                            (id, inventory, p) -> new RitualCoreMenu(id, inventory, pos),
+                            Component.translatable("container.gensokyou.ritual_core")),
+                    pos);
+        }
         ModNetworking.sendRitualInfo(serverPlayer, level, pos, core(level, pos), "");
         return true;
     }

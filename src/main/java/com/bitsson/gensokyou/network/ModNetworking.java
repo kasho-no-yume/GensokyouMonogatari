@@ -72,14 +72,29 @@ public final class ModNetworking {
         registrar.playToClient(com.bitsson.gensokyou.network.CrystalStoragePagePayload.TYPE,
                 CrystalStoragePagePayload.STREAM_CODEC,
                 ClientPayloadHandler::handleCrystalPage);
+        registrar.playToServer(WujinzangRecipeFillPayload.TYPE,
+                WujinzangRecipeFillPayload.STREAM_CODEC,
+                ModNetworking::handleRecipeFill);
+    }
+
+    /** C2S 无尽藏终端配方填充：按 containerId 定位菜单并服务端权威取料。 */
+    private static void handleRecipeFill(WujinzangRecipeFillPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player
+                    && player.containerMenu
+                    instanceof com.bitsson.gensokyou.menu.WujinzangTerminalMenu menu
+                    && menu.containerId() == payload.containerId()) {
+                menu.handleRecipeFill(player, payload.ingredients());
+            }
+        });
     }
 
     /** C2S 无尽藏晶导航：校验容器 id 后应用搜索/滚动/排序并重推可见页。 */
     private static void handleCrystalNav(CrystalStorageNavPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player
-                    && player.containerMenu instanceof com.bitsson.gensokyou.menu.CrystalStorageMenu menu
-                    && menu.containerId == payload.containerId()) {
+                    && player.containerMenu instanceof com.bitsson.gensokyou.menu.CrystalGridHost menu
+                    && menu.containerId() == payload.containerId()) {
                 menu.applyNav(payload.query(), payload.scrollDelta(), payload.sortMode());
             }
         });
@@ -89,8 +104,8 @@ public final class ModNetworking {
     private static void handleCrystalClick(CrystalStorageClickPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player
-                    && player.containerMenu instanceof com.bitsson.gensokyou.menu.CrystalStorageMenu menu
-                    && menu.containerId == payload.containerId()) {
+                    && player.containerMenu instanceof com.bitsson.gensokyou.menu.CrystalGridHost menu
+                    && menu.containerId() == payload.containerId()) {
                 menu.handleClick(player, payload.action(), payload.key());
             }
         });
@@ -294,6 +309,10 @@ public final class ModNetworking {
         for (ServerPlayer player : level.players()) {
             if (player.containerMenu instanceof com.bitsson.gensokyou.menu.RitualCoreMenu menu
                     && menu.pos().equals(pos)) {
+                sendRitualInfo(player, level, pos, core, "");
+            } else if (player.containerMenu
+                    instanceof com.bitsson.gensokyou.menu.WujinzangTerminalMenu terminal
+                    && terminal.pos().equals(pos)) {
                 sendRitualInfo(player, level, pos, core, "");
             }
         }

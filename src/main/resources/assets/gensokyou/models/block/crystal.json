@@ -1,6 +1,6 @@
 {
   "textures": {
-    "particle": "gensokyou:entity/crystal"
+    "particle": "gensokyou:block/crystal_shard"
   },
   "elements": []
 }

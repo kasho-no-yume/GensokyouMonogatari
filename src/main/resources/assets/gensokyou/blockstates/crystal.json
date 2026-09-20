@@ -1,5 +1,6 @@
 {
   "variants": {
-    "": { "model": "gensokyou:block/crystal" }
+    "concealed=false": { "model": "gensokyou:block/crystal" },
+    "concealed=true": { "model": "gensokyou:block/crystal" }
   }
 }

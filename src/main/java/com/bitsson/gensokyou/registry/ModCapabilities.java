@@ -20,8 +20,10 @@ public final class ModCapabilities {
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.RITUAL_CORE.get(),
                 (RitualCoreBlockEntity core, net.minecraft.core.Direction side) -> core.itemHandler());
+        // 被仪式绑定的晶块不暴露 capability：自动化必须经仪式核心，避免绕过分区逻辑
         event.registerBlockEntity(Capabilities.ItemHandler.BLOCK,
                 ModBlockEntities.CRYSTAL.get(),
-                (CrystalBlockEntity crystal, net.minecraft.core.Direction side) -> crystal.itemHandler());
+                (CrystalBlockEntity crystal, net.minecraft.core.Direction side) ->
+                        crystal.hasOwner() ? null : crystal.itemHandler());
     }
 }

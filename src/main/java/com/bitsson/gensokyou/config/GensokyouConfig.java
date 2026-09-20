@@ -252,8 +252,30 @@ public class GensokyouConfig {
 
     // ---- add-crystal-storage：无尽藏晶物品存储 ----
     public static final ModConfigSpec.IntValue STORAGE_TOTAL_CAPACITY;
+    public static final ModConfigSpec.IntValue STORAGE_MAX_TYPES;
+    public static final ModConfigSpec.LongValue STORAGE_PER_TYPE_CAP;
     public static final ModConfigSpec.IntValue STORAGE_ITEM_NBT_LIMIT_BYTES;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> STORAGE_BLACKLIST;
+
+    // ---- add-wujinzang-ritual：无尽藏之仪（托管仓储 + 耗能 + 特效）----
+    public static final ModConfigSpec.IntValue WUJINZANG_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue WUJINZANG_BASE_DRAIN;
+    public static final ModConfigSpec.IntValue WUJINZANG_MULT;
+    public static final ModConfigSpec.IntValue WUJINZANG_IN_RATE;
+    public static final ModConfigSpec.IntValue FX_WUJINZANG_MIST_LAYERS_MAX;
+    public static final ModConfigSpec.IntValue FX_WUJINZANG_MIST_R;
+    public static final ModConfigSpec.IntValue FX_WUJINZANG_MIST_G;
+    public static final ModConfigSpec.IntValue FX_WUJINZANG_MIST_B;
+    public static final ModConfigSpec.DoubleValue FX_WUJINZANG_MIST_RADIUS;
+    public static final ModConfigSpec.DoubleValue FX_WUJINZANG_LASER_HEIGHT;
+    public static final ModConfigSpec.DoubleValue FX_WUJINZANG_LASER_WIDTH;
+    public static final ModConfigSpec.DoubleValue FX_WUJINZANG_LASER_RADIUS_RATIO;
+    public static final ModConfigSpec.IntValue FX_WUJINZANG_LASER_MIN_TIER;
+    public static final ModConfigSpec.DoubleValue FX_WUJINZANG_LOD_DISTANCE;
+
+    // ---- add-sair-energy-ritual：赛尔能源（创造调试无限供灵源，核心 + 同层八邻基岩）----
+    public static final ModConfigSpec.IntValue SAIR_ENERGY_OUT_RATE_PER_SECOND;
+    public static final ModConfigSpec.LongValue SAIR_ENERGY_BASE_CAPACITY;
 
     public static final ModConfigSpec SPEC;
 
@@ -580,13 +602,46 @@ public class GensokyouConfig {
         BUILDER.pop();
         BUILDER.pop();
 
-        BUILDER.push("crystal").comment("Endless Treasury Crystal item storage (add-crystal-storage)");
-        STORAGE_TOTAL_CAPACITY = BUILDER.comment("Total item count the crystal can hold, any mix of types (a count budget, not a fixed slot count)")
+        BUILDER.push("crystal").comment("Endless Treasury Crystal item storage (rework-crystal-storage: dual-mode)");
+        STORAGE_TOTAL_CAPACITY = BUILDER.comment("B mode (total) capacity: total item count the crystal can hold, any mix of types (a count budget, not a fixed slot count)")
                 .defineInRange("storageTotalCapacity", 2000, 1, 1000000);
+        STORAGE_MAX_TYPES = BUILDER.comment("A mode (typed) capacity: max number of distinct item types the crystal can hold")
+                .defineInRange("storageMaxTypes", 30, 1, 1024);
+        STORAGE_PER_TYPE_CAP = BUILDER.comment("A mode (typed) capacity: max count per single item type (default Integer.MAX_VALUE)")
+                .defineInRange("storagePerTypeCap", (long) Integer.MAX_VALUE, 1L, Long.MAX_VALUE);
         STORAGE_ITEM_NBT_LIMIT_BYTES = BUILDER.comment("Refuse a single item whose serialized NBT exceeds this many bytes (0 = no limit); catches over-long written books etc.")
                 .defineInRange("storageItemNbtLimitBytes", 4096, 0, 16777216);
         STORAGE_BLACKLIST = BUILDER.comment("Extra item ids the crystal refuses, on top of the built-in container/size gates")
                 .defineListAllowEmpty("storageBlacklist", List.of(), o -> o instanceof String);
+        BUILDER.pop();
+
+        BUILDER.push("wujinzang").comment("Wujinzang rite: hosted crystal storage, energy drain, runtime FX");
+        WUJINZANG_BASE_CAPACITY = BUILDER.comment("Wujinzang: spirit buffer capacity at level 0 (level N multiplies by wujinzangMult^N)")
+                .defineInRange("wujinzangBaseCapacity", 10000, 1, Integer.MAX_VALUE);
+        WUJINZANG_BASE_DRAIN = BUILDER.comment("Wujinzang: spirit drained per second while running at level 0 (level N multiplies by wujinzangMult^N)")
+                .defineInRange("wujinzangBaseDrain", 5, 0, Integer.MAX_VALUE);
+        WUJINZANG_MULT = BUILDER.comment("Wujinzang: per-level multiplier applied to both capacity and drain")
+                .defineInRange("wujinzangMult", 5, 1, 1000);
+        WUJINZANG_IN_RATE = BUILDER.comment("Wujinzang: routed spirit intake (sink) rate per second, fixed across levels")
+                .defineInRange("wujinzangInRate", 1000000, 0, Integer.MAX_VALUE);
+        FX_WUJINZANG_MIST_LAYERS_MAX = BUILDER.comment("Wujinzang FX: blue mist ribbon offset-layer cap")
+                .defineInRange("fxWujinzangMistLayersMax", 3, 1, 3);
+        FX_WUJINZANG_MIST_R = BUILDER.comment("Wujinzang FX: mist tint red 0..255").defineInRange("fxWujinzangMistR", 90, 0, 255);
+        FX_WUJINZANG_MIST_G = BUILDER.comment("Wujinzang FX: mist tint green 0..255").defineInRange("fxWujinzangMistG", 180, 0, 255);
+        FX_WUJINZANG_MIST_B = BUILDER.comment("Wujinzang FX: mist tint blue 0..255").defineInRange("fxWujinzangMistB", 255, 0, 255);
+        FX_WUJINZANG_MIST_RADIUS = BUILDER.comment("Wujinzang FX: mist ribbon orbit radius (blocks)").defineInRange("fxWujinzangMistRadius", 6.0D, 0.5D, 24.0D);
+        FX_WUJINZANG_LASER_HEIGHT = BUILDER.comment("Wujinzang FX: beacon laser height (blocks) at tier>=min").defineInRange("fxWujinzangLaserHeight", 96.0D, 8.0D, 384.0D);
+        FX_WUJINZANG_LASER_WIDTH = BUILDER.comment("Wujinzang FX: beacon laser half-width (blocks)").defineInRange("fxWujinzangLaserWidth", 0.9D, 0.1D, 6.0D);
+        FX_WUJINZANG_LASER_RADIUS_RATIO = BUILDER.comment("Wujinzang FX: ring anchor radius as a fraction of structure radius").defineInRange("fxWujinzangLaserRadiusRatio", 0.85D, 0.1D, 2.0D);
+        FX_WUJINZANG_LASER_MIN_TIER = BUILDER.comment("Wujinzang FX: minimum tier for the base-ring beacon lasers").defineInRange("fxWujinzangLaserMinTier", 3, 0, 5);
+        FX_WUJINZANG_LOD_DISTANCE = BUILDER.comment("Wujinzang FX: distance (blocks) beyond which FX are drawn in low-LOD mode").defineInRange("fxWujinzangLodDistance", 48.0D, 8.0D, 256.0D);
+        BUILDER.pop();
+
+        BUILDER.push("sairEnergy").comment("Sair Energy: creative debug infinite spirit source (core + same-level bedrock ring)");
+        SAIR_ENERGY_OUT_RATE_PER_SECOND = BUILDER.comment("Sair Energy: fixed routed spirit output (supply) rate per second; MUST stay static for routing (10e = 1e9)")
+                .defineInRange("sairEnergyOutRatePerSecond", 1_000_000_000, 0, Integer.MAX_VALUE);
+        SAIR_ENERGY_BASE_CAPACITY = BUILDER.comment("Sair Energy: spirit buffer capacity, refilled to full every second (infinite source; 100e = 1e10)")
+                .defineInRange("sairEnergyBaseCapacity", 10_000_000_000L, 1L, Long.MAX_VALUE);
         BUILDER.pop();
 
         SPEC = BUILDER.build();

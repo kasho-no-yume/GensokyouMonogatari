@@ -73,6 +73,18 @@ public final class DebugCommands {
                             feedback(player, "debug_cd_cleared");
                             return 1;
                         })))
+                .then(Commands.literal("wujinzang")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeWujinzang(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core")))))
+                .then(Commands.literal("sair")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeSair(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core")))))
                 .then(Commands.literal("bafang")
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
@@ -155,12 +167,44 @@ public final class DebugCommands {
                                 .executes(context -> probeShujou(context.getSource(),
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument
                                                 .getLoadedBlockPos(context, "core")))))
+                .then(Commands.literal("crystal_mode")
+                        .then(Commands.argument("pos",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .then(Commands.argument("mode", StringArgumentType.word())
+                                        .executes(context -> setCrystalMode(context.getSource(),
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                        .getLoadedBlockPos(context, "pos"),
+                                                StringArgumentType.getString(context, "mode"))))))
                 .then(Commands.literal("shujou_roll")
                         .then(Commands.argument("species", StringArgumentType.string())
                                 .then(Commands.argument("level", IntegerArgumentType.integer(0, 5))
                                         .executes(context -> probeShujouRoll(context.getSource(),
                                                 StringArgumentType.getString(context, "species"),
                                                 IntegerArgumentType.getInteger(context, "level")))))));
+    }
+
+    /**
+     * 测试期临时能力：切换无尽藏晶存储模式并清空内容（正式版删除）。
+     * 用法：/gs_debug crystal_mode &lt;pos&gt; &lt;typed|total&gt;。仅调试命令可达，无 GUI/物品入口。
+     */
+    private static int setCrystalMode(net.minecraft.commands.CommandSourceStack source,
+                                      net.minecraft.core.BlockPos pos, String modeName) {
+        if (!(source.getLevel().getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.CrystalBlockEntity crystal)) {
+            source.sendFailure(Component.literal("[crystal] no crystal at " + pos.toShortString()));
+            return 0;
+        }
+        com.bitsson.gensokyou.block.entity.CrystalBlockEntity.Mode mode =
+                com.bitsson.gensokyou.block.entity.CrystalBlockEntity.Mode.byName(modeName, null);
+        if (mode == null) {
+            source.sendFailure(Component.literal("[crystal] unknown mode '" + modeName
+                    + "' (expected typed|total)"));
+            return 0;
+        }
+        crystal.setMode(mode, true);
+        source.sendSystemMessage(Component.literal("[crystal] mode=" + mode.name()
+                + " cleared at " + pos.toShortString()));
+        return 1;
     }
 
     /** 梦渡之座探针：包围盒/合规床清单/占用者。forcedSleepers：-1 只查看；-2 真实快照结算；≥0 注入数结算
@@ -480,6 +524,30 @@ public final class DebugCommands {
     }
 
     /** 八方归元储灵池探针：聚合态单行 [GS-AUTO]，日志+指令源双输出（服务器函数上下文可跑）。 */
+    /** 无尽藏探针：单行 [GS-AUTO] WUJINZANG，含分区/容量/耗电/被占。 */
+    private static int probeWujinzang(net.minecraft.commands.CommandSourceStack source,
+                                      net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null
+                && com.bitsson.gensokyou.ritual.RitualBehaviors.WUJINZANG
+                        .equals(core.activeMatch().patternId())) {
+            msg = "[GS-AUTO] WUJINZANG "
+                    + com.bitsson.gensokyou.ritual.behavior.WujinzangBehavior
+                            .debugSummary(serverLevel, pos, core.activeMatch())
+                    + " enabled=" + core.isEnabled();
+        } else {
+            msg = "[GS-AUTO] WUJINZANG NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
     private static int probeBafang(net.minecraft.commands.CommandSourceStack source,
                                    net.minecraft.core.BlockPos pos) {
         if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
@@ -497,6 +565,31 @@ public final class DebugCommands {
                     + " be=" + core.getStored() + "/" + core.getCapacity();
         } else {
             msg = "[GS-AUTO] BAFANG NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
+    /** 赛尔能源探针：单行 [GS-AUTO] SAIR，含缓存/上限/供灵速率与命中态。 */
+    private static int probeSair(net.minecraft.commands.CommandSourceStack source,
+                                 net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null
+                && com.bitsson.gensokyou.ritual.RitualBehaviors.SAIR_ENERGY
+                        .equals(core.activeMatch().patternId())) {
+            msg = "[GS-AUTO] SAIR stored=" + core.getStored()
+                    + " capacity=" + core.getCapacity()
+                    + " outRate=" + com.bitsson.gensokyou.config.GensokyouConfig
+                            .SAIR_ENERGY_OUT_RATE_PER_SECOND.get()
+                    + " hit=true";
+        } else {
+            msg = "[GS-AUTO] SAIR NO-MATCH";
         }
         Gensokyou.LOGGER.info(msg);
         source.sendSystemMessage(Component.literal(msg));

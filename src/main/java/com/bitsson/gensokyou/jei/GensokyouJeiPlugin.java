@@ -9,12 +9,14 @@ import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
+import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
+import mezz.jei.api.registration.IRecipeTransferRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -96,6 +98,13 @@ public class GensokyouJeiPlugin implements IModPlugin {
                         ? new ItemStack(ModItems.SPIRIT_CORES.get(0).get())
                         : new ItemStack(ModItems.RITUAL_CORE_ITEM.get());
         return guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK, icon);
+    }
+
+    /** 无尽藏终端：JEI 合成配方 `+` 一键从仓储取料填入终端合成格。 */
+    @Override
+    public void registerRecipeTransferHandlers(IRecipeTransferRegistration registration) {
+        registration.addRecipeTransferHandler(new WujinzangRecipeTransferHandler(),
+                RecipeTypes.CRAFTING);
     }
 
     @Override

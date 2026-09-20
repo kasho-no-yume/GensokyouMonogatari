@@ -86,6 +86,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                     renderOrb(blockEntity, state, now, poseStack, bufferSource);
             case RitualRenderState.KIND_SACRIFICE ->
                     renderPillar(blockEntity, state, now, poseStack, bufferSource);
+            case RitualRenderState.KIND_WUJINZANG ->
+                    renderWujinzang(blockEntity, state, now, poseStack, bufferSource);
             default -> {
             }
         }
@@ -110,9 +112,13 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
     @Override
     public AABB getRenderBoundingBox(RitualCoreBlockEntity blockEntity) {
         BlockPos p = blockEntity.getBlockPos();
-        double r = blockEntity.renderState().kind() == RitualRenderState.KIND_RELAY ? 96.0D : 16.0D;
+        int kind = blockEntity.renderState().kind();
+        double r = kind == RitualRenderState.KIND_RELAY ? 96.0D
+                : kind == RitualRenderState.KIND_WUJINZANG ? 32.0D : 16.0D;
+        double up = kind == RitualRenderState.KIND_WUJINZANG
+                ? Math.max(48.0D, GensokyouConfig.FX_WUJINZANG_LASER_HEIGHT.get()) : 48.0D;
         return new AABB(p.getX() - r, p.getY() - 16.0D, p.getZ() - r,
-                p.getX() + r, p.getY() + 48.0D, p.getZ() + r);
+                p.getX() + r, p.getY() + up, p.getZ() + r);
     }
 
     /** 距离上限放宽：共鸣塔链接半径最高 ±80，且特效本体远大于核心，取宽松值。 */
@@ -527,14 +533,125 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         };
     }
 
+    // ============================================================ 无尽藏
+    /**
+     * 无尽藏运行态：蓝色螺旋雾带（复用 spirit_mist，层数随阶级）+ 3 阶起底座 8 点信标激光。
+     * 全部客户端本地绘制，带距离 LOD 降级。
+     */
+    private void renderWujinzang(RitualCoreBlockEntity be, RitualRenderState state, double now,
+                                 PoseStack poseStack, MultiBufferSource buffers) {
+        BlockPos core = be.getBlockPos();
+        float env = advanceEnvelope(core, 3, state.enabled() ? 1F : 0F, now);
+        if (env <= 0F) {
+            return;
+        }
+        boolean lod = lowLod(core);
+        double yBottom = state.minY() - core.getY();
+        double yTop = Math.max(yBottom + 1.0D, state.maxY() - core.getY() + 1.0D);
+        double height = yTop - yBottom;
+        int turns = Math.max(2, Mth.ceil(height / 1.6D));
+        int segments = Math.min(lod ? 80 : 160, turns * 20);
+        int layers = Mth.clamp(1 + state.tier() / 2, 1, GensokyouConfig.FX_WUJINZANG_MIST_LAYERS_MAX.get());
+        float scroll = (float) (now * GensokyouConfig.FX_MIST_SCROLL_SPEED.get());
+        double radiusBase = GensokyouConfig.FX_WUJINZANG_MIST_RADIUS.get();
+        float bandHalf = GensokyouConfig.FX_MIST_BAND_WIDTH.get().floatValue() * 0.5F;
+        double wobble = lod ? 0.0D : GensokyouConfig.FX_MIST_WOBBLE.get();
+        double rot = now * MIST_ROT_SPEED;
+        int r = GensokyouConfig.FX_WUJINZANG_MIST_R.get();
+        int g = GensokyouConfig.FX_WUJINZANG_MIST_G.get();
+        int b = GensokyouConfig.FX_WUJINZANG_MIST_B.get();
+
+        VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(MIST_TEXTURE));
+        for (int layer = 0; layer < layers; layer++) {
+            float layerFade = env * (layer == 0 ? 1.0F : 0.6F / layer);
+            float halfW = bandHalf * (layer == 0 ? 1.0F : 1.35F);
+            double radiusOff = layer * 0.45D;
+            double phase = layer * Math.PI * 0.6667D;
+            int lr = Math.max(0, r - layer * 40);
+            int lg = Math.max(0, g - layer * 30);
+            int lb = Math.max(0, b - layer * 20);
+            float px = 0F, py = 0F, pz = 0F;
+            for (int i = 0; i <= segments; i++) {
+                float t = i / (float) segments;
+                double angle = t * turns * Math.PI * 2.0D + phase + rot;
+                double radius = radiusBase + radiusOff
+                        + wobble * Mth.sin(t * 6.0F * (float) Math.PI + (float) (now * 0.07D));
+                float x = 0.5F + Mth.cos((float) angle) * (float) radius;
+                float z = 0.5F + Mth.sin((float) angle) * (float) radius;
+                float y = (float) Mth.lerp(t, yBottom, yTop);
+                if (i > 0) {
+                    FxGeometry.emitAlignedBeam(poseStack, glow, px, py, pz, x, y, z,
+                            halfW, 2, scroll + (i - 1) * 0.18F, lr, lg, lb, (int) (85F * layerFade));
+                }
+                px = x;
+                py = y;
+                pz = z;
+            }
+        }
+
+        int minTier = GensokyouConfig.FX_WUJINZANG_LASER_MIN_TIER.get();
+        if (!lod && state.tier() >= minTier && state.channelCount() > 0) {
+            renderWujinzangLasers(poseStack, buffers, core, state, env, now);
+        }
+    }
+
+    /**
+     * 底座 8 点竖直信标激光：米字面片，亮核写深度 + 外晕发光。
+     * 锚点为绝对坐标，须减去核心坐标转为 BER 局部坐标（BER pose 已平移到核心方块原点）。
+     */
+    private void renderWujinzangLasers(PoseStack poseStack, MultiBufferSource buffers,
+                                       BlockPos core, RitualRenderState state, float env, double now) {
+        float laserH = Math.max(8.0F, GensokyouConfig.FX_WUJINZANG_LASER_HEIGHT.get().floatValue());
+        float half = GensokyouConfig.FX_WUJINZANG_LASER_WIDTH.get().floatValue();
+        int r = GensokyouConfig.FX_WUJINZANG_MIST_R.get();
+        int g = GensokyouConfig.FX_WUJINZANG_MIST_G.get();
+        int b = GensokyouConfig.FX_WUJINZANG_MIST_B.get();
+        float scroll = (float) (now * 0.6D);
+        float pulse = 0.82F + 0.18F * Mth.sin((float) (now * 0.25D));
+        VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(BOLT_GLOW_TEXTURE));
+        for (int i = 0; i < state.channelCount(); i++) {
+            BlockPos anchor = state.linkAt(i);
+            poseStack.pushPose();
+            poseStack.translate(anchor.getX() - core.getX() + 0.5D,
+                    anchor.getY() - core.getY() + 0.5D, anchor.getZ() - core.getZ() + 0.5D);
+            FxGeometry.emitCrossPlanes(poseStack, glow, 4, half, laserH,
+                    scroll, scroll + laserH, r, g, b, (int) (140F * env * pulse));
+            poseStack.popPose();
+        }
+        VertexConsumer coreBuf = buffers.getBuffer(DanmakuRenderTypes.additiveSolid(BOLT_CORE_TEXTURE));
+        for (int i = 0; i < state.channelCount(); i++) {
+            BlockPos anchor = state.linkAt(i);
+            poseStack.pushPose();
+            poseStack.translate(anchor.getX() - core.getX() + 0.5D,
+                    anchor.getY() - core.getY() + 0.5D, anchor.getZ() - core.getZ() + 0.5D);
+            FxGeometry.emitCrossPlanes(poseStack, coreBuf, 3, half * 0.45F, laserH,
+                    scroll * 1.3F, scroll + laserH,
+                    (int) Mth.lerp(0.5F, r, 255), (int) Mth.lerp(0.5F, g, 255),
+                    (int) Mth.lerp(0.5F, b, 255), (int) (210F * env * pulse));
+            poseStack.popPose();
+        }
+    }
+
+    /** 距离 LOD：超过配置距离则降级（减少雾带段数/摆动、跳过激光）。 */
+    private static boolean lowLod(BlockPos core) {
+        net.minecraft.client.player.LocalPlayer player =
+                net.minecraft.client.Minecraft.getInstance().player;
+        if (player == null) {
+            return false;
+        }
+        double limit = GensokyouConfig.FX_WUJINZANG_LOD_DISTANCE.get();
+        return player.distanceToSqr(core.getX() + 0.5D, core.getY() + 0.5D, core.getZ() + 0.5D)
+                > limit * limit;
+    }
+
     // ================================================================= 公用
 
-    /** 包络推进：slot 0=雾带 1=火柱 2=灵气球；按 ramp ticks 线性淡入淡出（跳帧钳 2 tick 步长）。 */
+    /** 包络推进：slot 0=雾带 1=火柱 2=灵气球 3=无尽藏雾带；按 ramp ticks 线性淡入淡出（跳帧钳 2 tick 步长）。 */
     private static float advanceEnvelope(BlockPos pos, int slot, float target, double now) {
-        float[] st = ENVELOPES.computeIfAbsent(pos, k -> new float[]{0F, 0F, 0F, -1F});
-        float last = st[3];
+        float[] st = ENVELOPES.computeIfAbsent(pos, k -> new float[]{0F, 0F, 0F, 0F, -1F});
+        float last = st[4];
         double elapsed = last < 0F ? 0F : Mth.clamp(now - last, 0F, 2.0D);
-        st[3] = (float) now;
+        st[4] = (float) now;
         float ramp = Math.max(1, GensokyouConfig.FX_RAMP_TICKS.get());
         float step = (float) elapsed / ramp;
         float value = st[slot];

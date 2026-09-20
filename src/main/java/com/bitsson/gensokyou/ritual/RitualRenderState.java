@@ -31,6 +31,8 @@ public record RitualRenderState(int kind, boolean enabled, int tier, int minY, i
     public static final int KIND_BAFANG = 3;
     /** 献祭仪式产出光柱：minY=光柱高度(格)、maxY=剩余刻、period=色索引(0..5)。 */
     public static final int KIND_SACRIFICE = 4;
+    /** 无尽藏之仪：minY/maxY=结构 Y 范围（雾带高度），linkPos=底座 8 个激光锚点（绝对坐标）。 */
+    public static final int KIND_WUJINZANG = 5;
 
     /** 位掩码通道上限（当前 L5 配额合计 40 &lt; 64）。 */
     public static final int MAX_CHANNELS = 64;

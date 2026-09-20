@@ -9,10 +9,19 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 
-/** S2C：无尽藏晶可见页快照（图标 + 长计数），随导航与内容变更重推。 */
+/**
+ * S2C：无尽藏晶可见页快照（图标 + 长计数），随导航与内容变更重推。
+ *
+ * <p>{@code mode} 为存储模式（{@link #MODE_TYPED}=类型制 / {@link #MODE_TOTAL}=总量制）；
+ * 底部计数由 {@code used}/{@code limit} 承载，其含义随模式而变（类型数/类型上限 或 件数/总量上限），
+ * 均以 long 传输避免溢出。
+ */
 public record CrystalStoragePagePayload(int containerId, int offset, int entryCount,
-                                        int totalCount, int capacity, int sortMode,
+                                        int mode, long used, long limit, int sortMode,
                                         List<View> views) implements CustomPacketPayload {
+
+    public static final int MODE_TYPED = 0;
+    public static final int MODE_TOTAL = 1;
 
     /** 单个可见格：类型键 + 真实计数。 */
     public record View(ItemStack stack, long count) {
@@ -28,8 +37,9 @@ public record CrystalStoragePagePayload(int containerId, int offset, int entryCo
         buf.writeVarInt(payload.containerId);
         buf.writeVarInt(payload.offset);
         buf.writeVarInt(payload.entryCount);
-        buf.writeVarInt(payload.totalCount);
-        buf.writeVarInt(payload.capacity);
+        buf.writeVarInt(payload.mode);
+        buf.writeVarLong(payload.used);
+        buf.writeVarLong(payload.limit);
         buf.writeVarInt(payload.sortMode);
         buf.writeVarInt(payload.views.size());
         for (View view : payload.views) {
@@ -42,8 +52,9 @@ public record CrystalStoragePagePayload(int containerId, int offset, int entryCo
         int containerId = buf.readVarInt();
         int offset = buf.readVarInt();
         int entryCount = buf.readVarInt();
-        int totalCount = buf.readVarInt();
-        int capacity = buf.readVarInt();
+        int mode = buf.readVarInt();
+        long used = buf.readVarLong();
+        long limit = buf.readVarLong();
         int sortMode = buf.readVarInt();
         int size = buf.readVarInt();
         List<View> views = new ArrayList<>(size);
@@ -52,8 +63,8 @@ public record CrystalStoragePagePayload(int containerId, int offset, int entryCo
             long count = buf.readVarLong();
             views.add(new View(stack, count));
         }
-        return new CrystalStoragePagePayload(containerId, offset, entryCount, totalCount,
-                capacity, sortMode, List.copyOf(views));
+        return new CrystalStoragePagePayload(containerId, offset, entryCount, mode, used, limit,
+                sortMode, List.copyOf(views));
     }
 
     @Override
