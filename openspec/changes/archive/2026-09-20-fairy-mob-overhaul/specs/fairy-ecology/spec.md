@@ -1,8 +1,5 @@
-# fairy-ecology Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change phase-a-entry-loop. Update Purpose after archive.
-## Requirements
 ### Requirement: 小妖精
 模组 SHALL 提供敌对生物小妖精：主世界野外按配置权重随机刷新；全程飞行，悬停于玩家上方（水平 1~3 格、玩家头顶约 3 格，受天花板限制，玩家进入洞穴时不下降追踪）；每只小妖精在刷新时按权重固定一种攻击变体（默认 60% 单发 / 30% 3×3 弹幕网 / 10% 激光），变体 MUST 持久化且无外观暗示；数值（生命/伤害/间隔/变体权重）从配置读取。
 
@@ -34,19 +31,7 @@ TBD - created by archiving change phase-a-entry-loop. Update Purpose after archi
 - **WHEN** 玩家击杀小妖精
 - **THEN** 必定掉落 1 个「幻想乡的记忆残页」，并各以 10% 独立概率掉落 0~1 个 ppoint / bpoint
 
-### Requirement: 大妖精
-模组 SHALL 提供大妖精（小 BOSS）：低概率刷新，体型大于小妖精，生命值显著更高，发射三连扇形弹幕。
-
-#### Scenario: 小 BOSS 战
-- **WHEN** 玩家与大妖精交战
-- **THEN** 其每次攻击发射水平扇形三枚弹幕，血量远高于小妖精
-
-### Requirement: 引导书获取与内容
-引导书 SHALL 仅通过击杀大妖精掉落获得（不开局赠送、不合成）；右键使用 SHALL 展示 mod 入门介绍（占位期以聊天消息呈现）。
-
-#### Scenario: 入口链路
-- **WHEN** 玩家首次击败大妖精并拾取引导书后右键使用
-- **THEN** 聊天栏输出介绍文本（含灵力/符卡/仪式的占位说明），物品不消耗
+## ADDED Requirements
 
 ### Requirement: 妖精系飞行基线
 妖精系实体（小妖精、大妖精、Cirno）SHALL 全程飞行：无重力、使用飞行移动，不依赖地面寻路；该飞行基线由小妖精基类提供并被其子类继承。
@@ -54,4 +39,3 @@ TBD - created by archiving change phase-a-entry-loop. Update Purpose after archi
 #### Scenario: 子类继承飞行
 - **WHEN** 大妖精或 Cirno 生成
 - **THEN** 其同样无重力并悬停飞行，无需地面寻路
-

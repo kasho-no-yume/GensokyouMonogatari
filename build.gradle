@@ -29,6 +29,8 @@ sourceSets.main.resources {
 
 repositories {
     maven { url = uri('https://maven.blamejared.com/') }
+    // GeckoLib (animation engine) — Cloudsmith.
+    maven { url = uri('https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/') }
 }
 
 // China network workaround: libraries.minecraft.net is TLS-blocked for Java clients.
@@ -131,6 +133,9 @@ dependencies {
     compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
     compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
     localRuntime "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
+
+    // GeckoLib — hard dependency (bundled by the player).
+    implementation "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
 
     testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"

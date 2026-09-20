@@ -52,6 +52,8 @@ public final class ModItems {
             ITEMS.registerSimpleItem("broken_spell_card_star", new Item.Properties().stacksTo(16));
     public static final DeferredItem<Item> YEN =
             ITEMS.registerSimpleItem("yen", new Item.Properties().stacksTo(64));
+    public static final DeferredItem<Item> MEMORY_FRAGMENT =
+            ITEMS.registerSimpleItem("memory_fragment", new Item.Properties().stacksTo(64));
 
     public static final DeferredItem<GuideBookItem> GUIDE_BOOK =
             ITEMS.register("guide_book", () -> new GuideBookItem(new Item.Properties().stacksTo(1)));

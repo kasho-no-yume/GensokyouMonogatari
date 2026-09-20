@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.client;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.renderer.BillboardRenderer;
 import com.bitsson.gensokyou.client.renderer.CrystalRenderer;
+import com.bitsson.gensokyou.client.renderer.FairyGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.SkinMobRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualPedestalRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualCoreRenderer;
@@ -55,8 +56,7 @@ public final class GensokyouClient {
                 context -> new BillboardRenderer<>(context, 0.7F, GensokyouTextures.ORBIT_ORB));
         event.registerEntityRenderer(ModEntityTypes.ZAOHUA_FLIGHT_ITEM.get(),
                 net.minecraft.client.renderer.entity.ItemEntityRenderer::new);
-        event.registerEntityRenderer(ModEntityTypes.FAIRY.get(),
-                context -> new SkinMobRenderer<>(context, 0.3F, 0.6F, GensokyouTextures.FAIRY));
+        event.registerEntityRenderer(ModEntityTypes.FAIRY.get(), FairyGeoRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.BIG_FAIRY.get(),
                 context -> new SkinMobRenderer<>(context, 0.5F, 1.1F, GensokyouTextures.BIG_FAIRY));
         event.registerEntityRenderer(ModEntityTypes.FLANDRE.get(),

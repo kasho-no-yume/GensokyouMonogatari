@@ -30,6 +30,7 @@
 | textures/item/spellcard_star.png | DONE(旧仓库复制 spellcard/spellcardstar.png) | 海洋之心 |
 | textures/item/broken_spell_card_star.png | DONE(旧仓库复制 spellcard/brokenspellcardstar.png) | 海洋之心 |
 | textures/item/yen.png | TODO | 海洋之心 |
+| textures/item/memory_fragment.png | DONE(gen_tex 新绘·破损书页+符文) | 海洋之心 |
 | textures/item/laevatein.png | TODO | 三叉戟 |
 | textures/item/summon_catalyst.png | TODO | 海洋之心 |
 | textures/item/icicle_fall.png | 已移除（改共享 spellcard_frame/emblem 双层染色） | 海洋之心 |
@@ -68,7 +69,8 @@
 | 路径 | 状态 | 占位来源 | 使用者 |
 |---|---|---|---|
 | textures/entity/flandre.png | TODO | Alex 皮肤 | flandre / fake_flandre |
-| textures/entity/fairy.png | TODO | Alex 皮肤 | fairy |
+| textures/entity/fairy.png | TODO | Alex 皮肤 | big_fairy / cirno（小妖精已改 GeckoLib） |
+| textures/entity/lesser_fairy.png | DONE(外部 Bedrock 模型贴图，cutout) | 外部美术资源 | fairy（GeckoLib） |
 | textures/entity/big_fairy.png | TODO | Alex 皮肤 | big_fairy |
 | textures/entity/danmaku.png | DONE(暂定旧版贴图) | 旧仓库 lightorb.png | 弹幕投射物 billboard |
 | textures/entity/orbit_orb.png | DONE(暂定旧版贴图) | 旧仓库 lightorb.png | 环绕阴阳玉 billboard |
@@ -84,5 +86,6 @@
   （武器系 13 个缺失模型已补齐：danmaku_weapon、core_*×6、weapon_core_lv*×3、amp_core_t*×3）
 - 全部 block 模型为 `minecraft:block/cube_all` 结构 + 自有 all 贴图路径；
   **例外**：`models/block/sukima.json` 为空元素模型（视觉由 `SukimaPortalRenderer` BER 呈现）
-- 生物渲染统一 `HumanoidModel(ModelLayers.ZOMBIE)`，经 `SkinMobRenderer` 缩放区分体型
+- 生物渲染统一 `HumanoidModel(ModelLayers.ZOMBIE)`，经 `SkinMobRenderer` 缩放区分体型；
+  **例外**：小妖精（`fairy`）走 GeckoLib（`GeoEntityRenderer` + `geo/animations/textures/entity/lesser_fairy.*`）
 - 正式模型到位时仅覆盖对应文件内容，不改代码与引用

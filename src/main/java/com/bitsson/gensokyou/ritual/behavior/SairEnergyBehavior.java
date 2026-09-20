@@ -20,6 +20,8 @@ import java.util.List;
  * 补满至 {@link GensokyouConfig#SAIR_ENERGY_BASE_CAPACITY}（默认 100 亿），使本仪式对外表现为
  * 永不枯竭的源：缓存被路由抽取后于下个补满周期恢复满额。补满走普通 {@code receive} 通道，
  * MUST NOT 走 {@code extractRouted/receiveRouted}（否则被自身 in=0 账本误截）。
+ * 补满后同周期把缓存回流槽内灵力核心（{@code tickBatteryAutoFill}，按核心注灵速率），
+ * 槽核亦表现为永不枯竭。
  *
  * <p>对外供灵速率 {@link #spiritOutRatePerSecond} 恒为 {@link GensokyouConfig#SAIR_ENERGY_OUT_RATE_PER_SECOND}
  * （默认 10 亿/s），静态不随阶级/时刻/结构状态变化（路由端点速率按周期 memo，动态速率会致源闪断）。
@@ -59,6 +61,7 @@ public final class SairEnergyBehavior implements RitualBehavior {
         if (gap > 0L) {
             core.receive(gap);
         }
+        core.tickBatteryAutoFill();
     }
 
     /** 可见行只放供灵速率短值，缓存/上限明细进 tooltip；下方固定放由来诗。 */

@@ -29,6 +29,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.SPELLCARD_STAR.get());
                         output.accept(ModItems.BROKEN_SPELL_CARD_STAR.get());
                         output.accept(ModItems.YEN.get());
+                        output.accept(ModItems.MEMORY_FRAGMENT.get());
                         output.accept(ModItems.LAEVATEIN.get());
                         output.accept(ModItems.SUMMON_CATALYST.get());
                         output.accept(ModItems.CIRNO_CATALYST.get());

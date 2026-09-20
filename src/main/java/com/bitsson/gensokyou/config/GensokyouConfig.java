@@ -31,7 +31,30 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue BIG_FAIRY_DAMAGE;
     public static final ModConfigSpec.IntValue BIG_FAIRY_SHOT_INTERVAL;
     public static final ModConfigSpec.DoubleValue FAIRY_PPOINT_CHANCE;
-    public static final ModConfigSpec.DoubleValue FAIRY_YEN_CHANCE;
+    public static final ModConfigSpec.DoubleValue FAIRY_BPOINT_CHANCE;
+    public static final ModConfigSpec.IntValue FAIRY_VARIANT_SINGLE_WEIGHT;
+    public static final ModConfigSpec.IntValue FAIRY_VARIANT_NET_WEIGHT;
+    public static final ModConfigSpec.IntValue FAIRY_VARIANT_LASER_WEIGHT;
+    public static final ModConfigSpec.IntValue FAIRY_SINGLE_INTERVAL;
+    public static final ModConfigSpec.DoubleValue FAIRY_DANMAKU_SPEED_MULT;
+    public static final ModConfigSpec.DoubleValue FAIRY_SINGLE_DAMAGE;
+    public static final ModConfigSpec.IntValue FAIRY_NET_INTERVAL;
+    public static final ModConfigSpec.DoubleValue FAIRY_NET_DAMAGE;
+    public static final ModConfigSpec.DoubleValue FAIRY_NET_ANGLE_DEG;
+    public static final ModConfigSpec.IntValue FAIRY_LASER_INTERVAL;
+    public static final ModConfigSpec.DoubleValue FAIRY_LASER_DAMAGE;
+    public static final ModConfigSpec.DoubleValue FAIRY_LASER_RING_RADIUS;
+    public static final ModConfigSpec.DoubleValue FAIRY_LASER_RADIUS;
+    public static final ModConfigSpec.DoubleValue FAIRY_LASER_LENGTH;
+    public static final ModConfigSpec.DoubleValue FAIRY_LASER_DELAY_SECONDS;
+    public static final ModConfigSpec.DoubleValue FAIRY_LASER_DURATION_SECONDS;
+    public static final ModConfigSpec.DoubleValue FAIRY_HOVER_HEIGHT;
+    public static final ModConfigSpec.DoubleValue FAIRY_HOVER_MIN_DIST;
+    public static final ModConfigSpec.DoubleValue FAIRY_HOVER_MAX_DIST;
+    public static final ModConfigSpec.DoubleValue FAIRY_FLY_SPEED;
+    public static final ModConfigSpec.DoubleValue FAIRY_FLY_PITCH_DEGREES;
+    public static final ModConfigSpec.DoubleValue TOUHOU_NON_DANMAKU_RESIST;
+    public static final ModConfigSpec.IntValue DANMAKU_SHIELD_DISABLE_TICKS;
 
     public static final ModConfigSpec.DoubleValue DANMAKU_BASE_DAMAGE;
     public static final ModConfigSpec.DoubleValue DANMAKU_SPEED;
@@ -316,15 +339,43 @@ public class GensokyouConfig {
         LAEVATEIN_CHANCE = BUILDER.defineInRange("laevateinDropChance", 0.25D, 0D, 1D);
         BUILDER.pop();
 
-        BUILDER.push("fairy");
-        FAIRY_MAX_HEALTH = BUILDER.defineInRange("fairyMaxHealth", 10D, 1D, 1024D);
-        FAIRY_DAMAGE = BUILDER.defineInRange("fairyDanmakuDamage", 3D, 0D, 256D);
-        FAIRY_SHOT_INTERVAL = BUILDER.defineInRange("fairyShotIntervalTicks", 60, 5, Integer.MAX_VALUE);
+        BUILDER.push("fairy").comment("Small fairy: flying danmaku mob with per-spawn attack variants");
+        FAIRY_MAX_HEALTH = BUILDER.defineInRange("fairyMaxHealth", 2D, 1D, 1024D);
+        FAIRY_DAMAGE = BUILDER.comment("Attribute attack damage (cosmetic; actual danmaku damage is per-variant)")
+                .defineInRange("fairyAttackDamage", 3D, 0D, 256D);
+        FAIRY_SHOT_INTERVAL = BUILDER.comment("Legacy fan interval, retained for Cirno").defineInRange("fairyShotIntervalTicks", 60, 5, Integer.MAX_VALUE);
         BIG_FAIRY_MAX_HEALTH = BUILDER.defineInRange("bigFairyMaxHealth", 60D, 1D, 4096D);
         BIG_FAIRY_DAMAGE = BUILDER.defineInRange("bigFairyDanmakuDamage", 4D, 0D, 256D);
         BIG_FAIRY_SHOT_INTERVAL = BUILDER.defineInRange("bigFairyShotIntervalTicks", 80, 5, Integer.MAX_VALUE);
-        FAIRY_PPOINT_CHANCE = BUILDER.defineInRange("fairyPpointDropChance", 0.35D, 0D, 1D);
-        FAIRY_YEN_CHANCE = BUILDER.defineInRange("fairyYenDropChance", 0.5D, 0D, 1D);
+        FAIRY_PPOINT_CHANCE = BUILDER.defineInRange("fairyPpointDropChance", 0.10D, 0D, 1D);
+        FAIRY_BPOINT_CHANCE = BUILDER.defineInRange("fairyBpointDropChance", 0.10D, 0D, 1D);
+        FAIRY_VARIANT_SINGLE_WEIGHT = BUILDER.comment("Spawn weights for the three attack variants (relative)").defineInRange("fairyVariantSingleWeight", 60, 0, 10000);
+        FAIRY_VARIANT_NET_WEIGHT = BUILDER.defineInRange("fairyVariantNetWeight", 30, 0, 10000);
+        FAIRY_VARIANT_LASER_WEIGHT = BUILDER.defineInRange("fairyVariantLaserWeight", 10, 0, 10000);
+        FAIRY_SINGLE_INTERVAL = BUILDER.comment("SINGLE variant: ticks between shots").defineInRange("fairySingleIntervalTicks", 20, 5, Integer.MAX_VALUE);
+        FAIRY_DANMAKU_SPEED_MULT = BUILDER.comment("Multiplier applied to the global danmaku projectile speed for fairy bullets")
+                .defineInRange("fairyDanmakuSpeedMult", 0.6667D, 0D, 4D);
+        FAIRY_SINGLE_DAMAGE = BUILDER.defineInRange("fairySingleDamage", 5D, 0D, 256D);
+        FAIRY_NET_INTERVAL = BUILDER.comment("NET variant: ticks between volleys").defineInRange("fairyNetIntervalTicks", 40, 5, Integer.MAX_VALUE);
+        FAIRY_NET_DAMAGE = BUILDER.defineInRange("fairyNetDamage", 5D, 0D, 256D);
+        FAIRY_NET_ANGLE_DEG = BUILDER.comment("NET variant: angle between adjacent bullets in the 3x3 grid").defineInRange("fairyNetAngleDeg", 10D, 0D, 45D);
+        FAIRY_LASER_INTERVAL = BUILDER.comment("LASER variant: ticks between lasers").defineInRange("fairyLaserIntervalTicks", 40, 5, Integer.MAX_VALUE);
+        FAIRY_LASER_DAMAGE = BUILDER.defineInRange("fairyLaserDamage", 5D, 0D, 256D);
+        FAIRY_LASER_RING_RADIUS = BUILDER.comment("LASER variant: radius of the face-plane emission ring").defineInRange("fairyLaserRingRadius", 0.5D, 0D, 4D);
+        FAIRY_LASER_RADIUS = BUILDER.defineInRange("fairyLaserRadius", 0.1D, 0.01D, 4D);
+        FAIRY_LASER_LENGTH = BUILDER.comment("LASER variant: max beam length").defineInRange("fairyLaserLength", 32D, 1D, 128D);
+        FAIRY_LASER_DELAY_SECONDS = BUILDER.comment("LASER variant: warning delay before the beam activates").defineInRange("fairyLaserDelaySeconds", 1.0D, 0D, 10D);
+        FAIRY_LASER_DURATION_SECONDS = BUILDER.defineInRange("fairyLaserDurationSeconds", 2.0D, 0.05D, 30D);
+        FAIRY_HOVER_HEIGHT = BUILDER.comment("Hover AI: target height above the player").defineInRange("fairyHoverHeight", 3.0D, 0D, 32D);
+        FAIRY_HOVER_MIN_DIST = BUILDER.defineInRange("fairyHoverMinDistance", 1.0D, 0D, 32D);
+        FAIRY_HOVER_MAX_DIST = BUILDER.defineInRange("fairyHoverMaxDistance", 3.0D, 0D, 32D);
+        FAIRY_FLY_SPEED = BUILDER.defineInRange("fairyFlySpeed", 0.25D, 0.05D, 4D);
+        FAIRY_FLY_PITCH_DEGREES = BUILDER.comment("Forward lean (degrees) of the fairy model while flying forward")
+                .defineInRange("fairyFlyPitchDegrees", 15.0D, 0D, 60D);
+        TOUHOU_NON_DANMAKU_RESIST = BUILDER.comment("Touhou monsters: fraction of non-danmaku damage reduced (0.9 = 90%)")
+                .defineInRange("touhouNonDanmakuResist", 0.9D, 0D, 1D);
+        DANMAKU_SHIELD_DISABLE_TICKS = BUILDER.comment("Ticks a shield is disabled after blocking a danmaku hit")
+                .defineInRange("danmakuShieldDisableTicks", 100, 0, 72000);
         BUILDER.pop();
 
         BUILDER.push("danmaku");
