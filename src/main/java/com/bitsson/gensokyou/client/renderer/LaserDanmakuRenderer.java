@@ -45,6 +45,18 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
     private static final ResourceLocation CAP_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/entity/laser_cap.png");
 
+    private static final ResourceLocation MAGIC_CIRCLE_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/entity/laser_magic_circle.png");
+
+    /** 法阵相对半径（基于激光半径）：阵面撑得比光束大一圈。 */
+    private static final float MAGIC_CIRCLE_RADIUS_RATIO = 2.2F;
+
+    /** 法阵自旋速度（度/tick），约 28°/s。 */
+    private static final float MAGIC_CIRCLE_SPIN_DEG_PER_TICK = 1.4F;
+
+    /** 法阵透明度（随包络再缩放）。 */
+    private static final int MAGIC_CIRCLE_ALPHA = 200;
+
     /** 构成圆柱的平面数量。越多越圆，6 个（间隔 30°）在观感与开销间较平衡。 */
     private static final int BEAM_PLANES = 6;
 
@@ -151,10 +163,15 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
 
         // 外发光走不写深度的加法层：保持现有观感，也不在身后的水面上凿洞。
         // 注意 immediate 缓冲的别名规则：请求不同 RenderType 会立刻结束上一批，
-        // 因此必须先写完外发光，再取主体/亮核的 consumer，禁止交叉写入。
+        // 因此必须按「外发光 → 法阵 → 主体/亮核 → 端盖」整层连续写入，禁止交叉。
         VertexConsumer glow = bufferSource.getBuffer(DanmakuRenderTypes.additiveGlow(BEAM_TEXTURE));
         this.emitBeam(poseStack, glow, length, radius * OUTER_GLOW_RADIUS_RATIO * envelope,
                 r, g, b, (int) (OUTER_GLOW_ALPHA * envelope), FULL_BRIGHT);
+
+        // 法阵：发射端五芒星，取激光色的反色（与光束形成对比又同源），随包络展开/收起并自旋
+        this.renderMagicCircle(entity, poseStack, bufferSource,
+                radius * envelope, 255 - r, 255 - g, 255 - b,
+                (int) (MAGIC_CIRCLE_ALPHA * envelope), partialTick);
 
         VertexConsumer emissive = bufferSource.getBuffer(this.glowRenderType());
 
@@ -172,6 +189,34 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         // 端盖：面向摄像机的圆片，模拟半球末端
         this.renderCaps(poseStack, bufferSource, length, radius * envelope,
                 coreR, coreG, coreB, (int) (235 * envelope));
+    }
+
+    /**
+     * 发射端五芒星法阵。
+     *
+     * <p>局部坐标系 Z+ 沿光束，XY 平面天然垂直于光束——在 z≈0 处画一个
+     * 面向 Z 轴的 quad 即得「光束从阵中喷出」的构图，无需额外朝向计算。
+     * 缩放基于激光半径 × 粗细包络（开火展开、收束收起），自旋绕 Z 轴恒速。
+     */
+    private void renderMagicCircle(LaserDanmaku entity, PoseStack poseStack, MultiBufferSource bufferSource,
+                                   float beamRadius, int r, int g, int b, int a, float partialTick) {
+        if (beamRadius <= 0.0F || a <= 0) {
+            return;
+        }
+        float radius = beamRadius * MAGIC_CIRCLE_RADIUS_RATIO;
+        float angle = (entity.tickCount + partialTick) * MAGIC_CIRCLE_SPIN_DEG_PER_TICK;
+
+        poseStack.pushPose();
+        poseStack.mulPose(Axis.ZP.rotationDegrees(angle));
+
+        PoseStack.Pose pose = poseStack.last();
+        VertexConsumer consumer = bufferSource.getBuffer(DanmakuRenderTypes.additiveGlow(MAGIC_CIRCLE_TEXTURE));
+        this.vertex(consumer, pose, -radius, -radius, 0.0F, 0.0F, 1.0F, r, g, b, a, FULL_BRIGHT);
+        this.vertex(consumer, pose, radius, -radius, 0.0F, 1.0F, 1.0F, r, g, b, a, FULL_BRIGHT);
+        this.vertex(consumer, pose, radius, radius, 0.0F, 1.0F, 0.0F, r, g, b, a, FULL_BRIGHT);
+        this.vertex(consumer, pose, -radius, radius, 0.0F, 0.0F, 0.0F, r, g, b, a, FULL_BRIGHT);
+
+        poseStack.popPose();
     }
 
     /**

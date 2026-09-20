@@ -23,6 +23,7 @@ public final class DanmakuRenderTypes extends RenderStateShard {
     /** 按纹理缓存渲染类型，避免同帧内重复构建，也保证 BufferSource 的缓冲复用稳定。 */
     private static final Map<ResourceLocation, RenderType> GLOW_CACHE = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, RenderType> SOLID_CACHE = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, RenderType> TRANSLUCENT_CACHE = new ConcurrentHashMap<>();
 
     private DanmakuRenderTypes() {
         super("gensokyou_shard_stub", () -> { }, () -> { });
@@ -73,6 +74,31 @@ public final class DanmakuRenderTypes extends RenderStateShard {
                         .setTextureState(new TextureStateShard(loc, false, false))
                         .setTransparencyState(ADDITIVE_TRANSPARENCY)
                         .setWriteMaskState(COLOR_DEPTH_WRITE)
+                        .setCullState(NO_CULL)
+                        .setLightmapState(LIGHTMAP)
+                        .setOverlayState(NO_OVERLAY)
+                        .createCompositeState(false)
+        ));
+    }
+
+    /**
+     * 常规 alpha 混合层：供需要平滑渐变边缘的弹幕本体使用（cutout 无法表现
+     * 半透明衰减，会把抗锯齿柔边切成锯齿）。不写深度：重叠弹幕的柔边不会
+     * 相互凿洞；深度测试仍开启，地形照常遮挡。
+     */
+    public static RenderType translucent(ResourceLocation texture) {
+        return TRANSLUCENT_CACHE.computeIfAbsent(texture, loc -> RenderType.create(
+                "gensokyou_danmaku_translucent",
+                DefaultVertexFormat.NEW_ENTITY,
+                VertexFormat.Mode.QUADS,
+                1024,
+                false,  // affectsCrumbling
+                false,  // sortOnUpload
+                RenderType.CompositeState.builder()
+                        .setShaderState(RENDERTYPE_ENTITY_TRANSLUCENT_SHADER)
+                        .setTextureState(new TextureStateShard(loc, false, false))
+                        .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                        .setWriteMaskState(COLOR_WRITE)
                         .setCullState(NO_CULL)
                         .setLightmapState(LIGHTMAP)
                         .setOverlayState(NO_OVERLAY)

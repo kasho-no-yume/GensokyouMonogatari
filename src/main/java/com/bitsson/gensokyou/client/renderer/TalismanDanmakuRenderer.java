@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -29,6 +30,15 @@ public class TalismanDanmakuRenderer extends AbstractDanmakuRenderer<TalismanDan
 
     public TalismanDanmakuRenderer(EntityRendererProvider.Context context) {
         super(context, TEXTURE);
+    }
+
+    /**
+     * 高清符纸贴图带抗锯齿柔边，cutout 会切成锯齿，改用常规 alpha 混合。
+     * 几何、朝向与外发光结构不变。
+     */
+    @Override
+    protected RenderType baseRenderType() {
+        return DanmakuRenderTypes.translucent(this.texture);
     }
 
     @Override
