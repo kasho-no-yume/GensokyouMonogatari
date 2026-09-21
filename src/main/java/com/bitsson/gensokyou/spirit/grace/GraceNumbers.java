@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.spirit.attr.AttributeKey;
 import net.minecraft.util.RandomSource;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -35,9 +36,19 @@ public final class GraceNumbers {
     private GraceNumbers() {
     }
 
-    /** 查某阶某键表项（config 表）；未配置返回 null（= 该阶不动此键）。 */
+    /** 查某阶某键表项（config 表；配置缺项回退内置默认）；未配置返回 null。 */
     public static Entry entry(int tier, AttributeKey key) {
-        return entry(GensokyouConfig.GRACE_TIER_TABLE.get(), tier, key);
+        return entry(effectiveRows(), tier, key);
+    }
+
+    /**
+     * 运行时有效表 = config 行 + 内置默认行（config 在前，故已配项优先；缺项由默认补齐）。
+     * 目的：规避 NeoForge 不合并列表新默认值的坑（新键在旧配置文件下恒 0）。
+     */
+    private static List<String> effectiveRows() {
+        List<String> merged = new ArrayList<>(GensokyouConfig.GRACE_TIER_TABLE.get());
+        merged.addAll(GensokyouConfig.graceDefaultRows());
+        return merged;
     }
 
     /** 查某阶某键表项（注入行表，可单测）；未配置返回 null。 */
@@ -66,9 +77,9 @@ public final class GraceNumbers {
         return (float) Math.max(0D, entry.base() * factor);
     }
 
-    /** 按阶级 roll 全部表内键（config 表）。 */
+    /** 按阶级 roll 全部表内键（config 表；配置缺项回退内置默认）。 */
     public static GraceRoll rollTier(int tier, RandomSource random) {
-        return rollTier(GensokyouConfig.GRACE_TIER_TABLE.get(), tier, random);
+        return rollTier(effectiveRows(), tier, random);
     }
 
     /** 按阶级 roll 全部表内键（注入行表，可单测）：池两键记入 gain 字段，其余进 contributions map。 */

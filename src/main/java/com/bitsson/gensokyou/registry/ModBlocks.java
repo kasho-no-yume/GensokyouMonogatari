@@ -2,6 +2,7 @@ package com.bitsson.gensokyou.registry;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.CrystalBlock;
+import com.bitsson.gensokyou.block.DanmakuAssemblyBenchBlock;
 import com.bitsson.gensokyou.block.RitualCoreBlock;
 import com.bitsson.gensokyou.block.RitualPedestalBlock;
 import com.bitsson.gensokyou.block.SukimaBlock;
@@ -85,6 +86,12 @@ public final class ModBlocks {
                             .strength(-1.0F, 3600000.0F).noLootTable()
                             .sound(SoundType.AMETHYST_CLUSTER)
                             .lightLevel(state -> 12).noOcclusion());
+
+    /** 弹幕方术装配台：主武器模块化修改的方块化入口（右击开界面）。 */
+    public static final DeferredBlock<DanmakuAssemblyBenchBlock> DANMAKU_ASSEMBLY_BENCH =
+            BLOCKS.registerBlock("danmaku_assembly_bench", DanmakuAssemblyBenchBlock::new,
+                    BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.5F, 6F)
+                            .sound(SoundType.WOOD));
 
     /** 查询方块的仪式品阶；非品阶方块返回 -1（如仪式核心、单方块化后的祭品台）。 */
     public static int tierOf(Block block) {

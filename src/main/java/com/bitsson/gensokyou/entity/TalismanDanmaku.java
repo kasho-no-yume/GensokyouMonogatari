@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -7,6 +8,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -42,6 +44,12 @@ public class TalismanDanmaku extends AbstractDanmakuProjectile {
     @Nullable
     private Entity cachedTarget;
     private int cachedTargetId = 0;
+
+    /**
+     * 是否已永久丢失目标（不可逆）。瞬态字段，不持久化、不参与存档同步。
+     * 双端各自按同一条件（夹角超阈值）置位，用于消除数据包延迟窗口内客户端多追的情况。
+     */
+    private boolean targetLost;
 
     public TalismanDanmaku(EntityType<? extends TalismanDanmaku> type, Level level) {
         super(type, level);
@@ -82,8 +90,15 @@ public class TalismanDanmaku extends AbstractDanmakuProjectile {
     /**
      * 朝目标偏转，每 tick 最多偏转 sensitivity/20 度。
      * 双端执行相同逻辑。
+     *
+     * <p>若速度方向与「灵符→目标」方向的夹角超过配置阈值（默认 150°，即目标被甩到身后），
+     * 视为永久丢失目标：此后不再偏转、匀速直线飞行。判定双端同构；服务端在丢失时
+     * 清空同步目标 id，客户端据本地判定即时停止。
      */
     private void tickHoming() {
+        if (this.targetLost) {
+            return;
+        }
         Entity target = this.getTarget();
         if (target == null || !target.isAlive()) {
             return;
@@ -102,6 +117,18 @@ public class TalismanDanmaku extends AbstractDanmakuProjectile {
             return;
         }
         Vec3 targetDir = toTarget.normalize();
+
+        // 目标落到身后（夹角超过阈值）→ 永久丢失目标
+        double lossAngle = Math.toRadians(GensokyouConfig.TALISMAN_TARGET_LOSS_ANGLE_DEG.get());
+        double angle = Math.acos(Mth.clamp(currentDir.dot(targetDir), -1.0D, 1.0D));
+        if (angle > lossAngle) {
+            this.targetLost = true;
+            if (!this.level().isClientSide) {
+                // 同步目标 id 归零：新追踪客户端/重载后不再追踪
+                this.setTarget(null);
+            }
+            return;
+        }
 
         double maxTurn = Math.toRadians(this.getSensitivity() / 20.0D);
         Vec3 newDir = rotateTowards(currentDir, targetDir, maxTurn);

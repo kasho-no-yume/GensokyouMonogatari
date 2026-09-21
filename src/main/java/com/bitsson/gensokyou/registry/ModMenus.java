@@ -2,9 +2,9 @@ package com.bitsson.gensokyou.registry;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.menu.CrystalStorageMenu;
+import com.bitsson.gensokyou.menu.DanmakuAssemblyBenchMenu;
 import com.bitsson.gensokyou.menu.RitualBuilderMenu;
 import com.bitsson.gensokyou.menu.RitualCoreMenu;
-import com.bitsson.gensokyou.menu.WeaponCoreMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.inventory.MenuType;
@@ -22,9 +22,9 @@ public final class ModMenus {
                     (IContainerFactory<RitualCoreMenu>) RitualCoreMenu::new,
                     FeatureFlags.VANILLA_SET));
 
-    public static final DeferredHolder<MenuType<?>, MenuType<WeaponCoreMenu>> WEAPON_CORE =
-            MENUS.register("weapon_core", () -> new MenuType<>(
-                    (IContainerFactory<WeaponCoreMenu>) WeaponCoreMenu::new,
+    public static final DeferredHolder<MenuType<?>, MenuType<DanmakuAssemblyBenchMenu>> DANMAKU_ASSEMBLY_BENCH =
+            MENUS.register("danmaku_assembly_bench", () -> new MenuType<>(
+                    (IContainerFactory<DanmakuAssemblyBenchMenu>) DanmakuAssemblyBenchMenu::new,
                     FeatureFlags.VANILLA_SET));
 
     public static final DeferredHolder<MenuType<?>, MenuType<RitualBuilderMenu>> RITUAL_BUILDER =

@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "gensokyou:block/danmaku_assembly_bench_top",
+    "bottom": "gensokyou:block/danmaku_assembly_bench_bottom",
+    "side": "gensokyou:block/danmaku_assembly_bench_side"
+  }
+}

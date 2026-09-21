@@ -24,6 +24,7 @@ public final class DanmakuRenderTypes extends RenderStateShard {
     private static final Map<ResourceLocation, RenderType> GLOW_CACHE = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, RenderType> SOLID_CACHE = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, RenderType> TRANSLUCENT_CACHE = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, RenderType> TRANSLUCENT_DEPTH_CACHE = new ConcurrentHashMap<>();
 
     private DanmakuRenderTypes() {
         super("gensokyou_shard_stub", () -> { }, () -> { });
@@ -99,6 +100,34 @@ public final class DanmakuRenderTypes extends RenderStateShard {
                         .setTextureState(new TextureStateShard(loc, false, false))
                         .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
                         .setWriteMaskState(COLOR_WRITE)
+                        .setCullState(NO_CULL)
+                        .setLightmapState(LIGHTMAP)
+                        .setOverlayState(NO_OVERLAY)
+                        .createCompositeState(false)
+        ));
+    }
+
+    /**
+     * 常规 alpha 混合 + 写深度：供需要被后画的半透明地形（水）与云层正确遮挡的弹幕本体使用。
+     *
+     * <p>与 {@link #translucent} 的差异仅在 {@code COLOR_DEPTH_WRITE} 与
+     * {@code sortOnUpload(true)}：实体缓冲先于半透明地形冲刷，本体写深度后，
+     * 位于其身后的水/云会被深度剔除（本体在水云之前不再被覆盖）；排序用于避免
+     * 自身重叠 quad 互相深度剔除。渐变柔边（alpha 衰减）仍由 alpha 混合表现。
+     */
+    public static RenderType translucentDepth(ResourceLocation texture) {
+        return TRANSLUCENT_DEPTH_CACHE.computeIfAbsent(texture, loc -> RenderType.create(
+                "gensokyou_danmaku_translucent_depth",
+                DefaultVertexFormat.NEW_ENTITY,
+                VertexFormat.Mode.QUADS,
+                1024,
+                false,  // affectsCrumbling
+                true,   // sortOnUpload：写深度的半透明需按距离远→近排序
+                RenderType.CompositeState.builder()
+                        .setShaderState(RENDERTYPE_ENTITY_TRANSLUCENT_SHADER)
+                        .setTextureState(new TextureStateShard(loc, false, false))
+                        .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                        .setWriteMaskState(COLOR_DEPTH_WRITE)
                         .setCullState(NO_CULL)
                         .setLightmapState(LIGHTMAP)
                         .setOverlayState(NO_OVERLAY)

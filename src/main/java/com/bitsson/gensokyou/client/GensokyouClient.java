@@ -18,7 +18,7 @@ import com.bitsson.gensokyou.client.renderer.RitualGhostRenderTypes;
 import com.bitsson.gensokyou.client.screen.RitualBuilderScreen;
 import com.bitsson.gensokyou.client.screen.RitualBuilderScreen;
 import com.bitsson.gensokyou.client.screen.RitualCoreScreen;
-import com.bitsson.gensokyou.client.screen.WeaponCoreScreen;
+import com.bitsson.gensokyou.client.screen.DanmakuAssemblyBenchScreen;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import com.bitsson.gensokyou.registry.ModMenus;
@@ -106,7 +106,7 @@ public final class GensokyouClient {
     @SubscribeEvent
     public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
         event.register(ModMenus.RITUAL_CORE.get(), RitualCoreScreen::new);
-        event.register(ModMenus.WEAPON_CORE.get(), WeaponCoreScreen::new);
+        event.register(ModMenus.DANMAKU_ASSEMBLY_BENCH.get(), DanmakuAssemblyBenchScreen::new);
         event.register(ModMenus.RITUAL_BUILDER.get(), RitualBuilderScreen::new);
         event.register(ModMenus.RITUAL_EDITOR.get(), com.bitsson.gensokyou.client.screen.RitualEditorScreen::new);
         event.register(ModMenus.CRYSTAL_STORAGE.get(),

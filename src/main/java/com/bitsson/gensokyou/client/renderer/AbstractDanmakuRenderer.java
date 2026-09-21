@@ -38,11 +38,15 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
     }
 
     /**
-     * 发光层渲染用：加法混合 + 自发光，双面。
-     * 加法混合使重叠弹幕的辉光亮度叠加，这是东方风格弹幕的关键表现。
+     * 发光层渲染用：加法混合 + 自发光 + 写深度，双面。
+     *
+     * <p>加法混合使重叠弹幕的辉光亮度叠加，这是东方风格弹幕的关键表现；
+     * 写深度让发光同样不被后画的半透明地形（水）与云层覆盖（发光轮廓在水面上
+     * 按可见形状占位）。所用 shader 会 discard alpha&lt;0.1 的像素，故不会出现
+     * 整块方形深度洞，只会按发光可见轮廓写深度。
      */
     protected RenderType glowRenderType() {
-        return DanmakuRenderTypes.additiveGlow(this.texture);
+        return DanmakuRenderTypes.additiveSolid(this.texture);
     }
 
     protected static int red(int color) {

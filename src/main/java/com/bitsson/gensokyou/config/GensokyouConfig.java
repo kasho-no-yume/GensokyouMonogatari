@@ -66,6 +66,8 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue MUSOU_PULSE_FACTOR;
     public static final ModConfigSpec.DoubleValue PROTECT_REDUCTION_NUMERATOR;
     public static final ModConfigSpec.DoubleValue PROTECT_REDUCTION_DENOMINATOR;
+    /** 灵符追踪丢失角度阈值（度）：速度方向与指向目标方向夹角超过此值即永久停止追踪。 */
+    public static final ModConfigSpec.DoubleValue TALISMAN_TARGET_LOSS_ANGLE_DEG;
 
     public static final ModConfigSpec.DoubleValue BASE_REGEN_PER_SECOND;
     public static final ModConfigSpec.IntValue RESONANCE_BASE_IN_QUOTA;
@@ -339,6 +341,53 @@ public class GensokyouConfig {
 
     public static final ModConfigSpec SPEC;
 
+    /**
+     * grace 阶级表的代码内默认值（与 config key `graceTierTable` 同布局）。
+     * NeoForge 不会把新增条目合并进已存在的列表值，故读取时对 config 中缺失的 (tier,key)
+     * 回退到本表——避免"改了默认表但旧配置文件仍生效导致新键恒 0"。
+     */
+    private static final List<String> GRACE_DEFAULT_ROWS = List.of(
+            "1,max_spirit,1000,0.2", "1,spirit_power,6,0.2", "1,spirit_regen_rate,1.2,0.7",
+            "1,danmaku_reduce,1.0,0.2",
+            "1,health_bonus,10,0.35", "1,move_speed_bonus,0.05,0.35", "1,graze_chance,0.05,0.35",
+            "1,tenacity,0.05,0.35", "1,crit_chance,0.06,0.35",
+            "1,crit_damage,0.10,0.35", "1,spell_amp,0.15,0.35", "1,spell_cdr,0.06,0.35",
+            "1,buff_extend,0.07,0.35", "1,spirit_leech_rate,0.03,0.35",
+            "1,jump,0.4,0.5", "1,phys_resist,0.04,0.35", "1,melee_damage,5,0.25",
+            "2,max_spirit,9000,0.2", "2,spirit_power,54,0.2", "2,spirit_regen_rate,10.8,0.7",
+            "2,danmaku_reduce,1.9,0.2",
+            "2,health_bonus,20,0.35", "2,move_speed_bonus,0.08,0.35", "2,graze_chance,0.05,0.35",
+            "2,tenacity,0.10,0.35", "2,crit_chance,0.05,0.35",
+            "2,crit_damage,0.20,0.35", "2,spell_amp,0.25,0.35", "2,spell_cdr,0.05,0.35",
+            "2,buff_extend,0.13,0.35", "2,spirit_leech_rate,0.04,0.35",
+            "2,jump,0.4,0.5", "2,phys_resist,0.08,0.35", "2,melee_damage,7,0.25",
+            "3,max_spirit,90000,0.2", "3,spirit_power,480,0.2", "3,spirit_regen_rate,108,0.7",
+            "3,danmaku_reduce,1.9,0.2",
+            "3,health_bonus,60,0.35", "3,move_speed_bonus,0.12,0.35", "3,graze_chance,0.07,0.35",
+            "3,tenacity,0.15,0.35", "3,crit_chance,0.07,0.35",
+            "3,crit_damage,0.30,0.35", "3,spell_amp,0.50,0.35", "3,spell_cdr,0.07,0.35",
+            "3,buff_extend,0.20,0.35", "3,spirit_leech_rate,0.06,0.35",
+            "3,jump,0.4,0.5", "3,phys_resist,0.12,0.35", "3,melee_damage,13,0.25",
+            "4,max_spirit,900000,0.2", "4,spirit_power,4100,0.2", "4,spirit_regen_rate,1080,0.7",
+            "4,danmaku_reduce,1.9,0.2",
+            "4,health_bonus,180,0.35", "4,move_speed_bonus,0.15,0.35", "4,graze_chance,0.08,0.35",
+            "4,tenacity,0.20,0.35", "4,crit_chance,0.08,0.35",
+            "4,crit_damage,0.40,0.35", "4,spell_amp,0.80,0.35", "4,spell_cdr,0.08,0.35",
+            "4,buff_extend,0.25,0.35", "4,spirit_leech_rate,0.07,0.35",
+            "4,jump,0.4,0.5", "4,phys_resist,0.16,0.35", "4,melee_damage,25,0.25",
+            "5,max_spirit,9000000,0.2", "5,spirit_power,34500,0.2", "5,spirit_regen_rate,10800,0.7",
+            "5,danmaku_reduce,1.9,0.2",
+            "5,health_bonus,540,0.35", "5,move_speed_bonus,0.15,0.35", "5,graze_chance,0.08,0.35",
+            "5,tenacity,0.20,0.35", "5,crit_chance,0.09,0.35",
+            "5,crit_damage,0.50,0.35", "5,spell_amp,1.00,0.35", "5,spell_cdr,0.09,0.35",
+            "5,buff_extend,0.25,0.35", "5,spirit_leech_rate,0.05,0.35",
+            "5,jump,0.4,0.5", "5,phys_resist,0.23,0.35", "5,melee_damage,30,0.25");
+
+    /** grace 默认表（供 {@code GraceNumbers} 对配置缺项回退；不读 config，纯常量）。 */
+    public static List<String> graceDefaultRows() {
+        return GRACE_DEFAULT_ROWS;
+    }
+
     static {
         BUILDER.push("npc").comment("Touhou NPC base class (touhou-npc capability)");
         NPC_KICK_THRESHOLD = BUILDER.comment("Malicious lethal hits on NPCs before ejection from Gensokyo").defineInRange("npcKickThreshold", 3, 1, 100);
@@ -426,6 +475,7 @@ public class GensokyouConfig {
         MUSOU_PULSE_FACTOR = BUILDER.comment("Pulse damage = min(maxHealth/2, cap) * factor; factor 1.0 = full hit every pulse").defineInRange("musouFuuinPulseFactor", 0.25D, 0D, 1D);
         PROTECT_REDUCTION_NUMERATOR = BUILDER.comment("Damage taken multiplier = (numerator - level) / denominator").defineInRange("protectNumerator", 9D, 0D, 100D);
         PROTECT_REDUCTION_DENOMINATOR = BUILDER.defineInRange("protectDenominator", 10D, 1D, 100D);
+        TALISMAN_TARGET_LOSS_ANGLE_DEG = BUILDER.comment("Talisman danmaku: if the angle between its velocity and the direction to its target exceeds this many degrees, it permanently loses the target and flies straight (default 120)").defineInRange("talismanTargetLossAngleDeg", 120D, 90D, 180D);
         BUILDER.pop();
 
         BUILDER.push("power").comment("Spirit power pool & infrastructure");
@@ -548,44 +598,7 @@ public class GensokyouConfig {
                         + " danmaku_reduce is now the dimensionless ward exponent P (damage taken x2^-P);"
                         + " the retired danmaku_resist key is intentionally absent."
                         + " max_spirit/spirit_power write the pool ledger; the rest go to permanent contributions grace_tier_N")
-                .defineListAllowEmpty("graceTierTable",
-                        List.of(
-                                "1,max_spirit,1000,0.2", "1,spirit_power,6,0.2", "1,spirit_regen_rate,1.2,0.7",
-                                "1,danmaku_reduce,1.0,0.2",
-                                "1,health_bonus,10,0.35", "1,move_speed_bonus,0.05,0.35", "1,graze_chance,0.05,0.35",
-                                "1,tenacity,0.05,0.35", "1,crit_chance,0.06,0.35",
-                                "1,crit_damage,0.10,0.35", "1,spell_amp,0.15,0.35", "1,spell_cdr,0.06,0.35",
-                                "1,buff_extend,0.07,0.35", "1,spirit_leech_rate,0.03,0.35",
-                                "1,jump,0.4,0.5", "1,phys_resist,0.04,0.35", "1,melee_damage,5,0.25",
-                                "2,max_spirit,9000,0.2", "2,spirit_power,54,0.2", "2,spirit_regen_rate,10.8,0.7",
-                                "2,danmaku_reduce,1.9,0.2",
-                                "2,health_bonus,20,0.35", "2,move_speed_bonus,0.08,0.35", "2,graze_chance,0.05,0.35",
-                                "2,tenacity,0.10,0.35", "2,crit_chance,0.05,0.35",
-                                "2,crit_damage,0.20,0.35", "2,spell_amp,0.25,0.35", "2,spell_cdr,0.05,0.35",
-                                "2,buff_extend,0.13,0.35", "2,spirit_leech_rate,0.04,0.35",
-                                "2,jump,0.4,0.5", "2,phys_resist,0.08,0.35", "2,melee_damage,7,0.25",
-                                "3,max_spirit,90000,0.2", "3,spirit_power,480,0.2", "3,spirit_regen_rate,108,0.7",
-                                "3,danmaku_reduce,1.9,0.2",
-                                "3,health_bonus,60,0.35", "3,move_speed_bonus,0.12,0.35", "3,graze_chance,0.07,0.35",
-                                "3,tenacity,0.15,0.35", "3,crit_chance,0.07,0.35",
-                                "3,crit_damage,0.30,0.35", "3,spell_amp,0.50,0.35", "3,spell_cdr,0.07,0.35",
-                                "3,buff_extend,0.20,0.35", "3,spirit_leech_rate,0.06,0.35",
-                                "3,jump,0.4,0.5", "3,phys_resist,0.12,0.35", "3,melee_damage,13,0.25",
-                                "4,max_spirit,900000,0.2", "4,spirit_power,4100,0.2", "4,spirit_regen_rate,1080,0.7",
-                                "4,danmaku_reduce,1.9,0.2",
-                                "4,health_bonus,180,0.35", "4,move_speed_bonus,0.15,0.35", "4,graze_chance,0.08,0.35",
-                                "4,tenacity,0.20,0.35", "4,crit_chance,0.08,0.35",
-                                "4,crit_damage,0.40,0.35", "4,spell_amp,0.80,0.35", "4,spell_cdr,0.08,0.35",
-                                "4,buff_extend,0.25,0.35", "4,spirit_leech_rate,0.07,0.35",
-                                "4,jump,0.4,0.5", "4,phys_resist,0.16,0.35", "4,melee_damage,25,0.25",
-                                "5,max_spirit,9000000,0.2", "5,spirit_power,34500,0.2", "5,spirit_regen_rate,10800,0.7",
-                                "5,danmaku_reduce,1.9,0.2",
-                                "5,health_bonus,540,0.35", "5,move_speed_bonus,0.15,0.35", "5,graze_chance,0.08,0.35",
-                                "5,tenacity,0.20,0.35", "5,crit_chance,0.09,0.35",
-                                "5,crit_damage,0.50,0.35", "5,spell_amp,1.00,0.35", "5,spell_cdr,0.09,0.35",
-                                "5,buff_extend,0.25,0.35", "5,spirit_leech_rate,0.05,0.35",
-                                "5,jump,0.4,0.5", "5,phys_resist,0.23,0.35", "5,melee_damage,30,0.25"),
-                        o -> o instanceof String);
+                .defineListAllowEmpty("graceTierTable", GRACE_DEFAULT_ROWS, o -> o instanceof String);
         GRACE_FLIGHT_COST_PCT = BUILDER.comment("Flight spirit drain per second, percent of max spirit, index = tier-1"
                         + " (5/2/1/0.5/0). Tier 5 flies for free.")
                 .defineListAllowEmpty("graceFlightCostPct",

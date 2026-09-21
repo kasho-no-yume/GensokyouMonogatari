@@ -71,6 +71,15 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     private static final EntityDataAccessor<Integer> DATA_COLOR =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
 
+    /**
+     * 阵营标记（预留）：0 = 中性/未分类。
+     *
+     * <p>为后续「友军不误伤 / 敌我辨识」能力预留的同步字段。当前<b>不写入、不读取</b>，
+     * 不影响渲染与判伤，恒为默认值；后续能力在此挂载服务端赋值与客户端消费。
+     */
+    private static final EntityDataAccessor<Integer> DATA_FACTION =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+
     /** 伤害值，仅服务端使用。 */
     protected float damage = 4.0F;
 
@@ -100,6 +109,7 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(DATA_COLOR, 0xFFFFFF);
+        builder.define(DATA_FACTION, 0);
     }
 
     @Override
@@ -277,6 +287,16 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
 
     public void setColor(int color) {
         this.entityData.set(DATA_COLOR, color);
+    }
+
+    /** 阵营标记（预留，见 {@link #DATA_FACTION}）；当前无任何消费方。 */
+    public int getFaction() {
+        return this.entityData.get(DATA_FACTION);
+    }
+
+    /** 阵营标记（预留，见 {@link #DATA_FACTION}）；当前无任何写入方。 */
+    public void setFaction(int faction) {
+        this.entityData.set(DATA_FACTION, faction);
     }
 
     @Override
