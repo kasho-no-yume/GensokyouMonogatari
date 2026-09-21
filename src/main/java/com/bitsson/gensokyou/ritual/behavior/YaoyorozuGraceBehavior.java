@@ -236,8 +236,14 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
                 0, InfoLine.CONTROL_ATTR, InfoLine.LINK_NONE, "", new String[0]);
     }
 
-    /** flat 键（生命/抵抗/池值）定值展示；百分比键 % 后缀。 */
+    /** flat 键定值；灵力恢复为每秒速率；弹幕护壁为指数倍数；其余为百分比。 */
     private static String format(AttributeKey key, float value) {
+        if (key == AttributeKey.SPIRIT_REGEN_RATE) {
+            return trim(value) + "/s";
+        }
+        if (key == AttributeKey.DANMAKU_REDUCE) {
+            return "x" + Math.max(1L, Math.round(Math.pow(2D, Math.max(0F, value))));
+        }
         return key.isFlat() ? trim(value) : String.format(java.util.Locale.ROOT, "%.1f%%", value * 100F);
     }
 

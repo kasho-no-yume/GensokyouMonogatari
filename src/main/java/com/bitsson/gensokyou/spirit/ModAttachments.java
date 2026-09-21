@@ -48,6 +48,12 @@ public final class ModAttachments {
                     .<com.bitsson.gensokyou.spirit.attr.LedgerData>builder(com.bitsson.gensokyou.spirit.attr.LedgerData::initial)
                     .build());
 
+    /** 测试无限灵力标记（add-balance-test-harness）：会话级 transient。 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Boolean>> TEST_INFINITE_SPIRIT =
+            ATTACHMENTS.register("test_infinite_spirit", () -> AttachmentType
+                    .<Boolean>builder(() -> Boolean.FALSE)
+                    .build());
+
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<NpcOffenseData>> NPC_OFFENSE =
             ATTACHMENTS.register("npc_offense", () -> AttachmentType
                     .<NpcOffenseData>builder(NpcOffenseData::initial)
@@ -89,6 +95,15 @@ public final class ModAttachments {
     /** playerSpiritDamage 统一读取入口（伤害公式唯一数据来源）。 */
     public static float spiritDamage(ServerPlayer player) {
         return get(player).spiritDamage();
+    }
+
+    /** 测试无限灵力（add-balance-test-harness）。 */
+    public static boolean isTestInfiniteSpirit(ServerPlayer player) {
+        return player.getData(TEST_INFINITE_SPIRIT.get());
+    }
+
+    public static void setTestInfiniteSpirit(ServerPlayer player, boolean value) {
+        player.setData(TEST_INFINITE_SPIRIT.get(), value);
     }
 
     public static void setSkills(ServerPlayer player, SkillStateData data) {

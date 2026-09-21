@@ -67,6 +67,8 @@ public final class GensokyouClient {
                 context -> new SkinMobRenderer<>(context, 0.45F, 1.15F, GensokyouTextures.FAIRY));
         event.registerEntityRenderer(ModEntityTypes.RINNOSUKE.get(),
                 context -> new SkinMobRenderer<>(context, 0.5F, 1.0F, GensokyouTextures.RINNOSUKE));
+        event.registerEntityRenderer(ModEntityTypes.BALANCE_TEST_BOSS.get(),
+                com.bitsson.gensokyou.client.renderer.TestBossGeoRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_PEDESTAL.get(), RitualPedestalRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_CORE.get(), RitualCoreRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.SUKIMA.get(), SukimaPortalRenderer::new);

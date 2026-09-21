@@ -49,9 +49,13 @@ public final class AttributeCommands {
             String capPart = key.cap() >= 0D
                     ? String.format(Locale.ROOT, " cap=%.2f%s", key.cap(), b.capped() ? "(!)" : "")
                     : "";
+            String extra = key == AttributeKey.DANMAKU_REDUCE
+                    ? String.format(Locale.ROOT, "  [灵力护壁 x%.0f]",
+                            AttributeMath.wardDivisor(b.effective()))
+                    : "";
             player.displayClientMessage(Component.literal(String.format(Locale.ROOT,
-                            "%-18s base=%.2f perm=%+.2f temp=%+.2f%s => %.2f",
-                            key.id(), b.base(), b.permanent(), b.temp(), capPart, b.effective())),
+                            "%-18s base=%.2f perm=%+.2f temp=%+.2f%s => %.2f%s",
+                            key.id(), b.base(), b.permanent(), b.temp(), capPart, b.effective(), extra)),
                     false);
         }
         return AttributeKey.values().length;

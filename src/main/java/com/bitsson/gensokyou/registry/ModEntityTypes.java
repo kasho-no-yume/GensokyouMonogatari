@@ -128,4 +128,13 @@ public final class ModEntityTypes {
                     .sized(0.6F, 1.9F)
                     .clientTrackingRange(10)
                     .build("rinnosuke"));
+
+    /** 数值测试 BOSS（add-balance-test-harness，仅 /gs_test 生成）。 */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.BalanceTestBossEntity>> BALANCE_TEST_BOSS =
+            ENTITY_TYPES.register("balance_test_boss", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.BalanceTestBossEntity>of(
+                            com.bitsson.gensokyou.entity.BalanceTestBossEntity::new, MobCategory.MONSTER)
+                    .sized(0.9F, 1.8F)
+                    .clientTrackingRange(12)
+                    .build("balance_test_boss"));
 }

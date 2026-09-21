@@ -18,8 +18,8 @@ import java.util.Set;
  */
 public final class RuneGenerator {
 
-    /** 词条池条目：id,min,max,weight,minTier（config 内以逗号字符串声明）。 */
-    public record AffixDef(String id, float min, float max, int weight, int minTier) {
+    /** 词条池条目：id,min,max,weight,tier（config 内以逗号字符串声明；tier 为精确档位）。 */
+    public record AffixDef(String id, float min, float max, int weight, int tier) {
     }
 
     private RuneGenerator() {
@@ -82,17 +82,22 @@ public final class RuneGenerator {
     }
 
     public static List<RuneAffix> roll(int tier, RandomSource random) {
-        List<AffixDef> candidates = pool().stream()
-                .filter(def -> def.minTier() <= tier)
+        return roll(pool(), tier, affixCountForTier(tier), random);
+    }
+
+    /** 注入池版本（可单测）：同 id 唯一、按权重不重复抽、区间内取值。 */
+    static List<RuneAffix> roll(List<AffixDef> pool, int tier, int count, RandomSource random) {
+        List<AffixDef> candidates = pool.stream()
+                .filter(def -> def.tier() == tier)
                 .toList();
         if (candidates.isEmpty()) {
             return List.of();
         }
-        int count = Math.min(GensokyouConfig.RUNE_AFFIX_COUNT.get(), candidates.size());
+        int n = Math.min(count, candidates.size());
         Set<String> usedIds = new HashSet<>();
-        List<RuneAffix> result = new ArrayList<>(count);
+        List<RuneAffix> result = new ArrayList<>(n);
         int guard = 0;
-        while (result.size() < count && guard++ < 100) {
+        while (result.size() < n && guard++ < 100) {
             AffixDef def = weightedPick(candidates, random);
             if (def == null || !usedIds.add(def.id())) {
                 continue;
@@ -101,6 +106,16 @@ public final class RuneGenerator {
             result.add(new RuneAffix(def.id(), value));
         }
         return List.copyOf(result);
+    }
+
+    /** 该 tier 的词条数量（config 列表，index = tier-1；越界取末档 / 至少 1）。 */
+    public static int affixCountForTier(int tier) {
+        List<? extends Integer> table = GensokyouConfig.RUNE_AFFIX_COUNT.get();
+        if (table.isEmpty()) {
+            return 1;
+        }
+        int index = Math.min(Math.max(1, tier), table.size()) - 1;
+        return Math.max(1, table.get(index));
     }
 
     private static AffixDef weightedPick(List<AffixDef> candidates, RandomSource random) {

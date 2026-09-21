@@ -22,6 +22,9 @@ public record SpiritPowerData(float current, float max, int temperLevel, float r
     /** 台账每阶两条目（max 增量、强度增量）；阶级上限。 */
     public static final int MAX_TIER = 5;
 
+    /** 池上限硬顶（balance-player-monster-stats：5 阶约 10^7，留出余量）。 */
+    public static final float MAX_SPIRIT_CEILING = 100_000_000F;
+
     public static final Codec<SpiritPowerData> CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
                     Codec.FLOAT.fieldOf("current").forGetter(SpiritPowerData::current),
@@ -104,7 +107,7 @@ public record SpiritPowerData(float current, float max, int temperLevel, float r
             sumMax += ledger.get(i);
             sumPower += ledger.get(i + 1);
         }
-        float newMax = Math.min(Math.max(0F, sumMax), 1000000F);
+        float newMax = Math.min(Math.max(0F, sumMax), MAX_SPIRIT_CEILING);
         return new SpiritPowerData(Math.min(current, newMax), newMax, temperLevel, regenBuffer,
                 Math.max(0F, sumPower), List.copyOf(ledger), flightBuffer, flightInertia);
     }

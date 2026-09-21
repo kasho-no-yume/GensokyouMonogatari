@@ -134,7 +134,8 @@ public final class GraceService {
 
     /**
      * 旧档一次性迁移（PlayerEvent.Load）：
-     * 凡人（tier 0）池清零；旧线性淬炼调试档（tier>0 无台账）按新表逐阶重 roll 覆盖。
+     * 凡人（tier 0）池清零；缺台账（旧线性淬炼调试档）或**旧表量级**（balance v1 前的百分比/
+     * 小池表）按新表逐阶重 roll 覆盖——整组替换顺带清掉已退役的 danmaku_resist 贡献。
      */
     public static void migrateIfNeeded(ServerPlayer player) {
         SpiritPowerData data = ModAttachments.get(player);
@@ -145,8 +146,11 @@ public final class GraceService {
             }
             return;
         }
-        if (!data.graceLedger().isEmpty()) {
-            return; // 已按新表入账
+        boolean emptyLedger = data.graceLedger().isEmpty();
+        // 旧表 1 阶 max_spirit ≈ [170,230]；新表 ≈ [800,1200]：量级差足够安全地区分版本。
+        boolean legacyScale = data.hasLedgerTier(1) && data.ledgerMaxGain(1) < LEGACY_MAX_SPIRIT_T1_THRESHOLD;
+        if (!emptyLedger && !legacyScale) {
+            return; // 已是新表
         }
         SpiritPowerData next = data;
         for (int tier = 1; tier <= Math.min(SpiritPowerData.MAX_TIER, data.temperLevel()); tier++) {
@@ -156,4 +160,7 @@ public final class GraceService {
         }
         ModAttachments.set(player, next.withTemper(data.temperLevel()));
     }
+
+    /** 旧表 1 阶 max_spirit 上界（230）与新表下界（800）之间的判别阈值。 */
+    private static final float LEGACY_MAX_SPIRIT_T1_THRESHOLD = 500F;
 }
