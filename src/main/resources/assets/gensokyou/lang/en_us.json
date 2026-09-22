@@ -110,6 +110,7 @@
   "msg.gensokyou.debug_spirit_set": "[Debug] SP set to %s / %s",
   "msg.gensokyou.debug_temper_set": "[Debug] Cultivator tier set to %s (max %s)",
   "msg.gensokyou.debug_cd_cleared": "[Debug] Cooldowns cleared",
+  "msg.gensokyou.debug_world_tier": "[Debug] World progress tier = %s",
   "msg.gensokyou.barrier_already_open": "The barrier is already broken; the gap remains",
   "msg.gensokyou.barrier_opened": "Boom - the barrier of fantasy shatters! A gap opens above the core.",
   "msg.gensokyou.skill_not_learned": "Spell card not learned yet",
@@ -165,6 +166,7 @@
     "msg.gensokyou.builder_core_other_ritual": "This core already hosts a different ritual",
     "msg.gensokyou.builder_level_insufficient": "This core is already level %s; choose a higher level in the menu",
     "msg.gensokyou.builder_level_missing": "This ritual has no such level, please reselect",
+    "msg.gensokyou.builder_tier_locked": "World progress allows only up to tier %s; choose a lower tier",
     "gui.gensokyou.editor.title": "Ritual Editor",
     "gui.gensokyou.editor.patterns": "Rituals",
     "gui.gensokyou.editor.level": "Level",
@@ -466,6 +468,7 @@
   "gui.gensokyou.crystal_storage.page_up": "Page up",
   "gui.gensokyou.crystal_storage.page_down": "Page down",
   "gui.gensokyou.crystal_storage.tooltip_count": "Count: %s",
+  "gui.gensokyou.crystal_storage.locked": "Start the rite to access storage",
 
   "container.gensokyou.wujinzang_terminal": "Endless Treasury",
   "gui.gensokyou.ritual.wujinzang.buffer": "Spirit %s/%s (%s/s)",

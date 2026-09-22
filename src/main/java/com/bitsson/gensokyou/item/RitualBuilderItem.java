@@ -84,10 +84,14 @@ public class RitualBuilderItem extends Item {
     }
 
     private void openMenu(ServerPlayer player, InteractionHand hand) {
+        int maxTier = com.bitsson.gensokyou.event.GuideTierProgress.worldTier(player);
         player.openMenu(new SimpleMenuProvider(
                 (id, inventory, p) -> new RitualBuilderMenu(id, inventory, hand),
                 Component.translatable("gui.gensokyou.builder.title")),
-                buf -> buf.writeByte(hand.ordinal()));
+                buf -> {
+                    buf.writeByte(hand.ordinal());
+                    buf.writeVarInt(maxTier);
+                });
     }
 
     /**
@@ -107,6 +111,10 @@ public class RitualBuilderItem extends Item {
         if (patternOpt.isEmpty()) {
             player.displayClientMessage(
                     Component.translatable("msg.gensokyou.builder_pattern_gone"), true);
+            return InteractionResult.FAIL;
+        }
+        if (!tierAllowed(player, selection)) {
+            rejectTier(player);
             return InteractionResult.FAIL;
         }
         Optional<RitualMatch> matchOpt = RitualMatcher.matchAt(player.level(), corePos);
@@ -154,6 +162,10 @@ public class RitualBuilderItem extends Item {
         if (RitualPatternLoader.byId(selection.patternId()).isEmpty()) {
             player.displayClientMessage(
                     Component.translatable("msg.gensokyou.builder_pattern_gone"), true);
+            return InteractionResult.FAIL;
+        }
+        if (!tierAllowed(player, selection)) {
+            rejectTier(player);
             return InteractionResult.FAIL;
         }
         RitualBuilderPlacement.Result result =
@@ -219,6 +231,17 @@ public class RitualBuilderItem extends Item {
                     ? ChatFormatting.GRAY
                     : (enough ? ChatFormatting.GREEN : ChatFormatting.RED)));
         }
+    }
+
+    /** 所选品阶是否在玩家世界进度上限内（创造由 {@code worldTier} 归入满阶）。 */
+    private static boolean tierAllowed(ServerPlayer player, BuilderSelection selection) {
+        return selection.tier() <= com.bitsson.gensokyou.event.GuideTierProgress.worldTier(player);
+    }
+
+    private static void rejectTier(ServerPlayer player) {
+        player.displayClientMessage(Component.translatable(
+                "msg.gensokyou.builder_tier_locked",
+                com.bitsson.gensokyou.event.GuideTierProgress.worldTier(player)), true);
     }
 
     static Component patternName(RitualPattern pattern) {

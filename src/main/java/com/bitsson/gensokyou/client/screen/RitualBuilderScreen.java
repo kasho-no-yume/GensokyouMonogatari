@@ -73,7 +73,40 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
     }
 
     private List<RitualPattern> patterns() {
-        return RitualPatternLoader.all();
+        int maxTier = menu.maxTier();
+        return RitualPatternLoader.all().stream()
+                .filter(p -> p.tiers().stream().anyMatch(t -> t <= maxTier))
+                .toList();
+    }
+
+    /** 图案在当前进度上限内可选的品阶（保持图案声明顺序）。 */
+    private List<Integer> visibleTiers(RitualPattern pattern) {
+        int maxTier = menu.maxTier();
+        return pattern.tiers().stream().filter(t -> t <= maxTier).toList();
+    }
+
+    /**
+     * 渲染/命中用的有效选择：图案被进度隐藏（无可见品阶）→ 视为未选；
+     * 品阶高于进度上限或不在图案声明内 → 夹取到可见集最高项。
+     */
+    private BuilderSelection effectiveSelection() {
+        BuilderSelection sel = this.current;
+        if (sel == null) {
+            return null;
+        }
+        RitualPattern pattern = RitualPatternLoader.byId(sel.patternId()).orElse(null);
+        if (pattern == null) {
+            return null;
+        }
+        List<Integer> tiers = visibleTiers(pattern);
+        if (tiers.isEmpty()) {
+            return null;
+        }
+        if (tiers.contains(sel.tier())) {
+            return sel;
+        }
+        int highest = tiers.stream().mapToInt(Integer::intValue).max().orElse(tiers.get(0));
+        return new BuilderSelection(sel.patternId(), highest);
     }
 
     private BuilderSelection readComponent() {
@@ -97,7 +130,7 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
         graphics.drawString(this.font, this.title, 8, 6, COLOR_TEXT, false);
         this.hoveredMaterial = null;
-        BuilderSelection sel = this.current;
+        BuilderSelection sel = effectiveSelection();
         int currentTier = sel == null ? 0 : sel.tier();
         var currentId = sel == null ? null : sel.patternId();
 
@@ -139,7 +172,7 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
         if (selected.hasTieredSlots()) {
             graphics.drawString(this.font, Component.translatable("gui.gensokyou.builder.tier"),
                     RIGHT_X, TIER_Y - 11, COLOR_TEXT, false);
-            List<Integer> tiers = selected.tiers();
+            List<Integer> tiers = visibleTiers(selected);
             for (int idx = 0; idx < tiers.size(); idx++) {
                 int t = tiers.get(idx);
                 int x = RIGHT_X + idx * (TIER_SIZE + 2);
@@ -192,7 +225,7 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        BuilderSelection sel = this.current;
+        BuilderSelection sel = effectiveSelection();
         int currentTier = sel == null ? 0 : sel.tier();
         var currentId = sel == null ? null : sel.patternId();
 
@@ -203,18 +236,18 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
             if (mouseX >= leftPos + LIST_X - 2 && mouseX < leftPos + LIST_X + LIST_W
                     && mouseY >= topPos + y - 2 && mouseY < topPos + y + ROW_H - 2) {
                 RitualPattern pattern = list.get(i + scroll);
-                int tier = pattern.tiers().contains(currentTier)
-                        ? currentTier : pattern.tiers().get(0);
+                List<Integer> tiers = visibleTiers(pattern);
+                int tier = tiers.contains(currentTier) ? currentTier : tiers.get(0);
                 this.current = new BuilderSelection(pattern.id(), tier);
                 PacketDistributor.sendToServer(new RitualSelectPayload(pattern.id(), tier));
                 return true;
             }
         }
-        // 品阶按钮（按当前图案声明的 tiers 命中）
+        // 品阶按钮（按当前图案在进度上限内可选品阶命中）
         if (currentId != null) {
             RitualPattern selected = RitualPatternLoader.byId(currentId).orElse(null);
             if (selected != null && selected.hasTieredSlots()) {
-                List<Integer> tiers = selected.tiers();
+                List<Integer> tiers = visibleTiers(selected);
                 for (int idx = 0; idx < tiers.size(); idx++) {
                     int x = RIGHT_X + idx * (TIER_SIZE + 2);
                     if (mouseX >= leftPos + x && mouseX < leftPos + x + TIER_SIZE

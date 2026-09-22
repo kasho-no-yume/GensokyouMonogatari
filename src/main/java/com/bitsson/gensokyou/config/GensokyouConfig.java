@@ -111,7 +111,6 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue SACRIFICE_SP_COST_MULT;
     public static final ModConfigSpec.IntValue SACRIFICE_SPIRIT_IN_RATE;
     public static final ModConfigSpec.IntValue SACRIFICE_COOLDOWN_TICKS;
-    public static final ModConfigSpec.IntValue SACRIFICE_FALL_MAX_HEIGHT;
     public static final ModConfigSpec.IntValue SACRIFICE_SKULLS_REQUIRED;
     public static final ModConfigSpec.IntValue SACRIFICE_DRAGON_HEADS_REQUIRED;
     public static final ModConfigSpec.IntValue SACRIFICE_BASE_CAPACITY;
@@ -524,7 +523,6 @@ public class GensokyouConfig {
         SACRIFICE_SP_COST_MULT = BUILDER.comment("Tool-sacrifice rites: spirit-cost multiplier per level").defineInRange("sacrificeSpCostMult", 4, 1, 1000);
         SACRIFICE_SPIRIT_IN_RATE = BUILDER.comment("Tool-sacrifice rites: routed spirit intake rate (per second) so the resonance network can power them as sinks").defineInRange("sacrificeSpiritInRate", 100000, 0, Integer.MAX_VALUE);
         SACRIFICE_COOLDOWN_TICKS = BUILDER.comment("Tool-sacrifice rites: forced cooldown in ticks after each settlement (1200 = 60s)").defineInRange("sacrificeCooldownTicks", 1200, 0, 72000);
-        SACRIFICE_FALL_MAX_HEIGHT = BUILDER.comment("Tool-sacrifice rites: max height (blocks) above the core products fall from; clamped to the highest unobstructed cell").defineInRange("sacrificeFallMaxHeight", 20, 1, 200);
         SACRIFICE_SKULLS_REQUIRED = BUILDER.comment("Tool-sacrifice rites: wither skeleton skulls on pedestals required to unlock the nether pool (not consumed)").defineInRange("sacrificeSkullsRequired", 3, 0, 64);
         SACRIFICE_DRAGON_HEADS_REQUIRED = BUILDER.comment("Tool-sacrifice rites: dragon heads on pedestals required to unlock the end pool (not consumed)").defineInRange("sacrificeDragonHeadsRequired", 1, 0, 64);
         SACRIFICE_BASE_CAPACITY = BUILDER.comment("Tool-sacrifice rites: spirit buffer capacity at level 0 (level N multiplies by 4^N)").defineInRange("sacrificeBaseCapacity", 10000, 1, Integer.MAX_VALUE);

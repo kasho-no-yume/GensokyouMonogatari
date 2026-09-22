@@ -33,7 +33,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.item.ItemStack;
@@ -1705,19 +1704,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
     }
 
-    /** 被动产物掉落：以核心为圆心、水平半径 R 圆盘内均匀随机落点，产物从不经停台面。 */
+    /** 被动产物掉落：核心上 1 格、水平半径 R 圆盘内随机落点（统一落点工具），产物从不经停台面。 */
     private static void dropPassiveOutput(ServerLevel level, BlockPos pos, ItemStack result) {
-        double radius = GensokyouConfig.RITUAL_OUTPUT_DROP_RADIUS.get();
-        double angle = level.random.nextDouble() * Math.PI * 2D;
-        double r = radius * Math.sqrt(level.random.nextDouble());
-        ItemEntity drop = new ItemEntity(level,
-                pos.getX() + 0.5D + r * Math.cos(angle),
-                pos.getY() + 1.25D,
-                pos.getZ() + 0.5D + r * Math.sin(angle),
-                result.copy());
-        drop.setDeltaMovement(0D, 0D, 0D);
-        drop.setDefaultPickUpDelay();
-        level.addFreshEntity(drop);
+        com.bitsson.gensokyou.ritual.RitualOutputs.spawn(level, pos, result.copy());
     }
 
     @Override

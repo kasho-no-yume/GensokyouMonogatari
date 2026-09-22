@@ -92,6 +92,8 @@ public class WujinzangTerminalMenu extends AbstractContainerMenu implements Crys
     private boolean dirty = true;
     private long lastRecomputeRevision = -1L;
     private long sentRevision = -1L;
+    /** 上次推页时的启动态：停止/启动切换需强制重推（清空或恢复可见页）。 */
+    private boolean lastSentEnabled = false;
 
     public WujinzangTerminalMenu(int windowId, Inventory inventory, RegistryFriendlyByteBuf data) {
         this(windowId, inventory, data.readBlockPos());
@@ -178,6 +180,11 @@ public class WujinzangTerminalMenu extends AbstractContainerMenu implements Crys
         return core.activeMatch();
     }
 
+    /** 仓储是否开放：核心存在且已启动（停止态下全部经仓储的路径关闭）。 */
+    private boolean storageAvailable() {
+        return core != null && core.isEnabled();
+    }
+
     @Nullable
     private ServerLevel level() {
         return owner != null ? owner.serverLevel() : null;
@@ -209,7 +216,7 @@ public class WujinzangTerminalMenu extends AbstractContainerMenu implements Crys
     public void handleClick(ServerPlayer player, int action, ItemStack key) {
         ServerLevel level = level();
         RitualMatch match = match();
-        if (level == null || match == null) {
+        if (level == null || match == null || !storageAvailable()) {
             return;
         }
         ensureFresh(level, match);
@@ -339,7 +346,7 @@ public class WujinzangTerminalMenu extends AbstractContainerMenu implements Crys
             craftSlots.setItem(i, ItemStack.EMPTY);
             player.getInventory().add(current);
             if (!current.isEmpty()) {
-                if (level != null && match != null) {
+                if (level != null && match != null && storageAvailable()) {
                     int accepted = WujinzangStorage.insert(level, match, current,
                             core == null ? null : core.wujinzangVault());
                     if (accepted < current.getCount()) {
@@ -357,7 +364,7 @@ public class WujinzangTerminalMenu extends AbstractContainerMenu implements Crys
             }
             ItemStack unit = want.copyWithCount(1);
             ItemStack got = ItemStack.EMPTY;
-            if (level != null && match != null) {
+            if (level != null && match != null && storageAvailable()) {
                 got = WujinzangStorage.extract(level, match, unit, 1);
             }
             if (got.isEmpty()) {
@@ -444,6 +451,11 @@ public class WujinzangTerminalMenu extends AbstractContainerMenu implements Crys
     private CrystalStoragePagePayload snapshot() {
         ServerLevel level = level();
         RitualMatch match = match();
+        // 停止态：内容不外泄（服务端真相），可见页收敛为空
+        if (!storageAvailable()) {
+            return new CrystalStoragePagePayload(containerId, 0, 0,
+                    CrystalStoragePagePayload.MODE_TYPED, 0, -1L, sortMode, List.of());
+        }
         recompute();
         List<CrystalStoragePagePayload.View> views = new ArrayList<>();
         if (level != null && match != null) {
@@ -467,6 +479,7 @@ public class WujinzangTerminalMenu extends AbstractContainerMenu implements Crys
         }
         PacketDistributor.sendToPlayer(owner, snapshot());
         sentRevision = storageRevision();
+        lastSentEnabled = storageAvailable();
     }
 
     @Override
@@ -476,7 +489,7 @@ public class WujinzangTerminalMenu extends AbstractContainerMenu implements Crys
             return;
         }
         long rev = storageRevision();
-        if (sentRevision != rev) {
+        if (sentRevision != rev || lastSentEnabled != storageAvailable()) {
             recompute();
             sendPage();
         }
@@ -548,7 +561,7 @@ public class WujinzangTerminalMenu extends AbstractContainerMenu implements Crys
         } else if (index >= PLAYER_INV_START && index < PLAYER_INV_START + 36) {
             ServerLevel level = level();
             RitualMatch match = match();
-            if (level == null || match == null) {
+            if (level == null || match == null || !storageAvailable()) {
                 return ItemStack.EMPTY;
             }
             int accepted = WujinzangStorage.insert(level, match, stack,
@@ -647,7 +660,7 @@ public class WujinzangTerminalMenu extends AbstractContainerMenu implements Crys
             if (pattern[i].isEmpty() || !craftSlots.getItem(i).isEmpty()) {
                 continue;
             }
-            ItemStack got = match == null ? ItemStack.EMPTY
+            ItemStack got = match == null || !storageAvailable() ? ItemStack.EMPTY
                     : WujinzangStorage.extract(level, match, pattern[i], 1);
             if (got.isEmpty()) {
                 got = takeOneFromPlayer(player, pattern[i]);
@@ -671,7 +684,7 @@ public class WujinzangTerminalMenu extends AbstractContainerMenu implements Crys
                 continue;
             }
             craftSlots.setItem(i, ItemStack.EMPTY);
-            if (level != null && match != null) {
+            if (level != null && match != null && storageAvailable()) {
                 int accepted = WujinzangStorage.insert(level, match, stack,
                         core == null ? null : core.wujinzangVault());
                 if (accepted >= stack.getCount()) {

@@ -73,6 +73,12 @@ public final class DebugCommands {
                             feedback(player, "debug_cd_cleared");
                             return 1;
                         })))
+                .then(Commands.literal("progress").executes(context -> {
+                    ServerPlayer player = context.getSource().getPlayerOrException();
+                    feedback(player, "msg.gensokyou.debug_world_tier",
+                            com.bitsson.gensokyou.event.GuideTierProgress.worldTier(player));
+                    return 1;
+                }))
                 .then(Commands.literal("wujinzang")
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())

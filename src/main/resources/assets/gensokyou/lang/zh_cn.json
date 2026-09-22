@@ -79,6 +79,7 @@
   "msg.gensokyou.debug_spirit_set": "[调试] 灵力已改为 %s / %s",
   "msg.gensokyou.debug_temper_set": "[调试] 淬炼等级已设为 %s（上限 %s）",
   "msg.gensokyou.debug_cd_cleared": "[调试] 技能冷却已清零",
+  "msg.gensokyou.debug_world_tier": "[调试] 世界进度阶梯 = %s",
   "msg.gensokyou.barrier_already_open": "结界早已破碎，隙间常在",
   "msg.gensokyou.barrier_opened": "轰——幻想的结界碎裂了！隙间出现在核心上方。",
   "msg.gensokyou.skill_not_learned": "尚未习得该符卡",
@@ -134,6 +135,7 @@
   "msg.gensokyou.builder_core_other_ritual": "该核心已成型其他仪式",
   "msg.gensokyou.builder_level_insufficient": "该核心当前已是 %s 阶，请在菜单中选择更高阶级",
   "msg.gensokyou.builder_level_missing": "该仪式没有所选阶级，请重新选择",
+  "msg.gensokyou.builder_tier_locked": "受世界进度所限，最高仅可建造 %s 阶，请选择更低品阶",
   "gui.gensokyou.editor.title": "仪式编辑台",
   "gui.gensokyou.editor.patterns": "仪式列表",
   "gui.gensokyou.editor.level": "阶级",
@@ -468,6 +470,7 @@
   "gui.gensokyou.crystal_storage.page_up": "上一页",
   "gui.gensokyou.crystal_storage.page_down": "下一页",
   "gui.gensokyou.crystal_storage.tooltip_count": "数量：%s",
+  "gui.gensokyou.crystal_storage.locked": "启动仪式后可用仓储",
 
   "container.gensokyou.wujinzang_terminal": "无尽藏",
   "gui.gensokyou.ritual.wujinzang.buffer": "灵蕴 %s/%s（%s/s）",

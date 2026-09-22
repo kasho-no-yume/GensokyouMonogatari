@@ -213,7 +213,30 @@ public class WujinzangTerminalScreen extends AbstractContainerScreen<WujinzangTe
             drawCellFrame(graphics, leftPos + WujinzangTerminalMenu.PLAYER_INV_X + col * 18,
                     topPos + WujinzangTerminalMenu.HOTBAR_Y);
         }
-        renderGridIcons(graphics);
+        if (storageOpen()) {
+            renderGridIcons(graphics);
+        } else {
+            drawStorageLock(graphics);
+        }
+    }
+
+    /** 仓储是否开放：仪式信息为本人终端且处于启动态。 */
+    private boolean storageOpen() {
+        RitualInfoPayload info = ClientRitualState.latest();
+        return info != null && info.blockPos().equals(menu.pos()) && info.enabled();
+    }
+
+    /** 停止态：网格区叠灰罩并提示，内容不下发也不绘制。 */
+    private void drawStorageLock(GuiGraphics graphics) {
+        int x0 = leftPos + WujinzangTerminalMenu.GRID_X - 1;
+        int y0 = topPos + WujinzangTerminalMenu.GRID_Y - 1;
+        int w = WujinzangTerminalMenu.COLUMNS * 18 + 2;
+        int h = WujinzangTerminalMenu.ROWS * 18 + 2;
+        graphics.fill(x0, y0, x0 + w, y0 + h, 0xB0000000);
+        Component hint = Component.translatable("gui.gensokyou.crystal_storage.locked");
+        int tw = this.font.width(hint);
+        graphics.drawString(this.font, hint, x0 + (w - tw) / 2, y0 + h / 2 - 4,
+                0xFFE0E0E0, false);
     }
 
     private void drawCellFrame(GuiGraphics graphics, int x, int y) {
@@ -274,7 +297,7 @@ public class WujinzangTerminalScreen extends AbstractContainerScreen<WujinzangTe
 
     private void renderGridTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
         CrystalStoragePagePayload page = page();
-        if (page == null) {
+        if (page == null || !storageOpen()) {
             return;
         }
         var views = page.views();

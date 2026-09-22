@@ -15,13 +15,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TieredItem;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.CollisionContext;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -140,19 +137,21 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
                 tierTable, nether, end);
     }
 
-    /** 核心上方最高可穿过位置（上限内，首个遮挡方块之前）；返回落物基准 Y。 */
-    public static int dropHeight(ServerLevel level, BlockPos corePos) {
-        int maxHeight = GensokyouConfig.SACRIFICE_FALL_MAX_HEIGHT.get();
-        int top = corePos.getY();
-        for (int i = 1; i <= maxHeight; i++) {
-            BlockPos p = corePos.above(i);
-            BlockState state = level.getBlockState(p);
-            if (!state.getCollisionShape(level, p, CollisionContext.empty()).isEmpty()) {
-                break;
-            }
-            top = p.getY();
+    /** 聚合产物空投：核心上 1 格、水平半径 R 圆盘内随机（统一落点工具），同类按最大堆叠拆叠。 */
+    private static void dropAll(ServerLevel level, BlockPos corePos, Map<Item, Integer> agg) {
+        if (agg.isEmpty()) {
+            return;
         }
-        return top + 1;
+        for (Map.Entry<Item, Integer> entry : agg.entrySet()) {
+            int remaining = entry.getValue();
+            int max = Math.max(1, new ItemStack(entry.getKey()).getMaxStackSize());
+            while (remaining > 0) {
+                int n = Math.min(remaining, max);
+                com.bitsson.gensokyou.ritual.RitualOutputs.spawn(level, corePos,
+                        new ItemStack(entry.getKey(), n));
+                remaining -= n;
+            }
+        }
     }
 
     // ---- RitualBehavior ----
@@ -214,37 +213,6 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
             ItemStack held = pedestal.getHeld();
             int remaining = Math.max(0, held.getCount() - 1);
             pedestal.setHeld(remaining == 0 ? ItemStack.EMPTY : held.copyWithCount(remaining));
-        }
-    }
-
-    /** 聚合产物空投：XZ 复用被动掉落圆盘半径，同类按最大堆叠拆叠。 */
-    private static void dropAll(ServerLevel level, BlockPos corePos, Map<Item, Integer> agg) {
-        if (agg.isEmpty()) {
-            return;
-        }
-        double radius = GensokyouConfig.RITUAL_OUTPUT_DROP_RADIUS.get();
-        double spawnY = dropHeight(level, corePos) + 0.2D;
-        List<ItemStack> stacks = new ArrayList<>();
-        for (Map.Entry<Item, Integer> entry : agg.entrySet()) {
-            int remaining = entry.getValue();
-            int max = Math.max(1, new ItemStack(entry.getKey()).getMaxStackSize());
-            while (remaining > 0) {
-                int n = Math.min(remaining, max);
-                stacks.add(new ItemStack(entry.getKey(), n));
-                remaining -= n;
-            }
-        }
-        for (ItemStack stack : stacks) {
-            double angle = level.random.nextDouble() * Math.PI * 2D;
-            double r = radius * Math.sqrt(level.random.nextDouble());
-            ItemEntity drop = new ItemEntity(level,
-                    corePos.getX() + 0.5D + r * Math.cos(angle),
-                    spawnY,
-                    corePos.getZ() + 0.5D + r * Math.sin(angle),
-                    stack);
-            drop.setDeltaMovement(0D, 0D, 0D);
-            drop.setDefaultPickUpDelay();
-            level.addFreshEntity(drop);
         }
     }
 

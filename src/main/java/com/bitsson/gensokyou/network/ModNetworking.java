@@ -225,6 +225,12 @@ public final class ModNetworking {
                         Component.translatable("msg.gensokyou.builder_pattern_gone"), true);
                 return;
             }
+            if (payload.tier() > com.bitsson.gensokyou.event.GuideTierProgress.worldTier(player)) {
+                player.displayClientMessage(Component.translatable(
+                        "msg.gensokyou.builder_tier_locked",
+                        com.bitsson.gensokyou.event.GuideTierProgress.worldTier(player)), true);
+                return;
+            }
             for (InteractionHand hand : InteractionHand.values()) {
                 ItemStack stack = player.getItemInHand(hand);
                 if (stack.getItem() instanceof RitualBuilderItem) {

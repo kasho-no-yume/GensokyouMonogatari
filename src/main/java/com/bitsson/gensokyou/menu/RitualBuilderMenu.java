@@ -17,9 +17,12 @@ public class RitualBuilderMenu extends AbstractContainerMenu {
 
     private final Player player;
     private final InteractionHand hand;
+    /** 玩家世界进度上限（客户端经开屏握手数据获得；服务端直构默认 5，不参与渲染）。 */
+    private int maxTier = 5;
 
     public RitualBuilderMenu(int windowId, Inventory inventory, RegistryFriendlyByteBuf buf) {
         this(windowId, inventory, InteractionHand.values()[buf.readByte()]);
+        this.maxTier = buf.readVarInt();
     }
 
     public RitualBuilderMenu(int windowId, Inventory inventory, InteractionHand hand) {
@@ -30,6 +33,11 @@ public class RitualBuilderMenu extends AbstractContainerMenu {
 
     public InteractionHand hand() {
         return this.hand;
+    }
+
+    /** 玩家世界进度阶梯上限（供客户端菜单过滤显示）。 */
+    public int maxTier() {
+        return this.maxTier;
     }
 
     @Override

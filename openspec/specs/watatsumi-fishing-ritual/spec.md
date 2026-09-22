@@ -119,15 +119,23 @@ TBD - created by archiving change add-watatsumi-fishing-ritual. Update Purpose a
 - **THEN** 核心缓存容量为基值 ×16
 
 ### Requirement: 产物空投落点
-产出 SHALL 以物品实体形式空投：水平落点 SHALL 复用仪式既有产物随机甩落半径；高度 SHALL 取核心上方、上限内、**首个遮挡方块之前的最高可穿过位置**。主产出与额外奖励 SHALL 采用同一空投规则。产物 MUST NOT 设置拾取前无敌或防护（可被环境销毁）。
+产出 SHALL 以物品实体形式空投在**核心上方第 1 格、水平半径 3（`RITUAL_OUTPUT_DROP_RADIUS`）的圆盘区域**内：水平落点在该圆盘内均匀随机，高度固定为核心 Y + 1（与被动配方产物及献祭族同口径）。当随机落点所在列在核心上 1 格处被实心方块占用时，SHALL 在圆盘内重掷（至多 8 次）；仍失败时 SHALL 回退核心正上方。落点 MUST 始终位于该"核心上 1 格、半径 3"区域内，MUST NOT 依赖结构上方空间的遮挡高度抬升。主产出与额外奖励 SHALL 采用同一空投规则。产物 MUST NOT 设置拾取前无敌或防护（可被环境销毁）。
 
-#### Scenario: 无遮挡取上限
-- **WHEN** 核心上方到上限（默认 20 格）均无遮挡
-- **THEN** 产物在上限高度生成并自由下落
+#### Scenario: 固定核心上一格
+- **WHEN** 一次结算产出
+- **THEN** 产物在核心上 1 格高度、半径 3 圆盘内生成，不因上方空间高度而抬升
 
-#### Scenario: 有遮挡取遮挡前
-- **WHEN** 核心上方第 5 格存在遮挡方块
-- **THEN** 产物在第 4 格生成并自由下落
+#### Scenario: 落点被结构方块占用
+- **WHEN** 随机落点列在核心上 1 格处是实心结构方块
+- **THEN** 重掷到圆盘内未被占用的落点；若圆盘内全部被占则回退核心正上方
+
+#### Scenario: 主产出与额外奖励同规则
+- **WHEN** 一次结算同时产出主产出与额外奖励
+- **THEN** 两者都在同一"核心上 1 格、半径 3"规则下空投
+
+#### Scenario: 可被环境销毁
+- **WHEN** 产物落地后进入岩浆/爆炸等
+- **THEN** 产物照常被销毁，无拾取前无敌或防护
 
 ### Requirement: 产出光柱特效
 行为 SHALL **仅在结算产出那一刻**触发一次巨大光柱特效，运行/充能期间 MUST NOT 触发。光柱 SHALL 经客户端渲染（BER）实现、服务端 MUST NOT 逐 tick 广播粒子包，SHALL 使用专属水蓝色（新增色索引 4），并在短暂持续后消失。
@@ -163,7 +171,7 @@ TBD - created by archiving change add-watatsumi-fishing-ritual. Update Purpose a
 - **THEN** 该文件被拒载并记录原因，仪式其余部分照常可用
 
 ### Requirement: 专属配置旋钮
-行为 SHALL 暴露专属配置项（COMMON）：总量基值（默认 5）、每阶数量倍率（默认 4）、基础冷却 tick（默认 1200）、额外奖励冷却 tick（默认 12000）、额外奖励概率（默认 0.001）。灵力消耗、缓存容量、受灵速率、空投高度上限与光柱参数 SHALL 复用既有 `SACRIFICE_*` / `FX_PILLAR_*` 共用项。
+行为 SHALL 暴露专属配置项（COMMON）：总量基值（默认 5）、每阶数量倍率（默认 4）、基础冷却 tick（默认 1200）、额外奖励冷却 tick（默认 12000）、额外奖励概率（默认 0.001）。灵力消耗、缓存容量、受灵速率与光柱参数 SHALL 复用既有 `SACRIFICE_*` / `FX_PILLAR_*` 共用项；产物落盘半径 SHALL 复用 `RITUAL_OUTPUT_DROP_RADIUS`（默认 3）。
 
 #### Scenario: 数量可调
 - **WHEN** 将总量基值改为 10 后重载配置
@@ -172,6 +180,10 @@ TBD - created by archiving change add-watatsumi-fishing-ritual. Update Purpose a
 #### Scenario: 概率可调
 - **WHEN** 将额外奖励概率改为 0
 - **THEN** 2 阶永不触发埋藏宝藏额外奖励，冷却恒为 1200 tick
+
+#### Scenario: 落盘半径复用
+- **WHEN** 玩家调整 `RITUAL_OUTPUT_DROP_RADIUS`
+- **THEN** 绵津见产物落盘圆盘半径随之变化
 
 ### Requirement: 调试探针
 行为 SHALL 提供世界无关的纯内核（掷数拆分、等级解锁判定、类别权重选择）与调试命令入口，供 `/gs_debug` 打印当前等级、钓鱼竿计数、两池组装结果（含近似概率）与试掷结果，便于回归断言。

@@ -20,7 +20,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
@@ -40,7 +39,7 @@ import java.util.Map;
  *
  * <p><b>刻意不继承 {@link ToolSacrificeBehavior}</b>：钓鱼竿非 {@code TieredItem}（无材质轴）、产物来自
  * 原版掉落表、解锁维度是仪式等级而非头颅条件池、且产出为「钓鱼池 + 海洋特产池」两个独立池。仅调用其
- * 无状态工具（{@link ToolSacrificeBehavior#dropHeight}、{@link ToolSacrificeBehavior#spiritCost}、
+ * 无状态工具（{@link ToolSacrificeBehavior#spiritCost}、
  * {@link ToolSacrificeBehavior.PedestalTool}）。
  *
  * <p>结算：随机消耗 1 根 {@code gensokyou:fishing_rods} → 扣 {@code 4000×4^L} 灵力 →
@@ -197,27 +196,10 @@ public class WatatsumiBehavior implements RitualBehavior {
                 .getLootTable(BuiltInLootTables.BURIED_TREASURE).getRandomItems(params, level.random));
     }
 
-    /** 聚合产物空投：XZ 复用被动掉落圆盘半径，Y 复用献祭家族的最高可穿过落点。 */
+    /** 聚合产物空投：核心上 1 格、水平半径 3 圆盘内随机（统一落点工具）。 */
     public static void dropStacks(ServerLevel level, BlockPos corePos, List<ItemStack> stacks) {
-        if (stacks.isEmpty()) {
-            return;
-        }
-        double radius = GensokyouConfig.RITUAL_OUTPUT_DROP_RADIUS.get();
-        double spawnY = ToolSacrificeBehavior.dropHeight(level, corePos) + 0.2D;
         for (ItemStack stack : stacks) {
-            if (stack.isEmpty()) {
-                continue;
-            }
-            double angle = level.random.nextDouble() * Math.PI * 2D;
-            double r = radius * Math.sqrt(level.random.nextDouble());
-            ItemEntity drop = new ItemEntity(level,
-                    corePos.getX() + 0.5D + r * Math.cos(angle),
-                    spawnY,
-                    corePos.getZ() + 0.5D + r * Math.sin(angle),
-                    stack);
-            drop.setDeltaMovement(0D, 0D, 0D);
-            drop.setDefaultPickUpDelay();
-            level.addFreshEntity(drop);
+            com.bitsson.gensokyou.ritual.RitualOutputs.spawn(level, corePos, stack);
         }
     }
 

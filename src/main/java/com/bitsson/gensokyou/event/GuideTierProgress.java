@@ -51,4 +51,41 @@ public final class GuideTierProgress {
             }
         }
     }
+
+    /**
+     * 玩家世界进度阶梯（0-5，服务端权威）：进下界=1、进末地=2、进幻想乡=3，
+     * 4/5 由过渡门槛 {@code guide/tier_4} / {@code guide/tier_5}（按 temperLevel 授予）承接。
+     * 创造模式视为满阶；advancement 缺失（数据包被删）跳过；无命中返回 0。
+     */
+    public static int worldTier(ServerPlayer player) {
+        if (player.hasInfiniteMaterials()) {
+            return MAX_TIER;
+        }
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            return 0;
+        }
+        int tier = 0;
+        if (isDone(player, server, "guide/nether_unlock")) {
+            tier = Math.max(tier, 1);
+        }
+        if (isDone(player, server, "guide/end_unlock")) {
+            tier = Math.max(tier, 2);
+        }
+        if (isDone(player, server, "guide/gensokyo_unlock")) {
+            tier = Math.max(tier, 3);
+        }
+        for (int k = MIN_INTERIM_TIER; k <= MAX_TIER; k++) {
+            if (isDone(player, server, "guide/tier_" + k)) {
+                tier = Math.max(tier, k);
+            }
+        }
+        return tier;
+    }
+
+    private static boolean isDone(ServerPlayer player, MinecraftServer server, String path) {
+        AdvancementHolder holder = server.getAdvancements().get(
+                ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, path));
+        return holder != null && player.getAdvancements().getOrStartProgress(holder).isDone();
+    }
 }
