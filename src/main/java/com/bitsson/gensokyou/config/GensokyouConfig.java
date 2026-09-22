@@ -66,6 +66,8 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue MUSOU_PULSE_FACTOR;
     public static final ModConfigSpec.DoubleValue PROTECT_REDUCTION_NUMERATOR;
     public static final ModConfigSpec.DoubleValue PROTECT_REDUCTION_DENOMINATOR;
+    /** 灵符追踪丢失角度阈值（度）：速度方向与指向目标方向夹角超过此值即永久停止追踪。 */
+    public static final ModConfigSpec.DoubleValue TALISMAN_TARGET_LOSS_ANGLE_DEG;
 
     public static final ModConfigSpec.DoubleValue BASE_REGEN_PER_SECOND;
     public static final ModConfigSpec.IntValue RESONANCE_BASE_IN_QUOTA;
@@ -195,10 +197,8 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue ATTR_MOVE_SPEED_CAP;
     public static final ModConfigSpec.DoubleValue ATTR_BASE_GRAZE_CHANCE;
     public static final ModConfigSpec.DoubleValue ATTR_GRAZE_CHANCE_CAP;
+    /** 弹幕护壁指数基准（无量纲；受伤 ×2^(−护壁)）。 */
     public static final ModConfigSpec.DoubleValue ATTR_BASE_DANMAKU_REDUCE;
-    public static final ModConfigSpec.DoubleValue ATTR_DANMAKU_REDUCE_CAP;
-    public static final ModConfigSpec.DoubleValue ATTR_BASE_DANMAKU_RESIST;
-    public static final ModConfigSpec.DoubleValue ATTR_DANMAKU_RESIST_CAP;
     public static final ModConfigSpec.DoubleValue ATTR_BASE_TENACITY;
     public static final ModConfigSpec.DoubleValue ATTR_TENACITY_CAP;
     public static final ModConfigSpec.DoubleValue ATTR_BASE_CRIT_CHANCE;
@@ -211,16 +211,55 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue ATTR_SPELL_CDR_CAP;
     public static final ModConfigSpec.DoubleValue ATTR_BASE_BUFF_EXTEND;
     public static final ModConfigSpec.DoubleValue ATTR_BUFF_EXTEND_CAP;
-    public static final ModConfigSpec.DoubleValue DANMAKU_REDUCTION_GLOBAL_CAP;
     public static final ModConfigSpec.DoubleValue SPIRIT_LEECH_RATE;
     public static final ModConfigSpec.DoubleValue SPIRIT_LEECH_RATE_CAP;
     public static final ModConfigSpec.DoubleValue SPIRIT_LEECH_MAX_PER_SECOND;
+
+    // ---- monster-stat-budget：同阶怪物数值预算（HP/弹伤区间 + 跨阶缩放）----
+    public static final ModConfigSpec.DoubleValue MONSTER_TRASH_HP_MIN;
+    public static final ModConfigSpec.DoubleValue MONSTER_TRASH_HP_MAX;
+    public static final ModConfigSpec.DoubleValue MONSTER_ELITE_HP_MIN;
+    public static final ModConfigSpec.DoubleValue MONSTER_ELITE_HP_MAX;
+    public static final ModConfigSpec.DoubleValue MONSTER_BOSS_HP_MIN;
+    public static final ModConfigSpec.DoubleValue MONSTER_BOSS_HP_MAX;
+    public static final ModConfigSpec.IntValue MONSTER_TRASH_HITS_MIN;
+    public static final ModConfigSpec.IntValue MONSTER_TRASH_HITS_MAX;
+    public static final ModConfigSpec.IntValue MONSTER_ELITE_HITS_MIN;
+    public static final ModConfigSpec.IntValue MONSTER_ELITE_HITS_MAX;
+    public static final ModConfigSpec.IntValue MONSTER_BOSS_HITS_MIN;
+    public static final ModConfigSpec.IntValue MONSTER_BOSS_HITS_MAX;
+    public static final ModConfigSpec.DoubleValue MONSTER_TIER_SCALE;
+    public static final ModConfigSpec.DoubleValue MONSTER_SPAWN_ROLL;
+    public static final ModConfigSpec.DoubleValue MONSTER_REF_SHOTS_PER_SECOND;
+
+    // ---- add-balance-test-harness：数值测试台（/gs_test）----
+    public static final ModConfigSpec.DoubleValue TEST_BOSS_MIN_SECONDS;
+    public static final ModConfigSpec.DoubleValue TEST_BOSS_MAX_SECONDS;
+    public static final ModConfigSpec.IntValue TEST_BOSS_MIN_HITS;
+    public static final ModConfigSpec.IntValue TEST_BOSS_MAX_HITS;
+    public static final ModConfigSpec.IntValue TEST_PATTERN_INTERVAL_TICKS;
+    public static final ModConfigSpec.DoubleValue TEST_PHASE2_HP;
+    public static final ModConfigSpec.DoubleValue TEST_PHASE3_HP;
+    public static final ModConfigSpec.DoubleValue TEST_PHASE2_INTERVAL_MULT;
+    public static final ModConfigSpec.DoubleValue TEST_PHASE3_INTERVAL_MULT;
+    public static final ModConfigSpec.DoubleValue TEST_PHASE2_SPEED_MULT;
+    public static final ModConfigSpec.DoubleValue TEST_PHASE3_SPEED_MULT;
+    public static final ModConfigSpec.DoubleValue TEST_BULLET_SPEED;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> TEST_PATTERN_DAMAGE_FACTOR;
+
+    // ---- add-cultivation-gifts：修灵馈赠（跳跃/物抗/近战）----
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_JUMP;
+    public static final ModConfigSpec.DoubleValue ATTR_JUMP_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_PHYS_RESIST;
+    public static final ModConfigSpec.DoubleValue ATTR_PHYS_RESIST_CAP;
+    public static final ModConfigSpec.DoubleValue ATTR_BASE_MELEE_DAMAGE;
+    public static final ModConfigSpec.DoubleValue ATTR_MELEE_DAMAGE_CAP;
 
 
     public static final ModConfigSpec.ConfigValue<List<? extends Double>> WEAPON_LEVEL_MULT;
     public static final ModConfigSpec.DoubleValue WEAPON_TALISMAN_PICK_RANGE;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> RUNE_AFFIX_POOL;
-    public static final ModConfigSpec.IntValue RUNE_AFFIX_COUNT;
+    public static final ModConfigSpec.ConfigValue<List<? extends Integer>> RUNE_AFFIX_COUNT;
     public static final ModConfigSpec.DoubleValue CORE_SPHERE_MULT;
     public static final ModConfigSpec.IntValue CORE_SPHERE_SP_COST;
     public static final ModConfigSpec.IntValue CORE_SPHERE_RATE;
@@ -301,6 +340,53 @@ public class GensokyouConfig {
     public static final ModConfigSpec.LongValue SAIR_ENERGY_BASE_CAPACITY;
 
     public static final ModConfigSpec SPEC;
+
+    /**
+     * grace 阶级表的代码内默认值（与 config key `graceTierTable` 同布局）。
+     * NeoForge 不会把新增条目合并进已存在的列表值，故读取时对 config 中缺失的 (tier,key)
+     * 回退到本表——避免"改了默认表但旧配置文件仍生效导致新键恒 0"。
+     */
+    private static final List<String> GRACE_DEFAULT_ROWS = List.of(
+            "1,max_spirit,1000,0.2", "1,spirit_power,6,0.2", "1,spirit_regen_rate,1.2,0.7",
+            "1,danmaku_reduce,1.0,0.2",
+            "1,health_bonus,10,0.35", "1,move_speed_bonus,0.05,0.35", "1,graze_chance,0.05,0.35",
+            "1,tenacity,0.05,0.35", "1,crit_chance,0.06,0.35",
+            "1,crit_damage,0.10,0.35", "1,spell_amp,0.15,0.35", "1,spell_cdr,0.06,0.35",
+            "1,buff_extend,0.07,0.35", "1,spirit_leech_rate,0.03,0.35",
+            "1,jump,0.4,0.5", "1,phys_resist,0.04,0.35", "1,melee_damage,5,0.25",
+            "2,max_spirit,9000,0.2", "2,spirit_power,54,0.2", "2,spirit_regen_rate,10.8,0.7",
+            "2,danmaku_reduce,1.9,0.2",
+            "2,health_bonus,20,0.35", "2,move_speed_bonus,0.08,0.35", "2,graze_chance,0.05,0.35",
+            "2,tenacity,0.10,0.35", "2,crit_chance,0.05,0.35",
+            "2,crit_damage,0.20,0.35", "2,spell_amp,0.25,0.35", "2,spell_cdr,0.05,0.35",
+            "2,buff_extend,0.13,0.35", "2,spirit_leech_rate,0.04,0.35",
+            "2,jump,0.4,0.5", "2,phys_resist,0.08,0.35", "2,melee_damage,7,0.25",
+            "3,max_spirit,90000,0.2", "3,spirit_power,480,0.2", "3,spirit_regen_rate,108,0.7",
+            "3,danmaku_reduce,1.9,0.2",
+            "3,health_bonus,60,0.35", "3,move_speed_bonus,0.12,0.35", "3,graze_chance,0.07,0.35",
+            "3,tenacity,0.15,0.35", "3,crit_chance,0.07,0.35",
+            "3,crit_damage,0.30,0.35", "3,spell_amp,0.50,0.35", "3,spell_cdr,0.07,0.35",
+            "3,buff_extend,0.20,0.35", "3,spirit_leech_rate,0.06,0.35",
+            "3,jump,0.4,0.5", "3,phys_resist,0.12,0.35", "3,melee_damage,13,0.25",
+            "4,max_spirit,900000,0.2", "4,spirit_power,4100,0.2", "4,spirit_regen_rate,1080,0.7",
+            "4,danmaku_reduce,1.9,0.2",
+            "4,health_bonus,180,0.35", "4,move_speed_bonus,0.15,0.35", "4,graze_chance,0.08,0.35",
+            "4,tenacity,0.20,0.35", "4,crit_chance,0.08,0.35",
+            "4,crit_damage,0.40,0.35", "4,spell_amp,0.80,0.35", "4,spell_cdr,0.08,0.35",
+            "4,buff_extend,0.25,0.35", "4,spirit_leech_rate,0.07,0.35",
+            "4,jump,0.4,0.5", "4,phys_resist,0.16,0.35", "4,melee_damage,25,0.25",
+            "5,max_spirit,9000000,0.2", "5,spirit_power,34500,0.2", "5,spirit_regen_rate,10800,0.7",
+            "5,danmaku_reduce,1.9,0.2",
+            "5,health_bonus,540,0.35", "5,move_speed_bonus,0.15,0.35", "5,graze_chance,0.08,0.35",
+            "5,tenacity,0.20,0.35", "5,crit_chance,0.09,0.35",
+            "5,crit_damage,0.50,0.35", "5,spell_amp,1.00,0.35", "5,spell_cdr,0.09,0.35",
+            "5,buff_extend,0.25,0.35", "5,spirit_leech_rate,0.05,0.35",
+            "5,jump,0.4,0.5", "5,phys_resist,0.23,0.35", "5,melee_damage,30,0.25");
+
+    /** grace 默认表（供 {@code GraceNumbers} 对配置缺项回退；不读 config，纯常量）。 */
+    public static List<String> graceDefaultRows() {
+        return GRACE_DEFAULT_ROWS;
+    }
 
     static {
         BUILDER.push("npc").comment("Touhou NPC base class (touhou-npc capability)");
@@ -389,10 +475,11 @@ public class GensokyouConfig {
         MUSOU_PULSE_FACTOR = BUILDER.comment("Pulse damage = min(maxHealth/2, cap) * factor; factor 1.0 = full hit every pulse").defineInRange("musouFuuinPulseFactor", 0.25D, 0D, 1D);
         PROTECT_REDUCTION_NUMERATOR = BUILDER.comment("Damage taken multiplier = (numerator - level) / denominator").defineInRange("protectNumerator", 9D, 0D, 100D);
         PROTECT_REDUCTION_DENOMINATOR = BUILDER.defineInRange("protectDenominator", 10D, 1D, 100D);
+        TALISMAN_TARGET_LOSS_ANGLE_DEG = BUILDER.comment("Talisman danmaku: if the angle between its velocity and the direction to its target exceeds this many degrees, it permanently loses the target and flies straight (default 120)").defineInRange("talismanTargetLossAngleDeg", 120D, 90D, 180D);
         BUILDER.pop();
 
         BUILDER.push("power").comment("Spirit power pool & infrastructure");
-        BASE_REGEN_PER_SECOND = BUILDER.defineInRange("baseRegenPerSecond", 2D, 0D, 1000D);
+        BASE_REGEN_PER_SECOND = BUILDER.comment("Player self spirit regen base (balance-player-monster-stats: 0; regen comes from the grace tier table as a flat per-tier value)").defineInRange("baseRegenPerSecond", 0D, 0D, 1000D);
         RESONANCE_BASE_IN_QUOTA = BUILDER.comment("resonance relay: base input-link quota at tier 2, doubled per level").defineInRange("resonanceBaseInQuota", 2, 1, 1024);
         RESONANCE_BASE_OUT_QUOTA = BUILDER.comment("resonance relay: base output-link quota at tier 2, doubled per level").defineInRange("resonanceBaseOutQuota", 4, 1, 1024);
         RESONANCE_BASE_RADIUS = BUILDER.comment("resonance relay: base XZ radius at tier 2, doubled per level (Y unlimited, same dimension)").defineInRange("resonanceBaseRadius", 10, 1, 1024);
@@ -503,41 +590,15 @@ public class GensokyouConfig {
 
         BUILDER.push("grace").comment("superhuman-temper: yaoorozu no megumi advancement/refinement/flight");
         GRACE_TIER_TABLE = BUILDER.comment("Per-tier attribute increments rolled on advancement, entries 'tier,key,base,roll'"
-                        + " (roll fraction: final = base*(1±roll); core four keys 0.15, others 0.3)."
+                        + " (roll fraction: final = base*(1±roll)). balance-player-monster-stats v1:"
+                        + " core three (max_spirit/spirit_power/danmaku_reduce) roll 0.2, spirit_regen_rate 0.7"
+                        + " spirit_power grows ~x9/tier: it carries the per-tier x10 DPS (weapons only add a"
+                        + " x2 band-boundary spike; see docs/weapon-design-guidelines.md)."
+                        + " (its increment is 0.12% of that tier's pool, keeping the cumulative at 0.03%~0.3%/s), the rest 0.35."
+                        + " danmaku_reduce is now the dimensionless ward exponent P (damage taken x2^-P);"
+                        + " the retired danmaku_resist key is intentionally absent."
                         + " max_spirit/spirit_power write the pool ledger; the rest go to permanent contributions grace_tier_N")
-                .defineListAllowEmpty("graceTierTable",
-                        List.of(
-                                "1,max_spirit,200,0.15", "1,spirit_power,8,0.15", "1,spirit_regen_rate,2,0.15",
-                                "1,danmaku_reduce,0.10,0.15",
-                                "1,health_bonus,6,0.3", "1,move_speed_bonus,0.04,0.3", "1,graze_chance,0.05,0.3",
-                                "1,danmaku_resist,2,0.3", "1,tenacity,0.05,0.3", "1,crit_chance,0.04,0.3",
-                                "1,crit_damage,0.15,0.3", "1,spell_amp,0.05,0.3", "1,spell_cdr,0.04,0.3",
-                                "1,buff_extend,0.05,0.3", "1,spirit_leech_rate,0.02,0.3",
-                                "2,max_spirit,400,0.15", "2,spirit_power,16,0.15", "2,spirit_regen_rate,8,0.15",
-                                "2,danmaku_reduce,0.12,0.15",
-                                "2,health_bonus,12,0.3", "2,move_speed_bonus,0.06,0.3", "2,graze_chance,0.06,0.3",
-                                "2,danmaku_resist,4,0.3", "2,tenacity,0.08,0.3", "2,crit_chance,0.06,0.3",
-                                "2,crit_damage,0.25,0.3", "2,spell_amp,0.10,0.3", "2,spell_cdr,0.08,0.3",
-                                "2,buff_extend,0.10,0.3", "2,spirit_leech_rate,0.04,0.3",
-                                "3,max_spirit,1000,0.15", "3,spirit_power,40,0.15", "3,spirit_regen_rate,20,0.15",
-                                "3,danmaku_reduce,0.16,0.15",
-                                "3,health_bonus,20,0.3", "3,move_speed_bonus,0.08,0.3", "3,graze_chance,0.08,0.3",
-                                "3,danmaku_resist,8,0.3", "3,tenacity,0.12,0.3", "3,crit_chance,0.09,0.3",
-                                "3,crit_damage,0.40,0.3", "3,spell_amp,0.20,0.3", "3,spell_cdr,0.12,0.3",
-                                "3,buff_extend,0.15,0.3", "3,spirit_leech_rate,0.08,0.3",
-                                "4,max_spirit,2400,0.15", "4,spirit_power,96,0.15", "4,spirit_regen_rate,48,0.15",
-                                "4,danmaku_reduce,0.17,0.15",
-                                "4,health_bonus,30,0.3", "4,move_speed_bonus,0.10,0.3", "4,graze_chance,0.10,0.3",
-                                "4,danmaku_resist,14,0.3", "4,tenacity,0.17,0.3", "4,crit_chance,0.12,0.3",
-                                "4,crit_damage,0.60,0.3", "4,spell_amp,0.35,0.3", "4,spell_cdr,0.16,0.3",
-                                "4,buff_extend,0.20,0.3", "4,spirit_leech_rate,0.15,0.3",
-                                "5,max_spirit,6000,0.15", "5,spirit_power,240,0.15", "5,spirit_regen_rate,120,0.15",
-                                "5,danmaku_reduce,0.17,0.15",
-                                "5,health_bonus,45,0.3", "5,move_speed_bonus,0.15,0.3", "5,graze_chance,0.13,0.3",
-                                "5,danmaku_resist,22,0.3", "5,tenacity,0.23,0.3", "5,crit_chance,0.17,0.3",
-                                "5,crit_damage,0.90,0.3", "5,spell_amp,0.60,0.3", "5,spell_cdr,0.20,0.3",
-                                "5,buff_extend,0.30,0.3", "5,spirit_leech_rate,0.25,0.3"),
-                        o -> o instanceof String);
+                .defineListAllowEmpty("graceTierTable", GRACE_DEFAULT_ROWS, o -> o instanceof String);
         GRACE_FLIGHT_COST_PCT = BUILDER.comment("Flight spirit drain per second, percent of max spirit, index = tier-1"
                         + " (5/2/1/0.5/0). Tier 5 flies for free.")
                 .defineListAllowEmpty("graceFlightCostPct",
@@ -559,16 +620,14 @@ public class GensokyouConfig {
         ATTR_MOVE_SPEED_CAP = BUILDER.defineInRange("moveSpeedBonusCap", 1D, 0D, 5D);
         ATTR_BASE_GRAZE_CHANCE = BUILDER.comment("Dodge chance vs danmaku, probability").defineInRange("baseGrazeChance", 0D, 0D, 1D);
         ATTR_GRAZE_CHANCE_CAP = BUILDER.defineInRange("grazeChanceCap", 0.5D, 0D, 1D);
-        ATTR_BASE_DANMAKU_REDUCE = BUILDER.comment("Percent danmaku damage reduction (before flat resist)").defineInRange("baseDanmakuReduce", 0D, 0D, 1D);
-        ATTR_DANMAKU_REDUCE_CAP = BUILDER.defineInRange("danmakuReduceCap", 0.9D, 0D, 1D);
-        ATTR_BASE_DANMAKU_RESIST = BUILDER.comment("Flat danmaku damage reduction applied after percent; may zero out damage").defineInRange("baseDanmakuResist", 0D, 0D, 256D);
-        ATTR_DANMAKU_RESIST_CAP = BUILDER.defineInRange("danmakuResistCap", 100D, 0D, 1024D);
+        ATTR_BASE_DANMAKU_REDUCE = BUILDER.comment("Base danmaku ward exponent P (dimensionless; damage taken x2^(-P); higher tier rolls add to it)")
+                .defineInRange("baseDanmakuReduce", 0D, 0D, 100D);
         ATTR_BASE_TENACITY = BUILDER.comment("Harmful effect duration reduction fraction").defineInRange("baseTenacity", 0D, 0D, 1D);
         ATTR_TENACITY_CAP = BUILDER.defineInRange("tenacityCap", 0.75D, 0D, 1D);
         ATTR_BASE_CRIT_CHANCE = BUILDER.comment("Player danmaku crit chance, rolled at fire time").defineInRange("baseCritChance", 0.05D, 0D, 1D);
-        ATTR_CRIT_CHANCE_CAP = BUILDER.defineInRange("critChanceCap", 1D, 0D, 1D);
+        ATTR_CRIT_CHANCE_CAP = BUILDER.defineInRange("critChanceCap", 0.5D, 0D, 1D);
         ATTR_BASE_CRIT_DAMAGE = BUILDER.comment("Extra damage fraction on crit, 0.5 = x1.5").defineInRange("baseCritDamage", 0.5D, 0D, 10D);
-        ATTR_CRIT_DAMAGE_CAP = BUILDER.defineInRange("critDamageCap", 5D, 0D, 10D);
+        ATTR_CRIT_DAMAGE_CAP = BUILDER.defineInRange("critDamageCap", 2D, 0D, 10D);
         ATTR_BASE_SPELL_AMP = BUILDER.comment("Spell card damage amplification (reserved zone; no current consumer)")
                 .defineInRange("baseSpellAmp", 0D, 0D, 10D);
         ATTR_SPELL_AMP_CAP = BUILDER.defineInRange("spellAmpCap", 10D, 0D, 100D);
@@ -577,35 +636,53 @@ public class GensokyouConfig {
         ATTR_BASE_BUFF_EXTEND = BUILDER.comment("Beneficial effect duration extension fraction (applies to transformation too)")
                 .defineInRange("baseBuffExtend", 0D, 0D, 10D);
         ATTR_BUFF_EXTEND_CAP = BUILDER.defineInRange("buffExtendCap", 1D, 0D, 10D);
-        DANMAKU_REDUCTION_GLOBAL_CAP = BUILDER.comment("Combined (attr reduce x shield) reduction cap; shield immunity (factor 0) bypasses it")
-                .defineInRange("danmakuReductionGlobalCap", 0.9D, 0D, 1D);
+        ATTR_BASE_JUMP = BUILDER.comment("Cultivation gift: extra jump height in blocks").defineInRange("baseJump", 0D, 0D, 32D);
+        ATTR_JUMP_CAP = BUILDER.defineInRange("jumpCap", 3D, 0D, 32D);
+        ATTR_BASE_PHYS_RESIST = BUILDER.comment("Cultivation gift: non-danmaku damage reduction fraction (independent of armor)").defineInRange("basePhysResist", 0D, 0D, 1D);
+        ATTR_PHYS_RESIST_CAP = BUILDER.defineInRange("physResistCap", 0.85D, 0D, 1D);
+        ATTR_BASE_MELEE_DAMAGE = BUILDER.comment("Cultivation gift: extra melee (player_attack) physical damage").defineInRange("baseMeleeDamage", 0D, 0D, 1024D);
+        ATTR_MELEE_DAMAGE_CAP = BUILDER.defineInRange("meleeDamageCap", 100D, 0D, 1024D);
         SPIRIT_LEECH_RATE = BUILDER.comment("Experiment: fraction of dealt danmaku damage returned as spirit; 0 = whole path disabled")
                 .defineInRange("spiritLeechRate", 0.1D, 0D, 1D);
         SPIRIT_LEECH_RATE_CAP = BUILDER.defineInRange("spiritLeechRateCap", 0.5D, 0D, 1D);
         SPIRIT_LEECH_MAX_PER_SECOND = BUILDER.comment("Leech refund quota per settle period (per second)").defineInRange("spiritLeechMaxPerSecond", 20D, 0D, 10000D);
         BUILDER.pop();
 
-        BUILDER.push("weapon").comment("Danmaku main weapon (danmaku-weapon); placeholder values, dev phase");
-        WEAPON_LEVEL_MULT = BUILDER.comment("Damage multiplier per weapon level (index = level-1)")
-                .defineListAllowEmpty("weaponLevelMult", List.of(1.0D, 1.5D, 2.25D), o -> o instanceof Double);
+        BUILDER.push("weapon").comment("Danmaku main weapon (danmaku-weapon); balance-danmaku-weapon-stats v1");
+        WEAPON_LEVEL_MULT = BUILDER.comment("Damage multiplier per weapon level (index = level-1); 3 levels, each spans two grace tiers"
+                        + " (Lv1=tier1-2, Lv2=tier3-4, Lv3=tier5). x2 per level = the band-boundary power spike;"
+                        + " the per-tier x10 DPS is carried by player attributes, not this table")
+                .defineListAllowEmpty("weaponLevelMult", List.of(1.0D, 2.0D, 4.0D), o -> o instanceof Double);
         WEAPON_TALISMAN_PICK_RANGE = BUILDER.comment("Talisman core target raytrace range (blocks)")
                 .defineInRange("talismanPickRange", 40D, 4D, 128D);
-        RUNE_AFFIX_POOL = BUILDER.comment("Affix pool entries: id,min,max,weight,minTier; id in {damage_pct,attack_rate_pct,spirit_cost_pct} (others ignored)")
+        RUNE_AFFIX_POOL = BUILDER.comment("Affix pool entries: id,min,max,weight,tier (exact tier; per-tier ranges)."
+                        + " tiers follow the weapon band (T1=tier1-2, T2=tier3-4, T3=tier5); 3 tiers total."
+                        + " ids: damage_pct / attack_rate_pct / spirit_cost_pct / crit_chance_pct / crit_damage_pct"
+                        + " (unknown ids are ignored). Max-roll total budget <= +80% effective DPS (rune-affix-pool spec)")
                 .defineListAllowEmpty("runeAffixPool",
-                        List.of("damage_pct,0.05,0.15,10,1", "damage_pct,0.10,0.25,5,2",
-                                "attack_rate_pct,0.05,0.15,8,1", "spirit_cost_pct,-0.15,-0.05,8,1"),
+                        List.of(
+                                "damage_pct,0.03,0.06,10,1", "damage_pct,0.07,0.12,10,2",
+                                "damage_pct,0.12,0.20,10,3",
+                                "attack_rate_pct,0.03,0.06,8,1", "attack_rate_pct,0.06,0.10,8,2",
+                                "attack_rate_pct,0.10,0.15,8,3",
+                                "spirit_cost_pct,-0.08,-0.03,8,1", "spirit_cost_pct,-0.14,-0.06,8,2",
+                                "spirit_cost_pct,-0.22,-0.10,8,3",
+                                "crit_chance_pct,0.02,0.04,6,1", "crit_chance_pct,0.04,0.07,6,2",
+                                "crit_chance_pct,0.06,0.12,6,3",
+                                "crit_damage_pct,0.06,0.12,5,1", "crit_damage_pct,0.14,0.25,5,2",
+                                "crit_damage_pct,0.25,0.45,5,3"),
                         o -> o instanceof String);
-        RUNE_AFFIX_COUNT = BUILDER.comment("Affixes rolled onto one amp core")
-                .defineInRange("runeAffixCount", 2, 1, 6);
+        RUNE_AFFIX_COUNT = BUILDER.comment("Affixes rolled onto one amp core, index = tier-1 (3 tiers, follow the weapon band)")
+                .defineListAllowEmpty("runeAffixCount", List.of(2, 3, 4), o -> o instanceof Integer);
         BUILDER.push("coreSphere");
         CORE_SPHERE_MULT = BUILDER.defineInRange("coreBaseMult", 1.0D, 0D, 100D);
-        CORE_SPHERE_SP_COST = BUILDER.defineInRange("spiritCost", 8, 0, 10000);
+        CORE_SPHERE_SP_COST = BUILDER.defineInRange("spiritCost", 10, 0, 10000);
         CORE_SPHERE_RATE = BUILDER.comment("Attack cooldown ticks per shot").defineInRange("attackRateTicks", 8, 1, 12000);
         CORE_SPHERE_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
         BUILDER.pop();
         BUILDER.push("coreShotgun");
         CORE_SHOTGUN_MULT = BUILDER.defineInRange("coreBaseMult", 0.45D, 0D, 100D);
-        CORE_SHOTGUN_SP_COST = BUILDER.defineInRange("spiritCost", 32, 0, 10000);
+        CORE_SHOTGUN_SP_COST = BUILDER.defineInRange("spiritCost", 22, 0, 10000);
         CORE_SHOTGUN_RATE = BUILDER.defineInRange("attackRateTicks", 24, 1, 12000);
         CORE_SHOTGUN_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
         CORE_SHOTGUN_COUNT = BUILDER.defineInRange("pelletCount", 5, 1, 32);
@@ -615,7 +692,7 @@ public class GensokyouConfig {
         BUILDER.pop();
         BUILDER.push("coreKnife");
         CORE_KNIFE_MULT = BUILDER.defineInRange("coreBaseMult", 1.4D, 0D, 100D);
-        CORE_KNIFE_SP_COST = BUILDER.defineInRange("spiritCost", 16, 0, 10000);
+        CORE_KNIFE_SP_COST = BUILDER.defineInRange("spiritCost", 14, 0, 10000);
         CORE_KNIFE_RATE = BUILDER.defineInRange("attackRateTicks", 12, 1, 12000);
         CORE_KNIFE_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
         CORE_KNIFE_SPEED = BUILDER.defineInRange("projectileSpeed", 1.2D, 0.05D, 4D);
@@ -624,7 +701,7 @@ public class GensokyouConfig {
         BUILDER.pop();
         BUILDER.push("coreTalisman");
         CORE_TALISMAN_MULT = BUILDER.defineInRange("coreBaseMult", 1.2D, 0D, 100D);
-        CORE_TALISMAN_SP_COST = BUILDER.defineInRange("spiritCost", 24, 0, 10000);
+        CORE_TALISMAN_SP_COST = BUILDER.defineInRange("spiritCost", 120, 0, 10000);
         CORE_TALISMAN_RATE = BUILDER.defineInRange("attackRateTicks", 16, 1, 12000);
         CORE_TALISMAN_REQ_TIER = BUILDER.defineInRange("requiredTier", 2, 1, 10);
         CORE_TALISMAN_SPEED = BUILDER.defineInRange("projectileSpeed", 0.7D, 0.05D, 4D);
@@ -632,7 +709,7 @@ public class GensokyouConfig {
         BUILDER.pop();
         BUILDER.push("coreLaserGun");
         CORE_LASER_GUN_MULT = BUILDER.defineInRange("coreBaseMult", 0.5D, 0D, 100D);
-        CORE_LASER_GUN_SP_COST = BUILDER.defineInRange("spiritCost", 12, 0, 10000);
+        CORE_LASER_GUN_SP_COST = BUILDER.defineInRange("spiritCost", 50, 0, 10000);
         CORE_LASER_GUN_RATE = BUILDER.defineInRange("attackRateTicks", 10, 1, 12000);
         CORE_LASER_GUN_REQ_TIER = BUILDER.defineInRange("requiredTier", 2, 1, 10);
         CORE_LASER_GUN_LENGTH = BUILDER.defineInRange("maxLength", 16D, 1D, 128D);
@@ -641,8 +718,9 @@ public class GensokyouConfig {
         CORE_LASER_GUN_DURATION = BUILDER.comment("Active phase seconds").defineInRange("durationSeconds", 0.5D, 0.05D, 30D);
         BUILDER.pop();
         BUILDER.push("coreLaserCannon");
-        CORE_LASER_CANNON_MULT = BUILDER.defineInRange("coreBaseMult", 2.5D, 0D, 100D);
-        CORE_LASER_CANNON_SP_COST = BUILDER.defineInRange("spiritCost", 120, 0, 10000);
+        CORE_LASER_CANNON_MULT = BUILDER.comment("Per-pulse multiplier (laser applies every 5 ticks; pulse-normalized DPS factor lands in [1.5,2.5])")
+                .defineInRange("coreBaseMult", 0.5D, 0D, 100D);
+        CORE_LASER_CANNON_SP_COST = BUILDER.defineInRange("spiritCost", 2500, 0, 100000);
         CORE_LASER_CANNON_RATE = BUILDER.defineInRange("attackRateTicks", 60, 1, 12000);
         CORE_LASER_CANNON_REQ_TIER = BUILDER.defineInRange("requiredTier", 3, 1, 10);
         CORE_LASER_CANNON_LENGTH = BUILDER.defineInRange("maxLength", 40D, 1D, 128D);
@@ -693,6 +771,48 @@ public class GensokyouConfig {
                 .defineInRange("sairEnergyOutRatePerSecond", 1_000_000_000, 0, Integer.MAX_VALUE);
         SAIR_ENERGY_BASE_CAPACITY = BUILDER.comment("Sair Energy: spirit buffer capacity, refilled to full every second (infinite source; 100e = 1e10)")
                 .defineInRange("sairEnergyBaseCapacity", 10_000_000_000L, 1L, Long.MAX_VALUE);
+        BUILDER.pop();
+
+        BUILDER.push("monsterBudget").comment("monster-stat-budget: same-tier monster HP/danmaku budget (see docs/mob-design-guidelines.md)");
+        MONSTER_TRASH_HP_MIN = BUILDER.comment("Trash mob HP = playerDPS(tier) x this lower factor").defineInRange("trashHpMin", 1.5D, 0D, 1000D);
+        MONSTER_TRASH_HP_MAX = BUILDER.defineInRange("trashHpMax", 2.5D, 0D, 1000D);
+        MONSTER_ELITE_HP_MIN = BUILDER.comment("Elite HP = playerDPS(tier) x this lower factor").defineInRange("eliteHpMin", 4D, 0D, 1000D);
+        MONSTER_ELITE_HP_MAX = BUILDER.defineInRange("eliteHpMax", 6D, 0D, 1000D);
+        MONSTER_BOSS_HP_MIN = BUILDER.comment("Boss HP = playerDPS(tier) x this lower factor").defineInRange("bossHpMin", 30D, 0D, 100000D);
+        MONSTER_BOSS_HP_MAX = BUILDER.defineInRange("bossHpMax", 50D, 0D, 100000D);
+        MONSTER_TRASH_HITS_MIN = BUILDER.comment("Trash danmaku = playerEHP(tier) / hits; min hits = hardest hit").defineInRange("trashHitsMin", 12, 1, 1000);
+        MONSTER_TRASH_HITS_MAX = BUILDER.defineInRange("trashHitsMax", 18, 1, 1000);
+        MONSTER_ELITE_HITS_MIN = BUILDER.defineInRange("eliteHitsMin", 9, 1, 1000);
+        MONSTER_ELITE_HITS_MAX = BUILDER.defineInRange("eliteHitsMax", 12, 1, 1000);
+        MONSTER_BOSS_HITS_MIN = BUILDER.defineInRange("bossHitsMin", 7, 1, 1000);
+        MONSTER_BOSS_HITS_MAX = BUILDER.defineInRange("bossHitsMax", 10, 1, 1000);
+        MONSTER_TIER_SCALE = BUILDER.comment("HP and danmaku damage multiplier per tier of monster-vs-player tier gap").defineInRange("tierScale", 10D, 1D, 1000D);
+        MONSTER_SPAWN_ROLL = BUILDER.comment("Per-spawn roll spread (fraction) applied to each rolled stat").defineInRange("spawnRoll", 0.25D, 0D, 1D);
+        MONSTER_REF_SHOTS_PER_SECOND = BUILDER.comment("Reference main-weapon shots per second used to derive the player DPS curve").defineInRange("refShotsPerSecond", 2.5D, 0.1D, 100D);
+        BUILDER.pop();
+
+        BUILDER.push("testHarness").comment("add-balance-test-harness: /gs_test balance testing rig");
+        TEST_BOSS_MIN_SECONDS = BUILDER.comment("Test boss (min variant) HP = standard player DPS x this many seconds (>=120 => 2min TTK)")
+                .defineInRange("testBossMinSeconds", 120D, 10D, 100000D);
+        TEST_BOSS_MAX_SECONDS = BUILDER.comment("Test boss (max variant) HP = standard player DPS x this many seconds")
+                .defineInRange("testBossMaxSeconds", 180D, 10D, 100000D);
+        TEST_BOSS_MIN_HITS = BUILDER.comment("Test boss (min variant) danmaku = playerEHP / this (higher = weaker)")
+                .defineInRange("testBossMinHits", 10, 1, 100);
+        TEST_BOSS_MAX_HITS = BUILDER.comment("Test boss (max variant) danmaku = playerEHP / this (lower = stronger)")
+                .defineInRange("testBossMaxHits", 7, 1, 100);
+        TEST_PATTERN_INTERVAL_TICKS = BUILDER.comment("Base ticks between random pattern switches (60 = 3s)")
+                .defineInRange("testPatternIntervalTicks", 60, 5, 12000);
+        TEST_PHASE2_HP = BUILDER.comment("HP fraction where phase 2 begins").defineInRange("testPhase2Hp", 0.66D, 0D, 1D);
+        TEST_PHASE3_HP = BUILDER.comment("HP fraction where phase 3 begins").defineInRange("testPhase3Hp", 0.33D, 0D, 1D);
+        TEST_PHASE2_INTERVAL_MULT = BUILDER.defineInRange("testPhase2IntervalMult", 0.83D, 0.1D, 1D);
+        TEST_PHASE3_INTERVAL_MULT = BUILDER.defineInRange("testPhase3IntervalMult", 0.67D, 0.1D, 1D);
+        TEST_PHASE2_SPEED_MULT = BUILDER.defineInRange("testPhase2SpeedMult", 1.1D, 0.1D, 10D);
+        TEST_PHASE3_SPEED_MULT = BUILDER.defineInRange("testPhase3SpeedMult", 1.25D, 0.1D, 10D);
+        TEST_BULLET_SPEED = BUILDER.comment("Base test boss bullet speed (blocks/tick)").defineInRange("testBulletSpeed", 0.5D, 0.05D, 4D);
+        TEST_PATTERN_DAMAGE_FACTOR = BUILDER.comment("Per-pattern damage factor (index = pattern ordinal, 10 entries) multiplied into the boss per-hit danmaku")
+                .defineListAllowEmpty("testPatternDamageFactor",
+                        List.of(0.30D, 0.30D, 0.60D, 0.35D, 0.30D, 0.25D, 0.40D, 0.50D, 0.50D, 0.30D),
+                        o -> o instanceof Double);
         BUILDER.pop();
 
         SPEC = BUILDER.build();

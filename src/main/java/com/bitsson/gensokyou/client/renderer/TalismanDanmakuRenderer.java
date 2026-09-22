@@ -33,12 +33,12 @@ public class TalismanDanmakuRenderer extends AbstractDanmakuRenderer<TalismanDan
     }
 
     /**
-     * 高清符纸贴图带抗锯齿柔边，cutout 会切成锯齿，改用常规 alpha 混合。
-     * 几何、朝向与外发光结构不变。
+     * 高清符纸贴图带抗锯齿柔边，cutout 会切成锯齿，改用写深度的常规 alpha 混合：
+     * 柔边由 alpha 混合表现，写深度保证后画的水/云被本体正确遮挡。几何、朝向与外发光结构不变。
      */
     @Override
     protected RenderType baseRenderType() {
-        return DanmakuRenderTypes.translucent(this.texture);
+        return DanmakuRenderTypes.translucentDepth(this.texture);
     }
 
     @Override
@@ -57,7 +57,7 @@ public class TalismanDanmakuRenderer extends AbstractDanmakuRenderer<TalismanDan
         int color = entity.getColor();
         VertexConsumer consumer = bufferSource.getBuffer(this.baseRenderType());
         this.renderShape(entity, poseStack, consumer,
-                red(color), green(color), blue(color), 255, packedLight);
+                red(color), green(color), blue(color), 255, FULL_BRIGHT);
 
         this.renderGlow(entity, poseStack, bufferSource);
 

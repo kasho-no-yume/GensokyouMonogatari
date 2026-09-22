@@ -1,0 +1,65 @@
+# monster-stat-budget Specification
+
+## Purpose
+TBD - created by archiving change balance-player-monster-stats. Update Purpose after archive.
+## Requirements
+### Requirement: 同阶怪物数值预算
+新增东方系怪物的生命与弹幕单发伤害 SHALL 以"同阶玩家"为基准按预算公式取值，使同阶战斗保持在"玩家约 9~16 下被打死"的区间，击杀耗时按档位：**杂兵约 1.5~2.5 秒、精英约 4~6 秒、BOSS 约 30~50 秒**：
+- 杂兵：`HP = 玩家DPS(N) × [1.5, 2.5]`，`弹伤 = 玩家EHP(N) / [12, 18]`
+- 精英：`HP = 玩家DPS(N) × [4, 6]`，`弹伤 = 玩家EHP(N) / [9, 12]`
+- BOSS：`HP = 玩家DPS(N) × [30, 50]`，`弹伤 = 玩家EHP(N) / [7, 10]`
+
+其中 `玩家DPS(N)` 与 `玩家EHP(N)` 取 design.md 玩家属性总表对应阶级值，`playerEHP = HP / (2^(−P) × (1 − graze))`。预算数值 MUST 全部可从 config 读取或由 config 基准折算，MUST NOT 硬编码于实体类。
+
+#### Scenario: 同阶杂兵可生存
+- **WHEN** 同阶（N）玩家与同阶杂兵交战
+- **THEN** 玩家约 9~16 下被击杀、约 1.5~2.5 秒击杀对方，不出现同阶秒杀或打不动
+
+#### Scenario: 同阶BOSS有战斗时长
+- **WHEN** 同阶玩家与同阶 BOSS 交战
+- **THEN** 击杀耗时约 30~50 秒量级，期间承受 BOSS 弹幕仍可存活
+
+#### Scenario: 数值可配置
+- **WHEN** 调整某怪物的生命或弹伤
+- **THEN** 通过 config 基准项/倍率完成，无需改实体代码
+
+### Requirement: 跨阶指数缩放
+怪物的生命与弹幕伤害 SHALL 随其阶级相对玩家基准 **×10/阶**递增。跨阶压制 SHALL 由"HP 与 DPS 的竞速 + 弹伤量级"共同保证：玩家越 1 阶挑战必死，越 2 阶毫无胜算。
+
+#### Scenario: 越一阶必死
+- **WHEN** N 阶玩家挑战 N+1 阶怪物
+- **THEN** 其击杀速度相对同阶慢约 10 倍，而承受弹伤上升，玩家在击杀前死亡
+
+#### Scenario: 越两阶无望
+- **WHEN** N 阶玩家挑战 N+2 阶怪物
+- **THEN** 击杀耗时约为同阶 100 倍、弹伤量级碾压，玩家无法取胜
+
+#### Scenario: 高阶碾压低阶
+- **WHEN** N 阶玩家面对 N-1 阶怪物
+- **THEN** 因护壁指数与 HP 优势，承受弹伤显著降低，形成碾压
+
+### Requirement: 怪物数值 spawn 区间 roll
+同种怪物（含 BOSS）每次 spawn SHALL 在其数值区间内独立 roll 生命与弹幕伤害（建议区间为预算中值的 ±25%），使同级遭遇存在强弱差异；roll 结果 SHALL 持久化到实体 NBT，存活期间不重掷。
+
+#### Scenario: 同级怪有强弱
+- **WHEN** 先后 spawn 两只同种同阶杂兵
+- **THEN** 其生命/弹伤可不同，允许落在区间任意位置
+
+#### Scenario: roll 持久化
+- **WHEN** 一只已 roll 的怪物随存档保存后重载
+- **THEN** 其生命/弹伤保持 roll 值不变
+
+### Requirement: 小妖精特例豁免
+小妖精 SHALL 作为入门特例维持现状数值（低生命、低弹伤，可被 1~2 发弹幕击杀），MUST NOT 被"同阶怪物数值预算"强制上调。
+
+#### Scenario: 入门秒杀体验保留
+- **WHEN** 新玩家首次遭遇小妖精并用主武器射击
+- **THEN** 1~2 发即可击杀，保留低门槛战斗反馈
+
+### Requirement: 待定怪物数值不锚定
+大妖精与芙兰朵露的具体生命/弹伤数值 MUST NOT 由本变更锚定；本变更仅提供预算公式与区间约束，二者数值保持现状并在后续独立变更中定稿。
+
+#### Scenario: 不写入待定数值
+- **WHEN** 查阅本变更产出的 config 与 spec
+- **THEN** 大妖精/芙兰朵露的数值未被本变更写入新值，仅受预算规则约束待定
+

@@ -18,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AttributeKeyRegistryTest {
 
     @Test
-    void hasExactlyFifteenKeysWithUniqueIds() {
-        assertEquals(15, AttributeKey.values().length);
+    void hasExactlyEighteenKeysWithUniqueIds() {
+        assertEquals(18, AttributeKey.values().length);
         Set<String> ids = new HashSet<>();
         for (AttributeKey key : AttributeKey.values()) {
             assertTrue(ids.add(key.id()), "duplicate id: " + key.id());

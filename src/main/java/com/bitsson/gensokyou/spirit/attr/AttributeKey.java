@@ -36,10 +36,10 @@ public enum AttributeKey {
             () -> GensokyouConfig.ATTR_GRAZE_CHANCE_CAP.get()),
     DANMAKU_REDUCE("danmaku_reduce", false, false,
             p -> GensokyouConfig.ATTR_BASE_DANMAKU_REDUCE.get(),
-            () -> GensokyouConfig.ATTR_DANMAKU_REDUCE_CAP.get()),
+            () -> -1D),
     DANMAKU_RESIST("danmaku_resist", true, false,
-            p -> GensokyouConfig.ATTR_BASE_DANMAKU_RESIST.get(),
-            () -> GensokyouConfig.ATTR_DANMAKU_RESIST_CAP.get()),
+            p -> 0D,
+            () -> -1D),
     TENACITY("tenacity", false, false,
             p -> GensokyouConfig.ATTR_BASE_TENACITY.get(),
             () -> GensokyouConfig.ATTR_TENACITY_CAP.get()),
@@ -64,7 +64,18 @@ public enum AttributeKey {
             () -> GensokyouConfig.ATTR_BUFF_EXTEND_CAP.get()),
     SPIRIT_LEECH_RATE("spirit_leech_rate", false, false,
             p -> GensokyouConfig.SPIRIT_LEECH_RATE.get(),
-            () -> GensokyouConfig.SPIRIT_LEECH_RATE_CAP.get());
+            () -> GensokyouConfig.SPIRIT_LEECH_RATE_CAP.get()),
+
+    // ---- 修灵馈赠（add-cultivation-gifts，与东方弹幕战斗解耦的身体强化） ----
+    JUMP("jump", true, false,
+            p -> GensokyouConfig.ATTR_BASE_JUMP.get(),
+            () -> GensokyouConfig.ATTR_JUMP_CAP.get()),
+    PHYS_RESIST("phys_resist", false, false,
+            p -> GensokyouConfig.ATTR_BASE_PHYS_RESIST.get(),
+            () -> GensokyouConfig.ATTR_PHYS_RESIST_CAP.get()),
+    MELEE_DAMAGE("melee_damage", true, false,
+            p -> GensokyouConfig.ATTR_BASE_MELEE_DAMAGE.get(),
+            () -> GensokyouConfig.ATTR_MELEE_DAMAGE_CAP.get());
 
     private final String id;
     /** true=固定值语义（生命/抵抗），false=百分比语义。仅影响展示；容器内同为加法贡献。 */

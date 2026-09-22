@@ -27,6 +27,25 @@
 - 东方怪生命值应偏低，配合非弹幕抗性，使"用弹幕"成为低成本、高回报的选择；
   近战等效血量约为面板血量的 10 倍。
 
+### 3.1 同阶数值预算（monster-stat-budget，balance-player-monster-stats v1）
+
+新怪的生命与弹幕单发伤害以"同阶玩家"为基准取值，令同阶战斗稳定在
+"玩家约 9~16 下被打死、击杀耗时约 3~5 秒"：
+
+```
+同阶杂兵：HP = playerDPS(N) × [1.5, 2.5]      弹伤 = playerEHP(N) / [12, 18]
+同阶精英：HP = playerDPS(N) × [4, 6]          弹伤 = playerEHP(N) / [9, 12]
+同阶BOSS：HP = playerDPS(N) × [30, 50]        弹伤 = playerEHP(N) / [7, 10]
+跨阶：    HP 与弹伤各 × 10 /（怪物阶 − 玩家阶）
+```
+
+- `playerEHP = HP / (2^(−护壁) × (1 − 擦弹))`；`playerDPS`/`playerEHP` 由 grace 表与武器倍率表折算。
+- 比率带与跨阶倍率全部在 config `monsterBudget` 段；工具类 `balance/MonsterStatBudget`。
+- **每次 spawn 在该区间内独立 roll（±25%），并随实体 NBT 持久化**（存活期间不重掷）。
+- 跨阶压制由"HP/DPS 竞速 + 弹伤量级"共同保证：越 1 阶必死、越 2 阶无望。
+- **小妖精为入门特例**：维持现状数值，不经本预算上调（保留 1~2 发秒杀的低门槛反馈）。
+- **大妖精与芙兰朵露数值待定**：仅受本规则约束，实际数值待实机观察后另行定稿。
+
 ## 4. 弹幕与交互
 
 - 怪物弹幕 MUST 使用 `gensokyou:danmaku` 伤害类型，并加入对应的

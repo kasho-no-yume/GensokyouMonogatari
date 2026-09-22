@@ -143,11 +143,25 @@ public final class PlayerAttributes {
 
     /** 暴击发射时 roll：命中返回 1+暴击伤害加成（负加成钳到 0 倍率），未命中返回 1。 */
     public static float rollCrit(ServerPlayer player, net.minecraft.util.RandomSource random) {
-        float chance = AttributeMath.clampPercent(finalValue(player, AttributeKey.CRIT_CHANCE));
+        return rollCrit(player, random, 0F, 0F);
+    }
+
+    /**
+     * 暴击发射时 roll（带增幅核词条加成）：`extraChance` 加暴击率、`extraDamage` 加暴伤加成，
+     * 折入玩家属性后统一 roll。返回 1（未暴击）或 1+暴伤加成（暴击）。
+     */
+    public static float rollCrit(ServerPlayer player, net.minecraft.util.RandomSource random,
+                                 float extraChance, float extraDamage) {
+        float chance = AttributeMath.clampPercent(
+                finalValue(player, AttributeKey.CRIT_CHANCE) + Math.max(0F, extraChance));
+        double chanceCap = AttributeKey.CRIT_CHANCE.cap();
+        if (chanceCap >= 0D) {
+            chance = (float) Math.min(chance, chanceCap);
+        }
         if (random.nextFloat() >= chance) {
             return 1F;
         }
-        return Math.max(0F, 1F + finalValue(player, AttributeKey.CRIT_DAMAGE));
+        return Math.max(0F, 1F + finalValue(player, AttributeKey.CRIT_DAMAGE) + Math.max(0F, extraDamage));
     }
 
     // ---- D3 原版属性桥（幂等重算，非累加） ----
@@ -174,6 +188,18 @@ public final class PlayerAttributes {
                 speed.addOrReplacePermanentModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(
                         id, speedBonus,
                         net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+            }
+        }
+        float jumpBlocks = finalValue(player, AttributeKey.JUMP);
+        var jump = player.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.JUMP_STRENGTH);
+        if (jump != null) {
+            var id = com.bitsson.gensokyou.spirit.attr.AttributeBridgeIds.JUMP;
+            if (jumpBlocks <= 0F) {
+                jump.removeModifier(id);
+            } else {
+                jump.addOrReplacePermanentModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(
+                        id, AttributeMath.jumpStrengthDelta(jumpBlocks),
+                        net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE));
             }
         }
     }

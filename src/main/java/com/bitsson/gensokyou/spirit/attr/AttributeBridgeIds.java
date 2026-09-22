@@ -8,6 +8,7 @@ public final class AttributeBridgeIds {
 
     public static final ResourceLocation HEALTH_BONUS = Gensokyou.id("attribute.health_bonus");
     public static final ResourceLocation MOVE_SPEED = Gensokyou.id("attribute.move_speed_bonus");
+    public static final ResourceLocation JUMP = Gensokyou.id("attribute.jump");
 
     private AttributeBridgeIds() {
     }

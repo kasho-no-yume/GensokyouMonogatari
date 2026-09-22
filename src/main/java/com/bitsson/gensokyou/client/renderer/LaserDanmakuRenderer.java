@@ -89,7 +89,8 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
     /**
      * 激光的主体类层走「加法混合 + 写深度」：实体缓冲先于半透明地形（水）冲刷，
      * 写深度后身后的水被深度剔除，修复"激光在水面之前却被水覆盖"的问题。
-     * 外发光层保持不写深度（见 renderActiveBeam），避免在水面凿出光晕形大洞。
+     * 外发光与法阵同样走写深度（见 renderActiveBeam / renderMagicCircle），
+     * 否则其光晕仍会被后画的水/云覆盖。
      */
     @Override
     protected RenderType glowRenderType() {
@@ -161,10 +162,11 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
             return;
         }
 
-        // 外发光走不写深度的加法层：保持现有观感，也不在身后的水面上凿洞。
+        // 外发光同样写深度：不被身后（更远）的水/云覆盖。shader discard alpha<0.1，
+        // 只按发光可见轮廓写深度，不会凿出整块方形洞。
         // 注意 immediate 缓冲的别名规则：请求不同 RenderType 会立刻结束上一批，
         // 因此必须按「外发光 → 法阵 → 主体/亮核 → 端盖」整层连续写入，禁止交叉。
-        VertexConsumer glow = bufferSource.getBuffer(DanmakuRenderTypes.additiveGlow(BEAM_TEXTURE));
+        VertexConsumer glow = bufferSource.getBuffer(DanmakuRenderTypes.additiveSolid(BEAM_TEXTURE));
         this.emitBeam(poseStack, glow, length, radius * OUTER_GLOW_RADIUS_RATIO * envelope,
                 r, g, b, (int) (OUTER_GLOW_ALPHA * envelope), FULL_BRIGHT);
 
@@ -210,7 +212,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         poseStack.mulPose(Axis.ZP.rotationDegrees(angle));
 
         PoseStack.Pose pose = poseStack.last();
-        VertexConsumer consumer = bufferSource.getBuffer(DanmakuRenderTypes.additiveGlow(MAGIC_CIRCLE_TEXTURE));
+        VertexConsumer consumer = bufferSource.getBuffer(DanmakuRenderTypes.additiveSolid(MAGIC_CIRCLE_TEXTURE));
         this.vertex(consumer, pose, -radius, -radius, 0.0F, 0.0F, 1.0F, r, g, b, a, FULL_BRIGHT);
         this.vertex(consumer, pose, radius, -radius, 0.0F, 1.0F, 1.0F, r, g, b, a, FULL_BRIGHT);
         this.vertex(consumer, pose, radius, radius, 0.0F, 1.0F, 0.0F, r, g, b, a, FULL_BRIGHT);

@@ -2,6 +2,7 @@ package com.bitsson.gensokyou.registry;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.CrystalBlockEntity;
+import com.bitsson.gensokyou.block.entity.DanmakuAssemblyBenchBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.block.entity.SukimaBlockEntity;
@@ -33,4 +34,8 @@ public final class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CrystalBlockEntity>> CRYSTAL =
             BLOCK_ENTITIES.register("crystal", () -> new BlockEntityType<>(
                     CrystalBlockEntity::new, Set.of(ModBlocks.CRYSTAL.get()), null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<DanmakuAssemblyBenchBlockEntity>> DANMAKU_ASSEMBLY_BENCH =
+            BLOCK_ENTITIES.register("danmaku_assembly_bench", () -> new BlockEntityType<>(
+                    DanmakuAssemblyBenchBlockEntity::new, Set.of(ModBlocks.DANMAKU_ASSEMBLY_BENCH.get()), null));
 }

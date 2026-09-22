@@ -37,6 +37,7 @@ public final class ModBusEvents {
         event.put(ModEntityTypes.FAIRY.get(), FairyEntity.createAttributes().build());
         event.put(ModEntityTypes.BIG_FAIRY.get(), FairyEntity.createAttributes().build());
         event.put(ModEntityTypes.CIRNO.get(), FairyEntity.createAttributes().build());
+        event.put(ModEntityTypes.BALANCE_TEST_BOSS.get(), FairyEntity.createAttributes().build());
         event.put(ModEntityTypes.RINNOSUKE.get(), TouhouNpcEntity.createAttributes().build());
     }
 

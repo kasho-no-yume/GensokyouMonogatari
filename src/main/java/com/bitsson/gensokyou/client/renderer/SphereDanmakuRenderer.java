@@ -25,12 +25,13 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
     }
 
     /**
-     * 本体层用常规 alpha 混合：渐变贴图的柔边（半透明衰减）必须真混合才能表现，
-     * cutout 会把抗锯齿边缘切成锯齿。
+     * 本体层用写深度的常规 alpha 混合：渐变贴图的柔边（半透明衰减）必须真混合才能表现，
+     * cutout 会把抗锯齿边缘切成锯齿；写深度则保证后画的半透明地形（水）与云层
+     * 被本体正确遮挡（不再盖住位于其前方的弹幕）。
      */
     @Override
     protected RenderType baseRenderType() {
-        return DanmakuRenderTypes.translucent(this.texture);
+        return DanmakuRenderTypes.translucentDepth(this.texture);
     }
 
     @Override
@@ -50,7 +51,7 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
                 red(color), green(color), blue(color), 255, FULL_BRIGHT);
 
         // 外发光（1.35×，实体色，加法）与亮核（0.55×，恒白，加法）共用同一
-        // RenderType（additiveGlow 本贴图），连续写入不触发缓冲冲刷。
+        // RenderType（additiveSolid 本贴图，写深度），连续写入不触发缓冲冲刷。
         this.renderGlow(entity, poseStack, bufferSource);
 
         poseStack.pushPose();

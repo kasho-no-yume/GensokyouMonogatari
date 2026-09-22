@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SIS",
+    "IRI",
+    "SSS"
+  ],
+  "key": {
+    "S": {
+      "item": "gensokyou:ritual_stone_0"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "R": {
+      "item": "gensokyou:spellcard_star"
+    }
+  },
+  "result": {
+    "id": "gensokyou:danmaku_assembly_bench",
+    "count": 1
+  }
+}

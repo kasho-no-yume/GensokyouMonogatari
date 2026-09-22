@@ -28,19 +28,31 @@ public final class AttributeMath {
     }
 
     /**
-     * 玩家受弹结算（spec danmaku-combat"玩家受弹属性管线"）：
-     * 减免与护盾乘算 → 合并减免全局封顶（护盾免疫 factor=0 短路，不吃封顶）→ 抵抗固定值，允许减至 0。
+     * 玩家受弹指数减免（spec danmaku-combat"玩家受弹属性管线"）：
+     * 受伤 = 原伤 × 2^(−P) × 护盾系数；P 为无量纲"灵力护壁"指数（越大减免越强，恒 &gt;0 不免疫）。
+     * 护盾免疫（protectFactor &lt;= 0）短路为 0。
      */
-    public static float resolveIncoming(float amount, float reducePct, float protectFactor,
-                                        float resistFlat, float globalCap) {
+    public static float mitigate(float amount, float ward, float protectFactor) {
         if (protectFactor <= 0F) {
             return 0F;
         }
-        float combined = (1F - Math.max(0F, reducePct)) * protectFactor;
-        if (1F - combined > globalCap) {
-            combined = 1F - globalCap;
+        if (ward <= 0F) {
+            return amount * protectFactor;
         }
-        return Math.max(0F, amount * combined - Math.max(0F, resistFlat));
+        return (float) (amount * Math.pow(2D, -ward) * protectFactor);
+    }
+
+    /** 护壁显示的等效倍数（灵力护壁 ×N，N = 2^P）。 */
+    public static double wardDivisor(float ward) {
+        return Math.pow(2D, Math.max(0F, ward));
+    }
+
+    /** 跳跃块数 → 原版 `jump_strength` 增量（h = v²/2g 近似；v0 = 0.42，g = 0.08/tick）。 */
+    public static double jumpStrengthDelta(float blocks) {
+        double g = 0.08D;
+        double v0 = 0.42D;
+        double h0 = v0 * v0 / (2D * g);
+        return Math.sqrt(2D * g * (h0 + Math.max(0F, blocks))) - v0;
     }
 
     /** 符卡冷却折减：base×(1−CDR)，至少 1 tick。 */

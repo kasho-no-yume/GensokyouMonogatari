@@ -52,19 +52,16 @@ public final class DamageEventHandler {
         }
 
         if (event.getEntity() instanceof ServerPlayer player && protectFactor > 0F) {
-            // 玩家受弹属性管线（danmaku-combat 增量）：擦弹 → (减免×护盾)封顶 → 抵抗
+            // 玩家受弹属性管线（danmaku-combat 增量）：擦弹 → 指数减免（灵力护壁 ×2^-P ×护盾）
             float graze = AttributeMath.clampPercent(
                     PlayerAttributes.finalValue(player, AttributeKey.GRAZE_CHANCE));
             if (AttributeMath.grazeHit(graze, player.getRandom().nextFloat())) {
                 event.setAmount(0F);
                 return;
             }
-            float reduce = Math.max(0F,
+            float ward = Math.max(0F,
                     PlayerAttributes.finalValue(player, AttributeKey.DANMAKU_REDUCE));
-            float resist = Math.max(0F,
-                    PlayerAttributes.finalValue(player, AttributeKey.DANMAKU_RESIST));
-            amount = AttributeMath.resolveIncoming(amount, reduce, protectFactor, resist,
-                    GensokyouConfig.DANMAKU_REDUCTION_GLOBAL_CAP.get().floatValue());
+            amount = AttributeMath.mitigate(amount, ward, protectFactor);
         } else {
             amount *= protectFactor;
         }

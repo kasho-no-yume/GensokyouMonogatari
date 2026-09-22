@@ -88,6 +88,9 @@ public final class ModItems {
     /** 虹彩水晶：独立装饰方块物品。 */
     public static final DeferredItem<BlockItem> CRYSTAL_ITEM =
             ITEMS.registerSimpleBlockItem("crystal", ModBlocks.CRYSTAL);
+    /** 弹幕方术装配台：主武器模块化修改方块。 */
+    public static final DeferredItem<BlockItem> DANMAKU_ASSEMBLY_BENCH_ITEM =
+            ITEMS.registerSimpleBlockItem("danmaku_assembly_bench", ModBlocks.DANMAKU_ASSEMBLY_BENCH);
     /** 仪式石装饰变种物品（台阶/楼梯/墙 × 品阶 0-5，名字染品阶色）。 */
     public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_SLAB_ITEMS = new ArrayList<>();
     public static final List<DeferredItem<TieredBlockItem>> RITUAL_STONE_STAIRS_ITEMS = new ArrayList<>();

@@ -52,8 +52,9 @@ public final class WeaponFiring {
         ModAttachments.set(player, power.withCurrent(power.current() - cost));
 
         // 暴击：发射时服务端 roll 一次，系数烘入伤害（命中不重 roll），并随弹 NBT 持久化
+        // 增幅核的暴击率/暴伤词条在此折入
         float critMult = com.bitsson.gensokyou.spirit.attr.PlayerAttributes
-                .rollCrit(player, player.getRandom());
+                .rollCrit(player, player.getRandom(), runes.critChancePct(), runes.critDamagePct());
 
         float finalDamage = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.spiritPower(player)
                 * stats.coreBaseMult().get()

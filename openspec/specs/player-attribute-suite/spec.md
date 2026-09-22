@@ -4,7 +4,7 @@
 TBD - created by archiving change player-attribute-suite. Update Purpose after archive.
 ## Requirements
 ### Requirement: 属性注册表
-模组 SHALL 提供玩家属性注册表（AttributeKey 枚举），每个键声明：显示名、结算域（基准/加区/独立乘区）、是否可被变身改写、对应配置基准项、硬上限（若有）。全部玩家属性 MUST 经此注册表定义；消费方 MUST NOT 读写注册表外的玩家属性键。本期注册表 SHALL 收录 15 键：最大灵力、灵力恢复速率、灵力强度、生命增幅、移动速度、擦弹率、弹幕减免、弹幕抵抗、韧性、暴击率、暴击伤害、符卡增幅、符卡冷却缩减、强效延长、灵力汲取。
+模组 SHALL 提供玩家属性注册表（AttributeKey 枚举），每个键声明：显示名、结算域（基准/加区/独立乘区）、是否可被变身改写、对应配置基准项、硬上限（若有）。全部玩家属性 MUST 经此注册表定义；消费方 MUST NOT 读写注册表外的玩家属性键。本期注册表 SHALL 收录 **18 键**：原有 15 键（最大灵力、灵力恢复速率、灵力强度、生命增幅、移动速度、擦弹率、弹幕减免、弹幕抵抗、韧性、暴击率、暴击伤害、符卡增幅、符卡冷却缩减、强效延长、灵力汲取）+ 修灵馈赠 3 键（**跳跃 `jump`、物抗 `phys_resist`、近战 `melee_damage`**，见 `cultivation-gifts`）。新增三键均 MUST NOT 进入降神变身改写白名单。
 
 #### Scenario: 表外属性被拒
 - **WHEN** 某代码路径尝试向属性容器写入未注册的属性键
@@ -13,6 +13,10 @@ TBD - created by archiving change player-attribute-suite. Update Purpose after a
 #### Scenario: 新增属性仅需注册
 - **WHEN** 未来新增一个玩家属性
 - **THEN** 只需在注册表增键并接消费点，不改属性容器的持久化结构
+
+#### Scenario: 注册表键数
+- **WHEN** 枚举全部键
+- **THEN** 恰好 18 个且 id 唯一（含修灵馈赠三键）
 
 ### Requirement: 属性容器与持久化
 每名玩家 SHALL 持有一个属性容器（独立于灵力池的 `player_attributes` 附件）：持久层记录各键的加区贡献（按来源 sourceId 分组）；另有 transient 临时层承载变身等限时改写，MUST NOT 入存档。容器 SHALL 随存档持久化、死亡保留（copyOnDeath）；旧存档缺该附件时以空容器加载（全属性=配置基准，向后兼容）。临时层到期 SHALL 整层丢弃，玩家属性 SHALL 恢复为持久层+基准值。
@@ -30,7 +34,7 @@ TBD - created by archiving change player-attribute-suite. Update Purpose after a
 - **THEN** 临时层整体丢弃，两属性回到改写前的持久+基准值
 
 ### Requirement: 分层结算公式
-玩家某属性的最终值 SHALL 按公式计算：`final = (基准 + Σ加区平值) × (1 + Σ加区百分比) × Π(独立乘区)`。基准值从配置读取；与玩家成长挂钩的键（最大灵力、灵力恢复速率、灵力强度、弹幕减免等）其阶级驱动部分 SHALL 来自超人类阶级指数属性表的 roll 贡献（加区层，`sourceId = "grace_tier_N"`），MUST NOT 再以"随淬炼层级线性放大"公式结算。加区来源含持久层与临时层；独立乘区仅留给暴击这类需单独 roll/系数的键。百分比类加区贡献 SHALL 受该键硬上限封顶。灵力强度 MUST 以既有 `playerSpiritDamage` 字段为单一事实来源（经套件读取合并，不双写）。
+玩家某属性的最终值 SHALL 按公式计算：`final = (基准 + Σ加区平值) × (1 + Σ加区百分比) × Π(独立乘区)`。基准值从配置读取；与玩家成长挂钩的键（最大灵力、灵力恢复速率、灵力强度、弹幕护壁等）其阶级驱动部分 SHALL 来自超人类阶级指数属性表的 roll 贡献（加区层，`sourceId = "grace_tier_N"`），MUST NOT 再以"随淬炼层级线性放大"公式结算。加区来源含持久层与临时层；独立乘区仅留给暴击这类需单独 roll/系数的键。**百分比类**加区贡献 SHALL 受该键硬上限封顶；**弹幕护壁键为无量纲指数（非百分比），MUST NOT 套用百分比封顶语义**。灵力强度 MUST 以既有 `playerSpiritDamage` 字段为单一事实来源（经套件读取合并，不双写）。
 
 #### Scenario: 百分比封顶
 - **WHEN** 玩家擦弹率各来源贡献累加超过配置硬上限（如上限 50%、来源累加到 70%）
@@ -41,8 +45,12 @@ TBD - created by archiving change player-attribute-suite. Update Purpose after a
 - **THEN** 返回值等于既有 playerSpiritDamage 字段，无第二处副本
 
 #### Scenario: 阶级贡献入加区
-- **WHEN** 3 阶玩家结算弹幕减免最终值
-- **THEN** grace_tier_1/2/3 三组贡献与基准合并后按 0.9 全局封顶取值
+- **WHEN** 3 阶玩家结算弹幕护壁最终值
+- **THEN** grace_tier_1/2/3 三组贡献与基准合并得到护壁指数 P，不按百分比封顶
+
+#### Scenario: 护壁非百分比
+- **WHEN** 玩家护壁指数累计为 8.6
+- **THEN** 属性容器原样保留 8.6（不被钳制到 0.9 一类百分比上限）
 
 ### Requirement: 阶级 roll 贡献源规约
 超人类进阶写入属性容器的贡献 SHALL 统一使用命名空间 `grace_tier_N`（N=1..5），每阶级一组；洗练重掷 SHALL 整组替换对应 sourceId 且 MUST NOT 触碰其他组。`sourceId` 为 `command` 的调试写入与 `grace_tier_N` 组 MUST NOT 互相覆盖。最大灵力与灵力强度按单写规约走池字段+阶级台账，属性容器内 MUST NOT 存在其持久副本。

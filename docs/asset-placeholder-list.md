@@ -71,6 +71,7 @@
 | textures/entity/flandre.png | TODO | Alex 皮肤 | flandre / fake_flandre |
 | textures/entity/fairy.png | TODO | Alex 皮肤 | big_fairy / cirno（小妖精已改 GeckoLib） |
 | textures/entity/lesser_fairy.png | DONE(外部 Bedrock 模型贴图，cutout) | 外部美术资源 | fairy（GeckoLib） |
+| textures/entity/lesser_fairy.*（复用） | 复用(占位) | 复用妖精 geo/动画/贴图 | balance_test_boss（测试 BOSS，GeckoLib 模型复用 lesser_fairy，仅放大） |
 | textures/entity/big_fairy.png | TODO | Alex 皮肤 | big_fairy |
 | textures/entity/danmaku.png | DONE(暂定旧版贴图) | 旧仓库 lightorb.png | 弹幕投射物 billboard |
 | textures/entity/orbit_orb.png | DONE(暂定旧版贴图) | 旧仓库 lightorb.png | 环绕阴阳玉 billboard |
