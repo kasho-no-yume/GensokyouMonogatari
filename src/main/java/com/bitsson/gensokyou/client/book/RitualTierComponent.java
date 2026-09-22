@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.client.book;
 
 import com.bitsson.gensokyou.client.ritual.ClientRitualData;
+import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualRecipe;
 import net.minecraft.client.Minecraft;
@@ -8,30 +9,34 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import vazkii.patchouli.api.ICustomComponent;
 import vazkii.patchouli.api.IComponentRenderContext;
 import vazkii.patchouli.api.IVariable;
 
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.UnaryOperator;
 
 /**
- * 仪式「阶级详情」组件：读取 {@code ritual} + {@code tier}，
- * 渲染该阶的仪式参数（配方 spCost/minPlayerTier、供品消耗）与搭建到该阶所需的累计材料。
- * 页面本身挂 `gensokyou:guide/tier_N` 门槛，故玩家只会看到 ≤ 自己阶级的详情。
+ * 仪式「阶级详情」组件：读取 {@code ritual} + {@code tier}，渲染该阶的**具体参数**
+ * （按该阶从 {@link GensokyouConfig} 计算，不写公式、不带类型标签）与该阶配方/供品。
+ * 页面本身挂对应阶级门槛（世界进度：下界/末地/幻想乡；4/5 阶为过渡）。
+ *
+ * <p>complete-ritual-book-entries D3：不再渲染「搭建材料」段；全部文本经
+ * {@link #drawWrapped} 自动换行（{@code Font.split}），MUST NOT 因超宽裁切。
  */
 public class RitualTierComponent implements ICustomComponent {
 
     private static final int HEADER_COLOR = 0xFF4A2B6B;
     private static final int BODY_COLOR = 0xFF2A2430;
     private static final int SUBTLE_COLOR = 0xFF666666;
-    private static final int MAX_MATERIAL_LINES = 9;
-    private static final int MAX_RECIPE_LINES = 5;
+    private static final int WRAP_WIDTH = 116;
+    private static final int LINE_HEIGHT = 10;
 
     private ResourceLocation ritualId;
     private int tier;
+    private boolean showRecipes = true;
 
     @Override
     public void onVariablesAvailable(UnaryOperator<IVariable> lookup, HolderLookup.Provider registries) {
@@ -45,6 +50,8 @@ public class RitualTierComponent implements ICustomComponent {
         } catch (NumberFormatException ignored) {
             tier = 0;
         }
+        String showRaw = lookup.apply(IVariable.wrap("#show_recipes#", registries)).asString("true");
+        showRecipes = showRaw == null || !showRaw.trim().equalsIgnoreCase("false");
     }
 
     @Override
@@ -75,97 +82,178 @@ public class RitualTierComponent implements ICustomComponent {
         }
         RitualPattern pattern = patternOpt.get();
 
-        graphics.drawString(mc.font, Component.translatable("gensokyou.book.ritual.params"),
-                x, y, SUBTLE_COLOR, false);
-        y += 11;
-        y = renderParams(graphics, mc, ritualId, x, y);
-        y += 3;
-        graphics.drawString(mc.font, Component.translatable("gensokyou.book.ritual.materials"),
-                x, y, SUBTLE_COLOR, false);
-        y += 11;
-        renderMaterials(graphics, mc, pattern, x, y);
+        List<Component> params = paramLines(ritualId, tier);
+        if (showRecipes) {
+            for (RitualRecipe recipe : ClientRitualData.recipesFor(ritualId)) {
+                if (recipe.minTier() != tier) {
+                    continue;
+                }
+                Component line = recipe.displayName().copy()
+                        .append("  ")
+                        .append(Component.translatable("jei.gensokyou.recipe.spirit_cost", recipe.spCost()));
+                if (recipe.minPlayerTier() > 0) {
+                    line = line.copy().append("  ")
+                            .append(Component.translatable("jei.gensokyou.recipe.player_tier", recipe.minPlayerTier()));
+                }
+                params.add(line);
+            }
+        }
+        if (!params.isEmpty()) {
+            y = drawWrapped(graphics, mc, Component.translatable("gensokyou.book.ritual.params"),
+                    x, y, SUBTLE_COLOR);
+            for (Component line : params) {
+                y = drawWrapped(graphics, mc, line, x, y, BODY_COLOR);
+            }
+        }
+
+        List<Component> offers = new ArrayList<>();
+        for (RitualPattern.Offering offering : pattern.requirements()) {
+            String itemName = offering.item().item() != null
+                    ? new net.minecraft.world.item.ItemStack(offering.item().item())
+                            .getHoverName().getString()
+                    : "#" + offering.item().tag().location();
+            Component consume = switch (offering.consume()) {
+                case NONE -> Component.translatable("gensokyou.book.ritual.consume.none");
+                case ON_ACTIVATE -> Component.translatable("gensokyou.book.ritual.consume.activate");
+                case PERIODIC -> Component.translatable("gensokyou.book.ritual.consume.periodic",
+                        offering.period() / 20);
+            };
+            offers.add(Component.translatable("gensokyou.book.ritual.offering", itemName, consume));
+        }
+        if (!offers.isEmpty()) {
+            if (!params.isEmpty()) {
+                y += 3;
+            }
+            y = drawWrapped(graphics, mc, Component.translatable("gensokyou.book.ritual.offerings_label"),
+                    x, y, SUBTLE_COLOR);
+            for (Component line : offers) {
+                y = drawWrapped(graphics, mc, line, x, y, BODY_COLOR);
+            }
+        }
     }
 
-    private int renderParams(GuiGraphics graphics, Minecraft mc, ResourceLocation ritualId, int x, int y) {
-        int lines = 0;
-        for (RitualRecipe recipe : ClientRitualData.recipesFor(ritualId)) {
-            if (recipe.minTier() > tier || lines >= MAX_RECIPE_LINES) {
-                continue;
+    /** 该阶具体参数（从 config 现算，避免在书里写公式）。 */
+    private static List<Component> paramLines(ResourceLocation id, int tier) {
+        List<Component> out = new ArrayList<>();
+        int L = Math.max(0, tier);
+        switch (id.getPath()) {
+            case "kagutsuchi_flame_circle" -> {
+                add(out, "产灵", secs(GensokyouConfig.KAGUTSUICHI_BASE_RATE_PER_SECOND.get() * pow(4, L)));
+                add(out, "输出上限", secs(GensokyouConfig.KAGUTSUICHI_BASE_OUT_RATE_PER_SECOND.get() * pow(4, L)));
+                add(out, "缓存", compact(GensokyouConfig.KAGUTSUICHI_BASE_CAPACITY.get() * pow(10, L)));
             }
-            Component line = recipe.displayName().copy()
-                    .append("  ")
-                    .append(Component.translatable("jei.gensokyou.recipe.spirit_cost", recipe.spCost()));
-            if (recipe.minPlayerTier() > 0) {
-                line = line.copy().append("  ")
-                        .append(Component.translatable("jei.gensokyou.recipe.player_tier", recipe.minPlayerTier()));
+            case "yumewatari_circle" -> {
+                add(out, "每次睡觉产灵", compact(GensokyouConfig.YUMEWATARI_PRODUCTION_PER_SLEEPER.get() * pow(4, L)));
+                add(out, "输出上限", compact(GensokyouConfig.YUMEWATARI_OUT_RATE_PER_SECOND.get()) + " /秒");
+                add(out, "缓存", compact(GensokyouConfig.YUMEWATARI_BASE_CAPACITY.get() * pow(4, L)));
             }
-            graphics.drawString(mc.font, line, x, y, BODY_COLOR, false);
-            y += 10;
-            lines++;
+            case "haniyasu_circle", "kukunochi_circle", "kaya_no_hime_circle", "oyamatsumi_circle" -> {
+                add(out, "受灵上限", compact(GensokyouConfig.SACRIFICE_SPIRIT_IN_RATE.get()) + " /秒");
+                add(out, "缓存", compact(GensokyouConfig.SACRIFICE_BASE_CAPACITY.get() * pow(4, L)));
+                add(out, "每次结算", "耗灵 " + compact(GensokyouConfig.SACRIFICE_BASE_SP_COST.get()
+                        * pow(GensokyouConfig.SACRIFICE_SP_COST_MULT.get(), L))
+                        + "，产出 " + compact(GensokyouConfig.SACRIFICE_BASE_COUNT.get()
+                        * pow(GensokyouConfig.SACRIFICE_COUNT_MULT.get(), L)) + " 件");
+                add(out, "冷却", (GensokyouConfig.SACRIFICE_COOLDOWN_TICKS.get() / 20) + " 秒");
+            }
+            case "watatsumi_circle" -> {
+                add(out, "受灵上限", compact(GensokyouConfig.SACRIFICE_SPIRIT_IN_RATE.get()) + " /秒");
+                add(out, "缓存", compact(GensokyouConfig.SACRIFICE_BASE_CAPACITY.get() * pow(4, L)));
+                add(out, "每次结算", "耗灵 " + compact(GensokyouConfig.SACRIFICE_BASE_SP_COST.get()
+                        * pow(GensokyouConfig.SACRIFICE_SP_COST_MULT.get(), L))
+                        + "，产出 " + compact(GensokyouConfig.WATATSUMI_BASE_COUNT.get()
+                        * pow(GensokyouConfig.WATATSUMI_COUNT_MULT.get(), L)) + " 件");
+                String cd = "冷却 " + (GensokyouConfig.WATATSUMI_BASE_COOLDOWN_TICKS.get() / 20) + " 秒";
+                if (L >= 2) {
+                    cd += "；宝藏冷却 " + (GensokyouConfig.WATATSUMI_BONUS_COOLDOWN_TICKS.get() / 20) + " 秒";
+                }
+                add(out, "冷却", cd);
+            }
+            case "shujou_yoroku_circle" -> {
+                add(out, "缓存", compact((long) GensokyouConfig.SHUJOU_BASE_CAPACITY.get()
+                        * pow(GensokyouConfig.SHUJOU_CAPACITY_MULT.get(), L)));
+                add(out, "受灵上限", compact(GensokyouConfig.SHUJOU_SPIRIT_IN_RATE.get()) + " /秒");
+                add(out, "周期", (GensokyouConfig.SHUJOU_CYCLE_TICKS.get() / 20) + " 秒");
+                add(out, "每种耗灵", compact((long) GensokyouConfig.SHUJOU_BASE_SP_COST.get()
+                        * pow(GensokyouConfig.SHUJOU_SP_COST_MULT.get(), L)));
+                String loot = "模拟抢夺 " + GensokyouConfig.SHUJOU_LOOTING_LEVEL.get();
+                if (L >= 2) {
+                    loot += "；产出 ×" + GensokyouConfig.SHUJOU_L2_OUTPUT_MULT.get();
+                }
+                add(out, "产出", loot);
+            }
+            case "nichirin_circle" -> {
+                add(out, "峰值产灵", secs(GensokyouConfig.NICHIRIN_BASE_RATE_PER_SECOND.get() * pow(4, L)));
+                add(out, "输出上限", compact(GensokyouConfig.NICHIRIN_OUT_RATE_PER_SECOND.get()) + " /秒");
+                add(out, "缓存", compact(GensokyouConfig.NICHIRIN_BASE_CAPACITY.get() * pow(4, L)));
+            }
+            case "tsukikage_circle" -> {
+                add(out, "峰值产灵", secs(GensokyouConfig.TSUKIKAGE_BASE_RATE_PER_SECOND.get() * pow(4, L)));
+                add(out, "输出上限", compact(GensokyouConfig.TSUKIKAGE_OUT_RATE_PER_SECOND.get()) + " /秒");
+                add(out, "缓存", compact(GensokyouConfig.TSUKIKAGE_BASE_CAPACITY.get() * pow(4, L)));
+            }
+            case "wujinzang_circle" -> {
+                add(out, "缓存", compact((long) GensokyouConfig.WUJINZANG_BASE_CAPACITY.get()
+                        * pow(GensokyouConfig.WUJINZANG_MULT.get(), L)));
+                add(out, "受灵上限", compact(GensokyouConfig.WUJINZANG_IN_RATE.get()) + " /秒");
+                add(out, "运行耗灵", compact((long) GensokyouConfig.WUJINZANG_BASE_DRAIN.get()
+                        * pow(GensokyouConfig.WUJINZANG_MULT.get(), L)) + " /秒");
+            }
+            case "zaohua_circle" -> add(out, "受灵上限", compact((long) GensokyouConfig.ZAOHUA_SPIRIT_IN_RATE_BASE.get()
+                    * pow(GensokyouConfig.ZAOHUA_SPIRIT_IN_RATE_MULT.get(), L)) + " /秒");
+            case "kami_no_megumi_circle" -> add(out, "受灵上限", compact(GensokyouConfig.GRACE_SPIRIT_IN_RATE.get()) + " /秒");
+            case "bafang_guiyuan_circle" -> add(out, "可托管核心", "tier ≤ " + L + " 的灵力核心");
+            case "resonance_relay" -> {
+                long scale = pow(2, Math.max(0, L - 2));
+                add(out, "输入连接", String.valueOf(GensokyouConfig.RESONANCE_BASE_IN_QUOTA.get() * scale));
+                add(out, "输出连接", String.valueOf(GensokyouConfig.RESONANCE_BASE_OUT_QUOTA.get() * scale));
+                add(out, "连接半径", (GensokyouConfig.RESONANCE_BASE_RADIUS.get() * scale) + " 格");
+            }
+            default -> {
+            }
         }
-        var patternOpt = ClientRitualData.pattern(ritualId);
-        if (patternOpt.isPresent()) {
-            for (RitualPattern.Offering offering : patternOpt.get().requirements()) {
-                String itemName = offering.item().item() != null
-                        ? new net.minecraft.world.item.ItemStack(offering.item().item())
-                                .getHoverName().getString()
-                        : "#" + offering.item().tag().location();
-                Component consume = switch (offering.consume()) {
-                    case NONE -> Component.translatable("gensokyou.book.ritual.consume.none");
-                    case ON_ACTIVATE -> Component.translatable("gensokyou.book.ritual.consume.activate");
-                    case PERIODIC -> Component.translatable("gensokyou.book.ritual.consume.periodic",
-                            offering.period() / 20);
-                };
-                graphics.drawString(mc.font,
-                        Component.translatable("gensokyou.book.ritual.offering", itemName, consume),
-                        x, y, BODY_COLOR, false);
-                y += 10;
-            }
+        return out;
+    }
+
+    private static void add(List<Component> list, String label, String value) {
+        list.add(Component.literal(label + "：" + value));
+    }
+
+    private static String secs(double v) {
+        return compact((long) v) + " /秒";
+    }
+
+    private static long pow(long base, int exp) {
+        long r = 1L;
+        for (int i = 0; i < exp; i++) {
+            r *= base;
         }
-        if (lines == 0) {
-            y += 2;
+        return r;
+    }
+
+    /** 大数紧凑显示：1.2 万 / 3.4 亿 / 1.2 万亿。 */
+    private static String compact(long v) {
+        if (v < 10_000L) {
+            return Long.toString(v);
+        }
+        String[] units = {"万", "亿", "万亿"};
+        double d = v;
+        int u = -1;
+        while (d >= 10_000D && u < units.length - 1) {
+            d /= 10_000D;
+            u++;
+        }
+        return String.format("%.1f%s", d, units[u]);
+    }
+
+    /** 按页宽自动换行绘制文本，返回下一行的 y。 */
+    private static int drawWrapped(GuiGraphics graphics, Minecraft mc, Component text,
+                                   int x, int y, int color) {
+        List<FormattedCharSequence> lines = mc.font.split(text, WRAP_WIDTH);
+        for (FormattedCharSequence line : lines) {
+            graphics.drawString(mc.font, line, x, y, color, false);
+            y += LINE_HEIGHT;
         }
         return y;
-    }
-
-    private void renderMaterials(GuiGraphics graphics, Minecraft mc, RitualPattern pattern, int x, int y) {
-        List<RitualPattern.BlockEntry> blocks = List.of();
-        for (RitualPattern.LevelSlice slice : pattern.levels()) {
-            if (slice.level() <= tier) {
-                blocks = slice.blocks();
-            }
-        }
-        Map<String, Integer> agg = new LinkedHashMap<>();
-        for (RitualPattern.BlockEntry entry : blocks) {
-            RitualPattern.Predicate predicate = pattern.palette().get(entry.key());
-            if (predicate == null) {
-                continue;
-            }
-            String name = switch (predicate.kind()) {
-                case EXACT -> predicate.block().getName().getString();
-                case TAG -> "#" + predicate.tag().location();
-                case AIR, IGNORE -> null;
-            };
-            if (name != null) {
-                agg.merge(name, 1, Integer::sum);
-            }
-        }
-        int shown = 0;
-        int total = 0;
-        for (Map.Entry<String, Integer> material : agg.entrySet()) {
-            total++;
-            if (shown >= MAX_MATERIAL_LINES) {
-                continue;
-            }
-            graphics.drawString(mc.font, Component.literal(material.getKey() + " ×" + material.getValue()),
-                    x, y, BODY_COLOR, false);
-            y += 10;
-            shown++;
-        }
-        if (total > shown) {
-            graphics.drawString(mc.font,
-                    Component.translatable("gensokyou.book.ritual.materials_more", total - shown),
-                    x, y, SUBTLE_COLOR, false);
-        }
     }
 }

@@ -46,13 +46,16 @@ def report(title, missing):
 
 
 en, zh = load("en_us.json"), load("zh_cn.json")
+# 中文优先：zh_cn 为第一语言源，必须完整（en 有的键 zh 必须有）；
+# zh-only（英文尚未同步）允许，仅计数提示——见 project.md「中文优先」。
 only_en = set(en) - set(zh)
 only_zh = set(zh) - set(en)
-if only_en or only_zh:
+if only_en:
     fail = True
-    print("MISSING key-alignment: en-only=%s zh-only=%s" % (sorted(only_en), sorted(only_zh)))
+    print("MISSING (zh has no counterpart for en key) en-only=%s" % sorted(only_en))
 else:
-    print("ok: en/zh key sets aligned (%d)" % len(en))
+    print("ok: en/zh zh-first aligned (en=%d, zh=%d, zh-only=%d)"
+          % (len(en), len(zh), len(only_zh)))
 
 java_keys = set()
 dyn_prefixes = set()
@@ -87,6 +90,6 @@ for fp in glob.glob("src/main/resources/data/gensokyou/damage_type/*.json"):
     data = read_json(fp)
     if data.get("message_id"):
         expanded.add("death.attack.%s" % data["message_id"])
-report("data-derived keys not in lang", {k for k in expanded if k not in en})
+report("data-derived keys not in zh", {k for k in expanded if k not in zh})
 
 sys.exit(1 if fail else 0)

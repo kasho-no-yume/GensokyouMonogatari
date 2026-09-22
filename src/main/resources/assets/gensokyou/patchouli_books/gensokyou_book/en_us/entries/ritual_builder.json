@@ -1,0 +1,12 @@
+{
+  "name": "gensokyou.book.entry.ritual_builder",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:ritual_builder",
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:ritual_builder",
+      "text": "gensokyou.book.entry.ritual_builder.p1"
+    }
+  ]
+}

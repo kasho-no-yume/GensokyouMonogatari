@@ -3,43 +3,8 @@
 ## Purpose
 
 《幻想乡物语》指导书框架：基于外部依赖的 Patchouli 数据驱动指导书，作为本 mod 玩法的唯一权威游戏内教程载体（JEI 仅为可选加速器）。覆盖书本体与打开行为、首次序言、六大章节骨架、进度解锁、仪式自定义配方页、书页配方与图标。
-## Requirements
-### Requirement: Patchouli 外部依赖接入
-本 mod SHALL 以**外部必需依赖**接入 Patchouli：在 `neoforge.mods.toml` 将 `patchouli` 声明为 required，且 MUST NOT 通过 JarJar 内嵌分发。全部 Java 调用 SHALL 仅经由 `vazkii.patchouli.api` 公共 API。
 
-#### Scenario: 正常打开
-- **WHEN** 玩家（已安装 Patchouli）右键持有指导书
-- **THEN** 打开 Patchouli 书 GUI，物品不消耗
-
-#### Scenario: 缺失依赖
-- **WHEN** 运行环境未安装 Patchouli
-- **THEN** 加载器报告缺失必需依赖并拒绝进入游戏，MUST NOT 静默降级或崩溃
-
-#### Scenario: API 隔离
-- **WHEN** 审查业务代码的 Patchouli 引用
-- **THEN** 仅存在 `vazkii.patchouli.api` 下的类型；客户端专属引用位于 `client` 包，dedicated server 不加载
-
-### Requirement: 首次打开显示序言
-玩家首次使用指导书 SHALL 直接打开序言条目，并通过玩家持久化数据记录"已读"；后续使用 SHALL 落在书的落地页（章节列表）。打开行为 SHALL 由服务端判定并调用服务端 API 驱动，物品 MUST NOT 消耗。
-
-#### Scenario: 首次使用
-- **WHEN** 玩家第一次右键指导书
-- **THEN** 打开序言条目，"已读"标记被写入玩家持久化数据
-
-#### Scenario: 后续使用
-- **WHEN** 已读玩家再次右键指导书
-- **THEN** 打开落地页（书名 + 章节列表），不再自动翻到序言
-
-### Requirement: 六大章节骨架
-书 SHALL 提供六个顶级章节：术语解释、符卡列表、敌对生物列表、NPC 列表、仪式列表、武器系统。`book.json` SHALL 位于 `data/gensokyou/patchouli_books/gensokyou_book/` 并设置 `use_resource_pack: true`；章节与条目 SHALL 位于 `assets/gensokyou/patchouli_books/gensokyou_book/en_us/`（`en_us` 为 Patchouli 基准目录，中文正文可直写其中），`zh_cn/` SHALL 作为可选覆盖。中英文环境 MUST NOT 出现裸 id。本 change SHALL 交付各章至少一个样例条目与序言条目。
-
-#### Scenario: 章节列表
-- **WHEN** 打开落地页
-- **THEN** 章节宫格呈现六个章节，标题经 lang 键本地化
-
-#### Scenario: 样例条目可读
-- **WHEN** 打开任一章
-- **THEN** 至少存在一个可打开的样例条目，正文无裸 key
+## MODIFIED Requirements
 
 ### Requirement: 进度解锁机制
 书 SHALL 提供隐形引导 advancement：`guide/nether_unlock`（进入下界）、`guide/end_unlock`（进入末地）、`guide/gensokyo_unlock`（进入幻想乡维度），均为 `changed_dimension` 触发器、无 display。需要门槛的内容条目 SHALL 以 `"advancement"` + `"secret": true` 声明：解锁前条目在书中**完全不显示**（非灰色锁定态），解锁时弹出 toast。内容 SHALL 以**世界进度**而非玩家超人类阶级（temperLevel）为门槛：0 阶内容条目 MUST NOT 挂任何 advancement（无条件可见）；结构阶 1/2/3 的内容分别以 `guide/nether_unlock` / `guide/end_unlock` / `guide/gensokyo_unlock` 为门槛；结构阶 4/5 的门槛在阶段 4/5 世界进度落地前 SHALL 以过渡实现承载（`temperLevel` 授予）。
@@ -87,27 +52,7 @@
 - **WHEN** 新增或修改一个仪式 pattern 后重跑生成器（`tools/gen_ritual_multiblock.py`）
 - **THEN** 对应条目的 3D 结构反映新数据，无需改动 Java 渲染代码
 
-### Requirement: 残页 tooltip 与书页配方
-记忆残页 SHALL 增加 tooltip「凑齐9张也许可以拼凑出一本书……」（经 lang 键）。系统 SHALL 提供两个原版配方：1 张残页无序合成 1 张纸；9 张残页 3×3 有序合成 1 本《幻想乡物语》。
-
-#### Scenario: 残页提示
-- **WHEN** 玩家悬停记忆残页
-- **THEN** tooltip 显示凑书提示文案
-
-#### Scenario: 残页造纸
-- **WHEN** 在合成格放入 1 张残页
-- **THEN** 产出 1 张纸
-
-#### Scenario: 残页合书
-- **WHEN** 3×3 平铺 9 张残页合成
-- **THEN** 产出 1 本《幻想乡物语》指导书
-
-### Requirement: 书图标重绘
-指导书物品图标 SHALL 重绘为 16×16 像素贴图：参照众生典籍的书册轮廓与底色调，增加更华丽的装饰（金边、宝石扣、缎带书签等），并保持物品模型引用 `guide_book.png`。
-
-#### Scenario: 图标呈现
-- **WHEN** 在物品栏查看指导书
-- **THEN** 显示重绘后的华丽书册图标
+## ADDED Requirements
 
 ### Requirement: 仪式条目内容规范
 仪式列表章 SHALL 采用「第一条为仪式入门（`sortnum` 最小），其后每个**可正常游玩的**已实现仪式各一条目」的形态；**创造/调试类仪式 MUST NOT 建条目**。每个仪式条目 SHALL 以**故事开篇 + 简短引言**作为正文**同一首页**（口吻含蓄、不必点破机制），其后 SHALL 按结构阶依次呈现该阶结构（multiblock）与该阶**具体参数**（按该阶计算，不写公式、不带「会话型／启停型」等标签）；生产/献祭类仪式 SHALL 以**物品图标**呈现其配方/掉落（JEI 风格，附概率）。正文换行 SHALL 使用 `$(br)`/`$(br2)`，MUST NOT 使用 `\n`。**最低结构阶 ≥ 1 的**仪式条目 SHALL 挂该阶**世界进度**门槛（`secret`）；最低阶为 0 的条目常驻可见。其逐阶结构/参数页 SHALL 各挂对应世界进度门槛。条目 SHALL 以 `sortnum` 明确排序。**没有 pattern 数据的占位/未实现仪式 MUST NOT 建条目**（待其 pattern 落地再补）。新增文案 SHALL 仅维护 `zh_cn`，MUST NOT 要求同步 `en_us`。
@@ -147,4 +92,3 @@
 #### Scenario: 仅中文
 - **WHEN** 校验新增文案的 lang 键
 - **THEN** 仅 `zh_cn.json` 有对应键，`en_us.json` 无需新增
-

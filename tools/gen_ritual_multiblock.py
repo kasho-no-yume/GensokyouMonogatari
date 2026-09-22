@@ -57,18 +57,33 @@ def cumulative_cells(data, max_level=None):
     return cells
 
 
+# Patchouli DenseMultiblock 保留字符：'0' = 唯一中心、' ' = 空气、'_' = 任意方块。
+RESERVED_CHARS = ("0", " ", "_")
+CHAR_POOL = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+
 def build_multiblock(cells, palette, anchor):
     mapping = {}
+    out_char = {}
 
-    def char_for(key):
-        value = palette[key]
-        kind = classify(value)
-        if kind == "air":
-            return " "
-        if kind == "ignore":
-            return "_"
-        mapping[key] = value
-        return key
+    # 不能直接拿 palette 的字符键当图案字符：palette 里常有键 "0"（0 阶仪式石），
+    # 与 Patchouli 的中心保留字 '0' 冲突，会生成多个中心而报
+    # "A structure can't have two centers"。故先给「单字符且非保留」的键保留原名，
+    # 再为其余键分配一个未占用的安全字符。
+    used = set(RESERVED_CHARS)
+    for key, value in palette.items():
+        if classify(value) in ("block", "tag") and len(key) == 1 and key not in used:
+            out_char[key] = key
+            used.add(key)
+    for key, value in palette.items():
+        if classify(value) in ("block", "tag") and key not in out_char:
+            free = next((c for c in CHAR_POOL if c not in used), None)
+            if free is None:
+                raise RuntimeError("palette too large to render multiblock")
+            out_char[key] = free
+            used.add(free)
+    for key, char in out_char.items():
+        mapping[char] = palette[key]
 
     xs = [p[0] for p in cells]
     ys = [p[1] for p in cells]
@@ -89,9 +104,23 @@ def build_multiblock(cells, palette, anchor):
                     row.append("0")
                     continue
                 key = cells.get((x, y, z))
-                row.append(" " if key is None else char_for(key))
+                if key is None:
+                    row.append(" ")
+                    continue
+                kind = classify(palette[key])
+                if kind == "air":
+                    row.append(" ")
+                elif kind == "ignore":
+                    row.append("_")
+                else:
+                    row.append(out_char[key])
             layer.append("".join(row))
         patterns.append(layer)
+
+    # 中心校验：图案必须恰有一个 '0'（Patchouli 硬性要求）。
+    center_count = sum(row.count("0") for layer in patterns for row in layer)
+    if center_count != 1:
+        raise ValueError(f"multiblock must have exactly one center, got {center_count}")
 
     anchor_value = palette[anchor]
     mapping["0"] = anchor_value if classify(anchor_value) in ("block", "tag") else "minecraft:air"
@@ -118,6 +147,21 @@ def count_recipes(recipes_dir, ritual_id):
     return total
 
 
+# 分阶门槛 = 世界进度（complete-ritual-book-entries D1）：
+#   1→下界、2→末地、3→幻想乡维度；4/5 为 temperLevel 过渡门槛；0 → 无门槛。
+GATE_BY_LEVEL = {
+    1: "gensokyou:guide/nether_unlock",
+    2: "gensokyou:guide/end_unlock",
+    3: "gensokyou:guide/gensokyo_unlock",
+    4: "gensokyou:guide/tier_4",
+    5: "gensokyou:guide/tier_5",
+}
+
+
+def gate_for(level):
+    return GATE_BY_LEVEL.get(level)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--ritual", required=True)
@@ -127,6 +171,13 @@ def main():
     parser.add_argument("--name-key")
     parser.add_argument("--category")
     parser.add_argument("--icon")
+    parser.add_argument("--sortnum", type=int, default=0)
+    parser.add_argument("--max-recipes", type=int, default=12,
+                        help="配方数超过该值则不补配方页（默认 12）")
+    parser.add_argument("--no-recipes", action="store_true",
+                        help="不补配方页（开放式/极多配方仪式，作者显式指认）")
+    parser.add_argument("--entry-advancement", default="",
+                        help="条目级门槛覆盖；缺省取最低结构阶门槛")
     parser.add_argument("--text-page", action="append", default=[])
     args = parser.parse_args()
 
@@ -151,7 +202,7 @@ def main():
         multiblock = build_multiblock(cumulative_cells(data, level), palette, anchor)
         if multiblock is None:
             continue
-        gate = f"gensokyou:guide/tier_{level}" if level >= 1 else None
+        gate = gate_for(level)
         structure_page = {
             "type": "patchouli:multiblock",
             "name": f"gensokyou.book.ritual.structure.{level}",
@@ -170,22 +221,32 @@ def main():
         pages.append(tier_page)
 
     recipe_count = count_recipes(args.recipes_dir, ritual_id)
-    for index in range(recipe_count):
-        pages.append({
-            "type": "gensokyou:ritual_page",
-            "ritual": ritual_id,
-            "recipe_index": index,
-        })
+    recipe_pages = 0
+    if not args.no_recipes and 0 < recipe_count <= args.max_recipes:
+        for index in range(recipe_count):
+            pages.append({
+                "type": "gensokyou:ritual_page",
+                "ritual": ritual_id,
+                "recipe_index": index,
+            })
+        recipe_pages = recipe_count
 
+    # 条目级门槛：取最低结构阶对应的门槛（最低阶 0 → 无条件可见/不 secret）。
+    entry_gate = args.entry_advancement.strip() or (gate_for(levels[0]) or "")
     entry = {
         "name": args.name_key,
         "category": args.category,
         "icon": args.icon,
+        "sortnum": args.sortnum,
         "pages": pages,
     }
+    if entry_gate:
+        entry["advancement"] = entry_gate
+        entry["secret"] = True
     with open(args.entry_out, "w", encoding="utf-8") as handle:
         json.dump(entry, handle, ensure_ascii=False, indent=2)
-    print(f"entry -> {args.entry_out}  (tiers={levels}, recipe_pages={recipe_count}, total_pages={len(pages)})")
+    print(f"entry -> {args.entry_out}  (tiers={levels}, recipe_pages={recipe_pages}, "
+          f"entry_gate={entry_gate or '-'}, total_pages={len(pages)})")
 
 
 if __name__ == "__main__":

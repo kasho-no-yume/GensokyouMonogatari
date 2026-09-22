@@ -8,6 +8,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.ItemStack;
 import vazkii.patchouli.api.ICustomComponent;
 import vazkii.patchouli.api.IComponentRenderContext;
@@ -19,12 +20,14 @@ import java.util.function.UnaryOperator;
 /**
  * 仪式配方卡组件（一页一配方）：读取 {@code ritual} + {@code recipe_index}，
  * 渲染该仪式的第 recipe_index 个配方（原料×数量 / 产物或本地化效果名 / spCost / minTier）。
- * 数据未同步时显示占位。
+ * 数据未同步时显示占位。头部与效果名经 {@code Font.split} 自动换行（complete-ritual-book-entries D3）。
  */
 public class RitualPageComponent implements ICustomComponent {
 
     private static final int HEADER_COLOR = 0xFF4A2B6B;
     private static final int BODY_COLOR = 0xFF2A2430;
+    private static final int WRAP_WIDTH = 116;
+    private static final int LINE_HEIGHT = 11;
 
     private ResourceLocation ritualId;
     private int recipeIndex;
@@ -68,11 +71,11 @@ public class RitualPageComponent implements ICustomComponent {
             return;
         }
         RitualRecipe recipe = recipes.get(recipeIndex);
-        graphics.drawString(mc.font,
+        y = drawWrapped(graphics, mc,
                 Component.translatable("gensokyou.book.ritual.recipe_header", recipeIndex + 1, recipes.size())
                         .copy().append("  ").append(recipe.displayName()),
-                x, y, HEADER_COLOR, false);
-        y += 14;
+                x, y, HEADER_COLOR);
+        y += 4;
         int col = 0;
         for (RitualRecipe.Ingredient ingredient : recipe.ingredients()) {
             if (col >= 9) {
@@ -87,20 +90,18 @@ public class RitualPageComponent implements ICustomComponent {
             col++;
         }
         y += 22;
-        graphics.drawString(mc.font,
+        y = drawWrapped(graphics, mc,
                 Component.translatable("jei.gensokyou.recipe.spirit_cost", recipe.spCost()),
-                x, y, BODY_COLOR, false);
-        y += 11;
-        graphics.drawString(mc.font,
+                x, y, BODY_COLOR);
+        y = drawWrapped(graphics, mc,
                 Component.translatable("jei.gensokyou.recipe.tier", recipe.minTier()),
-                x, y, BODY_COLOR, false);
+                x, y, BODY_COLOR);
         if (recipe.minPlayerTier() > 0) {
-            y += 11;
-            graphics.drawString(mc.font,
+            y = drawWrapped(graphics, mc,
                     Component.translatable("jei.gensokyou.recipe.player_tier", recipe.minPlayerTier()),
-                    x, y, BODY_COLOR, false);
+                    x, y, BODY_COLOR);
         }
-        y += 14;
+        y += 4;
         if (recipe.resultStack() != null) {
             context.renderItemStack(graphics, x, y + 4, mouseX, mouseY, recipe.resultStack());
         } else if (recipe.effect() != null) {
@@ -109,9 +110,20 @@ public class RitualPageComponent implements ICustomComponent {
                 Component effect = Component.translatableWithFallback(
                         "jei." + effectId.getNamespace() + ".effect." + effectId.getPath(),
                         effectId.getPath());
-                graphics.drawString(mc.font, effect, x + 4, y + 6, BODY_COLOR, false);
+                drawWrapped(graphics, mc, effect, x, y, BODY_COLOR);
             }
         }
+    }
+
+    /** 按页宽自动换行绘制文本，返回下一行的 y。 */
+    private static int drawWrapped(GuiGraphics graphics, Minecraft mc, Component text,
+                                   int x, int y, int color) {
+        List<FormattedCharSequence> lines = mc.font.split(text, WRAP_WIDTH);
+        for (FormattedCharSequence line : lines) {
+            graphics.drawString(mc.font, line, x, y, color, false);
+            y += LINE_HEIGHT;
+        }
+        return y;
     }
 
     private static ItemStack tagRepresentative(RitualRecipe.Ingredient ingredient) {

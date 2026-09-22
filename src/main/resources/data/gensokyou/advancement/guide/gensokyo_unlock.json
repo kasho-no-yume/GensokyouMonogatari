@@ -1,0 +1,10 @@
+{
+  "criteria": {
+    "entered_gensokyo": {
+      "trigger": "minecraft:changed_dimension",
+      "conditions": {
+        "to": "gensokyou:gensokyo"
+      }
+    }
+  }
+}

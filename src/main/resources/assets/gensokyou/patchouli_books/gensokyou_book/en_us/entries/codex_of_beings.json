@@ -1,0 +1,12 @@
+{
+  "name": "gensokyou.book.entry.codex_of_beings",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:codex_of_beings",
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:codex_of_beings",
+      "text": "gensokyou.book.entry.codex_of_beings.p1"
+    }
+  ]
+}

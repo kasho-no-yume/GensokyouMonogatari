@@ -90,10 +90,11 @@ metadata:
  6. tick 通道选型          启停型→serverTick + pattern "toggleable": true
                           被动型→serverPassiveTick + pattern 不写 toggleable
  7. 端点声明               如需路由：覆写 in/out（双发分道，禁止合并）
- 8. lang                  zh_cn/en_us（信息行/由来诗/jei 名）
- 9. lang 审计              python tools/lang_audit.py   ← 必须零缺失
-10. 调试探针              /gs_debug 增子命令（机读单行便于外部 harness）
-11. 验证                  gradlew compileJava → runServer 日志 → 实机
+ 8. lang                  zh_cn（中文优先；en_us 按需同步，允许滞后）
+ 9. lang 审计              python tools/lang_audit.py   ← 必须零缺失（zh 口径）
+10. 指导书条目             见 §9：生成器命令 + 故事/引言 + 配方页取舍 + 排序/门槛
+11. 调试探针              /gs_debug 增子命令（机读单行便于外部 harness）
+12. 验证                  gradlew compileJava → runServer 日志 → 实机
 ```
 
 ## 5. 红线 / 极易踩的坑
@@ -141,15 +142,94 @@ metadata:
 
 ## 8. 现有仪式清单与状态
 
+> 全部 17 个已注册行为均**已实现**（`RitualBehaviors` 静态块）。「占位/未实现」= **无 pattern 数据文件**，不可被玩家搭建、也不补指导书章节。
+
 | patternId | 名称 | 行为 | 备注 |
 |---|---|---|---|
-| `resonance_relay` | 万象共鸣 | `ResonanceRelayBehavior` | 路由塔，缓存 0 |
-| `barrier_break_circle` | 结界 | `BarrierBreakBehavior` | — |
-| `kagutsuchi_flame_circle` | 加具土命之焰 | `KagutsuchiFlameBehavior` | 吞燃料产灵，tiers 0-3 |
-| `bafang_guiyuan_circle` | 八方归元 | `BafangGuiyuanBehavior` | 托管池，tiers 2-5 |
-| `zaohua_circle` | 造化 | `ZaohuaCraftingBehavior` | 会话型 |
-| `kami_no_megumi_circle` | 八百万神恩 | `YaoyorozuGraceBehavior` | 会话型 |
-| `yumewatari_circle` | 梦渡之座 | `YumewatariBehavior` | 跳夜产灵，tiers 0-2 |
-| `nichirin_circle` | 日轮天台 | 待实现 | 昼夜发电机（变更 `add-daycycle-generator-rituals`） |
-| `tsukikage_circle` | 月影水镜 | 待实现 | 昼夜发电机（同上） |
-| `haniyasu` / `kaya_no_hime` / `kukunochi` / `oyamatsumi` | — | 无 | 空壳 pattern（能成型、无行为） |
+| `kagutsuchi_flame_circle` | 迦具土炎祭 | `KagutsuchiFlameBehavior` | 启停吞燃料产灵，tiers 0-3 |
+| `yumewatari_circle` | 梦渡之座 | `YumewatariBehavior` | 跳夜产灵 + out 声明，tiers 0-2 |
+| `haniyasu_circle` | 埴山姬神之壤 | `HaniyasuBehavior` | 工具献祭（铲），继承 `ToolSacrificeBehavior` |
+| `kukunochi_circle` | 久久能智神庭 | `KukunochiBehavior` | 工具献祭（斧） |
+| `kaya_no_hime_circle` | 草野姬神花亭 | `KayaNoHimeBehavior` | 工具献祭（锄） |
+| `oyamatsumi_circle` | 大山祇神之座 | `OyamatsumiBehavior` | 工具献祭（镐） |
+| `watatsumi_circle` | 绵津见神之藏 | `WatatsumiBehavior` | 钓鱼竿献祭（**刻意不继承** `ToolSacrificeBehavior`） |
+| `shujou_yoroku_circle` | 众生余录 | `ShujouYorokuBehavior` | 献祭生灵之态 |
+| `nichirin_circle` | 日轮天台 | `NichirinBehavior` | 昼夜发电机（继承 `DayCycleGeneratorBehavior`），tiers 0-1 |
+| `tsukikage_circle` | 月影水镜 | `TsukikageBehavior` | 昼夜发电机，tiers 0-1 |
+| `wujinzang_circle` | 无尽藏 | `WujinzangBehavior` | 托管 128 晶储物，tiers 0-5 |
+| `zaohua_circle` | 源初造化之仪 | `ZaohuaCraftingBehavior` | 会话型，tiers 0-5（配方开放/极多） |
+| `sair_energy_circle` | 赛尔能源 | `SairEnergyBehavior` | 创造调试无限供灵源，tier 0 |
+| `kami_no_megumi_circle` | 八百万神恩 | `YaoyorozuGraceBehavior` | 会话型进阶，tiers 1-5 |
+| `bafang_guiyuan_circle` | 八方归元之仪 | `BafangGuiyuanBehavior` | 托管池 + `SpiritBank`，tiers 2-5 |
+| `resonance_relay` | 万象共鸣之仪 | `ResonanceRelayBehavior` | 路由塔，tiers 2-5，缓存 0 |
+| ⚠️ `barrier_break_circle` | 结界破碎 | `BarrierBreakBehavior` | **占位**：有行为，但无 pattern JSON，不可搭建 |
+| ⚠️ `summon_circle` | 召唤 | 仅 `RitualBehaviors.SUMMON` 常量 | **占位**：无行为、无 pattern |
+
+## 9. 指导书补充规范（新增/修改仪式后必做）
+
+仪式实现完成后，SHALL 同步补指导书条目（Patchouli）。规范如下。
+
+### 9.1 条目形态
+
+- 仪式分类下：**第一条 = 仪式入门**（`rituals_basics`，`sortnum: 0`），其后**每个可正常游玩的已实现仪式一条目**。
+- 条目名复用 JEI 键 `jei.gensokyou.ritual.<path>`；`icon` 取一个代表性物品。
+- **占位/未实现仪式（无 pattern 数据）MUST NOT 建条目**。
+- **创造/调试类仪式（如 `sair_energy_circle` 赛尔能源）MUST NOT 建条目**（不属正常游玩内容）。
+- 条目级门槛：**最低结构阶 ≥ 1 的仪式**条目挂该阶对应世界进度门槛（`"secret": true`）；最低阶 0 的条目常驻可见。逐阶结构/参数页各挂对应门槛。
+- 条目 JSON **由 `tools/gen_ritual_book_entries.py` 生成**（MUST NOT 手改，重跑会覆盖）；分类内顺序由 `sortnum` 决定（入门 0，其后 1..N）。
+
+### 9.2 文案
+
+- 开头**先讲一个短故事**（东方/神话口吻），再接**简短引言**；话不必点破机制（例：八百万神恩直接说「强化仪式」即可，不展开数值）。
+- 只维护 `zh_cn`（中文优先）；`en_us` 允许滞后，不强行补英文。
+- 每仪式 **1 张** text 页：`gensokyou.book.entry.ritual.<path>.text`，故事与引言写在**同一页**。MUST NOT 一句一页（浪费页数）。
+- **换行语法（重要）**：Patchouli 只认 `$(br)`（换行）、`$(br2)`/`$(p)`（段落空行）、`$(li)`（列表）；**MUST NOT 用 `\n`**（不被解析，会显示成方框/乱码）。内部跳转：`$(l:<entry_id>)文字$(/l)`。
+
+### 9.2b 阶级参数与产物
+
+- 参数 SHALL 显示在**该阶结构页之后**的 `gensokyou:ritual_tier_page` 上，由客户端组件 `RitualTierComponent` 按 `tier` 从 `GensokyouConfig` **现算具体数值**（不写公式）；MUST NOT 加「会话型／启停型」等标签。产灵类给产灵/输出速率；功能类给缓存/受灵/耗灵；特殊类给专有项（如共鸣塔的输入/输出连接数与半径）。阶级页只显示 `minTier == 该阶` 的配方；开放/极多配方的仪式由生成器写 `"show_recipes": false`，组件据此不渲染配方（先例：源初造化）。
+- 生产/献祭类仪式的配方/掉落 SHALL 用 `gensokyou:loot_page`（`RitualLootComponent`）以**物品图标网格**呈现，顶部摆出**献祭工具**；4 个工具仪式（铲/斧/锄/镐）各按工具材质出 **6 页**（分常规/下界/末地池），绵津见按等级出 **3 页**（**所有产物混排单网格，不分池**）。概率由 `tools/gen_ritual_book_entries.py` 按 `ritual_loot` 权重归一算出后内联（口径与 JEI `RitualLootCardWrapper` 完全一致）。
+- 关联物品（如众生典籍、仪式构建器）SHALL 用 `$(l:<entry_id>)…$(/l)` 链接到物品词条；词条不存在时先建**占位条目**（`category: gensokyou:items`）。
+
+### 9.3 结构与参数（分阶）
+
+- 批量生成：`python tools/gen_ritual_book_entries.py`（读 `rituals/*.json` + `ritual_recipes/`）。
+- 单仪式：`python tools/gen_ritual_multiblock.py --ritual <json> --recipes-dir <dir> --entry-out <entry.json> --name-key jei.gensokyou.ritual.<path> --category gensokyou:rituals --icon <id> --sortnum <n> [--no-recipes] [--text-page k1 --text-page k2]`
+- 逐阶产出 `patchouli:multiblock` 结构页 + `gensokyou:ritual_tier_page` 参数页，自动挂阶门槛。
+- **阶门槛 = 世界进度**（`gen_ritual_multiblock.GATE_BY_LEVEL`）：1 阶←下界、2 阶←末地、3 阶←幻想乡、4/5 阶暂用 `guide/tier_4/5`（temperLevel 过渡）。
+- 坑：Patchouli `DenseMultiblock` 保留 `'0'`（**唯一中心**）、`' '`（空气）、`'_'`（任意），且要求图案**恰有一个中心**。palette 里常有键 `"0"`（0 阶仪式石），生成器已自动把非单字符/保留字符的键重映射到安全字符；改生成器时 MUST 保持该逻辑，否则报 `A structure can't have two centers` / `no center`。
+
+### 9.4 换行 / 分页纪律（防超框）
+
+- 页高仅 156px、页宽 116px。自定义组件文本 SHALL 经 `Font.split(text, 116)` 自动换行（`RitualTierComponent` / `RitualPageComponent` 已内置 `drawWrapped`）。
+- 分阶页**不放「搭建材料」段**（历史超框主因，见 change `complete-ritual-book-entries` D3）。
+- Patchouli **无运行时自动分页**：长文（故事/引言）在生成期拆成多张 `patchouli:text` 页；单体自定义组件内容控制在可读行数内。
+- 原则：宁可生成期拆页/删段，也不让单页塞满。`book.json` 可设 `"text_overflow_mode": "resize"|"truncate"|"overflow"` 兜底（缺省走 Patchouli 全局 RESIZE）。
+
+### 9.5 配方页取舍
+
+补配方页 ⟺ 有 `ritual_recipes` 数据 **且** 配方数 ≤ 12 **且** 作者未显式指认为开放式/极多配方；否则**不补**。
+
+- 例：八百万神恩 10 条 → 补；源初造化（现 2 条，但显式指认为数百上千条开放式）→ 不补。
+- **拿不准阈值、或某仪式是否算「极多/开放式」时，向用户询问。**
+
+### 9.6 生成与验证流程（逐步骤）
+
+```
+1. python tools/gen_ritual_book_entries.py     # 批量重生成条目（勿手改条目 JSON）
+2. lang/zh_cn.json                              # 条目名复用 jei 键；正文 .text；必要时物品占位词条
+3. python tools/lang_audit.py                   # MUST 退出码 0（中文优先口径：en ⊆ zh）
+4. gradlew compileJava                          # 改了 client/book 组件时
+5. openspec validate <change> --strict
+```
+
+关键文件地图：
+
+| 关注点 | 位置 |
+|---|---|
+| 条目 JSON | `assets/gensokyou/patchouli_books/gensokyou_book/en_us/entries/`（`ritual_<path>.json`、`rituals_basics.json`、物品占位词条） |
+| 页面模板 | `.../en_us/templates/`：`ritual_page`（配方卡）、`ritual_tier_page`（阶级参数）、`loot_page`（产出网格） |
+| 客户端组件 | `client/book/`：`RitualTierComponent`（阶级参数，按 config 现算）、`RitualPageComponent`（配方卡）、`RitualLootComponent`（献祭产出网格 + 工具）、`RitualPageProcessor`（变量透传） |
+| 门槛 advancement | `data/gensokyou/advancement/guide/{nether,end,gensokyo}_unlock.json`、`tier_4/5.json`（过渡） |
+| 结构/产出生成 | `tools/gen_ritual_multiblock.py`（结构 + gate 映射）、`tools/gen_ritual_book_entries.py`（批量条目 + 产出概率） |
+| 数据源 | `data/gensokyou/rituals/*.json`、`ritual_recipes/*.json`、`ritual_loot/*.json`、`ritual_special/*.json` |

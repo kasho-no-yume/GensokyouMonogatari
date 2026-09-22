@@ -1,0 +1,406 @@
+{
+  "name": "jei.gensokyou.ritual.haniyasu_circle",
+  "category": "gensokyou:rituals",
+  "icon": "minecraft:iron_shovel",
+  "sortnum": 3,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.ritual.haniyasu_circle.text"
+    },
+    {
+      "type": "patchouli:multiblock",
+      "name": "gensokyou.book.ritual.structure.0",
+      "multiblock": {
+        "pattern": [
+          [
+            "       ",
+            "  s s  ",
+            " s   s ",
+            "       ",
+            " s   s ",
+            "  s s  ",
+            "       "
+          ],
+          [
+            "       ",
+            "  3P3  ",
+            " 3   3 ",
+            " P 0 P ",
+            " 3   3 ",
+            "  3P3  ",
+            "       "
+          ],
+          [
+            "       ",
+            "  bbb  ",
+            " badab ",
+            " bdadb ",
+            " badab ",
+            "  bbb  ",
+            "       "
+          ],
+          [
+            "   b   ",
+            " bdedb ",
+            " eehee ",
+            "beheheb",
+            " eehee ",
+            " bdedb ",
+            "   b   "
+          ],
+          [
+            " bbebb ",
+            "beeeeeb",
+            "bdfefdb",
+            "eeeeeee",
+            "bdfefdb",
+            "beeeeeb",
+            " bbebb "
+          ]
+        ],
+        "mapping": {
+          "C": "gensokyou:ritual_core",
+          "1": "#gensokyou:ritual_stones_1_plus",
+          "2": "#gensokyou:ritual_stones_2_plus",
+          "P": "#gensokyou:ritual_pedestals",
+          "a": "minecraft:packed_mud",
+          "b": "minecraft:mud_bricks",
+          "c": "minecraft:mud_brick_wall",
+          "d": "minecraft:clay",
+          "e": "minecraft:coarse_dirt",
+          "f": "minecraft:rooted_dirt",
+          "h": "minecraft:mud",
+          "i": "minecraft:terracotta",
+          "k": "minecraft:stone_bricks",
+          "l": "minecraft:tuff",
+          "m": "minecraft:calcite",
+          "n": "minecraft:dripstone_block",
+          "o": "minecraft:gravel",
+          "p": "minecraft:sand",
+          "s": "minecraft:lantern",
+          "t": "minecraft:potted_dead_bush",
+          "u": "minecraft:potted_fern",
+          "3": "#gensokyou:ritual_stones",
+          "0": "gensokyou:ritual_core"
+        },
+        "symmetrical": true
+      },
+      "enable_visualize": true
+    },
+    {
+      "type": "gensokyou:ritual_tier_page",
+      "ritual": "gensokyou:haniyasu_circle",
+      "tier": 0
+    },
+    {
+      "type": "patchouli:multiblock",
+      "name": "gensokyou.book.ritual.structure.1",
+      "multiblock": {
+        "pattern": [
+          [
+            "           ",
+            "           ",
+            "    s s    ",
+            "    s s    ",
+            "  ss   ss  ",
+            "           ",
+            "  ss   ss  ",
+            "    s s    ",
+            "    s s    ",
+            "           ",
+            "           "
+          ],
+          [
+            "           ",
+            "           ",
+            "    i i    ",
+            "    3P3    ",
+            "  i3   3i  ",
+            "   P 0 P   ",
+            "  i3   3i  ",
+            "    3P3    ",
+            "    i i    ",
+            "           ",
+            "           "
+          ],
+          [
+            "           ",
+            "           ",
+            "    1P1    ",
+            "   dbbbd   ",
+            "  1badab1  ",
+            "  PbdadbP  ",
+            "  1badab1  ",
+            "   dbbbd   ",
+            "    1P1    ",
+            "           ",
+            "           "
+          ],
+          [
+            "           ",
+            "           ",
+            "   m1b1m   ",
+            "  mbdedbm  ",
+            "  1eehee1  ",
+            "  beheheb  ",
+            "  1eehee1  ",
+            "  mbdedbm  ",
+            "   m1b1m   ",
+            "           ",
+            "           "
+          ],
+          [
+            "           ",
+            "  tcpopct  ",
+            " tcbbebbct ",
+            " cbeeeeebc ",
+            " pbdfefdbp ",
+            " oeeeeeeeo ",
+            " pbdfefdbp ",
+            " cbeeeeebc ",
+            " tcbbebbct ",
+            "  tcpopct  ",
+            "           "
+          ],
+          [
+            "     e     ",
+            "  klldllk  ",
+            " knlfeflnk ",
+            " lleeeeell ",
+            " lddfefddl ",
+            "edeeeeeeede",
+            " lddfefddl ",
+            " lleeeeell ",
+            " knlfeflnk ",
+            "  klldllk  ",
+            "     e     "
+          ]
+        ],
+        "mapping": {
+          "C": "gensokyou:ritual_core",
+          "1": "#gensokyou:ritual_stones_1_plus",
+          "2": "#gensokyou:ritual_stones_2_plus",
+          "P": "#gensokyou:ritual_pedestals",
+          "a": "minecraft:packed_mud",
+          "b": "minecraft:mud_bricks",
+          "c": "minecraft:mud_brick_wall",
+          "d": "minecraft:clay",
+          "e": "minecraft:coarse_dirt",
+          "f": "minecraft:rooted_dirt",
+          "h": "minecraft:mud",
+          "i": "minecraft:terracotta",
+          "k": "minecraft:stone_bricks",
+          "l": "minecraft:tuff",
+          "m": "minecraft:calcite",
+          "n": "minecraft:dripstone_block",
+          "o": "minecraft:gravel",
+          "p": "minecraft:sand",
+          "s": "minecraft:lantern",
+          "t": "minecraft:potted_dead_bush",
+          "u": "minecraft:potted_fern",
+          "3": "#gensokyou:ritual_stones",
+          "0": "gensokyou:ritual_core"
+        },
+        "symmetrical": true
+      },
+      "enable_visualize": true,
+      "advancement": "gensokyou:guide/nether_unlock"
+    },
+    {
+      "type": "gensokyou:ritual_tier_page",
+      "ritual": "gensokyou:haniyasu_circle",
+      "tier": 1,
+      "advancement": "gensokyou:guide/nether_unlock"
+    },
+    {
+      "type": "patchouli:multiblock",
+      "name": "gensokyou.book.ritual.structure.2",
+      "multiblock": {
+        "pattern": [
+          [
+            "             ",
+            "      i      ",
+            "             ",
+            "     s s     ",
+            "     s s     ",
+            "   ss   ss   ",
+            " i         i ",
+            "   ss   ss   ",
+            "     s s     ",
+            "     s s     ",
+            "             ",
+            "      i      ",
+            "             "
+          ],
+          [
+            "             ",
+            "    aaaaa    ",
+            "             ",
+            "     i i     ",
+            " a   3P3   a ",
+            " a i3   3i a ",
+            " a  P 0 P  a ",
+            " a i3   3i a ",
+            " a   3P3   a ",
+            "     i i     ",
+            "             ",
+            "    aaaaa    ",
+            "             "
+          ],
+          [
+            "             ",
+            "    2   2    ",
+            "             ",
+            "     1P1     ",
+            " 2  dbbbd  2 ",
+            "   1badab1   ",
+            "   PbdadbP   ",
+            "   1badab1   ",
+            " 2  dbbbd  2 ",
+            "     1P1     ",
+            "             ",
+            "    2   2    ",
+            "             "
+          ],
+          [
+            "             ",
+            "    2   2    ",
+            "             ",
+            "    m1b1m    ",
+            " 2 mbdedbm 2 ",
+            "   1eehee1   ",
+            "   beheheb   ",
+            "   1eehee1   ",
+            " 2 mbdedbm 2 ",
+            "    m1b1m    ",
+            "             ",
+            "    2   2    ",
+            "             "
+          ],
+          [
+            "             ",
+            "  u 2   2 u  ",
+            " u tcpopct u ",
+            "  tcbbebbct  ",
+            " 2cbeeeeebc2 ",
+            "  pbdfefdbp  ",
+            "  oeeeeeeeo  ",
+            "  pbdfefdbp  ",
+            " 2cbeeeeebc2 ",
+            "  tcbbebbct  ",
+            " u tcpopct u ",
+            "  u 2   2 u  ",
+            "             "
+          ],
+          [
+            "    ccpcc    ",
+            "  cs2oeo2sc  ",
+            " cPklldllkPc ",
+            " sknlfeflnks ",
+            "c2lleeeeell2c",
+            "colddfefddloc",
+            "pedeeeeeeedep",
+            "colddfefddloc",
+            "c2lleeeeell2c",
+            " sknlfeflnks ",
+            " cPklldllkPc ",
+            "  cs2oeo2sc  ",
+            "    ccpcc    "
+          ],
+          [
+            "    nlmln    ",
+            "  kkklelkkk  ",
+            " knkllellknk ",
+            " kkllfefllkk ",
+            "nkllefefellkn",
+            "llleeeeeeelll",
+            "meeeeefeeeeem",
+            "llleeeeeeelll",
+            "nkllefefellkn",
+            " kkllfefllkk ",
+            " knkllellknk ",
+            "  kkklelkkk  ",
+            "    nlmln    "
+          ]
+        ],
+        "mapping": {
+          "C": "gensokyou:ritual_core",
+          "1": "#gensokyou:ritual_stones_1_plus",
+          "2": "#gensokyou:ritual_stones_2_plus",
+          "P": "#gensokyou:ritual_pedestals",
+          "a": "minecraft:packed_mud",
+          "b": "minecraft:mud_bricks",
+          "c": "minecraft:mud_brick_wall",
+          "d": "minecraft:clay",
+          "e": "minecraft:coarse_dirt",
+          "f": "minecraft:rooted_dirt",
+          "h": "minecraft:mud",
+          "i": "minecraft:terracotta",
+          "k": "minecraft:stone_bricks",
+          "l": "minecraft:tuff",
+          "m": "minecraft:calcite",
+          "n": "minecraft:dripstone_block",
+          "o": "minecraft:gravel",
+          "p": "minecraft:sand",
+          "s": "minecraft:lantern",
+          "t": "minecraft:potted_dead_bush",
+          "u": "minecraft:potted_fern",
+          "3": "#gensokyou:ritual_stones",
+          "0": "gensokyou:ritual_core"
+        },
+        "symmetrical": true
+      },
+      "enable_visualize": true,
+      "advancement": "gensokyou:guide/end_unlock"
+    },
+    {
+      "type": "gensokyou:ritual_tier_page",
+      "ritual": "gensokyou:haniyasu_circle",
+      "tier": 2,
+      "advancement": "gensokyou:guide/end_unlock"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:wooden_shovel",
+      "tier": "wood",
+      "mode": "tool",
+      "entries": "minecraft:dirt,30,0;minecraft:coarse_dirt,12,0;minecraft:rooted_dirt,12,0;minecraft:mud,10.0,0;minecraft:sand,12,0;minecraft:red_sand,8.0,0;minecraft:gravel,10.0,0;minecraft:moss_block,6.0,0;minecraft:clay_ball,0.50,0;minecraft:soul_sand,0.40,1;minecraft:soul_soil,0.30,1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:stone_shovel",
+      "tier": "stone",
+      "mode": "tool",
+      "entries": "minecraft:dirt,30,0;minecraft:coarse_dirt,12,0;minecraft:rooted_dirt,12,0;minecraft:mud,9.8,0;minecraft:sand,12,0;minecraft:red_sand,7.9,0;minecraft:gravel,9.8,0;minecraft:moss_block,5.9,0;minecraft:clay,1.0,0;minecraft:flint,0.50,0;minecraft:soul_sand,0.79,1;minecraft:soul_soil,0.59,1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:golden_shovel",
+      "tier": "gold",
+      "mode": "tool",
+      "entries": "minecraft:dirt,29,0;minecraft:coarse_dirt,12,0;minecraft:rooted_dirt,12,0;minecraft:mud,9.7,0;minecraft:sand,12,0;minecraft:red_sand,7.8,0;minecraft:gravel,9.7,0;minecraft:moss_block,5.8,0;minecraft:flint,1.0,0;minecraft:clay,2.0,0;minecraft:soul_sand,1.6,1;minecraft:soul_soil,1.2,1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:iron_shovel",
+      "tier": "iron",
+      "mode": "tool",
+      "entries": "minecraft:dirt,28,0;minecraft:coarse_dirt,11,0;minecraft:rooted_dirt,11,0;minecraft:mud,9.4,0;minecraft:sand,11,0;minecraft:red_sand,7.5,0;minecraft:gravel,9.4,0;minecraft:moss_block,5.6,0;minecraft:clay,5.0,0;minecraft:flint,1.0,0;minecraft:soul_sand,3.7,1;minecraft:soul_soil,2.8,1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:diamond_shovel",
+      "tier": "diamond",
+      "mode": "tool",
+      "entries": "minecraft:dirt,26,0;minecraft:coarse_dirt,10,0;minecraft:rooted_dirt,10,0;minecraft:mud,8.7,0;minecraft:sand,10,0;minecraft:red_sand,7.0,0;minecraft:gravel,8.7,0;minecraft:moss_block,5.2,0;minecraft:clay,10,0;minecraft:flint,3.0,0;minecraft:soul_sand,7.0,1;minecraft:soul_soil,5.3,1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:netherite_shovel",
+      "tier": "netherite",
+      "mode": "tool",
+      "entries": "minecraft:dirt,21,0;minecraft:coarse_dirt,8.4,0;minecraft:rooted_dirt,8.4,0;minecraft:mud,7.0,0;minecraft:sand,8.4,0;minecraft:red_sand,5.6,0;minecraft:gravel,7.0,0;minecraft:moss_block,4.2,0;minecraft:clay,5.0,0;minecraft:flint,25,0;minecraft:soul_sand,3.7,1;minecraft:soul_soil,2.8,1"
+    }
+  ]
+}
