@@ -1,0 +1,9 @@
+{
+  "name": "gensokyou.book.entry.spellcards_overview",
+  "category": "gensokyou:spellcards",
+  "icon": "gensokyou:spellcard_star",
+  "pages": [
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.spellcards_overview.p1" },
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.spellcards_overview.p2" }
+  ]
+}

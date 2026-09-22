@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "MMM",
+    "MMM",
+    "MMM"
+  ],
+  "key": {
+    "M": { "item": "gensokyou:memory_fragment" }
+  },
+  "result": {
+    "id": "gensokyou:guide_book",
+    "count": 1
+  }
+}

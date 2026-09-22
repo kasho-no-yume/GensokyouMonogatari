@@ -1,0 +1,9 @@
+{
+  "name": "gensokyou.book.entry.term_basics",
+  "category": "gensokyou:term",
+  "icon": "gensokyou:spellcard_star",
+  "pages": [
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.term_basics.p1" },
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.term_basics.p2" }
+  ]
+}

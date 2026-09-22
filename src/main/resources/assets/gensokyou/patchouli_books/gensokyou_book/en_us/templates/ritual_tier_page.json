@@ -1,0 +1,11 @@
+{
+  "processor": "com.bitsson.gensokyou.client.book.RitualPageProcessor",
+  "components": [
+    {
+      "type": "patchouli:custom",
+      "class": "com.bitsson.gensokyou.client.book.RitualTierComponent",
+      "x": 0,
+      "y": 0
+    }
+  ]
+}

@@ -137,6 +137,12 @@ dependencies {
     // GeckoLib — hard dependency (bundled by the player).
     implementation "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
 
+    // Patchouli (guide book framework) — external hard dependency (NOT bundled).
+    // compileOnly against the :api classifier keeps us on the public API surface;
+    // runtimeOnly provides the full mod for dev runs (players install it themselves).
+    compileOnly "vazkii.patchouli:Patchouli:${patchouli_version}:api"
+    runtimeOnly "vazkii.patchouli:Patchouli:${patchouli_version}"
+
     testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 

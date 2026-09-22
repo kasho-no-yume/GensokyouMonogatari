@@ -353,6 +353,15 @@ public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
         }
     }
 
+    /** 全体原始 v5 JSON 副本（客户端同步用）。 */
+    public static Map<ResourceLocation, JsonObject> rawAll() {
+        synchronized (PATTERNS) {
+            Map<ResourceLocation, JsonObject> copy = new LinkedHashMap<>();
+            RAWS.forEach((id, json) -> copy.put(id, json.deepCopy().getAsJsonObject()));
+            return copy;
+        }
+    }
+
     /** 编辑期校验用：以 loader 同规则解析给定 JSON（非法即抛 IllegalArgumentException）。 */
     public static RitualPattern parseForEdit(ResourceLocation id, JsonObject json) {
         return parse(id, json);

@@ -1,0 +1,11 @@
+{
+  "name": "gensokyou.book.entry.rituals_nether",
+  "category": "gensokyou:rituals",
+  "icon": "minecraft:blaze_powder",
+  "advancement": "gensokyou:guide/nether_unlock",
+  "secret": true,
+  "pages": [
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.rituals_nether.p1" },
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.rituals_nether.p2" }
+  ]
+}

@@ -55,6 +55,8 @@ public final class ModNetworking {
                 ClientPayloadHandler::handleRitualPreview);
         registrar.playToClient(EditorPreviewPayload.TYPE, EditorPreviewPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleEditorPreview);
+        registrar.playToClient(RitualDataSyncPayload.TYPE, RitualDataSyncPayload.STREAM_CODEC,
+                ClientPayloadHandler::handleRitualDataSync);
         registrar.playToServer(EditorCommandPayload.TYPE, EditorCommandPayload.STREAM_CODEC,
                 ModNetworking::handleEditorCommand);
         registrar.playToClient(DialogSyncPayload.TYPE, DialogSyncPayload.STREAM_CODEC,
@@ -374,5 +376,19 @@ public final class ModNetworking {
                     state.withCooldown(slot, now + com.bitsson.gensokyou.spirit.attr.PlayerAttributes
                             .effectiveSkillCooldown(player, entry.cooldownTicks().get())));
         });
+    }
+
+    /** 登录 / datapack 重载时下发全量仪式数据快照（客户端本地缓存兜底）。 */
+    @SubscribeEvent
+    public static void onDatapackSync(net.neoforged.neoforge.event.OnDatapackSyncEvent event) {
+        RitualDataSyncPayload payload = RitualDataSyncPayload.snapshot();
+        ServerPlayer single = event.getPlayer();
+        if (single != null) {
+            PacketDistributor.sendToPlayer(single, payload);
+            return;
+        }
+        for (ServerPlayer player : event.getPlayerList().getPlayers()) {
+            PacketDistributor.sendToPlayer(player, payload);
+        }
     }
 }

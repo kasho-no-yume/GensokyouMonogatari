@@ -57,4 +57,11 @@ public final class ClientPayloadHandler {
             com.bitsson.gensokyou.network.CrystalStoragePagePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> ClientCrystalStorageState.update(payload));
     }
+
+    /** 仪式数据快照：解析重建并落盘缓存（客户端专属类，服务端不加载）。 */
+    public static void handleRitualDataSync(
+            com.bitsson.gensokyou.network.RitualDataSyncPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> com.bitsson.gensokyou.client.ritual.ClientRitualData
+                .applyJson(payload.json()));
+    }
 }

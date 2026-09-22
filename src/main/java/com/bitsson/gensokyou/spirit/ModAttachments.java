@@ -66,6 +66,14 @@ public final class ModAttachments {
                     .<com.bitsson.gensokyou.ritual.editor.EditorPreviewState>builder(() -> null)
                     .build());
 
+    /** 《幻想乡物语》序言已读标记：玩家持久化、死亡保留。 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Boolean>> GUIDEBOOK_READ =
+            ATTACHMENTS.register("guidebook_read", () -> AttachmentType
+                    .<Boolean>builder(() -> false)
+                    .serialize(com.mojang.serialization.Codec.BOOL)
+                    .copyOnDeath()
+                    .build());
+
     private ModAttachments() {
     }
 
@@ -84,6 +92,16 @@ public final class ModAttachments {
 
     public static SkillStateData skills(ServerPlayer player) {
         return player.getData(SKILL_STATE.get());
+    }
+
+    /** 《幻想乡物语》序言是否已读。 */
+    public static boolean hasReadGuidebook(ServerPlayer player) {
+        return player.getData(GUIDEBOOK_READ.get());
+    }
+
+    /** 标记《幻想乡物语》序言已读。 */
+    public static void markGuidebookRead(ServerPlayer player) {
+        player.setData(GUIDEBOOK_READ.get(), true);
     }
 
     /** playerSpiritDamage 统一读取入口（伤害公式唯一数据来源）。 */

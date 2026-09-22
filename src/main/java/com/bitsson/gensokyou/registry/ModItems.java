@@ -8,6 +8,7 @@ import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import com.bitsson.gensokyou.item.GuideBookItem;
 import com.bitsson.gensokyou.item.CodexOfBeingsItem;
 import com.bitsson.gensokyou.item.LaevateinTier;
+import com.bitsson.gensokyou.item.MemoryFragmentItem;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
 import com.bitsson.gensokyou.item.RitualWandItem;
 import com.bitsson.gensokyou.item.SummonCatalystItem;
@@ -53,7 +54,7 @@ public final class ModItems {
     public static final DeferredItem<Item> YEN =
             ITEMS.registerSimpleItem("yen", new Item.Properties().stacksTo(64));
     public static final DeferredItem<Item> MEMORY_FRAGMENT =
-            ITEMS.registerSimpleItem("memory_fragment", new Item.Properties().stacksTo(64));
+            ITEMS.register("memory_fragment", () -> new MemoryFragmentItem(new Item.Properties().stacksTo(64)));
 
     public static final DeferredItem<GuideBookItem> GUIDE_BOOK =
             ITEMS.register("guide_book", () -> new GuideBookItem(new Item.Properties().stacksTo(1)));

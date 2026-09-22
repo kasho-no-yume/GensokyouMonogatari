@@ -13,6 +13,7 @@ import net.minecraft.util.GsonHelper;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +25,8 @@ public class RitualRecipeLoader extends SimpleJsonResourceReloadListener {
     private static final List<RitualRecipe> RECIPES = new ArrayList<>();
     /** 已警告过引用缺失 pattern 的配方 id，避免使用期刷屏。 */
     private static final List<ResourceLocation> WARNED_MISSING = new ArrayList<>();
+    /** 原始文件 JSON（文件 id → JSON 副本），供客户端同步。 */
+    private static final Map<ResourceLocation, JsonObject> RAWS = new LinkedHashMap<>();
 
     public RitualRecipeLoader() {
         super(GSON, "ritual_recipes");
@@ -33,10 +36,12 @@ public class RitualRecipeLoader extends SimpleJsonResourceReloadListener {
     protected void apply(Map<ResourceLocation, JsonElement> files, ResourceManager resourceManager,
                          net.minecraft.util.profiling.ProfilerFiller profiler) {
         List<RitualRecipe> parsed = new ArrayList<>();
+        Map<ResourceLocation, JsonObject> raws = new LinkedHashMap<>();
         for (var file : files.entrySet()) {
             try {
-                parsed.addAll(parseFile(file.getKey(),
-                        GsonHelper.convertToJsonObject(file.getValue(), "recipe file")));
+                JsonObject json = GsonHelper.convertToJsonObject(file.getValue(), "recipe file");
+                parsed.addAll(parseFile(file.getKey(), json));
+                raws.put(file.getKey(), json);
             } catch (Exception exception) {
                 Gensokyou.LOGGER.warn("Rejected ritual recipe file {}: {}", file.getKey(),
                         exception.getMessage());
@@ -61,6 +66,10 @@ public class RitualRecipeLoader extends SimpleJsonResourceReloadListener {
         synchronized (RECIPES) {
             RECIPES.clear();
             RECIPES.addAll(accepted);
+        }
+        synchronized (RAWS) {
+            RAWS.clear();
+            RAWS.putAll(raws);
         }
         Gensokyou.LOGGER.info("Loaded {} ritual recipes", accepted.size());
     }
@@ -283,5 +292,19 @@ public class RitualRecipeLoader extends SimpleJsonResourceReloadListener {
         synchronized (RECIPES) {
             return List.copyOf(RECIPES);
         }
+    }
+
+    /** 全体原始文件 JSON 副本（客户端同步用）。 */
+    public static Map<ResourceLocation, JsonObject> rawAll() {
+        synchronized (RAWS) {
+            Map<ResourceLocation, JsonObject> copy = new LinkedHashMap<>();
+            RAWS.forEach((id, json) -> copy.put(id, json.deepCopy().getAsJsonObject()));
+            return copy;
+        }
+    }
+
+    /** 客户端重建用：以 loader 同规则解析一个配方文件（非法即抛 IllegalArgumentException）。 */
+    public static List<RitualRecipe> parseFileForClient(ResourceLocation fileId, JsonObject json) {
+        return parseFile(fileId, json);
     }
 }

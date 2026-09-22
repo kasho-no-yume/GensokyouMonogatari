@@ -1,0 +1,11 @@
+{
+  "name": "gensokyou.book.entry.rituals_end",
+  "category": "gensokyou:rituals",
+  "icon": "minecraft:ender_eye",
+  "advancement": "gensokyou:guide/end_unlock",
+  "secret": true,
+  "pages": [
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.rituals_end.p1" },
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.rituals_end.p2" }
+  ]
+}

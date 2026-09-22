@@ -1,0 +1,10 @@
+{
+  "name": "gensokyou.book.entry.preface",
+  "category": "gensokyou:term",
+  "icon": "gensokyou:guide_book",
+  "read_by_default": true,
+  "pages": [
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.preface.p1" },
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.preface.p2" }
+  ]
+}
