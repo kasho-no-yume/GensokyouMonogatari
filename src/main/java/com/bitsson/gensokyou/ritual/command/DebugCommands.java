@@ -389,13 +389,17 @@ public final class DebugCommands {
                         .countDragonHeads(serverLevel, am);
                 boolean nether = skulls >= table.skullsRequired();
                 boolean end = heads >= table.dragonHeadsRequired();
+                boolean gkLow = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                        .countGuideBooks(serverLevel, am) >= 1;
+                boolean gkHigh = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                        .countSukimaFragments(serverLevel, am) >= 1;
                 String tier = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
                         .debugTier(serverLevel, am, table);
                 if (tier == null) {
                     tier = "none";
                 }
                 var pool = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
-                        .debugPool(table, tier, nether, end);
+                        .debugPool(table, tier, nether, end, gkLow, gkHigh);
                 double total = 0D;
                 for (double w : pool.values()) {
                     total += w;

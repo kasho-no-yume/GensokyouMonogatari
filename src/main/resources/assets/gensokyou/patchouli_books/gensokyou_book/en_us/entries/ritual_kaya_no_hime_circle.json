@@ -405,10 +405,24 @@
     },
     {
       "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:wooden_hoe",
+      "tier": "wood",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_herb,0.97,3;gensokyou:gentian,0.78,3;gensokyou:higanbana,0.78,3;gensokyou:magic_mushroom,0.30,4"
+    },
+    {
+      "type": "gensokyou:loot_page",
       "tool_item": "minecraft:stone_hoe",
       "tier": "stone",
       "mode": "tool",
       "entries": "minecraft:short_grass,30,0;minecraft:fern,12,0;minecraft:moss_carpet,9.8,0;minecraft:pink_petals,5.9,0;minecraft:dandelion,5.9,0;minecraft:poppy,5.9,0;minecraft:cornflower,3.9,0;minecraft:azure_bluet,3.9,0;minecraft:oxeye_daisy,3.9,0;minecraft:allium,3.9,0;minecraft:red_tulip,3.0,0;minecraft:orange_tulip,3.0,0;minecraft:white_tulip,3.0,0;minecraft:pink_tulip,3.0,0;minecraft:lily_of_the_valley,2.0,0;minecraft:wheat_seeds,1.0,0;minecraft:beetroot_seeds,0.50,0;minecraft:nether_wart,2.7,1;minecraft:crimson_roots,1.8,1;minecraft:warped_roots,1.8,1;minecraft:crimson_fungus,0.90,1;minecraft:warped_fungus,0.90,1;minecraft:twisting_vines,0.90,1;minecraft:weeping_vines,0.90,1;minecraft:shroomlight,0.45,1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:stone_hoe",
+      "tier": "stone",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_herb,0.97,3;gensokyou:gentian,0.78,3;gensokyou:higanbana,0.78,3;gensokyou:magic_mushroom,0.30,4"
     },
     {
       "type": "gensokyou:loot_page",
@@ -419,10 +433,24 @@
     },
     {
       "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:golden_hoe",
+      "tier": "gold",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_herb,0.97,3;gensokyou:gentian,0.78,3;gensokyou:higanbana,0.78,3;gensokyou:magic_mushroom,0.30,4"
+    },
+    {
+      "type": "gensokyou:loot_page",
       "tool_item": "minecraft:iron_hoe",
       "tier": "iron",
       "mode": "tool",
       "entries": "minecraft:short_grass,26,0;minecraft:fern,10,0;minecraft:moss_carpet,8.6,0;minecraft:pink_petals,5.1,0;minecraft:dandelion,5.1,0;minecraft:poppy,5.1,0;minecraft:cornflower,3.4,0;minecraft:azure_bluet,3.4,0;minecraft:oxeye_daisy,3.4,0;minecraft:allium,3.4,0;minecraft:red_tulip,2.6,0;minecraft:orange_tulip,2.6,0;minecraft:white_tulip,2.6,0;minecraft:pink_tulip,2.6,0;minecraft:lily_of_the_valley,1.7,0;minecraft:wheat_seeds,5.0,0;minecraft:melon_seeds,3.0,0;minecraft:pumpkin_seeds,3.0,0;minecraft:beetroot_seeds,3.0,0;minecraft:torchflower_seeds,0.10,0;minecraft:glow_berries,0.10,0;minecraft:nether_wart,2.7,1;minecraft:crimson_roots,1.8,1;minecraft:warped_roots,1.8,1;minecraft:crimson_fungus,0.90,1;minecraft:warped_fungus,0.90,1;minecraft:twisting_vines,0.90,1;minecraft:weeping_vines,0.90,1;minecraft:shroomlight,0.45,1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:iron_hoe",
+      "tier": "iron",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_herb,0.97,3;gensokyou:gentian,0.78,3;gensokyou:higanbana,0.78,3;gensokyou:magic_mushroom,0.30,4"
     },
     {
       "type": "gensokyou:loot_page",
@@ -433,10 +461,24 @@
     },
     {
       "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:diamond_hoe",
+      "tier": "diamond",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_herb,0.97,3;gensokyou:gentian,0.78,3;gensokyou:higanbana,0.78,3;gensokyou:magic_mushroom,0.30,4"
+    },
+    {
+      "type": "gensokyou:loot_page",
       "tool_item": "minecraft:netherite_hoe",
       "tier": "netherite",
       "mode": "tool",
       "entries": "minecraft:short_grass,7.2,0;minecraft:fern,2.9,0;minecraft:moss_carpet,2.4,0;minecraft:pink_petals,1.4,0;minecraft:dandelion,1.4,0;minecraft:poppy,1.4,0;minecraft:cornflower,0.96,0;minecraft:azure_bluet,0.96,0;minecraft:oxeye_daisy,0.96,0;minecraft:allium,0.96,0;minecraft:red_tulip,0.72,0;minecraft:orange_tulip,0.72,0;minecraft:white_tulip,0.72,0;minecraft:pink_tulip,0.72,0;minecraft:lily_of_the_valley,0.48,0;minecraft:wheat_seeds,5.0,0;minecraft:melon_seeds,10,0;minecraft:pumpkin_seeds,25,0;minecraft:beetroot_seeds,8.0,0;minecraft:torchflower_seeds,4.0,0;minecraft:pitcher_pod,4.0,0;minecraft:glow_berries,20,0;minecraft:nether_wart,2.7,1;minecraft:crimson_roots,1.8,1;minecraft:warped_roots,1.8,1;minecraft:crimson_fungus,0.90,1;minecraft:warped_fungus,0.90,1;minecraft:twisting_vines,0.90,1;minecraft:weeping_vines,0.90,1;minecraft:shroomlight,0.45,1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:netherite_hoe",
+      "tier": "netherite",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_herb,0.97,3;gensokyou:gentian,0.78,3;gensokyou:higanbana,0.78,3;gensokyou:magic_mushroom,0.30,4"
     }
   ]
 }

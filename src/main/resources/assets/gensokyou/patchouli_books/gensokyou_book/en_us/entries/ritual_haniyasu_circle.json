@@ -369,10 +369,24 @@
     },
     {
       "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:wooden_shovel",
+      "tier": "wood",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_soil,0.97,3;gensokyou:porcelain_clay,0.97,3;gensokyou:higan_soil,0.78,3;gensokyou:moon_sand,0.30,4"
+    },
+    {
+      "type": "gensokyou:loot_page",
       "tool_item": "minecraft:stone_shovel",
       "tier": "stone",
       "mode": "tool",
       "entries": "minecraft:dirt,30,0;minecraft:coarse_dirt,12,0;minecraft:rooted_dirt,12,0;minecraft:mud,9.8,0;minecraft:sand,12,0;minecraft:red_sand,7.9,0;minecraft:gravel,9.8,0;minecraft:moss_block,5.9,0;minecraft:clay,1.0,0;minecraft:flint,0.50,0;minecraft:soul_sand,0.79,1;minecraft:soul_soil,0.59,1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:stone_shovel",
+      "tier": "stone",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_soil,0.97,3;gensokyou:porcelain_clay,0.97,3;gensokyou:higan_soil,0.78,3;gensokyou:moon_sand,0.30,4"
     },
     {
       "type": "gensokyou:loot_page",
@@ -383,10 +397,24 @@
     },
     {
       "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:golden_shovel",
+      "tier": "gold",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_soil,0.97,3;gensokyou:porcelain_clay,0.97,3;gensokyou:higan_soil,0.78,3;gensokyou:moon_sand,0.30,4"
+    },
+    {
+      "type": "gensokyou:loot_page",
       "tool_item": "minecraft:iron_shovel",
       "tier": "iron",
       "mode": "tool",
       "entries": "minecraft:dirt,28,0;minecraft:coarse_dirt,11,0;minecraft:rooted_dirt,11,0;minecraft:mud,9.4,0;minecraft:sand,11,0;minecraft:red_sand,7.5,0;minecraft:gravel,9.4,0;minecraft:moss_block,5.6,0;minecraft:clay,5.0,0;minecraft:flint,1.0,0;minecraft:soul_sand,3.7,1;minecraft:soul_soil,2.8,1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:iron_shovel",
+      "tier": "iron",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_soil,0.97,3;gensokyou:porcelain_clay,0.97,3;gensokyou:higan_soil,0.78,3;gensokyou:moon_sand,0.30,4"
     },
     {
       "type": "gensokyou:loot_page",
@@ -397,10 +425,24 @@
     },
     {
       "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:diamond_shovel",
+      "tier": "diamond",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_soil,0.97,3;gensokyou:porcelain_clay,0.97,3;gensokyou:higan_soil,0.78,3;gensokyou:moon_sand,0.30,4"
+    },
+    {
+      "type": "gensokyou:loot_page",
       "tool_item": "minecraft:netherite_shovel",
       "tier": "netherite",
       "mode": "tool",
       "entries": "minecraft:dirt,21,0;minecraft:coarse_dirt,8.4,0;minecraft:rooted_dirt,8.4,0;minecraft:mud,7.0,0;minecraft:sand,8.4,0;minecraft:red_sand,5.6,0;minecraft:gravel,7.0,0;minecraft:moss_block,4.2,0;minecraft:clay,5.0,0;minecraft:flint,25,0;minecraft:soul_sand,3.7,1;minecraft:soul_soil,2.8,1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:netherite_shovel",
+      "tier": "netherite",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_soil,0.97,3;gensokyou:porcelain_clay,0.97,3;gensokyou:higan_soil,0.78,3;gensokyou:moon_sand,0.30,4"
     }
   ]
 }

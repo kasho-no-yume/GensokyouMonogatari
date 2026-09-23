@@ -2,9 +2,7 @@
 
 ## Purpose
 众生典籍物品契约：右键合格 `Mob` 收容并单槽累计同种 mob 数量（无掉落），三类资格排除（非 Mob/boss/黑名单/东方 NPC），驯服动物每书一次防误触警告，满 20 进入不可逆附魔形态，三态 tooltip 与收容反馈；并为「众生余录」仪式提供只读访问器。
-
 ## Requirements
-
 ### Requirement: 物品与收容数据组件
 系统 SHALL 提供正常物品 `gensokyou:codex_of_beings`（众生典籍），不可堆叠，并 SHALL 以数据组件记录收容状态 `{species: ResourceLocation?, count: int}`（单槽，同一本书一次只记一种 mob 类型）。组件 SHALL 持久化并网络同步，缺失时 SHALL 视为空书（species 空、count 0），MUST NOT 导致加载失败。物品 SHALL 提供静态访问器读取 species/count/是否满，供后续仪式直接调用。
 
@@ -126,11 +124,19 @@
 - **THEN** 不播放收容音效
 
 ### Requirement: 获取方式
-典籍 SHALL 出现在本 mod 创造模式物品栏，MUST NOT 提供合成配方（当前调试期）。物品 SHALL 具备物品模型与 16×16 像素贴图。
+典籍 SHALL 出现在本 mod 创造模式物品栏，并 SHALL 提供正途合成路径：造化之仪配方 `记忆残页 ×8 + 符纸 ×4 + 灵草 ×4 + 书 ×1 → 众生典籍 ×1`（`minTier` 1）。物品 SHALL 具备物品模型与 16×16 像素贴图。
 
 #### Scenario: 创造栏可取
 - **WHEN** 打开本 mod 创造物品栏
 - **THEN** 可见并取出众生典籍，图标正常显示
+
+#### Scenario: 造化合成
+- **WHEN** 在 1 阶及以上造化之仪台面摆入 8 记忆残页、4 符纸、4 灵草与 1 本书并触发合成
+- **THEN** 扣减全部原料与对应灵力，产出 1 本众生典籍
+
+#### Scenario: 阶不足不可造
+- **WHEN** 0 阶造化之仪摆入上述原料
+- **THEN** 该配方因 `minTier` 不足不命中，不消耗、无产出
 
 ### Requirement: 面向未来仪式的读取契约
 系统 SHALL 提供世界无关的静态读取入口（收容类型与数量、是否满），供后续「众生余录」仪式在不消耗本书的前提下读取。本条 MUST NOT 依赖仪式行为的实现。
@@ -138,3 +144,4 @@
 #### Scenario: 仪式可读取
 - **WHEN** 后续仪式代码调用该访问器读取一本典籍
 - **THEN** 得到其 species 与 count，且书本不被消耗
+

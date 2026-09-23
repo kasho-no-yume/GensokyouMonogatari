@@ -110,7 +110,7 @@ public class RitualLootComponent implements ICustomComponent {
             // 海产：所有产物混在一起单网格显示（不分池，避免超框）。
             renderGrid(graphics, context, list, x, y, mouseX, mouseY);
         } else {
-            for (int section = 0; section <= 2; section++) {
+            for (int section = 0; section <= 4; section++) {
                 List<Entry> sec = new ArrayList<>();
                 for (Entry entry : list) {
                     if (entry.section() == section) {
@@ -152,6 +152,8 @@ public class RitualLootComponent implements ICustomComponent {
         return Component.translatable(switch (section) {
             case 1 -> "jei.gensokyou.loot.nether";
             case 2 -> "jei.gensokyou.loot.end";
+            case 3 -> "jei.gensokyou.loot.gensokyou_low";
+            case 4 -> "jei.gensokyou.loot.gensokyou_high";
             default -> "gensokyou.book.loot.base";
         });
     }

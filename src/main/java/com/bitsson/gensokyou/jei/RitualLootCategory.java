@@ -103,10 +103,16 @@ public class RitualLootCategory implements IRecipeCategory<RitualLootCardWrapper
                     .addRichTooltipCallback((view, tooltip) -> {
                         tooltip.add(Component.translatable("jei." + Gensokyou.MODID
                                 + ".loot.weight", formatPercent(percent)));
-                        if (section == 1) {
-                            tooltip.add(Component.translatable("jei." + Gensokyou.MODID + ".loot.nether"));
-                        } else if (section == 2) {
-                            tooltip.add(Component.translatable("jei." + Gensokyou.MODID + ".loot.end"));
+                        switch (section) {
+                            case 1 -> tooltip.add(Component.translatable(
+                                    "jei." + Gensokyou.MODID + ".loot.nether"));
+                            case 2 -> tooltip.add(Component.translatable(
+                                    "jei." + Gensokyou.MODID + ".loot.end"));
+                            case 3 -> tooltip.add(Component.translatable(
+                                    "jei." + Gensokyou.MODID + ".loot.gensokyou_low"));
+                            case 4 -> tooltip.add(Component.translatable(
+                                    "jei." + Gensokyou.MODID + ".loot.gensokyou_high"));
+                            default -> { }
                         }
                     });
         }

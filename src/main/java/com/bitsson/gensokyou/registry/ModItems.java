@@ -56,6 +56,38 @@ public final class ModItems {
     public static final DeferredItem<Item> MEMORY_FRAGMENT =
             ITEMS.register("memory_fragment", () -> new MemoryFragmentItem(new Item.Properties().stacksTo(64)));
 
+    // ---------------- 幻想乡素材（add-gensokyo-material-ladder，T1~T2）----------------
+    public static final DeferredItem<Item> CINNABAR = simpleMaterial("cinnabar");
+    // 原矿（大山津见产出）；成品金属 spirit_iron / star_silver 由金山彦命之仪炼出（后续）
+    public static final DeferredItem<Item> SPIRIT_IRON_ORE = simpleMaterial("spirit_iron_ore");
+    public static final DeferredItem<Item> STAR_SILVER_ORE = simpleMaterial("star_silver_ore");
+    public static final DeferredItem<Item> SPIRIT_IRON = simpleMaterial("spirit_iron");
+    public static final DeferredItem<Item> STAR_SILVER = simpleMaterial("star_silver");
+    public static final DeferredItem<Item> ONI_STONE = simpleMaterial("oni_stone");
+    public static final DeferredItem<Item> SPIRIT_SOIL = simpleMaterial("spirit_soil");
+    public static final DeferredItem<Item> PORCELAIN_CLAY = simpleMaterial("porcelain_clay");
+    public static final DeferredItem<Item> HIGAN_SOIL = simpleMaterial("higan_soil");
+    public static final DeferredItem<Item> MOON_SAND = simpleMaterial("moon_sand");
+    public static final DeferredItem<Item> SACRED_WOOD = simpleMaterial("sacred_wood");
+    public static final DeferredItem<Item> MAGIC_WOOD = simpleMaterial("magic_wood");
+    public static final DeferredItem<Item> ETERNAL_WOOD = simpleMaterial("eternal_wood");
+    public static final DeferredItem<Item> SANZU_FLASK = ITEMS.registerSimpleItem("sanzu_flask", new Item.Properties().stacksTo(16));
+    public static final DeferredItem<Item> SPIRIT_FISH = simpleMaterial("spirit_fish");
+    public static final DeferredItem<Item> MERMAID_SCALE = simpleMaterial("mermaid_scale");
+    public static final DeferredItem<Item> TIDE_CRYSTAL = simpleMaterial("tide_crystal");
+    public static final DeferredItem<Item> DRAGON_SCALE = simpleMaterial("dragon_scale");
+    public static final DeferredItem<Item> SPIRIT_HERB = simpleMaterial("spirit_herb");
+    public static final DeferredItem<Item> GENTIAN = simpleMaterial("gentian");
+    public static final DeferredItem<Item> HIGANBANA = simpleMaterial("higanbana");
+    public static final DeferredItem<Item> MAGIC_MUSHROOM = simpleMaterial("magic_mushroom");
+    public static final DeferredItem<Item> SPIRIT_CHARCOAL = simpleMaterial("spirit_charcoal");
+    public static final DeferredItem<Item> TALISMAN_PAPER = simpleMaterial("talisman_paper");
+    public static final DeferredItem<Item> SUKIMA_FRAGMENT = simpleMaterial("sukima_fragment");
+
+    private static DeferredItem<Item> simpleMaterial(String id) {
+        return ITEMS.registerSimpleItem(id, new Item.Properties().stacksTo(64));
+    }
+
     public static final DeferredItem<GuideBookItem> GUIDE_BOOK =
             ITEMS.register("guide_book", () -> new GuideBookItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<CodexOfBeingsItem> CODEX_OF_BEINGS =

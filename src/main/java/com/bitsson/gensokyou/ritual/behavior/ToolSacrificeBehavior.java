@@ -5,6 +5,7 @@ import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
+import com.bitsson.gensokyou.registry.ModItems;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualLootLoader;
 import com.bitsson.gensokyou.ritual.RitualLootTable;
@@ -109,6 +110,16 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
         return countItem(level, match, Items.DRAGON_HEAD);
     }
 
+    /** 台上指导书数量（幻想乡信物·低阶带）。 */
+    public static int countGuideBooks(ServerLevel level, RitualMatch match) {
+        return countItem(level, match, ModItems.GUIDE_BOOK.get());
+    }
+
+    /** 台上隙间碎片数量（幻想乡信物·中阶带）。 */
+    public static int countSukimaFragments(ServerLevel level, RitualMatch match) {
+        return countItem(level, match, ModItems.SUKIMA_FRAGMENT.get());
+    }
+
     private static int countItem(ServerLevel level, RitualMatch match, Item item) {
         int count = 0;
         for (BlockPos pos : RitualPedestals.positions(match)) {
@@ -128,13 +139,21 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
         return "wood";
     }
 
-    /** 组装该工具材质 + 条件解锁后的实际抽取池。 */
+    /** 组装该工具材质 + 条件解锁后的实际抽取池（含幻想乡信物带）。 */
     public static List<RitualLootTable.Weighted> poolFor(RitualLootTable table, String tier,
-                                                         boolean nether, boolean end) {
+                                                         boolean nether, boolean end,
+                                                         boolean gensokyouLow, boolean gensokyouHigh) {
         RitualLootTable.TierTable tierTable = table.table(tier)
                 .orElseGet(() -> table.tables().get(0));
+        List<RitualLootTable.Weighted> gensokyou = new ArrayList<>();
+        if (gensokyouLow) {
+            gensokyou.addAll(table.gensokyouLow());
+        }
+        if (gensokyouHigh) {
+            gensokyou.addAll(table.gensokyouHigh());
+        }
         return RitualLootTable.buildPool(table.commons(), table.commonsTotal(),
-                tierTable, nether, end);
+                tierTable, nether, end, gensokyou);
     }
 
     /** 聚合产物空投：核心上 1 格、水平半径 R 圆盘内随机（统一落点工具），同类按最大堆叠拆叠。 */
@@ -185,6 +204,9 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
         int heads = countDragonHeads(level, match);
         boolean nether = skulls >= table.skullsRequired();
         boolean end = heads >= table.dragonHeadsRequired();
+        // 幻想乡信物带（不消耗、与头颅条件独立）
+        boolean gkLow = countGuideBooks(level, match) >= 1;
+        boolean gkHigh = countSukimaFragments(level, match) >= 1;
 
         // 随机抽一把工具（其余留守）
         PedestalTool chosen = tools.get(level.random.nextInt(tools.size()));
@@ -197,7 +219,7 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
         consumeTool(level, chosen);
 
         // 掷骰 + 聚合 + 空投
-        List<RitualLootTable.Weighted> pool = poolFor(table, tier, nether, end);
+        List<RitualLootTable.Weighted> pool = poolFor(table, tier, nether, end, gkLow, gkHigh);
         int count = producedCount(match.level());
         Map<Item, Integer> agg = RitualLootTable.rollMany(pool, count, level.random);
         dropAll(level, corePos, agg);
@@ -286,9 +308,10 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
 
     /** 调试用：按当前条件与首个工具材质组装抽取池。 */
     public static Map<String, Double> debugPool(RitualLootTable table, String tier,
-                                                boolean nether, boolean end) {
+                                                boolean nether, boolean end,
+                                                boolean gensokyouLow, boolean gensokyouHigh) {
         Map<String, Double> out = new LinkedHashMap<>();
-        for (RitualLootTable.Weighted w : poolFor(table, tier, nether, end)) {
+        for (RitualLootTable.Weighted w : poolFor(table, tier, nether, end, gensokyouLow, gensokyouHigh)) {
             String id = BuiltInRegistries.ITEM.getKey(w.item()).toString();
             out.merge(id, w.weight(), Double::sum);
         }

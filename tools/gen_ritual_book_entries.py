@@ -127,6 +127,10 @@ def tool_loot_entries(path, tier):
     nether_total = base_total + sum(w for _, w in nether_pos)
     end_pos = [(i, w) for i, w in end if w > 0]
     end_total = nether_total + sum(w for _, w in end_pos)
+    gk_low = [(i, w) for i, w in loot.get("gensokyou_low", []) if w > 0]
+    gk_high = [(i, w) for i, w in loot.get("gensokyou_high", []) if w > 0]
+    gk_low_total = base_total + sum(w for _, w in gk_low)
+    gk_high_total = base_total + sum(w for _, w in gk_high)
 
     out = []
     for i, w in base:
@@ -135,6 +139,10 @@ def tool_loot_entries(path, tier):
         out.append((i, w / nether_total * 100 if nether_total > 0 else 0.0, 1))
     for i, w in end_pos:
         out.append((i, w / end_total * 100 if end_total > 0 else 0.0, 2))
+    for i, w in gk_low:
+        out.append((i, w / gk_low_total * 100 if gk_low_total > 0 else 0.0, 3))
+    for i, w in gk_high:
+        out.append((i, w / gk_high_total * 100 if gk_high_total > 0 else 0.0, 4))
     return out
 
 
@@ -149,7 +157,11 @@ def _scale_into(src, category_weight):
 def watatsumi_entries(level):
     """与 WatatsumiLootCardWrapper 一致：钓鱼池(fish85+junk10)、宝藏(5，L≥1)、特产池(L≥1)。"""
     with open(os.path.join(SPECIAL_DIR, "watatsumi_special.json"), encoding="utf-8") as handle:
-        special = json.load(handle)["entries"] if level >= 1 else []
+        data = json.load(handle)
+    special = []
+    if level >= 1:
+        special = (list(data["entries"]) + list(data.get("gensokyou_low", []))
+                   + list(data.get("gensokyou_high", [])))
     fishing = _scale_into(WAT_FISH, 85.0) + _scale_into(WAT_JUNK, 10.0)
     treasure = _scale_into(WAT_TREASURE, 5.0) if level >= 1 else []
     fishing_total = sum(w for _, w in fishing) + sum(w for _, w in treasure)
@@ -217,14 +229,28 @@ def build_entry(path, icon, no_recipes, sortnum):
             loot = json.load(handle)
         tool_tag = loot["toolTag"]
         for table in loot["tables"]:
+            entries = tool_loot_entries(path, table["tier"])
+            base = [e for e in entries if e[2] <= 2]
+            gk = [e for e in entries if e[2] >= 3]
+            tool_item = tool_item_for(tool_tag, table["tier"])
             pages.append({
                 "type": "gensokyou:loot_page",
-                "tool_item": tool_item_for(tool_tag, table["tier"]),
+                "tool_item": tool_item,
                 "tier": table["tier"],
                 "mode": "tool",
-                "entries": _enc(tool_loot_entries(path, table["tier"])),
+                "entries": _enc(base),
             })
             loot_pages += 1
+            # 信物带（低/中）单开一页，避免与基础池同页超框。
+            if gk:
+                pages.append({
+                    "type": "gensokyou:loot_page",
+                    "tool_item": tool_item,
+                    "tier": table["tier"],
+                    "mode": "tool",
+                    "entries": _enc(gk),
+                })
+                loot_pages += 1
     elif path == "watatsumi_circle":
         for level in (0, 1, 2):
             pages.append({

@@ -27,7 +27,8 @@ import java.util.Optional;
  */
 public record RitualLootTable(ResourceLocation patternId, TagKey<Item> toolTag, int commonsTotal,
                               int skullsRequired, int dragonHeadsRequired,
-                              List<Weighted> commons, List<TierTable> tables) {
+                              List<Weighted> commons, List<Weighted> gensokyouLow,
+                              List<Weighted> gensokyouHigh, List<TierTable> tables) {
 
     /** 工具材质键（与 pattern/JSON 约定一致）。 */
     public static final List<String> TIER_KEYS =
@@ -123,6 +124,13 @@ public record RitualLootTable(ResourceLocation patternId, TagKey<Item> toolTag, 
      */
     public static List<Weighted> buildPool(List<Weighted> commons, int commonsTotal,
                                            TierTable table, boolean nether, boolean end) {
+        return buildPool(commons, commonsTotal, table, nether, end, List.of());
+    }
+
+    /** 组装某材质的实际抽取池；{@code gensokyou} 为已按信物条件筛过的额外条目。 */
+    public static List<Weighted> buildPool(List<Weighted> commons, int commonsTotal,
+                                           TierTable table, boolean nether, boolean end,
+                                           List<Weighted> gensokyou) {
         List<Weighted> pool = new ArrayList<>();
         double specialSum = sumWeight(table.special());
         double bucket = bucketWeight(specialSum, commonsTotal);
@@ -142,6 +150,7 @@ public record RitualLootTable(ResourceLocation patternId, TagKey<Item> toolTag, 
         if (end) {
             appendPositive(pool, table.end());
         }
+        appendPositive(pool, gensokyou);
         return pool;
     }
 

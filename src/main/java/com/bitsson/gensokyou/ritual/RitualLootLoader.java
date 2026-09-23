@@ -79,6 +79,11 @@ public class RitualLootLoader extends SimpleJsonResourceReloadListener {
                 ? parseWeighted(GsonHelper.getAsJsonArray(json, "nether"), "nether") : List.of();
         List<RitualLootTable.Weighted> topEnd = json.has("end")
                 ? parseWeighted(GsonHelper.getAsJsonArray(json, "end"), "end") : List.of();
+        // 幻想乡素材带：由信物解锁的额外池（顶层声明，不按工具材质）
+        List<RitualLootTable.Weighted> gensokyouLow = json.has("gensokyou_low")
+                ? parseWeighted(GsonHelper.getAsJsonArray(json, "gensokyou_low"), "gensokyou_low") : List.of();
+        List<RitualLootTable.Weighted> gensokyouHigh = json.has("gensokyou_high")
+                ? parseWeighted(GsonHelper.getAsJsonArray(json, "gensokyou_high"), "gensokyou_high") : List.of();
 
         List<RitualLootTable.TierTable> tables = new ArrayList<>();
         Set<String> seenTiers = new HashSet<>();
@@ -108,7 +113,8 @@ public class RitualLootLoader extends SimpleJsonResourceReloadListener {
             throw new IllegalArgumentException("tables must not be empty");
         }
         return new RitualLootTable(pattern, RitualLootTable.parseToolTag(toolTagRaw), commonsTotal,
-                skulls, heads, List.copyOf(commons), List.copyOf(tables));
+                skulls, heads, List.copyOf(commons), List.copyOf(gensokyouLow),
+                List.copyOf(gensokyouHigh), List.copyOf(tables));
     }
 
     /** 解析 {@code [[itemId, weight], ...]}；未知物品 id / 负权重即抛。 */

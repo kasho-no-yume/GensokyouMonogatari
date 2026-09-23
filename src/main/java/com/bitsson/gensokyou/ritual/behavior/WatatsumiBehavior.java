@@ -168,13 +168,15 @@ public class WatatsumiBehavior implements RitualBehavior {
         return out;
     }
 
-    /** 海洋特产池：按权重掷 {@code count} 次，同类聚合拆叠。 */
-    public static List<ItemStack> rollSpecial(ServerLevel level, int count) {
+    /** 海洋特产池：按权重掷 {@code count} 次，同类聚合拆叠；并入已解锁的幻想乡信物带。 */
+    public static List<ItemStack> rollSpecial(ServerLevel level, int count,
+                                              boolean gensokyouLow, boolean gensokyouHigh) {
         List<ItemStack> out = new ArrayList<>();
         if (count <= 0) {
             return out;
         }
-        Map<Item, Integer> agg = WatatsumiSpecialLootLoader.table().rollMany(count, level.random);
+        Map<Item, Integer> agg = WatatsumiSpecialLootLoader.table()
+                .rollMany(count, gensokyouLow, gensokyouHigh, level.random);
         for (Map.Entry<Item, Integer> entry : agg.entrySet()) {
             int remaining = entry.getValue();
             int max = Math.max(1, new ItemStack(entry.getKey()).getMaxStackSize());
@@ -239,7 +241,9 @@ public class WatatsumiBehavior implements RitualBehavior {
         List<ItemStack> outputs = new ArrayList<>();
         outputs.addAll(rollFishing(level, corePos, rodCopy, fishingCount(ritualLevel), treasure));
         if (specialUnlocked(ritualLevel)) {
-            outputs.addAll(rollSpecial(level, specialCount(ritualLevel)));
+            boolean gkLow = ToolSacrificeBehavior.countGuideBooks(level, match) >= 1;
+            boolean gkHigh = ToolSacrificeBehavior.countSukimaFragments(level, match) >= 1;
+            outputs.addAll(rollSpecial(level, specialCount(ritualLevel), gkLow, gkHigh));
         }
         boolean bonus = false;
         if (ritualLevel >= 2

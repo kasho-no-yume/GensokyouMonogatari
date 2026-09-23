@@ -29,6 +29,13 @@
     ["minecraft:chorus_flower", 2],
     ["minecraft:chorus_fruit", 1]
   ],
+  "gensokyou_low": [
+    ["gensokyou:sacred_wood", 1.0],
+    ["gensokyou:magic_wood", 1.0]
+  ],
+  "gensokyou_high": [
+    ["gensokyou:eternal_wood", 0.3]
+  ],
   "tables": [
     { "tier": "wood", "special": [["minecraft:apple", 0.5]] },
     { "tier": "stone", "special": [["minecraft:apple", 1], ["minecraft:cocoa_beans", 0.5]] },

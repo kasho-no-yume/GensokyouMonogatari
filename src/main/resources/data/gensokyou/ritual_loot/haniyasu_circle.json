@@ -14,6 +14,14 @@
     ["minecraft:gravel", 10],
     ["minecraft:moss_block", 6]
   ],
+  "gensokyou_low": [
+    ["gensokyou:spirit_soil", 1.0],
+    ["gensokyou:porcelain_clay", 1.0],
+    ["gensokyou:higan_soil", 0.8]
+  ],
+  "gensokyou_high": [
+    ["gensokyou:moon_sand", 0.3]
+  ],
   "tables": [
     {
       "tier": "wood",

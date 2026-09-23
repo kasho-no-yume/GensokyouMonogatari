@@ -20,5 +20,14 @@
     ["minecraft:fire_coral_fan", 3],
     ["minecraft:horn_coral_fan", 3],
     ["minecraft:seagrass", 8]
+  ],
+  "gensokyou_low": [
+    ["gensokyou:sanzu_flask", 0.8],
+    ["gensokyou:spirit_fish", 1.0],
+    ["gensokyou:mermaid_scale", 1.0]
+  ],
+  "gensokyou_high": [
+    ["gensokyou:tide_crystal", 0.3],
+    ["gensokyou:dragon_scale", 0.25]
   ]
 }

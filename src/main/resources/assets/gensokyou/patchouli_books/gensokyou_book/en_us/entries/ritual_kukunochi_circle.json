@@ -482,10 +482,24 @@
     },
     {
       "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:wooden_axe",
+      "tier": "wood",
+      "mode": "tool",
+      "entries": "gensokyou:sacred_wood,0.98,3;gensokyou:magic_wood,0.98,3;gensokyou:eternal_wood,0.30,4"
+    },
+    {
+      "type": "gensokyou:loot_page",
       "tool_item": "minecraft:stone_axe",
       "tier": "stone",
       "mode": "tool",
       "entries": "minecraft:oak_log,20,0;minecraft:spruce_log,12,0;minecraft:birch_log,12,0;minecraft:cherry_log,8.0,0;minecraft:dark_oak_log,8.0,0;minecraft:acacia_log,6.0,0;minecraft:jungle_log,6.0,0;minecraft:mangrove_log,4.0,0;minecraft:oak_planks,12,0;minecraft:stick,8.0,0;minecraft:oak_sapling,1.0,0;minecraft:spruce_sapling,0.50,0;minecraft:cherry_sapling,0.50,0;minecraft:apple,1.0,0;minecraft:cocoa_beans,0.50,0;minecraft:crimson_stem,5.2,1;minecraft:warped_stem,5.2,1;minecraft:nether_wart_block,2.6,1;minecraft:shroomlight,0.43,1;minecraft:chorus_flower,1.7,2;minecraft:chorus_fruit,0.84,2"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:stone_axe",
+      "tier": "stone",
+      "mode": "tool",
+      "entries": "gensokyou:sacred_wood,0.98,3;gensokyou:magic_wood,0.98,3;gensokyou:eternal_wood,0.30,4"
     },
     {
       "type": "gensokyou:loot_page",
@@ -496,10 +510,24 @@
     },
     {
       "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:golden_axe",
+      "tier": "gold",
+      "mode": "tool",
+      "entries": "gensokyou:sacred_wood,0.98,3;gensokyou:magic_wood,0.98,3;gensokyou:eternal_wood,0.30,4"
+    },
+    {
+      "type": "gensokyou:loot_page",
       "tool_item": "minecraft:iron_axe",
       "tier": "iron",
       "mode": "tool",
       "entries": "minecraft:oak_log,19,0;minecraft:spruce_log,11,0;minecraft:birch_log,11,0;minecraft:cherry_log,7.4,0;minecraft:dark_oak_log,7.4,0;minecraft:acacia_log,5.6,0;minecraft:jungle_log,5.6,0;minecraft:mangrove_log,3.7,0;minecraft:oak_planks,11,0;minecraft:stick,7.4,0;minecraft:oak_sapling,0.93,0;minecraft:spruce_sapling,0.46,0;minecraft:cherry_sapling,0.46,0;minecraft:apple,5.0,0;minecraft:bamboo,1.0,0;minecraft:cocoa_beans,3.0,0;minecraft:crimson_stem,5.2,1;minecraft:warped_stem,5.2,1;minecraft:nether_wart_block,2.6,1;minecraft:shroomlight,0.43,1;minecraft:chorus_flower,1.7,2;minecraft:chorus_fruit,0.84,2"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:iron_axe",
+      "tier": "iron",
+      "mode": "tool",
+      "entries": "gensokyou:sacred_wood,0.98,3;gensokyou:magic_wood,0.98,3;gensokyou:eternal_wood,0.30,4"
     },
     {
       "type": "gensokyou:loot_page",
@@ -510,10 +538,24 @@
     },
     {
       "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:diamond_axe",
+      "tier": "diamond",
+      "mode": "tool",
+      "entries": "gensokyou:sacred_wood,0.98,3;gensokyou:magic_wood,0.98,3;gensokyou:eternal_wood,0.30,4"
+    },
+    {
+      "type": "gensokyou:loot_page",
       "tool_item": "minecraft:netherite_axe",
       "tier": "netherite",
       "mode": "tool",
       "entries": "minecraft:oak_log,6.1,0;minecraft:spruce_log,3.7,0;minecraft:birch_log,3.7,0;minecraft:cherry_log,2.4,0;minecraft:dark_oak_log,2.4,0;minecraft:acacia_log,1.8,0;minecraft:jungle_log,1.8,0;minecraft:mangrove_log,1.2,0;minecraft:oak_planks,3.7,0;minecraft:stick,2.4,0;minecraft:oak_sapling,0.31,0;minecraft:spruce_sapling,0.15,0;minecraft:cherry_sapling,0.15,0;minecraft:apple,5.0,0;minecraft:bamboo,25,0;minecraft:cocoa_beans,10,0;minecraft:honeycomb,30,0;minecraft:crimson_stem,5.2,1;minecraft:warped_stem,5.2,1;minecraft:nether_wart_block,2.6,1;minecraft:shroomlight,0.43,1;minecraft:chorus_flower,1.7,2;minecraft:chorus_fruit,0.84,2"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "tool_item": "minecraft:netherite_axe",
+      "tier": "netherite",
+      "mode": "tool",
+      "entries": "gensokyou:sacred_wood,0.98,3;gensokyou:magic_wood,0.98,3;gensokyou:eternal_wood,0.30,4"
     }
   ]
 }

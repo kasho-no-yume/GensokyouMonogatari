@@ -20,6 +20,14 @@
     ["minecraft:end_stone", 12],
     ["minecraft:purpur_block", 0.2]
   ],
+  "gensokyou_low": [
+    ["gensokyou:cinnabar", 1.0],
+    ["gensokyou:spirit_iron_ore", 1.0]
+  ],
+  "gensokyou_high": [
+    ["gensokyou:star_silver_ore", 0.3],
+    ["gensokyou:oni_stone", 0.3]
+  ],
   "tables": [
     {
       "tier": "wood",

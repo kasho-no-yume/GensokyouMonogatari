@@ -9,9 +9,50 @@
       "spCost": 2000,
       "ingredients": [
         { "item": "minecraft:diamond", "count": 4 },
-        { "item": "gensokyou:ritual_stone_0", "count": 4 }
+        { "item": "gensokyou:ritual_stone_0", "count": 4 },
+        { "item": "gensokyou:cinnabar", "count": 4 }
       ],
       "result": { "item": "gensokyou:ritual_stone_1", "count": 1 }
+    },
+    {
+      "name": "zaohua_stone_t2",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 20000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_1", "count": 4 },
+        { "item": "gensokyou:spirit_iron_ore", "count": 4 },
+        { "item": "gensokyou:star_silver_ore", "count": 2 },
+        { "item": "gensokyou:tide_crystal", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:ritual_stone_2", "count": 1 }
+    },
+    {
+      "name": "zaohua_talisman_paper",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 500,
+      "ingredients": [
+        { "item": "gensokyou:sacred_wood", "count": 2 },
+        { "item": "gensokyou:spirit_herb", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:talisman_paper", "count": 2 }
+    },
+    {
+      "name": "zaohua_codex_of_beings",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 12000,
+      "ingredients": [
+        { "item": "gensokyou:memory_fragment", "count": 8 },
+        { "item": "gensokyou:talisman_paper", "count": 4 },
+        { "item": "gensokyou:spirit_herb", "count": 4 },
+        { "item": "minecraft:book", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:codex_of_beings", "count": 1 }
     },
     {
       "name": "zaohua_spellcard_star",

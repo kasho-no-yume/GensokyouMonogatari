@@ -132,6 +132,8 @@ public class WatatsumiLootCategory implements IRecipeCategory<WatatsumiLootCardW
         return switch (section) {
             case 1 -> "jei." + Gensokyou.MODID + ".watatsumi.section.treasure";
             case 2 -> "jei." + Gensokyou.MODID + ".watatsumi.section.special";
+            case 3 -> "jei." + Gensokyou.MODID + ".loot.gensokyou_low";
+            case 4 -> "jei." + Gensokyou.MODID + ".loot.gensokyou_high";
             default -> "jei." + Gensokyou.MODID + ".watatsumi.section.fish";
         };
     }

@@ -31,6 +31,14 @@
     ["minecraft:weeping_vines", 1],
     ["minecraft:shroomlight", 0.5]
   ],
+  "gensokyou_low": [
+    ["gensokyou:spirit_herb", 1.0],
+    ["gensokyou:gentian", 0.8],
+    ["gensokyou:higanbana", 0.8]
+  ],
+  "gensokyou_high": [
+    ["gensokyou:magic_mushroom", 0.3]
+  ],
   "tables": [
     { "tier": "wood", "special": [["minecraft:wheat_seeds", 0.5]] },
     { "tier": "stone", "special": [

@@ -49,26 +49,36 @@ public class WatatsumiSpecialLootLoader extends SimpleJsonResourceReloadListener
     }
 
     private static WatatsumiSpecialLoot parse(JsonObject json) {
-        JsonArray array = GsonHelper.getAsJsonArray(json, "entries");
-        List<RitualLootTable.Weighted> entries = new ArrayList<>();
+        List<RitualLootTable.Weighted> entries = parseList(
+                GsonHelper.getAsJsonArray(json, "entries"), "entries");
+        if (entries.isEmpty()) {
+            throw new IllegalArgumentException("entries must not be empty");
+        }
+        List<RitualLootTable.Weighted> low = json.has("gensokyou_low")
+                ? parseList(GsonHelper.getAsJsonArray(json, "gensokyou_low"), "gensokyou_low") : List.of();
+        List<RitualLootTable.Weighted> high = json.has("gensokyou_high")
+                ? parseList(GsonHelper.getAsJsonArray(json, "gensokyou_high"), "gensokyou_high") : List.of();
+        return new WatatsumiSpecialLoot(List.copyOf(entries), List.copyOf(low), List.copyOf(high));
+    }
+
+    /** 解析 {@code [[itemId, weight], ...]}；未知物品 id / 非法权重即抛。 */
+    private static List<RitualLootTable.Weighted> parseList(JsonArray array, String where) {
+        List<RitualLootTable.Weighted> list = new ArrayList<>();
         for (JsonElement element : array) {
             if (!element.isJsonArray() || element.getAsJsonArray().size() != 2) {
-                throw new IllegalArgumentException("entries: entry must be [itemId, weight]");
+                throw new IllegalArgumentException(where + ": entry must be [itemId, weight]");
             }
             JsonArray pair = element.getAsJsonArray();
             String id = pair.get(0).getAsString();
             Item item = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(id))
-                    .orElseThrow(() -> new IllegalArgumentException("entries: unknown item " + id));
+                    .orElseThrow(() -> new IllegalArgumentException(where + ": unknown item " + id));
             double weight = pair.get(1).getAsDouble();
             if (!(weight > 0.0D) || Double.isNaN(weight) || Double.isInfinite(weight)) {
-                throw new IllegalArgumentException("entries: weight must be finite and > 0 for " + id);
+                throw new IllegalArgumentException(where + ": weight must be finite and > 0 for " + id);
             }
-            entries.add(new RitualLootTable.Weighted(item, weight));
+            list.add(new RitualLootTable.Weighted(item, weight));
         }
-        if (entries.isEmpty()) {
-            throw new IllegalArgumentException("entries must not be empty");
-        }
-        return new WatatsumiSpecialLoot(List.copyOf(entries));
+        return list;
     }
 
     public static WatatsumiSpecialLoot table() {

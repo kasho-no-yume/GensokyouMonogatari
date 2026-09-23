@@ -50,6 +50,36 @@
 | textures/item/amp_core_dye.png | DONE(gen_tex 新绘·灰度晶石染层，运行期按品阶 tint) | 海洋之心 |
 | textures/item/amp_core_t1/2/3.png | 已移除（t1..t3 共享 amp_core+amp_core_dye 双层染色） | 海洋之心 |
 
+## 幻想乡素材（add-gensokyo-material-ladder，gen_tex 新绘·数据文件 tools/textures/gensokyo_materials.py）
+
+| 路径 | 状态 | 占位来源 |
+|---|---|---|
+| textures/item/cinnabar.png | DONE(gen_tex 新绘·红晶矿) | 海洋之心 |
+| textures/item/spirit_iron.png | DONE(gen_tex 新绘·青灰金属·成品) | 海洋之心 |
+| textures/item/spirit_iron_ore.png | DONE(gen_tex 新绘·矿石) | 海洋之心 |
+| textures/item/star_silver.png | DONE(gen_tex 新绘·银白金属·成品) | 海洋之心 |
+| textures/item/star_silver_ore.png | DONE(gen_tex 新绘·矿石) | 海洋之心 |
+| textures/item/oni_stone.png | DONE(gen_tex 新绘·紫灰岩) | 海洋之心 |
+| textures/item/spirit_soil.png | DONE(gen_tex 新绘·土堆) | 海洋之心 |
+| textures/item/porcelain_clay.png | DONE(gen_tex 新绘·瓷白土堆) | 海洋之心 |
+| textures/item/higan_soil.png | DONE(gen_tex 新绘·暗红土堆) | 海洋之心 |
+| textures/item/moon_sand.png | DONE(gen_tex 新绘·月黄砂堆) | 海洋之心 |
+| textures/item/sacred_wood.png | DONE(gen_tex 新绘·原木) | 海洋之心 |
+| textures/item/magic_wood.png | DONE(gen_tex 新绘·紫调原木) | 海洋之心 |
+| textures/item/eternal_wood.png | DONE(gen_tex 新绘·青调原木) | 海洋之心 |
+| textures/item/sanzu_flask.png | DONE(gen_tex 新绘·冥河瓶) | 海洋之心 |
+| textures/item/spirit_fish.png | DONE(gen_tex 新绘·发光灵鱼) | 海洋之心 |
+| textures/item/mermaid_scale.png | DONE(gen_tex 新绘·珍珠鳞) | 海洋之心 |
+| textures/item/dragon_scale.png | DONE(gen_tex 新绘·青绿鳞) | 海洋之心 |
+| textures/item/tide_crystal.png | DONE(gen_tex 新绘·潮汐晶) | 海洋之心 |
+| textures/item/spirit_herb.png | DONE(gen_tex 新绘·灵草) | 海洋之心 |
+| textures/item/gentian.png | DONE(gen_tex 新绘·龙胆) | 海洋之心 |
+| textures/item/higanbana.png | DONE(gen_tex 新绘·彼岸花) | 海洋之心 |
+| textures/item/magic_mushroom.png | DONE(gen_tex 新绘·魔法菇) | 海洋之心 |
+| textures/item/spirit_charcoal.png | DONE(gen_tex 新绘·灵炭) | 海洋之心 |
+| textures/item/talisman_paper.png | DONE(gen_tex 新绘·符纸) | 海洋之心 |
+| textures/item/sukima_fragment.png | DONE(gen_tex 新绘·隙间碎片) | 海洋之心 |
+
 ## 方块贴图（目标：正式方块材质）
 
 | 路径 | 状态 | 占位来源 |
