@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "GDG",
+    "GSG",
+    " S "
+  ],
+  "key": {
+    "S": { "item": "minecraft:stick" },
+    "G": { "item": "minecraft:gold_ingot" },
+    "D": { "item": "minecraft:diamond" }
+  },
+  "result": {
+    "id": "gensokyou:ritual_builder",
+    "count": 1
+  }
+}
