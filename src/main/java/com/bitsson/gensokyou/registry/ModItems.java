@@ -57,20 +57,46 @@ public final class ModItems {
             ITEMS.register("memory_fragment", () -> new MemoryFragmentItem(new Item.Properties().stacksTo(64)));
 
     // ---------------- 幻想乡素材（add-gensokyo-material-ladder，T1~T2）----------------
-    public static final DeferredItem<Item> CINNABAR = simpleMaterial("cinnabar");
+    // 矿产/土产/木材共 11 种为可放置方块；成品金属与粗矿仍为物品。
+    public static final DeferredItem<BlockItem> CINNABAR =
+            ITEMS.registerSimpleBlockItem("cinnabar", ModBlocks.CINNABAR);
     // 原矿（大山津见产出）；成品金属 spirit_iron / star_silver 由金山彦命之仪炼出（后续）
-    public static final DeferredItem<Item> SPIRIT_IRON_ORE = simpleMaterial("spirit_iron_ore");
-    public static final DeferredItem<Item> STAR_SILVER_ORE = simpleMaterial("star_silver_ore");
+    public static final DeferredItem<BlockItem> SPIRIT_IRON_ORE =
+            ITEMS.registerSimpleBlockItem("spirit_iron_ore", ModBlocks.SPIRIT_IRON_ORE);
+    public static final DeferredItem<Item> ROUGH_SPIRIT_IRON_ORE = simpleMaterial("rough_spirit_iron_ore");
+    public static final DeferredItem<BlockItem> STAR_SILVER_ORE =
+            ITEMS.registerSimpleBlockItem("star_silver_ore", ModBlocks.STAR_SILVER_ORE);
+    public static final DeferredItem<Item> ROUGH_STAR_SILVER_ORE = simpleMaterial("rough_star_silver_ore");
     public static final DeferredItem<Item> SPIRIT_IRON = simpleMaterial("spirit_iron");
     public static final DeferredItem<Item> STAR_SILVER = simpleMaterial("star_silver");
-    public static final DeferredItem<Item> ONI_STONE = simpleMaterial("oni_stone");
-    public static final DeferredItem<Item> SPIRIT_SOIL = simpleMaterial("spirit_soil");
-    public static final DeferredItem<Item> PORCELAIN_CLAY = simpleMaterial("porcelain_clay");
-    public static final DeferredItem<Item> HIGAN_SOIL = simpleMaterial("higan_soil");
-    public static final DeferredItem<Item> MOON_SAND = simpleMaterial("moon_sand");
-    public static final DeferredItem<Item> SACRED_WOOD = simpleMaterial("sacred_wood");
-    public static final DeferredItem<Item> MAGIC_WOOD = simpleMaterial("magic_wood");
-    public static final DeferredItem<Item> ETERNAL_WOOD = simpleMaterial("eternal_wood");
+    public static final DeferredItem<BlockItem> ONI_STONE =
+            ITEMS.registerSimpleBlockItem("oni_stone", ModBlocks.ONI_STONE);
+    public static final DeferredItem<BlockItem> SPIRIT_SOIL =
+            ITEMS.registerSimpleBlockItem("spirit_soil", ModBlocks.SPIRIT_SOIL);
+    public static final DeferredItem<BlockItem> PORCELAIN_CLAY =
+            ITEMS.registerSimpleBlockItem("porcelain_clay", ModBlocks.PORCELAIN_CLAY);
+    public static final DeferredItem<BlockItem> HIGAN_SOIL =
+            ITEMS.registerSimpleBlockItem("higan_soil", ModBlocks.HIGAN_SOIL);
+    public static final DeferredItem<BlockItem> MOON_SAND =
+            ITEMS.registerSimpleBlockItem("moon_sand", ModBlocks.MOON_SAND);
+    public static final DeferredItem<BlockItem> SACRED_WOOD =
+            ITEMS.registerSimpleBlockItem("sacred_wood", ModBlocks.SACRED_WOOD);
+    public static final DeferredItem<BlockItem> MAGIC_WOOD =
+            ITEMS.registerSimpleBlockItem("magic_wood", ModBlocks.MAGIC_WOOD);
+    public static final DeferredItem<BlockItem> ETERNAL_WOOD =
+            ITEMS.registerSimpleBlockItem("eternal_wood", ModBlocks.ETERNAL_WOOD);
+    public static final DeferredItem<BlockItem> SACRED_LEAVES =
+            ITEMS.registerSimpleBlockItem("sacred_leaves", ModBlocks.SACRED_LEAVES);
+    public static final DeferredItem<BlockItem> MAGIC_LEAVES =
+            ITEMS.registerSimpleBlockItem("magic_leaves", ModBlocks.MAGIC_LEAVES);
+    public static final DeferredItem<BlockItem> ETERNAL_LEAVES =
+            ITEMS.registerSimpleBlockItem("eternal_leaves", ModBlocks.ETERNAL_LEAVES);
+    public static final DeferredItem<BlockItem> SACRED_SAPLING =
+            ITEMS.registerSimpleBlockItem("sacred_sapling", ModBlocks.SACRED_SAPLING);
+    public static final DeferredItem<BlockItem> MAGIC_SAPLING =
+            ITEMS.registerSimpleBlockItem("magic_sapling", ModBlocks.MAGIC_SAPLING);
+    public static final DeferredItem<BlockItem> ETERNAL_SAPLING =
+            ITEMS.registerSimpleBlockItem("eternal_sapling", ModBlocks.ETERNAL_SAPLING);
     public static final DeferredItem<Item> SANZU_FLASK = ITEMS.registerSimpleItem("sanzu_flask", new Item.Properties().stacksTo(16));
     public static final DeferredItem<Item> SPIRIT_FISH = simpleMaterial("spirit_fish");
     public static final DeferredItem<Item> MERMAID_SCALE = simpleMaterial("mermaid_scale");

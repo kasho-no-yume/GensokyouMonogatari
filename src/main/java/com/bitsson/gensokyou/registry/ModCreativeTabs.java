@@ -33,7 +33,9 @@ public final class ModCreativeTabs {
                         // 幻想乡素材（按 矿产/土产/木材/海产/植物 排列）
                         output.accept(ModItems.CINNABAR.get());
                         output.accept(ModItems.SPIRIT_IRON_ORE.get());
+                        output.accept(ModItems.ROUGH_SPIRIT_IRON_ORE.get());
                         output.accept(ModItems.STAR_SILVER_ORE.get());
+                        output.accept(ModItems.ROUGH_STAR_SILVER_ORE.get());
                         output.accept(ModItems.SPIRIT_IRON.get());
                         output.accept(ModItems.STAR_SILVER.get());
                         output.accept(ModItems.ONI_STONE.get());
@@ -44,6 +46,12 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.SACRED_WOOD.get());
                         output.accept(ModItems.MAGIC_WOOD.get());
                         output.accept(ModItems.ETERNAL_WOOD.get());
+                        output.accept(ModItems.SACRED_LEAVES.get());
+                        output.accept(ModItems.MAGIC_LEAVES.get());
+                        output.accept(ModItems.ETERNAL_LEAVES.get());
+                        output.accept(ModItems.SACRED_SAPLING.get());
+                        output.accept(ModItems.MAGIC_SAPLING.get());
+                        output.accept(ModItems.ETERNAL_SAPLING.get());
                         output.accept(ModItems.SANZU_FLASK.get());
                         output.accept(ModItems.SPIRIT_FISH.get());
                         output.accept(ModItems.MERMAID_SCALE.get());

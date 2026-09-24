@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "gensokyou:block/magic_wood_top",
+    "side": "gensokyou:block/magic_wood"
+  }
+}

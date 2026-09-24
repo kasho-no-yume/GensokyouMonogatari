@@ -1,6 +1,3 @@
 {
-  "parent": "item/generated",
-  "textures": {
-    "layer0": "gensokyou:item/star_silver_ore"
-  }
+  "parent": "gensokyou:block/star_silver_ore"
 }

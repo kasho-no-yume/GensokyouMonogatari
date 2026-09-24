@@ -1,0 +1,6 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "gensokyou:item/rough_star_silver_ore"
+  }
+}

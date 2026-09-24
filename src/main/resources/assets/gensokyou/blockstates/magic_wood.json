@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "gensokyou:block/magic_wood"
+    },
+    "axis=z": {
+      "model": "gensokyou:block/magic_wood_horizontal",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "gensokyou:block/magic_wood_horizontal",
+      "x": 90,
+      "y": 90
+    }
+  }
+}

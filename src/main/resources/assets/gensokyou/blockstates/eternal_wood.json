@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "gensokyou:block/eternal_wood"
+    },
+    "axis=z": {
+      "model": "gensokyou:block/eternal_wood_horizontal",
+      "x": 90
+    },
+    "axis=x": {
+      "model": "gensokyou:block/eternal_wood_horizontal",
+      "x": 90,
+      "y": 90
+    }
+  }
+}
