@@ -67,8 +67,6 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.TALISMAN_PAPER.get());
                         output.accept(ModItems.SUKIMA_FRAGMENT.get());
                         output.accept(ModItems.LAEVATEIN.get());
-                        output.accept(ModItems.SUMMON_CATALYST.get());
-                        output.accept(ModItems.CIRNO_CATALYST.get());
                         ModItems.RITUAL_STONE_ITEMS.forEach(item -> output.accept(item.get()));
                         ModItems.RITUAL_STONE_SLAB_ITEMS.forEach(item -> output.accept(item.get()));
                         ModItems.RITUAL_STONE_STAIRS_ITEMS.forEach(item -> output.accept(item.get()));

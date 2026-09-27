@@ -97,6 +97,9 @@ ENTRIES = [
     # 结界破坏：无 activation/passive 配方（祭品走 pattern requirements，非配方目录），
     # 故 no_recipes=True。阶级参数页现算缓存/流失/备料，供灵上限随归元托管核变动。
     ("barrier_break_circle", "gensokyou:sukima_fragment", True),
+    # 百鬼夜行：召唤仪式。配方只出 effect（不产出物品），故配方页是玩家获知
+    # 召唤配方的唯一途径，不能 no_recipes。3 条配方 <= MAX_RECIPE_PAGES，故会补配方页。
+    ("hyakki_yagyo_circle", "minecraft:soul_lantern", False),
 ]
 
 ITEM_RECIPE_ENTRIES = [

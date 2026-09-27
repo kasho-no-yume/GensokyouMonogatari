@@ -3,23 +3,12 @@
 ## Purpose
 TBD - created by archiving change phase-a-entry-loop. Update Purpose after archive.
 ## Requirements
-### Requirement: 召唤仪式多方块
-模组 SHALL 提供仪式核心方块与仪式石方块；结构为核心居中、同层外圈 3×3 共 8 个仪式石；玩家手持召唤催化剂右键核心时 SHALL 校验结构，有效则消耗催化剂并在核心上方生成芙兰朵露（低阶形态），无效则给出提示且不消耗。
-
-#### Scenario: 有效召唤
-- **WHEN** 摆放完整结构并持催化剂右键核心
-- **THEN** 催化剂减一，芙兰朵露出现在核心上方
-
-#### Scenario: 结构错误
-- **WHEN** 缺少任一仪式石时右键核心
-- **THEN** 提示结构无效，催化剂不消耗，无实体生成
-
 ### Requirement: 芙兰朵露低阶形态
-BOSS 实体（registry name `flandre`）SHALL 为敌对 Monster：最大生命/攻击/护甲/移速/经验从配置读取（移速默认 0.3）；被追踪渲染期间显示 ServerBossEvent 血条且百分比实时等于生命占比。
+BOSS 实体（registry name `flandre`）SHALL 为敌对 Monster：最大生命/攻击/护甲/移速/经验从配置读取（移速默认 0.3）；被追踪渲染期间 SHALL 显示血条且百分比实时等于生命占比。血条的**呈现造型**由 `touhou-boss-bar` 能力规定（东方 BOSS 统一使用咒符条），本能力只规定"存在一条血条且读数正确"，MUST NOT 再指定其为原版蓝色分段样式。
 
 #### Scenario: 属性与血条
 - **WHEN** 玩家接近被召唤的芙兰朵露并攻击
-- **THEN** 屏幕上方出现蓝色分段血条并随伤害同步下降，属性值等于配置值
+- **THEN** 屏幕上方出现其血条（按 `touhou-boss-bar` 呈现为咒符条）并随伤害同步下降，属性值等于配置值
 
 ### Requirement: 战斗 AI（野外形态）
 BOSS SHALL 具备四个主动 Goal：向最近玩家瞬移、随机方向弹幕、八向环形弹幕、生成分身；各触发间隔与弹幕伤害从配置读取。

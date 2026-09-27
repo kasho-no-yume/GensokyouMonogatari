@@ -1,7 +1,7 @@
 {
   "name": "gensokyou.book.entry.monsters_fairies",
   "category": "gensokyou:monsters",
-  "icon": "gensokyou:cirno_catalyst",
+  "icon": "gensokyou:ppoint",
   "pages": [
     { "type": "patchouli:text", "text": "gensokyou.book.entry.monsters_fairies.p1" },
     { "type": "patchouli:text", "text": "gensokyou.book.entry.monsters_fairies.p2" }

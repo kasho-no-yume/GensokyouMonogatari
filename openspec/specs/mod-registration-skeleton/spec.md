@@ -18,11 +18,11 @@ TBD - created by archiving change phase-a-entry-loop. Update Purpose after archi
 - **THEN** 配置文件含全部分节及注释默认值；新生成的芙兰朵露生命值反映新配置
 
 ### Requirement: 创造模式标签
-SHALL 存在 `gensokyou:gensokyou` 创造标签，收录本阶段全部可获得物品。
+SHALL 存在 `gensokyou:gensokyou` 创造标签，收录本阶段全部可获得物品。召唤催化剂与冰之催化剂 SHALL NOT 再收录（两物品已随催化剂链路退役而删除）。
 
 #### Scenario: 标签页完整
 - **WHEN** 打开创造模式 Gensokyou 标签页
-- **THEN** 引导书、两张符卡、四种材料、円、拉维坦剑、召唤催化剂均在列
+- **THEN** 引导书、两张符卡、四种材料、円、拉维坦剑、P 点与 B 点均在列，且标签页内 MUST NOT 出现任何未注册物品图标
 
 ### Requirement: 占位资产规范落地
 所有资产 SHALL 遵循 project.md §5：仅引用 gensokyou 命名空间路径、最终命名、内容为原版像素拷贝（物品=海洋之心、实体皮肤=Alex、方块=钻石块）；SHALL 建立占位资产清单文档。

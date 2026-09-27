@@ -34,6 +34,8 @@ public class RitualLootLoader extends SimpleJsonResourceReloadListener {
 
     private static final Gson GSON = new Gson();
     private static final Map<ResourceLocation, RitualLootTable> TABLES = new LinkedHashMap<>();
+    /** 仅收录**通过校验**的文件的原始 JSON（客户端同步用），使客户端无须复现去重语义。 */
+    private static final Map<ResourceLocation, JsonObject> RAWS = new LinkedHashMap<>();
 
     public RitualLootLoader() {
         super(GSON, "ritual_loot");
@@ -43,14 +45,17 @@ public class RitualLootLoader extends SimpleJsonResourceReloadListener {
     protected void apply(Map<ResourceLocation, JsonElement> files, ResourceManager resourceManager,
                          net.minecraft.util.profiling.ProfilerFiller profiler) {
         Map<ResourceLocation, RitualLootTable> parsed = new LinkedHashMap<>();
+        Map<ResourceLocation, JsonObject> raws = new LinkedHashMap<>();
         for (var file : files.entrySet()) {
             try {
-                RitualLootTable table = parse(GsonHelper.convertToJsonObject(file.getValue(), "loot table"));
+                JsonObject json = GsonHelper.convertToJsonObject(file.getValue(), "loot table");
+                RitualLootTable table = parse(json);
                 RitualLootTable previous = parsed.putIfAbsent(table.patternId(), table);
                 if (previous != null) {
                     throw new IllegalArgumentException("duplicate loot table for pattern "
                             + table.patternId() + " (already defined by another file)");
                 }
+                raws.put(file.getKey(), json);
             } catch (Exception exception) {
                 Gensokyou.LOGGER.warn("Rejected ritual loot file {}: {}", file.getKey(),
                         exception.getMessage());
@@ -59,6 +64,10 @@ public class RitualLootLoader extends SimpleJsonResourceReloadListener {
         synchronized (TABLES) {
             TABLES.clear();
             TABLES.putAll(parsed);
+        }
+        synchronized (RAWS) {
+            RAWS.clear();
+            RAWS.putAll(raws);
         }
         Gensokyou.LOGGER.info("Loaded {} ritual loot tables", parsed.size());
     }
@@ -150,5 +159,22 @@ public class RitualLootLoader extends SimpleJsonResourceReloadListener {
         synchronized (TABLES) {
             return List.copyOf(TABLES.values());
         }
+    }
+
+    /** 已被接受的文件之原始 JSON 副本（客户端同步用）；重复 pattern 的落败文件不在其中。 */
+    public static Map<ResourceLocation, JsonObject> rawAll() {
+        synchronized (RAWS) {
+            Map<ResourceLocation, JsonObject> copy = new LinkedHashMap<>();
+            RAWS.forEach((id, json) -> copy.put(id, json.deepCopy().getAsJsonObject()));
+            return copy;
+        }
+    }
+
+    /**
+     * 客户端重建用：以 loader 同规则解析一个献祭权重文件（非法即抛 IllegalArgumentException）。
+     * 不接收 fileId——本 loader 的归属由 JSON 内 {@code pattern} 字段决定，与文件名无关。
+     */
+    public static RitualLootTable parseFileForClient(JsonObject json) {
+        return parse(json);
     }
 }

@@ -22,7 +22,23 @@ import java.util.List;
  */
 public interface RitualBehavior {
 
-    /** UI 内的自定义操作按钮（显示在启停按钮之后）。enabled=false 时客户端置灰（服务端仍独立校验）。 */
+    /**
+     * UI 内的自定义操作按钮（显示在启停按钮之后）。enabled=false 时客户端置灰（服务端仍独立校验）。
+     *
+     * <p><b>{@link #id} 是 {@link #uiActions} 返回列表里的下标</b>，服务端原样回传给
+     * {@link #onUiAction}：
+     * <pre>
+     *   客户端发 {@code RitualCoreMenu.BUTTON_ACTION_BASE + i}（BASE = 100）
+     *   → 服务端 {@code onUiAction(..., id - BUTTON_ACTION_BASE)}，即 0/1/2
+     * </pre>
+     * 屏幕侧只有 {@code actionButtons[3]} 三个槽位，按<b>下标</b> i 取 payload 第 i 个 action，
+     * 故有效 id 恒为 0/1/2。
+     *
+     * <p>⚠️ <b>与 {@link InfoLine#actionId} 不是同一条通道</b>：后者是信息行点击，确实要求
+     * &ge; 10（0/1 被框架启停按钮占用，故 {@code SeiiService.ACTION_ACCEPT = 10} 那些 10/11
+     * 属于它）。按钮通道写成 10 会让服务端回传 0 与之不等，点击被 {@code onUiAction} 的门禁
+     * 静默吞掉——症状是"按钮能按但毫无反应"。
+     */
     record UiAction(int id, String labelKey, boolean enabled) {
 
         public UiAction(int id, String labelKey) {
@@ -30,7 +46,10 @@ public interface RitualBehavior {
         }
     }
 
-    /** 行为可注入 UI 的自定义操作；id 必须 ≥ 10（0/1 为框架启停保留）。 */
+    /**
+     * 行为可注入 UI 的自定义操作（返回列表的<b>下标</b>即 {@link UiAction#id}，
+     * 有效值 0/1/2，见该记录的说明）。
+     */
     default List<UiAction> uiActions(ServerLevel level, BlockPos corePos, RitualMatch match,
                                       RitualCoreBlockEntity core) {
         return List.of();

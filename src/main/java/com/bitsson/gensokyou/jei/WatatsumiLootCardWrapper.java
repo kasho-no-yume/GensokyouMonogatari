@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.jei;
 
+import com.bitsson.gensokyou.client.ritual.ClientRitualData;
 import com.bitsson.gensokyou.ritual.RitualLootTable;
-import com.bitsson.gensokyou.ritual.WatatsumiSpecialLootLoader;
+import com.bitsson.gensokyou.ritual.WatatsumiSpecialLoot;
 import com.bitsson.gensokyou.ritual.behavior.WatatsumiBehavior;
 import net.minecraft.world.item.Items;
 
@@ -58,13 +59,15 @@ public record WatatsumiLootCardWrapper(int level, int fishingRolls, int specialR
         if (level >= 1) {
             scaleInto(treasure, TREASURE, 5.0D);
         }
+        // 特产池经服务端快照抵达（专用服务器客户端上 loader 恒空）
+        WatatsumiSpecialLoot table = ClientRitualData.watatsumiTable();
         List<RitualLootTable.Weighted> special = level >= 1
-                ? List.copyOf(WatatsumiSpecialLootLoader.table().entries())
+                ? List.copyOf(table.entries())
                 : List.of();
         List<RitualLootTable.Weighted> gkLow = level >= 1
-                ? List.copyOf(WatatsumiSpecialLootLoader.table().gensokyouLow()) : List.of();
+                ? List.copyOf(table.gensokyouLow()) : List.of();
         List<RitualLootTable.Weighted> gkHigh = level >= 1
-                ? List.copyOf(WatatsumiSpecialLootLoader.table().gensokyouHigh()) : List.of();
+                ? List.copyOf(table.gensokyouHigh()) : List.of();
         return new WatatsumiLootCardWrapper(level,
                 WatatsumiBehavior.fishingCount(level),
                 WatatsumiBehavior.specialCount(level),

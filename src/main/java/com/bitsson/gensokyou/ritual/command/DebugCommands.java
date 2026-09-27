@@ -136,7 +136,8 @@ public final class DebugCommands {
                                 .executes(context -> probeBarrier(context.getSource(),
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument
                                                 .getLoadedBlockPos(context, "core")))))
-                .then(Commands.literal("nichirin")
+                .then(summonCommand())
+                   .then(Commands.literal("nichirin")
                         .then(Commands.literal("at")
                                 .then(Commands.argument("daytime", IntegerArgumentType.integer(0, 23999))
                                         .then(Commands.argument("core",
@@ -723,6 +724,115 @@ public final class DebugCommands {
      * 再跑一遍；没有这个入口，表现就只能盲写（历史上正是"观测不到"被当成了"不存在"）。
      * 刻意不触碰闩锁、不重跑需求判定、不消耗祭品。
      */
+    /**
+     * {@code /gs_debug summon <core>}：自检单行。
+     * {@code /gs_debug summon phase <core> <charging|burst|pillar>}：强制跳到指定演出相位。
+     *
+     * <p>单独抽成方法：内联写需要 5 层嵌套，闭括号数到眼花——抽出来后调用点只剩
+     * {@code .then(summonCommand())}，与相邻的 {@code crystal_mode} 同款深度。
+     */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<net.minecraft.commands.CommandSourceStack> summonCommand() {
+        return Commands.literal("summon")
+                .then(Commands.argument("core",
+                                net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                        .executes(context -> probeSummon(context.getSource(),
+                                net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                        .getLoadedBlockPos(context, "core"))))
+                .then(Commands.literal("phase")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .then(Commands.argument("phase", StringArgumentType.word())
+                                        .executes(context -> setSummonPhase(context.getSource(),
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                        .getLoadedBlockPos(context, "core"),
+                                                StringArgumentType.getString(context, "phase"))))));
+    }
+
+    /**
+     * 百鬼夜行自检单行：相位 / 存量 / 容量 / 两条供灵 / 演出锚点与已演时长 / 阶 / 配方 effect。
+     *
+     * <p>机读单行（外层已有 {@code [GS-AUTO]} 前缀），供外部 harness 解析。
+     */
+    private static int probeSummon(net.minecraft.commands.CommandSourceStack source,
+                                   net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        if (!(serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core)
+                || core.activeMatch() == null
+                || !core.activeMatch().patternId()
+                        .equals(com.bitsson.gensokyou.ritual.RitualBehaviors.HYAKKI_YAGYO)) {
+            emitGs(source, "[GS-AUTO] SUMMON NO-MATCH");
+            return 1;
+        }
+        emitGs(source, "[GS-AUTO] SUMMON "
+                + com.bitsson.gensokyou.ritual.behavior.HyakkiYagyoBehavior
+                        .debugSummary(serverLevel, pos, core.activeMatch(), core));
+        return 1;
+    }
+
+    /**
+     * 强制跳到指定相位（{@code charging} / {@code burst} / {@code pillar}），供实机验收演出。
+     *
+     * <p>没有这个入口后两段表现就只能盲写：充能最快也要十秒（要真的把供灵网络搭起来才看得到
+     * 球与闪电），而爆散与光柱各只有 1~2 秒的窗口。
+     *
+     * <p><b>按新语义落锚点</b>：演出锚点是"爆散那一刻"，不是"启动那一刻"。故
+     * {@code charging} 把锚点清成 {@code -1}（演出段未开始），{@code burst} / {@code pillar}
+     * 把锚点回拨到 {@code now − 想看的相位内偏移}。若沿用旧的"锚点=启动时刻"语义，
+     * 零供灵下整段演出会在一秒内播完，正是本命令要帮玩家验的那三段被压扁的表现。
+     */
+    private static int setSummonPhase(net.minecraft.commands.CommandSourceStack source,
+                                      net.minecraft.core.BlockPos pos, String phase) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        if (!(serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core)
+                || core.activeMatch() == null
+                || !core.activeMatch().patternId()
+                        .equals(com.bitsson.gensokyou.ritual.RitualBehaviors.HYAKKI_YAGYO)) {
+            emitGs(source, "[GS-AUTO] SUMMON NO-MATCH");
+            return 1;
+        }
+        if (!core.summonActive()) {
+            emitGs(source, "[GS-AUTO] SUMMON IDLE (start a session first)");
+            return 1;
+        }
+        int burst = com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_BURST_TICKS.get();
+        int hold = com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_PILLAR_HOLD_TICKS.get();
+        String want = phase.toLowerCase(java.util.Locale.ROOT);
+        int back; // 从"爆散那一刻"回拨的 tick 数
+        if ("charging".equals(want)) {
+            back = -1;
+        } else if ("burst".equals(want)) {
+            back = 1;
+        } else if ("pillar".equals(want)) {
+            back = burst + 1;
+        } else {
+            emitGs(source, "[GS-AUTO] SUMMON BAD-PHASE " + phase);
+            return 1;
+        }
+        core.setEnabled(true);
+        if (back < 0) {
+            core.setSummonPhase(
+                    com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity.SummonPhase.CHARGING);
+            core.clearSummonFxStart();
+        } else {
+            core.markSummonBurst((int) (serverLevel.getGameTime() - back));
+            if (back > burst) {
+                core.setSummonPhase(
+                        com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity.SummonPhase.PILLAR);
+            }
+        }
+        emitGs(source, "[GS-AUTO] SUMMON PHASE " + want
+                + " phase=" + core.summonPhase()
+                + " elapsed=" + core.summonElapsed()
+                + " (burst=" + burst + " hold=" + hold + ")");
+        return 1;
+    }
+
     private static int replayBarrier(net.minecraft.commands.CommandSourceStack source,
                                      net.minecraft.core.BlockPos pos) {
         if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {

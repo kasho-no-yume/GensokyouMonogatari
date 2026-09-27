@@ -61,11 +61,23 @@
 - **THEN** 其池变为 0/0、灵力强度 0，成为凡人
 
 ### Requirement: 数值全部可配置
-阶级属性表（含 roll 区间）、飞行费率表、演出时长、PAYING 受灵速率 SHALL 全部位于 config `grace` 段，reload/重启生效；MUST NOT 有硬编码数值散落行为代码。
+
+阶级属性表（含 roll 区间）、飞行费率表、演出时长、PAYING 受灵速率 SHALL 全部位于 config `grace` 段，reload/重启生效；MUST NOT 有硬编码数值散落行为代码。飞行费率表 `graceFlightCostPct` 的**默认值为全 0**（各阶级飞行均不耗灵），管理员 MAY 配置为非零值以启用按阶级耗灵；该默认值本身亦属可配置项，MUST NOT 以硬编码绕过配置读取。
 
 #### Scenario: 调表生效
+
 - **WHEN** 管理员将 1 阶最大灵力基准从 200 改为 300 并重载配置
 - **THEN** 后续新 roll 使用 300 基准（已有玩家不受追溯影响）
+
+#### Scenario: 飞行费率默认为零
+
+- **WHEN** 使用未修改过 `graceFlightCostPct` 的默认配置启动
+- **THEN** 各阶级飞行均不消耗灵力（配置项存在且可被改为非零值以启用耗灵）
+
+#### Scenario: 改回非零费率即启用
+
+- **WHEN** 管理员将 `graceFlightCostPct` 改为非零列表（如 `[5, 2, 1, 0.5, 0]`）并重载
+- **THEN** 1 至 4 阶玩家飞行按对应费率耗灵，5 阶仍免费
 
 ### Requirement: 灵力上限阶乘与回灵定值带
 `max_spirit` 阶级累计 SHALL 以 **×10/阶**递增（1 阶 1,000 → 5 阶 10,000,000，增量 `1,000 / 9,000 / 90,000 / 900,000 / 9,000,000`，roll ±20%），使玩家池量级与仪式经济（10⁴~10⁹）对齐并为高强符卡留出消耗空间。回灵 `spirit_regen_rate` SHALL 以**每阶定值增量**表示（逐阶增量 = 该阶 `max_spirit` 的 0.165% 中点，roll ±0.82），使累计回灵稳定落在该阶池的 **0.03%~0.3% / 秒**；`baseRegenPerSecond` SHALL 归零。回灵 MUST NOT 按"运行时按当前上限的百分比"动态计算。

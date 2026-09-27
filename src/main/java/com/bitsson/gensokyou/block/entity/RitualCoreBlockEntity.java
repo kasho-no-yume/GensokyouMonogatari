@@ -95,11 +95,37 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private static final String TAG_GRACE_PENDING = "GracePending";
     /** 献祭仪式：结算后强制冷却剩余 tick（通用字段，仅该行为族使用）。 */
     private static final String TAG_ACTION_COOLDOWN = "ActionCooldown";
+
+    // ---- 百鬼夜行召唤会话（hyakki-yagyo-summon）----
+
+    private static final String TAG_SUMMON_PHASE = "SummonPhase";
+    private static final String TAG_SUMMON_COST = "SummonCost";
+    private static final String TAG_SUMMON_RECIPE = "SummonRecipe";
+    private static final String TAG_SUMMON_TIER = "SummonTier";
+    /**
+     * 召唤演出的<b>绝对</b> gameTime 锚点（充能段起点）。
+     *
+     * <p>持久化是必须的：它让「充能 → 爆散 → 降临」三段演出在区块卸载 / 重连之后仍能由
+     * 服务端与客户端各自自算出同一相位，而不必逐 tick 同步。参考
+     * {@code SukimaBlockEntity#fxStartGameTime} 的同款教训——用 transient 标记判重播会在方块
+     * 实体重建后失效，导致整段演出重播；缺锚点则会让演出永远停在第 0 tick。
+     */
+    private static final String TAG_SUMMON_FX_START = "SummonFxStart";
+
     /** 无尽藏之仪托管数据段键：分区组表 + 孤儿段 + 段位坐标（由 {@code WujinzangStorage} 读写）。 */
     public static final String TAG_WUJINZANG_VAULT = "WujinzangVault";
 
     /** 造化合成会话阶段（一次性合成型仪式共用存储；推进逻辑在行为侧）。 */
     public enum CraftPhase { IDLE, PAYING, FLIGHT }
+
+    /**
+     * 百鬼夜行召唤会话阶段。
+     *
+     * <p>{@code IDLE} 之外的三段合起来是一次<b>一次性</b>演出，全部由
+     * {@code gameTime − 演出锚点} 推进，MUST NOT 逐 tick 同步渲染态。
+     * 非 {@code IDLE} 时 {@code enabled} 恒为真——「会话进行中」正是启停位的语义。
+     */
+    public enum SummonPhase { IDLE, CHARGING, BURST, PILLAR }
 
     private RitualMatch activeMatch;
     private long ageTicks;
@@ -145,6 +171,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
     // ---- 造化合成会话（一次性合成型仪式的每核状态；推进逻辑在行为侧）----
     /** 会话存储（换代/锁配方/聚灵进度/飞行计时/在飞实体 id；世界无关纯逻辑，可单测）。 */
     private final CraftSession craft = new CraftSession();
+
+    /** 百鬼夜行召唤会话（无门票：spCost 即容量，故与 CraftSession 独立存储）。 */
+    private final SummonSession summon = new SummonSession();
     /** 红石上升沿检测：上一拍邻居信号是否 >0（持久化，防重载后常亮信号误触发）。 */
     private boolean lastPowered;
     /** 献祭仪式：结算后强制冷却剩余 tick（每 tick 递减；持久化防重载连发）。 */
@@ -327,6 +356,11 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 // 星移刻意不做会话态覆盖：缓存是跨洗练持久的真实蓄水池，
                 // 一次洗练只抽本次花费量，剩余 (阶梯值 - 花费) 结转下一次。
                 return com.bitsson.gensokyou.item.weapon.SeiiNumbers.capacity(activeMatch.level());
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.HYAKKI_YAGYO)) {
+                // 百鬼夜行：空闲零缓存（因而对供灵网络完全隐身），会话期容量 = 锁定配方 spCost。
+                // 与造化/神恩同口径，但本仪式用缓存<b>本身</b>当进度，无独立累计量。
+                return summon.phase == SummonPhase.IDLE ? 0L : summon.cost;
             }
         }
         return DEFAULT_CORE_CAPACITY;
@@ -520,6 +554,67 @@ public class RitualCoreBlockEntity extends BlockEntity {
     public void clearRoutedLedgers() {
         routedInLedger.clear();
         routedOutLedger.clear();
+    }
+
+    // ---- 百鬼夜行召唤会话（hyakki-yagyo-summon）：存储与跃迁，推进逻辑在 HyakkiYagyoSummonService ----
+
+    /**
+     * 召唤会话存储（世界无关纯逻辑，可单测）。
+     *
+     * <p>与 {@link CraftSession} 刻意分开而非复用：造化的容量口径是"锁定 spCost 的<b>目标</b>，
+     * 另有一个与缓存解耦的累计量 {@code collected}（因为它要在足额那一刻把原料发射出去）；
+     * 百鬼夜行<b>没有产物飞行</b>，缓存本身就是进度，故只需一个 {@code cost}。
+     */
+    public static final class SummonSession {
+        private SummonPhase phase = SummonPhase.IDLE;
+        /** 会话容量口径：锁定配方的 spCost；空闲为 0（不启动不缓存灵力）。 */
+        private long cost;
+        private @Nullable ResourceLocation recipeId;
+        private int tier;
+        /** 演出起始 gameTime（绝对锚点，持久化）；{@code < 0} = 从未播放过演出。 */
+        private int fxStart = -1;
+
+        public boolean isIdle() {
+            return phase == SummonPhase.IDLE;
+        }
+
+        public void save(CompoundTag tag) {
+            if (isIdle() && cost == 0L && recipeId == null && fxStart < 0) {
+                return;
+            }
+            tag.putString(TAG_SUMMON_PHASE, phase.name());
+            tag.putLong(TAG_SUMMON_COST, cost);
+            tag.putByte(TAG_SUMMON_TIER, (byte) Math.min(127, Math.max(0, tier)));
+            tag.putInt(TAG_SUMMON_FX_START, fxStart);
+            if (recipeId != null) {
+                tag.putString(TAG_SUMMON_RECIPE, recipeId.toString());
+            }
+        }
+
+        public void load(CompoundTag tag) {
+            if (!tag.contains(TAG_SUMMON_PHASE)) {
+                return;
+            }
+            try {
+                phase = SummonPhase.valueOf(tag.getString(TAG_SUMMON_PHASE));
+            } catch (IllegalArgumentException exception) {
+                phase = SummonPhase.IDLE;
+            }
+            cost = Math.max(0L, tag.getLong(TAG_SUMMON_COST));
+            recipeId = tag.contains(TAG_SUMMON_RECIPE)
+                    ? ResourceLocation.tryParse(tag.getString(TAG_SUMMON_RECIPE)) : null;
+            tier = tag.getByte(TAG_SUMMON_TIER) & 0xFF;
+            fxStart = tag.contains(TAG_SUMMON_FX_START) ? tag.getInt(TAG_SUMMON_FX_START) : -1;
+            // 旧档迁移：非 IDLE 却缺锚点有两种成因，处置不同。
+            //  ① 旧格式（锚点曾打在启动瞬间）：值 < 0 ⇒ 演出段根本没开始过 → 退回充能态，
+            //     重新吸满时由 markSummonBurst 落新锚点。
+            //  ② 荒谬的负 gameTime（时钟回拨/数据损坏）：同样退回充能态，绝不拿它当演出计时。
+            // 无论哪种，MUST NOT 保留一个无锚点的 BURST/PILLAR 态——那会让客户端拿到
+            // elapsed=0 反复重播爆散段。
+            if (!isIdle() && fxStart < 0) {
+                phase = SummonPhase.CHARGING;
+            }
+        }
     }
 
     // ---- 造化合成会话（zaohua-crafting）：存储与跃迁，推进逻辑在行为侧 ----
@@ -716,6 +811,121 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 会话清退回 IDLE（正常收尾/中止/取消共用；已抽灵力不退）。 */
     public void clearCraftSession() {
         craft.clear();
+        activeRecipeId = null;
+        setChanged();
+    }
+
+    // ---- 百鬼夜行召唤会话 ----
+
+    /**
+     * 召唤会话阶段。{@code IDLE} 时缓存容量与受灵汇速率双双为 0（本核心对供灵网络完全隐身）。
+     */
+    public SummonPhase summonPhase() {
+        return summon.phase;
+    }
+
+    /** 会话锁定配方的 spCost（= 会话期容量）；{@code IDLE} 为 0。 */
+    public long summonCost() {
+        return summon.cost;
+    }
+
+    /** 相位序号，供渲染态携带（{@link SummonPhase#ordinal()}）。 */
+    public int summonPhaseIndex() {
+        return summon.phase.ordinal();
+    }
+
+    /** 会话锁定的配方 id（{@code effect` 的解释权在行为侧）。 */
+    @Nullable
+    public ResourceLocation summonRecipeId() {
+        return summon.recipeId;
+    }
+
+    /** 演出开始时的结构层号（1/2/3）——一切特效规模标量的唯一来源。 */
+    public int summonTier() {
+        return summon.tier;
+    }
+
+    /** 演出起始 gameTime（绝对锚点，<b>爆散那一刻</b>）；{@code < 0} = 尚未进入演出段。 */
+    public int summonFxStart() {
+        return summon.fxStart;
+    }
+
+    /** 演出已进行 tick（服务端与客户端同口径，均取 {@code level.getGameTime()}）。 */
+    public int summonElapsed() {
+        if (summon.fxStart < 0 || level == null) {
+            return 0;
+        }
+        return Math.max(0, (int) level.getGameTime() - summon.fxStart);
+    }
+
+    /** 会话是否进行中（供 GUI「取消」按钮显隐与 {@code enabled} 门控用）。 */
+    public boolean summonActive() {
+        return summon.phase != SummonPhase.IDLE;
+    }
+
+    /**
+     * 启动召唤会话：锁配方（spCost 即容量）、记结构层号，<b>不落演出锚点</b>。
+     *
+     * <p>锚点 MUST NOT 在这里落：此刻才刚进充能态，充能时长取决于玩家供灵（最快也可能是
+     * 几十秒）。若把锚点钉在启动瞬间，整段演出会被"充能剩余时间"压缩——零供灵时表现为
+     * 球、爆散、光柱在一秒内接连播完。锚点改由 {@link #markSummonBurst(int)} 在缓存填满
+     * 那一刻落下；充能段的球与闪电由<b>相位</b>驱动而非时间轴，故与锚点无关。
+     *
+     * @param tier 结构层号（{@code RitualMatch.level()}），特效规模全部由它派生
+     */
+    public void beginSummonSession(ResourceLocation recipeId, long spCost, int tier) {
+        summon.phase = SummonPhase.CHARGING;
+        summon.cost = Math.max(0L, spCost);
+        summon.recipeId = recipeId;
+        summon.tier = Math.max(1, tier);
+        summon.fxStart = -1;
+        activeRecipeId = recipeId;
+        setChanged();
+    }
+
+    /**
+     * 缓存填满 → 落下<b>演出锚点</b>并转入爆散段。
+     *
+     * <p>这一刻是"球消失、爆散开始"的分界，也是整段一次性演出的计时零点。
+     */
+    public void markSummonBurst(int gameTime) {
+        summon.fxStart = gameTime;
+        summon.phase = SummonPhase.BURST;
+        setChanged();
+    }
+
+    /** 清掉演出锚点（退回"演出段未开始"）。仅调试命令与旧档迁移用。 */
+    public void clearSummonFxStart() {
+        if (summon.fxStart < 0) {
+            return;
+        }
+        summon.fxStart = -1;
+        setChanged();
+    }
+
+    /** 会话阶段推进（行为侧按锚点自算后调用）。 */
+    public void setSummonPhase(SummonPhase phase) {
+        if (summon.phase == phase) {
+            return;
+        }
+        summon.phase = phase;
+        setChanged();
+    }
+
+    /**
+     * 会话清退回 IDLE：容量归零、演出锚点作废、{@code activeRecipeId} 清空。
+     *
+     * <p><b>同时抽干缓存</b>。这是必须的而非顺手为之：容量一归零，残留的灵力就成了
+     * "无归属的存量"，下一次会话开启时会被算作已投入量——玩家等于白嫖一次召唤。
+     * 需求是"取消不退还"，故直接丢弃（不是返还给玩家，也不是白送进下一次）。
+     */
+    public void clearSummonSession() {
+        summon.phase = SummonPhase.IDLE;
+        summon.cost = 0L;
+        summon.recipeId = null;
+        summon.tier = 0;
+        summon.fxStart = -1;
+        storedSpiritPower = 0L;
         activeRecipeId = null;
         setChanged();
     }
@@ -1343,6 +1553,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (id.equals(RitualBehaviors.SEII)) {
             return buildSeiiRenderState();
         }
+        if (id.equals(RitualBehaviors.HYAKKI_YAGYO)) {
+            return buildSummonRenderState();
+        }
         if (id.equals(RitualBehaviors.KANAYAMAHIKO)) {
             // maxY 语义 = 结构水平半径（格）：客户端据此铺满密集火星场
             // 锚点与燃烧掩码共用同一份规范序台位，保证 bit(i+1) 与锚点 i 严格对齐
@@ -1481,10 +1694,46 @@ public class RitualCoreBlockEntity extends BlockEntity {
     }
 
     public void setEnabled(boolean value) {
-        if (enabled != value) {
-            enabled = value;
-            setChanged();
+        if (enabled == value) {
+            return;
         }
+        enabled = value;
+        // 百鬼夜行：「停机」即「放弃本次召唤」。挂在 setEnabled 上而不是 stop() 里，
+        // 是为了把图案切换 / 重扫失效 / 周期供给断供这三条自动停机路径一并覆盖——
+        // 它们都直接调 setEnabled(false)，漏掉任何一条都会让核心带着非零容量
+        // 继续留在供灵网络里（空闲态必须容量为 0，见 getCapacity 分派）。
+        if (!value && isPattern(RitualBehaviors.HYAKKI_YAGYO) && summon.phase != SummonPhase.IDLE) {
+            clearSummonSession();
+        }
+        setChanged();
+    }
+
+    /**
+     * 百鬼夜行召唤演出态。
+     *
+     * <p>只有<b>一个</b>包要发。字段位分配（每项都有唯一主人，互不串扰）：
+     * <ul>
+     *   <li>{@code enabled} = 会话进行中（CHARGING/BURST/PILLAR 皆为真）</li>
+     *   <li>{@code movingMask} = <b>相位序号</b>（{@code SummonPhase.ordinal()}）。
+     *       充能段的球与闪电由<b>相位</b>判定而非时间轴——充能时长随玩家供灵而变，
+     *       若按时间推进，零供灵时整段演出会在启动后一秒内全部播完。</li>
+     *   <li>{@code minY} = <b>演出起始 gameTime</b>，由 {@code markSummonBurst} 在缓存填满
+     *       那一刻落下。爆散与光柱的相位全部由 {@code gameTime − minY} 自算。</li>
+     *   <li>{@code maxY} = 爆散时长，{@code period} = 光柱保持时长（均随包下发，
+     *       使两侧拿到同一份分拍边界，不会各自读配置而永久漂移）。</li>
+     *   <li>{@code tier} = 结构层号，一切规模标量的唯一来源。</li>
+     * </ul>
+     *
+     * <p>MUST NOT 把 {@code elapsed} 从服务端逐 tick 推下来——那会变成"开一次门发 60 个包、
+     * 丢一个就永久卡死"的经典故障（见 {@code SukimaBlockEntity} 的同款 postmortem）。
+     */
+    private RitualRenderState buildSummonRenderState() {
+        boolean active = summon.phase != SummonPhase.IDLE;
+        return new RitualRenderState(RitualRenderState.KIND_SUMMON, active,
+                activeMatch.level(), summon.fxStart,
+                com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_BURST_TICKS.get(),
+                com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_PILLAR_HOLD_TICKS.get(),
+                new long[0], 0, summon.phase.ordinal());
     }
 
     /**
@@ -1590,6 +1839,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** UI 停止按钮：仅暂停运行，结构不动，可再次启动。 */
     public void stop() {
         setEnabled(false);
+        // 召唤会话的清理由 setEnabled(false) 统一承担（覆盖全部自动停机路径）。
         activeRecipeId = null;
         setChanged();
         if (level instanceof ServerLevel serverLevel && activeMatch != null) {
@@ -2059,6 +2309,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
             tag.putLong(TAG_FILL_ACCUM, fillCarry);
         }
         craft.save(tag);
+        summon.save(tag);
         grace.save(tag);
         seii.save(tag);
         if (lastPowered) {
@@ -2114,6 +2365,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
         rateCarry = tag.getLong(TAG_RATE_ACCUM);
         fillCarry = tag.getLong(TAG_FILL_ACCUM);
         craft.load(tag);
+        summon.load(tag);
         grace.load(tag);
         seii.load(tag);
         lastPowered = tag.getBoolean(TAG_LAST_POWERED);

@@ -16,7 +16,7 @@ if (-not $ClientJar -or -not (Test-Path $ClientJar)) {
 
 $assets = "D:\code\Gensokyou\src\main\resources\assets\gensokyou"
 $heartTargets = @("guide_book","ppoint","bpoint",
-    "spellcard_star","broken_spell_card_star","yen","summon_catalyst")
+    "spellcard_star","broken_spell_card_star","yen")
 $weaponTargets = @("laevatein")
 $armorTargets = @()
 $spellcardTargets = @("musou_fuuin","light_reflect")

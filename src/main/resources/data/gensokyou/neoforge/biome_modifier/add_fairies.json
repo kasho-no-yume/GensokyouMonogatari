@@ -1,4 +1,5 @@
 ﻿{
+  "_comment": "add-remnant-touhou-bosses: 大妖精已正式化为召唤 BOSS，移出野外自然刷新。理由是她会在玩家尚未取得弹幕武器的阶段被偶遇，而野生遭遇不可预期也不可选择。",
   "type": "neoforge:add_spawns",
   "biomes": "#minecraft:is_overworld",
   "spawners": [
@@ -7,12 +8,6 @@
       "weight": 8,
       "minCount": 1,
       "maxCount": 2
-    },
-    {
-      "type": "gensokyou:big_fairy",
-      "weight": 1,
-      "minCount": 1,
-      "maxCount": 1
     }
   ]
 }

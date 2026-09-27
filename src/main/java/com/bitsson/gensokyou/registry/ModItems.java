@@ -11,7 +11,6 @@ import com.bitsson.gensokyou.item.LaevateinTier;
 import com.bitsson.gensokyou.item.MemoryFragmentItem;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
 import com.bitsson.gensokyou.item.RitualWandItem;
-import com.bitsson.gensokyou.item.SummonCatalystItem;
 import com.bitsson.gensokyou.item.TieredBlockItem;
 import com.bitsson.gensokyou.item.spellcard.IcicleFallCardItem;
 import com.bitsson.gensokyou.item.spellcard.LightReflectCardItem;
@@ -125,12 +124,6 @@ public final class ModItems {
             ITEMS.register("guide_book", () -> new GuideBookItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<CodexOfBeingsItem> CODEX_OF_BEINGS =
             ITEMS.register("codex_of_beings", () -> new CodexOfBeingsItem(new Item.Properties().stacksTo(1)));
-    public static final DeferredItem<SummonCatalystItem> SUMMON_CATALYST =
-            ITEMS.register("summon_catalyst", () -> new SummonCatalystItem(
-                    new Item.Properties().stacksTo(16), () -> ModEntityTypes.FLANDRE.get()));
-    public static final DeferredItem<SummonCatalystItem> CIRNO_CATALYST =
-            ITEMS.register("cirno_catalyst", () -> new SummonCatalystItem(
-                    new Item.Properties().stacksTo(16), () -> ModEntityTypes.CIRNO.get()));
     public static final DeferredItem<SwordItem> LAEVATEIN =
             ITEMS.register("laevatein", () -> new SwordItem(LaevateinTier.INSTANCE,
                     new Item.Properties().attributes(SwordItem.createAttributes(

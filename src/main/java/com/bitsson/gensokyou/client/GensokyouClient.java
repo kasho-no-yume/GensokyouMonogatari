@@ -4,6 +4,8 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.renderer.BillboardRenderer;
 import com.bitsson.gensokyou.client.renderer.CrystalRenderer;
 import com.bitsson.gensokyou.client.renderer.FairyGeoRenderer;
+import com.bitsson.gensokyou.client.renderer.BigFairyGeoRenderer;
+import com.bitsson.gensokyou.client.renderer.RemnantBossRenderer;
 import com.bitsson.gensokyou.client.renderer.SkinMobRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualPedestalRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualCoreRenderer;
@@ -58,7 +60,14 @@ public final class GensokyouClient {
                 net.minecraft.client.renderer.entity.ItemEntityRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.FAIRY.get(), FairyGeoRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.BIG_FAIRY.get(),
-                context -> new SkinMobRenderer<>(context, 0.5F, 1.1F, GensokyouTextures.BIG_FAIRY));
+                BigFairyGeoRenderer::new);
+        // 残影 BOSS：渲染由注册点按实体 id 解析，实体类内不硬编（替换零成本）。
+        event.registerEntityRenderer(ModEntityTypes.KUZUMONO.get(),
+                context -> RemnantBossRenderer.create(ModEntityTypes.KUZUMONO.get(), context));
+        event.registerEntityRenderer(ModEntityTypes.KITSUNEBI.get(),
+                context -> RemnantBossRenderer.create(ModEntityTypes.KITSUNEBI.get(), context));
+        event.registerEntityRenderer(ModEntityTypes.NOMEN_MASK.get(),
+                context -> RemnantBossRenderer.create(ModEntityTypes.NOMEN_MASK.get(), context));
         event.registerEntityRenderer(ModEntityTypes.FLANDRE.get(),
                 context -> new SkinMobRenderer<>(context, 0.5F, 1.0F, GensokyouTextures.FLANDRE));
         event.registerEntityRenderer(ModEntityTypes.FAKE_FLANDRE.get(),

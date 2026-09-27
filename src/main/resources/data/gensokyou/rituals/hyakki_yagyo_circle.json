@@ -1,7 +1,7 @@
 {
   "id": "gensokyou:hyakki_yagyo_circle",
   "anchorKey": "C",
-  "toggleable": true,
+  "toggleable": false,
   "tiers": [1, 2, 3],
   "palette": {
     "0": "#gensokyou:ritual_stones_1_plus",

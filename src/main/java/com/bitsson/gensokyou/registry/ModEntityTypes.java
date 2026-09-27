@@ -101,6 +101,42 @@ public final class ModEntityTypes {
                     .clientTrackingRange(10)
                     .build("big_fairy"));
 
+    /**
+     * 鬼蛛「堅牢」：缺「破」的符卡成了精。
+     *
+     * <p>渲染当前为占位（{@code RemnantBossRenderer} 走注册点解析），故新增正式模型时
+     * 只覆盖资源文件即可，无需改引用。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.KuzumonoEntity>> KUZUMONO =
+            ENTITY_TYPES.register("kuzumono", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.KuzumonoEntity>of(
+                            com.bitsson.gensokyou.entity.KuzumonoEntity::new, MobCategory.MONSTER)
+                    .sized(0.9F, 0.9F)
+                    .clientTrackingRange(12)
+                    .build("kuzumono"));
+
+    /**
+     * 狐火「無序」：缺「序」的符卡成了精。渲染走 {@code RemnantBossRenderer} 注册点。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.KitsuneBiEntity>> KITSUNEBI =
+            ENTITY_TYPES.register("kitsunebi", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.KitsuneBiEntity>of(
+                            com.bitsson.gensokyou.entity.KitsuneBiEntity::new, MobCategory.MONSTER)
+                    .sized(0.8F, 0.8F)
+                    .clientTrackingRange(12)
+                    .build("kitsunebi"));
+
+    /**
+     * 傩神楽面「無終」：缺「結」的符卡成了精。压轴，生命以伤害除数承载。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.NomenMaskEntity>> NOMEN_MASK =
+            ENTITY_TYPES.register("nomen_mask", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.NomenMaskEntity>of(
+                            com.bitsson.gensokyou.entity.NomenMaskEntity::new, MobCategory.MONSTER)
+                    .sized(0.9F, 1.8F)
+                    .clientTrackingRange(12)
+                    .build("nomen_mask"));
+
     public static final DeferredHolder<EntityType<?>, EntityType<FlandreEntity>> FLANDRE =
             ENTITY_TYPES.register("flandre", () -> EntityType.Builder
                     .<FlandreEntity>of(FlandreEntity::new, MobCategory.MONSTER)

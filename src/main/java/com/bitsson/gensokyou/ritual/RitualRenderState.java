@@ -46,6 +46,18 @@ public record RitualRenderState(int kind, boolean enabled, int tier, int minY, i
      * {@code maxY} = 演出总时长 tick。
      */
     public static final int KIND_SEII = 7;
+    /**
+     * 百鬼夜行召唤演出：{@code enabled} = 会话进行中；{@code tier} = 结构层号（1/2/3，
+     * 一切规模标量的唯一来源）；{@code movingMask} = <b>相位序号</b>
+     * （0=IDLE / 1=CHARGING / 2=BURST / 3=PILLAR）；{@code minY} = <b>爆散起始 gameTime</b>
+     * （绝对锚点，由服务端在缓存填满那一刻落下，MUST 持久化）；{@code maxY} = 爆散时长；
+     * {@code period} = 降临光柱保持时长。
+     *
+     * <p>充能段的球与闪电 MUST 由<b>相位</b>判定而非时间轴——充能时长随玩家供灵而变，
+     * 按时间推进会在零供灵时把整段演出压缩成一秒内播完。
+     * {@link #linkPos} 不使用（无逐台通道）。
+     */
+    public static final int KIND_SUMMON = 8;
 
     /** 位掩码通道上限（当前 L5 配额合计 40 < 64）。 */
     public static final int MAX_CHANNELS = 64;
@@ -125,6 +137,43 @@ public record RitualRenderState(int kind, boolean enabled, int tier, int minY, i
     /** kind=SEII：演出总时长 tick。 */
     public int seiiDurationTicks() {
         return kind == KIND_SEII ? Math.max(1, maxY) : 1;
+    }
+
+    /**
+     * kind=SUMMON：本客户端进入<b>演出段</b>的起始 gameTime。非演出段返回 0。
+     */
+    public int summonStartTick() {
+        return kind == KIND_SUMMON && enabled ? minY : 0;
+    }
+
+    /** kind=SUMMON：相位序号（0=IDLE / 1=CHARGING / 2=BURST / 3=PILLAR）。 */
+    public int summonPhase() {
+        return kind == KIND_SUMMON ? (int) movingMask : 0;
+    }
+
+    /** kind=SUMMON：是否处于充能段（球与闪电可见）。 */
+    public boolean summonCharging() {
+        return kind == KIND_SUMMON && enabled && summonPhase() == 1;
+    }
+
+    /**
+     * kind=SUMMON：<b>演出段</b>已进行 tick（从爆散锚点算）。充能段恒返回 0。
+     */
+    public int summonElapsed(int gameTime) {
+        if (kind != KIND_SUMMON || !enabled || minY < 0) {
+            return 0;
+        }
+        return Math.max(0, gameTime - minY);
+    }
+
+    /** kind=SUMMON：爆散段长度（tick）。 */
+    public int summonBurstTicks() {
+        return kind == KIND_SUMMON ? Math.max(1, maxY) : 1;
+    }
+
+    /** kind=SUMMON：降临光柱保持时长（tick）。 */
+    public int summonPillarHoldTicks() {
+        return kind == KIND_SUMMON ? Math.max(1, period) : 1;
     }
 
     public CompoundTag toTag() {

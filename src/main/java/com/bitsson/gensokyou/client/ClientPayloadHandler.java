@@ -1,11 +1,14 @@
 package com.bitsson.gensokyou.client;
 
+import com.bitsson.gensokyou.client.ritual.ClientRitualData;
+import com.bitsson.gensokyou.jei.GensokyouJeiPlugin;
 import com.bitsson.gensokyou.network.DialogSyncPayload;
 import com.bitsson.gensokyou.network.RitualConflictPayload;
 import com.bitsson.gensokyou.network.RitualInfoPayload;
 import com.bitsson.gensokyou.network.RitualPreviewPayload;
 import com.bitsson.gensokyou.network.SkillSyncPayload;
 import com.bitsson.gensokyou.network.SpiritPowerSyncPayload;
+import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class ClientPayloadHandler {
@@ -58,10 +61,23 @@ public final class ClientPayloadHandler {
         context.enqueueWork(() -> ClientCrystalStorageState.update(payload));
     }
 
-    /** 仪式数据快照：解析重建并落盘缓存（客户端专属类，服务端不加载）。 */
+    /**
+     * 仪式数据快照：解析重建并落盘缓存，并驱动 JEI 页签刷新（客户端专属类，服务端不加载）。
+     *
+     * <p>本方法是 JEI 侧的两个数据触发点之一（另一个是 {@code onRuntimeAvailable}），取代了
+     * 原先每 tick 轮询。解析失败时不刷新——{@code applyJson} 失败会保留既有数据，此时用陈旧
+     * 数据刷新优于用空数据刷新。
+     */
     public static void handleRitualDataSync(
             com.bitsson.gensokyou.network.RitualDataSyncPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> com.bitsson.gensokyou.client.ritual.ClientRitualData
-                .applyJson(payload.json()));
+        context.enqueueWork(() -> {
+            if (!ClientRitualData.applyJson(payload.json())) {
+                return;
+            }
+            // JEI 为可选软依赖：无 JEI 时不得触碰 GensokyouJeiPlugin（其父接口在缺席期不可解析）
+            if (ModList.get().isLoaded("jei")) {
+                GensokyouJeiPlugin.resyncAll();
+            }
+        });
     }
 }

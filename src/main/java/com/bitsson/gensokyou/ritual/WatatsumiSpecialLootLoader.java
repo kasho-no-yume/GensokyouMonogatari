@@ -27,6 +27,8 @@ public class WatatsumiSpecialLootLoader extends SimpleJsonResourceReloadListener
 
     private static final Gson GSON = new Gson();
     private static volatile WatatsumiSpecialLoot TABLE = WatatsumiSpecialLoot.EMPTY;
+    /** 胜出文件的原始 JSON 副本（客户端同步用）；形态为单个对象而非 map——本 loader 只持一份表。 */
+    private static volatile JsonObject raw = null;
 
     public WatatsumiSpecialLootLoader() {
         super(GSON, "ritual_special");
@@ -36,15 +38,19 @@ public class WatatsumiSpecialLootLoader extends SimpleJsonResourceReloadListener
     protected void apply(Map<ResourceLocation, JsonElement> files, ResourceManager resourceManager,
                          ProfilerFiller profiler) {
         WatatsumiSpecialLoot parsed = WatatsumiSpecialLoot.EMPTY;
+        JsonObject parsedRaw = null;
         for (var file : files.entrySet()) {
             try {
-                parsed = parse(GsonHelper.convertToJsonObject(file.getValue(), "watatsumi special loot"));
+                JsonObject json = GsonHelper.convertToJsonObject(file.getValue(), "watatsumi special loot");
+                parsed = parse(json);
+                parsedRaw = json;
             } catch (Exception exception) {
                 Gensokyou.LOGGER.warn("Rejected watatsumi special loot file {}: {}", file.getKey(),
                         exception.getMessage());
             }
         }
         TABLE = parsed;
+        raw = parsedRaw;
         Gensokyou.LOGGER.info("Loaded {} watatsumi ocean-special entries", parsed.entries().size());
     }
 
@@ -83,5 +89,16 @@ public class WatatsumiSpecialLootLoader extends SimpleJsonResourceReloadListener
 
     public static WatatsumiSpecialLoot table() {
         return TABLE;
+    }
+
+    /** 胜出文件的原始 JSON 深拷贝（客户端同步用）；无有效文件时为 null。 */
+    public static JsonObject rawAll() {
+        JsonObject snapshot = raw;
+        return snapshot == null ? null : snapshot.deepCopy().getAsJsonObject();
+    }
+
+    /** 客户端重建用：以 loader 同规则解析特产池文件（非法即抛 IllegalArgumentException）。 */
+    public static WatatsumiSpecialLoot parseFileForClient(JsonObject json) {
+        return parse(json);
     }
 }

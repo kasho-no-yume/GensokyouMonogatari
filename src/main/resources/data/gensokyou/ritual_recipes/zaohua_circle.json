@@ -87,7 +87,6 @@
         { "item": "gensokyou:ritual_stone_1", "count": 1 },
         { "item": "gensokyou:spirit_iron", "count": 2 },
         { "item": "minecraft:netherite_ingot", "count": 1 },
-        { "item": "gensokyou:star_silver", "count": 1 },
         { "item": "gensokyou:ppoint", "count": 4 }
       ],
       "result": { "item": "gensokyou:danmaku_weapon", "count": 1 }

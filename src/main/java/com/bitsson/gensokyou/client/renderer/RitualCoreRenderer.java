@@ -14,6 +14,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.BlockPos;
@@ -24,6 +25,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import org.joml.Quaternionf;
 
 import java.util.List;
 import java.util.Map;
@@ -57,6 +59,52 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/bolt_glow.png");
     private static final ResourceLocation CAP_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/entity/laser_cap.png");
+    /** 百鬼夜行：充能球与爆散冲击环共用的径向渐变团（同心分层靠多次缩放叠出平滑衰减）。 */
+    private static final ResourceLocation SUMMON_BLOB_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/summon_blob.png");
+    /** 百鬼夜行：爆散碎片的软边烟团（alpha 混合用）。 */
+    private static final ResourceLocation SUMMON_DEBRIS_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/summon_debris.png");
+    /** 百鬼夜行：降临光柱的竖向渐变（UV 随 gameTime 上滚）。 */
+    private static final ResourceLocation SUMMON_PILLAR_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/summon_pillar.png");
+
+    // ---- 百鬼夜行配色（黑红充能 → 黑红爆散 → 淡金降临）----
+    // 刻意不复用 CORE_R/G/B 与 BEAM_R/G/B：那两组是蓝白（结界破碎的调子），语义不同。
+    /** 球体本色：暗血红 {@code #8C0A0A}。加法混合下靠外层堆叠到可见亮度。 */
+    private static final int SUMMON_R = 140, SUMMON_G = 10, SUMMON_B = 10;
+    /** 闪电本体：赤红 {@code #D8232B}。 */
+    private static final int SUMMON_BEAM_R = 216, SUMMON_BEAM_G = 35, SUMMON_BEAM_B = 43;
+    /** 闪电亮芯：近白粉 {@code #FFD8D0}——亮芯走加法，色相必须由外层承担。 */
+    private static final int SUMMON_BEAM_CORE_R = 255, SUMMON_BEAM_CORE_G = 216, SUMMON_BEAM_CORE_B = 208;
+    /** 冲击环：赤 {@code #FF3020}。 */
+    private static final int SUMMON_RING_R = 255, SUMMON_RING_G = 48, SUMMON_RING_B = 32;
+    /** 碎片：暗红棕 {@code #4A0C10}（alpha 混合，故取值远低于加法组）。 */
+    private static final int SUMMON_DEBRIS_R = 74, SUMMON_DEBRIS_G = 12, SUMMON_DEBRIS_B = 16;
+    /** 光柱外层：淡金 {@code #E8C87A}。 */
+    private static final int SUMMON_PILLAR_R = 232, SUMMON_PILLAR_G = 200, SUMMON_PILLAR_B = 122;
+    /** 光柱内芯：亮金 {@code #FFF0C0}。 */
+    private static final int SUMMON_PILLAR_CORE_R = 255, SUMMON_PILLAR_CORE_G = 240, SUMMON_PILLAR_CORE_B = 192;
+
+    // 注：此处曾有 GOLDEN_ANGLE（斐波那球方位角）供百鬼夜行闪电排布使用。它随
+    // summonBeam 的方向采样改成「(柱序, 周期序) 哈希 → 球面均匀采样」而下线——那个常量
+    // 配合共享的角度偏移会让整把扇形刚体旋转（读作转盘而非闪电），留着会被下一个人走回去。
+
+    /** 冲击环/碎片的扩散缓动：起步快、收尾慢，读作"炸开"而非"缓缓变大"。 */
+    private static float easeOutCubic(float t) {
+        float inv = 1.0F - Mth.clamp(t, 0.0F, 1.0F);
+        return 1.0F - inv * inv * inv;
+    }
+
+    /** camera-facing 面片所需的相机朝向（每帧从 dispatcher 刷新，避免取到已过期的旋转）。 */
+    private final Quaternionf camRot = new Quaternionf();
+
+    /**
+     * {@code BlockEntityRenderer} 在 1.21.1 是<b>接口</b>而非基类，故 {@code dispatcher}
+     * 不会自动可用，必须自己从构造入参里取（与 {@code SukimaPortalRenderer} 同款做法）。
+     * camera-facing 面片（球 / 冲击环 / 碎片）全靠它，故不可省。
+     */
+    private final BlockEntityRenderDispatcher dispatcher;
 
     private static final int MIST_R = 199, MIST_G = 92, MIST_B = 250;
     private static final int MIST_DIM_R = 120, MIST_DIM_G = 52, MIST_DIM_B = 160;
@@ -111,6 +159,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
     private static final Map<Integer, List<BlockPos>> BAFANG_PEDESTALS = new ConcurrentHashMap<>();
 
     public RitualCoreRenderer(BlockEntityRendererProvider.Context context) {
+        this.dispatcher = context.getBlockEntityRenderDispatcher();
     }
 
     @Override
@@ -139,6 +188,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                     renderWujinzang(blockEntity, state, now, poseStack, bufferSource);
             case RitualRenderState.KIND_SEII ->
                     renderSeii(blockEntity, state, now, poseStack, bufferSource);
+            case RitualRenderState.KIND_SUMMON ->
+                    renderSummon(blockEntity, state, now, poseStack, bufferSource);
             default -> {
             }
         }
@@ -177,6 +228,18 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         double radius = kind == RitualRenderState.KIND_KANAYAMAHIKO
                 ? Math.max(r, blockEntity.renderState().maxY() + 1.0D)
                 : r;
+        if (kind == RitualRenderState.KIND_SUMMON) {
+            // 降临光柱冲至世界最高处、半径最大 15 —— MUST 单独开一支。
+            // 漏掉的后果是"柱子只到 48 格就断了"：柱顶远在默认的 16 格/48 格包围盒之外，
+            // 视锥剔除会把整个 BER 连同高柱一起剔掉。shouldRenderOffScreen=true 不豁免视锥
+            // （见本方法 javadoc）。水平半径取爆散环半径与光柱半径的较大者再加余量。
+            double pillar = summonPillarRadius(blockEntity.renderState().tier());
+            double burst = summonBurstRadius(blockEntity.renderState().tier());
+            int worldTop = blockEntity.getLevel() == null
+                    ? 320 : blockEntity.getLevel().getMaxBuildHeight();
+            r = Math.max(24.0D, Math.max(pillar, burst) + 4.0D);
+            up = Math.max(64.0D, worldTop - p.getY() + 1.0D);
+        }
         return new AABB(p.getX() - radius, p.getY() - 16.0D, p.getZ() - radius,
                 p.getX() + radius, p.getY() + up, p.getZ() + radius);
     }
@@ -1146,6 +1209,448 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                 java.util.Arrays.fill(paths, null);
             }
             rollTick = roll;
+        }
+    }
+
+    // ================================================================= 百鬼夜行召唤演出
+
+    /**
+     * 百鬼夜行：黑红充能球 + 径向闪电 → 黑红爆散（环 + 碎片）→ 淡金降临光柱。
+     *
+     * <p><b>充能段由「相位」驱动，不看时间轴</b>：充能时长完全取决于玩家供灵（可以几十秒，
+     * 也可以永远不满），若拿时间当进度，零供灵时整段演出会在启动后一秒内全部播完。
+     * 故 {@code CHARGING} 相位无条件播球与闪电，直到服务端落下爆散锚点。
+     *
+     * <p>爆散与光柱由 {@code gameTime − 爆散锚点} 自算，MUST NOT 逐 tick 从服务端推。
+     * 阶段互斥：球只在充能段在场，光柱只在降临段在场。
+     */
+    private void renderSummon(RitualCoreBlockEntity be, RitualRenderState state, double now,
+                              PoseStack poseStack, MultiBufferSource buffers) {
+        if (!state.enabled()) {
+            return;
+        }
+        if (state.summonCharging()) {
+            this.renderSummonBall(state, now, 0, Integer.MAX_VALUE, poseStack, buffers);
+            // 闪电折线的 roll 用 gameTime 而非 elapsed：充能时长无上限，若传 elapsed=0
+            // 会把形状**冻结**成一条不动的弧，只剩强度在闪——读作贴图而非闪电。
+            this.renderSummonBeams(state, now, (int) now, poseStack, buffers);
+            return;
+        }
+        int burstTicks = state.summonBurstTicks();
+        int holdTicks = state.summonPillarHoldTicks();
+        int retractTicks = Math.max(1, GensokyouConfig.FX_SUMMON_PILLAR_RETRACT_TICKS.get());
+        int elapsed = state.summonElapsed((int) now);
+        if (elapsed < burstTicks) {
+            // 球在爆散前 3 tick 闪白作预告，故这里仍要画球
+            this.renderSummonBall(state, now, elapsed, burstTicks, poseStack, buffers);
+            this.renderSummonBurst(state, now, elapsed, burstTicks, poseStack, buffers);
+            return;
+        }
+        int since = elapsed - burstTicks;
+        if (since < holdTicks + retractTicks) {
+            float hold = (float) since / (float) Math.max(1, holdTicks);
+            float fade = 1.0F - Mth.clamp(
+                    (float) (since - holdTicks) / (float) retractTicks, 0.0F, 1.0F);
+            this.renderSummonPillar(be, state, now, Math.min(1.0F, hold), fade, poseStack, buffers);
+        }
+    }
+
+    // ---------------------------------------------------------------- 充能球
+
+    /** 该阶的充能球半径（格）。1 阶与结界破碎的最大球同规格，后两阶各为其 2 倍 / 3 倍。 */
+    private static double summonBallRadius(int tier) {
+        return GensokyouConfig.FX_SUMMON_BALL_RADIUS_BASE.get()
+                + GensokyouConfig.FX_SUMMON_BALL_RADIUS_PER_TIER.get() * Math.max(0, tier - 1);
+    }
+
+    private static double summonBurstRadius(int tier) {
+        return GensokyouConfig.FX_SUMMON_BURST_RADIUS_BASE.get()
+                + GensokyouConfig.FX_SUMMON_BURST_RADIUS_PER_TIER.get() * Math.max(0, tier - 1);
+    }
+
+    private static double summonPillarRadius(int tier) {
+        return GensokyouConfig.FX_SUMMON_PILLAR_RADIUS_BASE.get()
+                + GensokyouConfig.FX_SUMMON_PILLAR_RADIUS_PER_TIER.get() * Math.max(0, tier - 1);
+    }
+
+    /**
+     * 球心的<b>局部</b> Y：核心方块顶面（局部 y=1）之上「半径」格，故球底与核心顶面相切。
+     */
+    private static float summonBallLocalY(int tier) {
+        return (float) (1.0D + summonBallRadius(tier));
+    }
+
+    /**
+     * 充能球：同心分层 billboard，半径<b>恒定</b>。
+     *
+     * <p><b>刻意不乘任何进度因子</b>（设计 D5）：需求要"无论供灵是否在流入都一直播"，若让球
+     * 随 {@code stored/capacity} 长大，断供时球会停在半途、而进度条也停住，两者叠在一起
+     * 读作"卡了"。恒定球 + 独立进度条让"没在动"只有一个归因对象。
+     *
+     * <p>必须是<b>同心分层</b>而不是"一堆小球"：每片自己带完整径向渐变时，加法叠加只会
+     * 让 N 个球心一起更亮，永不合并不成一个球（{@code SukimaPortalRenderer#renderCharge} 的
+     * 同款教训）。
+     *
+     * <p>爆散前 3 tick 全层拉满作"要炸了"的预告，随后<b>随爆散进度一起淡出</b>——
+     * 球是"碎"成碎片的来源，两者必须同窗共存，否则读作"球还挂着、碎片在旁边炸"。
+     *
+     * @param elapsed     演出段已进行 tick（充能段传 0）
+     * @param burstTicks  爆散段长度；传 {@link Integer#MAX_VALUE} 表示"尚未进入演出段"，
+     *                    此时 {@code elapsed=0} 故预告与淡出均不触发
+     */
+    private void renderSummonBall(RitualRenderState state, double now, int elapsed, int burstTicks,
+                                  PoseStack poseStack, MultiBufferSource buffers) {
+        float radius = (float) summonBallRadius(state.tier());
+        if (radius <= 1.0E-3F) {
+            return;
+        }
+        int layers = Math.max(2, GensokyouConfig.FX_SUMMON_BALL_LAYERS.get());
+        float cy = summonBallLocalY(state.tier());
+        float breathAmp = GensokyouConfig.FX_SUMMON_BALL_BREATH_AMP.get().floatValue();
+        float glowAmp = GensokyouConfig.FX_SUMMON_BALL_GLOW_AMP.get().floatValue();
+        // 闲置呼吸：半径整体小幅起伏。**只随时间，不随充能进度**——进度绑定被明令禁止
+        // （断供时球停在半途会与进度条一起读作"卡住"），而闲置呼吸与之无关。
+        float scale = 1.0F + breathAmp * (float) Math.sin(now * 1.9D);
+        boolean performing = burstTicks != Integer.MAX_VALUE;
+        // 预告：爆散前 3 tick 起 alpha 迅速拉满并向白提亮
+        float tell = performing
+                ? Mth.clamp((float) (elapsed - (burstTicks - 3)) / 3.0F, 0.0F, 1.0F) : 0.0F;
+        // 淡出：爆散一开始就把球整体压下去，让碎片接管读感
+        float fade = performing ? 1.0F - (float) elapsed / (float) burstTicks : 1.0F;
+        fade = Mth.clamp(fade, 0.0F, 1.0F);
+        if (fade <= 0.01F) {
+            return;
+        }
+        int cr = tell > 0.0F ? (int) Mth.lerp(tell, SUMMON_R, 255) : SUMMON_R;
+        int cg = tell > 0.0F ? (int) Mth.lerp(tell, SUMMON_G, 235) : SUMMON_G;
+        int cb = tell > 0.0F ? (int) Mth.lerp(tell, SUMMON_B, 225) : SUMMON_B;
+
+        this.camRot.set(dispatcher.camera.rotation());
+        VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(SUMMON_BLOB_TEXTURE));
+        PoseStack.Pose pose = poseStack.last();
+        for (int i = 0; i < layers; i++) {
+            float f = (float) i / (layers - 1);
+            // 每层<b>各自</b>的相位：所有层共用一个 breath 标量时，整颗球是刚体明暗，
+            // 形状分毫不动 → 读作一张贴图。加法混合下核心早已饱和，单纯调 alpha 更看不见。
+            // 真正让球"活"的是让各层<b>径向错位</b>：层与层分离又重新叠合，亮区位置随之游走。
+            float ph = (float) (now * 2.6D + i * 0.85D);
+            float wobble = (float) Math.sin(ph);
+            float layerScale = (0.26F + 0.80F * f * f) * scale
+                    * (1.0F + wobble * 0.045F * (0.35F + 0.65F * f));
+            // 亮区游走：外层位移大于内层（内核稳、外壳翻），读作"能量壳绕着核转"
+            float drift = radius * 0.055F * (float) Math.sin(now * 1.15D + i * 1.35D) * f;
+            float dx = radius * 0.030F * (float) Math.sin(now * 0.83D + i * 0.71D);
+            float dz = radius * 0.030F * (float) Math.cos(now * 1.07D + i * 0.53D);
+            // 表面细闪：每层每 ~5 tick 一次独立微跳，模拟等离子翻滚
+            float shimmer = 1.0F + 0.12F
+                    * (unit01(mix32(i * 7919 + (int) (now * 20.0D))) - 0.5F);
+            // 名字不叫 glow：会遮蔽同名的 VertexConsumer glow
+            float glowMul = (1.0F - glowAmp * 0.5F) + glowAmp * 0.5F * (0.5F + 0.5F * wobble);
+            float a = (1.0F - f * 0.90F) * glowMul * shimmer
+                    * (1.0F + tell * 1.4F) * fade;
+            FxGeometry.emitBillboard(glow, pose, this.camRot, dx, cy, dz,
+                    radius * layerScale + drift, radius * layerScale,
+                    cr, cg, cb, Mth.clamp((int) (a * 210.0F), 0, 255));
+        }
+    }
+
+    /**
+     * 充能段径向闪电：黑红，宽/长随阶次标量同步放大。
+     *
+     * <p><b>两趟提交</b>（外晕一遍、亮芯一遍）：{@code getBuffer} 换类型会立即结算上一批，
+     * 故 MUST NOT 先把两个 consumer 取出来再交叉写（会抛 "Not building!"）。
+     *
+     * <p>强度用<b>双频正弦</b>驱动，MUST NOT 用 {@code elapsed % n}：60fps 渲染 20tick/s
+     * 的时钟时，那会退化成画一帧空十一帧（barrier-shatter postmortem §10.3）。
+     *
+     * @param elapsed 折线重掷种子。充能段必须传<b>随时间递增</b>的值（gameTime），
+     *                传常量会把弧形冻结；爆散段不再调用本方法。
+     */
+    /**
+     * 充能段径向闪电：黑红，宽/长随阶次标量同步放大。
+     *
+     * <p><b>两趟提交</b>（外晕一遍、亮芯一遍）：{@code getBuffer} 换类型会立即结算上一批，
+     * 故 MUST NOT 先把两个 consumer 取出来再交叉写（会抛 "Not building!"）。两趟折线与
+     * 发射段数 MUST 逐位一致，否则亮芯会与外晕错位。
+     *
+     * <p><b>传播动画</b>：每根柱子只发射折线的<b>前 k 段</b>，k 随该柱年龄从 1 涨到全长，
+     * 于是电弧自球心向外"长"出来而不是整条凭空出现。整条到位后保持若干 tick 再被下一周期
+     * 的新方向替换。头部最亮、尾部渐隐，是闪电的经典读法。
+     *
+     * @param nowTick 单调递增的 tick 计数（充能段传 gameTime）。充能时长无上限，
+     *                MUST NOT 传 elapsed=0 之类���常量——那会把折线与传播都冻结。
+     */
+    private void renderSummonBeams(RitualRenderState state, double now, int nowTick,
+                                   PoseStack poseStack, MultiBufferSource buffers) {
+        int count = GensokyouConfig.FX_SUMMON_BEAM_COUNT.get();
+        float radius = (float) summonBallRadius(state.tier());
+        if (count <= 0 || radius <= 1.0E-3F) {
+            return;
+        }
+        float cy = summonBallLocalY(state.tier());
+        float reach = GensokyouConfig.FX_SUMMON_BEAM_REACH.get().floatValue();
+        float jitter = GensokyouConfig.FX_SUMMON_BEAM_JITTER.get().floatValue();
+        float scroll = (float) (now * 0.9D);
+        int segments = Math.max(4, Math.min(24, (int) (radius * 2.0F)));
+        float length = radius * (1.0F + reach);
+        int growTicks = Math.max(1, GensokyouConfig.FX_SUMMON_BEAM_GROW_TICKS.get());
+
+        for (int pass = 0; pass < 2; pass++) {
+            boolean inner = pass == 1;
+            VertexConsumer buf = buffers.getBuffer(inner
+                    ? DanmakuRenderTypes.additiveGlow(BOLT_CORE_TEXTURE)
+                    : DanmakuRenderTypes.additiveGlow(BOLT_GLOW_TEXTURE));
+            for (int i = 0; i < count; i++) {
+                Beam beam = summonBeam(i, nowTick, cy, length, segments, jitter, growTicks);
+                if (beam.segments() < 1) {
+                    continue;
+                }
+                float flicker = summonBeamFlicker(now, i);
+                emitSummonSegments(poseStack, buf, beam.points(), beam.segments(),
+                        radius * (inner ? 0.06F : 0.16F) * flicker,
+                        scroll + i * 0.7F, flicker, inner ? 215 : 95,
+                        inner ? SUMMON_BEAM_CORE_R : SUMMON_BEAM_R,
+                        inner ? SUMMON_BEAM_CORE_G : SUMMON_BEAM_G,
+                        inner ? SUMMON_BEAM_CORE_B : SUMMON_BEAM_B);
+            }
+        }
+    }
+
+    /** 一次闪电采样的结果：折线 + 本帧该发射多少段（传播进度）。 */
+    private record Beam(float[] points, int segments) {
+    }
+
+    /**
+     * 第 i 根电弧在本帧的形态。
+     *
+     * <p><b>每根柱一个完整生命循环</b>（周期 {@link #BEAM_PERIODS}）：前
+     * {@code growTicks} tick 自球心向外长到全长，其后保持到周期末，再被下一周期的新方向替换。
+     * 周期互不相同 + 每根再错开相位，于是既不出现齐射、也不出现整齐的"呼吸"。
+     *
+     * <p>方向由 {@code (柱序, 周期序)} 哈希决定，<b>整周期内恒定</b>——否则弧会在生长的同时
+     * 抖动方向，读作抽搐而不是传导。
+     */
+    private static Beam summonBeam(int i, int nowTick, float cy, float length, int maxSegments,
+                                   float jitter, int growTicks) {
+        int period = BEAM_PERIODS[Math.floorMod(i, BEAM_PERIODS.length)];
+        // 每柱错开相位：否则所有柱子都在 t=0 起步，一起点就齐射
+        int shifted = nowTick + i * 3;
+        int cycle = Math.floorDiv(shifted, period);
+        int age = Math.floorMod(shifted, period);
+        int h = mix32(i * 0x9E3779B9 + cycle * 0x85EBCA6B);
+        double y = 1.0D - 2.0D * (0.08D + unit01(h) * 0.84D);
+        double r = Math.sqrt(Math.max(0.0D, 1.0D - y * y));
+        double theta = unit01(mix32(h)) * 2.0D * Math.PI;
+        double len = length * (0.75D + 0.5D * unit01(mix32(h ^ 0x5F356495)));
+        float[] pts = FxGeometry.buildBoltPoints(0.0F, cy, 0.0F,
+                (float) (Math.cos(theta) * r * len),
+                (float) (cy + y * len),
+                (float) (Math.sin(theta) * r * len),
+                (float) (len / maxSegments), jitter, maxSegments,
+                mix32(h ^ 0x27D4EB2F));
+        int total = Math.max(1, pts.length / 3 - 1);
+        // 传播：头部推进略快于线性（easeOut），模拟"先窜出去再稳住"
+        float g = Mth.clamp((float) age / (float) growTicks, 0.0F, 1.0F);
+        float eased = 1.0F - (1.0F - g) * (1.0F - g);
+        int emit = Mth.clamp((int) Math.ceil(eased * total), 0, total);
+        return new Beam(pts, emit);
+    }
+
+    /** 各柱生命周期（tick），互不整除；均 MUST 大于 growTicks 以留出保持段。 */
+    private static final int[] BEAM_PERIODS = {7, 9, 11, 13};
+
+    /** splitmix32 末两步：把 (柱序, 时隙) 打散成互不相关的 32-bit 值。 */
+    private static int mix32(int z) {
+        z ^= z >>> 16;
+        z *= 0x7FEB352D;
+        z ^= z >>> 15;
+        z *= 0x846CA68B;
+        z ^= z >>> 16;
+        return z;
+    }
+
+    /** 取 [0,1) 浮点。取高 24 位避开低位偏斜。 */
+    private static float unit01(int h) {
+        return (h >>> 8) * (1.0F / 16777216.0F);
+    }
+
+    /**
+     * 闪电强度：两路异频正弦 + 每柱独立相位，连续、与帧率无关。
+     *
+     * <p>额外做了<b>锐化</b>（三次方）：正弦本身有相当比例的时间停在中高位，读作"持续发光"
+     * 而非"放电"。三次方把大部分时间压到接近 0，只留少数尖峰，读作"噼啪炸一下"。
+     */
+    private static float summonBeamFlicker(double now, int i) {
+        float base = 0.55F + 0.45F * (Mth.sin((float) (now * 7.3D + i * 1.7D)) * 0.6F
+                + Mth.sin((float) (now * 17.1D + i * 4.3D)) * 0.4F);
+        float sharp = base * base * base;
+        return Mth.clamp(0.15F + 0.85F * sharp, 0.0F, 1.0F);
+    }
+
+    /**
+     * 把折线的<b>前 {@code emit} 段</b>逐段发射成米字面片。
+     *
+     * <p><b>头亮尾暗</b>：alpha 沿段序从尾部 {@code TAIL_ALPHA} 递增到头部满值。传播动画里
+     * 头部是"正在窜出去的那一端"，让它最亮才读得出方向；整条等亮则像一根发光的管子。
+     *
+     * @param emit 本帧发射的段数（= 传播进度），MUST NOT 超过折线总段数
+     */
+    private static void emitSummonSegments(PoseStack poseStack, VertexConsumer consumer, float[] pts,
+                                           int emit, float halfWidth, float v0, float flicker,
+                                           int maxAlpha, int r, int g, int b) {
+        int total = pts.length / 3 - 1;
+        if (total <= 0) {
+            return;
+        }
+        int n = Math.min(emit, total);
+        for (int s = 0; s < n; s++) {
+            int i0 = s * 3;
+            int i1 = i0 + 3;
+            // 头部在最后一段，故 alpha 随 s 递增
+            float ramp = n <= 1 ? 1.0F : (float) s / (float) (n - 1);
+            float a = Mth.lerp(TAIL_ALPHA, 1.0F, ramp * ramp) * flicker;
+            FxGeometry.emitAlignedBeam(poseStack, consumer,
+                    pts[i0], pts[i0 + 1], pts[i0 + 2], pts[i1], pts[i1 + 1], pts[i1 + 2],
+                    halfWidth, 3, v0 + s * 0.7F, r, g, b, (int) (maxAlpha * a));
+        }
+    }
+
+    /** 电弧尾部 alpha 系数（头部为 1.0）。 */
+    private static final float TAIL_ALPHA = 0.30F;
+
+    // ---------------------------------------------------------------- 爆散
+
+    /**
+     * 爆散段：<b>同时</b>出冲击环与碎片，两者都从 0 扩到该阶半径并在 1 秒内淡出。
+     *
+     * <p><b>冲击环贴在核心顶面高度（局部 y=1），刻意不跟球心</b>：球悬在 {@code 1+r} 高处，
+     * 环若跟随球心就成了"半空中无缘无故震出一圈"；贴地才读作"头顶炸开、脚底震出一圈"。
+     *
+     * <p><b>碎片走 alpha 混合</b>（{@code translucent}），而冲击环走加法：加法只能加亮，
+     * 无论贴图多灰都读作"白色光球"，永远读不出"碎"的质感。
+     */
+    private void renderSummonBurst(RitualRenderState state, double now, int since, int burstTicks,
+                                   PoseStack poseStack, MultiBufferSource buffers) {
+        float t = Mth.clamp((float) since / (float) Math.max(1, burstTicks), 0.0F, 1.0F);
+        float radius = (float) (summonBurstRadius(state.tier()) * easeOutCubic(t));
+        if (radius <= 1.0E-3F) {
+            return;
+        }
+        this.camRot.set(dispatcher.camera.rotation());
+
+        // ---- 冲击环：贴核心顶面、加法、一闪即逝 ----
+        int puffs = GensokyouConfig.FX_SUMMON_BURST_RING_PUFFS.get();
+        float ringAlpha = (1.0F - t) * (1.0F - t) * 220.0F;
+        if (ringAlpha >= 3.0F) {
+            VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(SUMMON_BLOB_TEXTURE));
+            PoseStack.Pose pose = poseStack.last();
+            float half = Math.max(0.10F, radius * 0.05F);
+            for (int i = 0; i < puffs; i++) {
+                double a = i * 2.0D * Math.PI / puffs;
+                FxGeometry.emitBillboard(glow, pose, this.camRot,
+                        (float) (Math.cos(a) * radius), 1.0F, (float) (Math.sin(a) * radius),
+                        half, half, SUMMON_RING_R, SUMMON_RING_G, SUMMON_RING_B, (int) ringAlpha);
+            }
+        }
+
+        // ---- 碎片：自球心四散，alpha 混合（读作"碎"而非"光"）----
+        int layers = Math.max(1, GensokyouConfig.FX_SUMMON_BURST_DEBRIS_LAYERS.get());
+        int perLayer = GensokyouConfig.FX_SUMMON_BURST_DEBRIS_PER_LAYER.get();
+        float debrisAlpha = (1.0F - t) * (1.0F - t) * 200.0F;
+        if (debrisAlpha < 3.0F) {
+            return;
+        }
+        float cy = summonBallLocalY(state.tier());
+        VertexConsumer smoke = buffers.getBuffer(
+                DanmakuRenderTypes.translucent(SUMMON_DEBRIS_TEXTURE));
+        PoseStack.Pose pose = poseStack.last();
+        for (int layer = 0; layer < layers; layer++) {
+            float lf = layers <= 1 ? 0F : (float) layer / (layers - 1);
+            float lr = radius * (0.30F + 0.70F * lf);
+            float lhalf = Math.max(0.08F, lr * 0.10F);
+            for (int i = 0; i < perLayer; i++) {
+                double seed = now * 0.31D + i * 0.618D + layer * 1.37D;
+                double yy = 1.0D - 2.0D * ((i + 0.5D) / perLayer);
+                double ring = Math.sqrt(Math.max(0.0D, 1.0D - yy * yy));
+                double theta = seed * 2.0D * Math.PI;
+                FxGeometry.emitBillboard(smoke, pose, this.camRot,
+                        (float) (Math.cos(theta) * ring * lr),
+                        (float) (cy + yy * lr * 0.55D),
+                        (float) (Math.sin(theta) * ring * lr),
+                        lhalf, lhalf, SUMMON_DEBRIS_R, SUMMON_DEBRIS_G, SUMMON_DEBRIS_B,
+                        (int) (debrisAlpha * (1.0F - lf * 0.5F)));
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- 降临光柱
+
+    /**
+     * 降临光柱：淡金、非常粗，自核心顶面冲至世界最高处。
+     *
+     * <p><b>alpha 混合</b>而非加法：柱体半径 5~15 格，玩家站进去时加法必然过曝成一片白。
+     * 用 alpha 混合 + 沿柱轴的 alpha 梯度，视线穿过柱身时仍能看清后方。
+     *
+     * <p><b>不随观察距离淡出</b>（需求）：alpha 只由 {@code grow}（升起）与 {@code fade}
+     * （收束）两个时间因子决定，MUST NOT 引入任何距离项。
+     */
+    private void renderSummonPillar(RitualCoreBlockEntity be, RitualRenderState state, double now,
+                                    float grow, float fade,
+                                    PoseStack poseStack, MultiBufferSource buffers) {
+        double radius = summonPillarRadius(state.tier());
+        if (radius <= 1.0E-3D || grow <= 0.0F || fade <= 0.0F) {
+            return;
+        }
+        Level level = be.getLevel();
+        double top = level == null ? 320.0D : level.getMaxBuildHeight();
+        // 局部坐标：柱底 = 核心顶面（局部 y=1），柱顶按世界高度折算成相对核心的局部量
+        float topLocal = (float) (top - be.getBlockPos().getY());
+        float height = topLocal - 1.0F;
+        if (height <= 1.0F) {
+            return;
+        }
+        float alphaMin = GensokyouConfig.FX_SUMMON_PILLAR_ALPHA_MIN.get().floatValue();
+        float alphaMax = GensokyouConfig.FX_SUMMON_PILLAR_ALPHA_MAX.get().floatValue();
+        int alpha = (int) (255.0F * Mth.lerp(alphaMin, alphaMax, Mth.clamp(grow, 0.0F, 1.0F)) * fade);
+        if (alpha <= 2) {
+            return;
+        }
+        float scroll = (float) (now * 0.5D);
+        // 12 面棱柱（正多边形近似圆），侧壁两趟：外层柔边 + 内芯亮柱
+        int sides = 12;
+        for (int pass = 0; pass < 2; pass++) {
+            boolean inner = pass == 1;
+            float rr = (float) (radius * (inner ? 0.55D : 1.0D));
+            int a = inner ? (int) (alpha * 0.85F) : alpha;
+            if (a <= 2) {
+                continue;
+            }
+            VertexConsumer c = buffers.getBuffer(
+                    inner ? DanmakuRenderTypes.additiveGlow(SUMMON_PILLAR_TEXTURE)
+                            : DanmakuRenderTypes.translucent(SUMMON_PILLAR_TEXTURE));
+            int cr = inner ? SUMMON_PILLAR_CORE_R : SUMMON_PILLAR_R;
+            int cg = inner ? SUMMON_PILLAR_CORE_G : SUMMON_PILLAR_G;
+            int cb = inner ? SUMMON_PILLAR_CORE_B : SUMMON_PILLAR_B;
+            PoseStack.Pose pose = poseStack.last();
+            for (int s = 0; s < sides; s++) {
+                double a0 = s * 2.0D * Math.PI / sides;
+                double a1 = (s + 1) * 2.0D * Math.PI / sides;
+                float x0 = (float) (Math.cos(a0) * rr);
+                float z0 = (float) (Math.sin(a0) * rr);
+                float x1 = (float) (Math.cos(a1) * rr);
+                float z1 = (float) (Math.sin(a1) * rr);
+                float y0 = 1.0F;
+                float y1 = topLocal;
+                float v0 = scroll;
+                float v1 = scroll + height * 0.08F;
+                // 侧壁两片一四边形：底边左右两角 + 顶边左右两角，逆时针保证正面朝外。
+                FxGeometry.vertex(c, pose, x0, y0, z0, 0.0F, v0, cr, cg, cb, a);
+                FxGeometry.vertex(c, pose, x1, y0, z1, 1.0F, v0, cr, cg, cb, a);
+                FxGeometry.vertex(c, pose, x1, y1, z1, 1.0F, v1, cr, cg, cb, a);
+                FxGeometry.vertex(c, pose, x0, y0, z0, 0.0F, v0, cr, cg, cb, a);
+                FxGeometry.vertex(c, pose, x1, y1, z1, 1.0F, v1, cr, cg, cb, a);
+                FxGeometry.vertex(c, pose, x0, y1, z0, 0.0F, v1, cr, cg, cb, a);
+            }
         }
     }
 }

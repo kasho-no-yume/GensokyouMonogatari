@@ -9,10 +9,16 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
-/** Cirno：大妖精的强化个体，五连扇形弹幕。 */
-public class CirnoEntity extends BigFairyEntity {
+/**
+ * 琪露诺：占位精英怪，五连扇形弹幕。
+ *
+ * <p><b>仍是占位实现</b>。她刻意<b>不</b>继承 {@link BigFairyEntity}——后者已正式化为
+ * 召唤 BOSS（3 张符卡、距离带自由游走、咒符条血条），让一只野生精英挂在那条继承链上
+ * 会把「占位」和「正式设计」搅在一起。等她被正式立项时再单独做。
+ */
+public class CirnoEntity extends FairyEntity {
 
-    public CirnoEntity(EntityType<? extends BigFairyEntity> type, Level level) {
+    public CirnoEntity(EntityType<? extends CirnoEntity> type, Level level) {
         super(type, level);
         this.xpReward = 50;
     }

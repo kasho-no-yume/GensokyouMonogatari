@@ -25,7 +25,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
-public class FlandreEntity extends Monster implements TouhouMonster {
+public class FlandreEntity extends Monster implements TouhouMonster, TouhouBoss {
     private final ServerBossEvent bossBar = new ServerBossEvent(
             this.getDisplayName(), BossEvent.BossBarColor.BLUE, BossEvent.BossBarOverlay.NOTCHED_20);
 

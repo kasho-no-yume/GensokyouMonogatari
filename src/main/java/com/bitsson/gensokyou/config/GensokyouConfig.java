@@ -68,6 +68,43 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue PROTECT_REDUCTION_DENOMINATOR;
     /** 灵符追踪丢失角度阈值（度）：速度方向与指向目标方向夹角超过此值即永久停止追踪。 */
     public static final ModConfigSpec.DoubleValue TALISMAN_TARGET_LOSS_ANGLE_DEG;
+    /** 同时存在的弹幕实体数硬上限；达上限时停发而非删旧弹。 */
+    public static final ModConfigSpec.IntValue DANMAKU_ENTITY_CAP;
+
+    /** BOSS 同时锁定的玩家数上限。 */
+    public static final ModConfigSpec.IntValue BOSS_MAX_TARGETS;
+    /** 距离带内界（格）。 */
+    public static final ModConfigSpec.DoubleValue BOSS_MOVE_MIN;
+    /** 距离带外界（格）。 */
+    public static final ModConfigSpec.DoubleValue BOSS_MOVE_MAX;
+    /** 游走速度倍率。 */
+    public static final ModConfigSpec.DoubleValue BOSS_MOVE_SPEED;
+    /** 游走点重选间隔下界（tick）。 */
+    public static final ModConfigSpec.IntValue BOSS_WANDER_REPICK_MIN;
+    /** 游走点重选间隔上界（tick）。 */
+    public static final ModConfigSpec.IntValue BOSS_WANDER_REPICK_MAX;
+    /** 游走点与玩家的最小间距（格）。 */
+    public static final ModConfigSpec.DoubleValue BOSS_WANDER_AVOID_PLAYER;
+    /** 游走点与召唤锚点的最小间距（格）。 */
+    public static final ModConfigSpec.DoubleValue BOSS_WANDER_AVOID_ANCHOR;
+    /** BOSS 秒带（按阶）：HP = 参照DPS x 秒。 */
+    public static final ModConfigSpec.DoubleValue BOSS_SECONDS_T1;
+    public static final ModConfigSpec.DoubleValue BOSS_SECONDS_T2;
+    public static final ModConfigSpec.DoubleValue BOSS_SECONDS_T3;
+    public static final ModConfigSpec.DoubleValue BOSS_SECONDS_T4;
+    public static final ModConfigSpec.DoubleValue BOSS_SECONDS_T5;
+    /** 大妖精的战斗秒数目标。 */
+    public static final ModConfigSpec.DoubleValue BIG_FAIRY_BOSS_SECONDS;
+    /** 大妖精的挨弹数目标。 */
+    public static final ModConfigSpec.IntValue BIG_FAIRY_BOSS_HITS;
+    /** 鬼蛛的战斗秒数目标。 */
+    public static final ModConfigSpec.DoubleValue KUZUMONO_BOSS_SECONDS;
+    /** 鬼蛛的挨弹数目标。 */
+    public static final ModConfigSpec.IntValue KUZUMONO_BOSS_HITS;
+    /** 碎符卡星掉落下界。 */
+    public static final ModConfigSpec.IntValue BOSS_STAR_DROP_MIN;
+    /** 碎符卡星掉落上界。 */
+    public static final ModConfigSpec.IntValue BOSS_STAR_DROP_MAX;
 
     public static final ModConfigSpec.DoubleValue BASE_REGEN_PER_SECOND;
     public static final ModConfigSpec.IntValue RESONANCE_BASE_IN_QUOTA;
@@ -424,6 +461,55 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue SAIR_ENERGY_OUT_RATE_PER_SECOND;
     public static final ModConfigSpec.LongValue SAIR_ENERGY_BASE_CAPACITY;
 
+    // ---- add-hyakki-yagyo-summon-ritual：百鬼夜行召唤仪式 ----
+
+    /** 受灵汇速率 = 锁定配方 spCost ÷ 本值（默认 10 → 目标 10 秒充满）。 */
+    public static final ModConfigSpec.IntValue SUMMON_IN_RATE_DIVISOR;
+    /** 充能光球半径基值（格）。球心恒在核心顶面上方「半径」处，故底面与核心顶面相切。 */
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_BALL_RADIUS_BASE;
+    /** 充能光球半径每阶增量（格）。默认 3.0 → 3/6/9，即 1 阶与结界破碎最大球同规格。 */
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_BALL_RADIUS_PER_TIER;
+    /** 同心分层 billboard 层数。MUST 保持 >= 2：单层是平面圆盘，不是球。 */
+    public static final ModConfigSpec.IntValue FX_SUMMON_BALL_LAYERS;
+    /** 闲置呼吸的半径起伏幅度（小数，0.05 = ±5%）。仅随时间，不随充能进度。 */
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_BALL_BREATH_AMP;
+    /** 层间明暗差深度（小数，0.30 = 每层亮度在 0.70~1.00 间错相起伏）。 */
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_BALL_GLOW_AMP;
+    public static final ModConfigSpec.IntValue FX_SUMMON_BEAM_COUNT;
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_BEAM_REACH;
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_BEAM_JITTER;
+    /** 闪电自球心向外窜到全长所需 tick（传播动画时长）。 */
+    public static final ModConfigSpec.IntValue FX_SUMMON_BEAM_GROW_TICKS;
+    /** 爆散冲击环最终半径基值（格，贴核心顶面高度）。 */
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_BURST_RADIUS_BASE;
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_BURST_RADIUS_PER_TIER;
+    public static final ModConfigSpec.IntValue FX_SUMMON_BURST_TICKS;
+    public static final ModConfigSpec.IntValue FX_SUMMON_BURST_RING_PUFFS;
+    public static final ModConfigSpec.IntValue FX_SUMMON_BURST_DEBRIS_PER_LAYER;
+    public static final ModConfigSpec.IntValue FX_SUMMON_BURST_DEBRIS_LAYERS;
+    /** 降临光柱最终半径基值（格）。默认 5 → 5/10/15。 */
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_PILLAR_RADIUS_BASE;
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_PILLAR_RADIUS_PER_TIER;
+    /** 降临光柱保持完整形态的时长（tick）。40 = 2 秒，之后收束。 */
+    public static final ModConfigSpec.IntValue FX_SUMMON_PILLAR_HOLD_TICKS;
+    public static final ModConfigSpec.IntValue FX_SUMMON_PILLAR_RETRACT_TICKS;
+    /** 光柱 alpha 不透明度的上/下限。固定不透明度，故不随观察距离变化。 */
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_PILLAR_ALPHA_MIN;
+    public static final ModConfigSpec.DoubleValue FX_SUMMON_PILLAR_ALPHA_MAX;
+
+    // ---- touhou-boss-bar：东方风格咒符条（固定造型，通用于全部东方 BOSS）----
+
+    public static final ModConfigSpec.IntValue TALISMAN_BAR_WIDTH;
+    public static final ModConfigSpec.IntValue TALISMAN_BAR_ROW_HEIGHT;
+    public static final ModConfigSpec.IntValue TALISMAN_BAR_BODY_HEIGHT;
+    public static final ModConfigSpec.IntValue TALISMAN_BAR_COLOR_FRAME;
+    public static final ModConfigSpec.IntValue TALISMAN_BAR_COLOR_FILL;
+    public static final ModConfigSpec.IntValue TALISMAN_BAR_COLOR_GHOST;
+    public static final ModConfigSpec.IntValue TALISMAN_BAR_COLOR_TRACK;
+    public static final ModConfigSpec.IntValue TALISMAN_BAR_GHOST_DELAY_MS;
+    public static final ModConfigSpec.DoubleValue TALISMAN_BAR_SEAL_SIZE;
+    public static final ModConfigSpec.IntValue TALISMAN_BAR_TORN_EDGE;
+
     public static final ModConfigSpec SPEC;
 
     /**
@@ -561,6 +647,32 @@ public class GensokyouConfig {
         PROTECT_REDUCTION_NUMERATOR = BUILDER.comment("Damage taken multiplier = (numerator - level) / denominator").defineInRange("protectNumerator", 9D, 0D, 100D);
         PROTECT_REDUCTION_DENOMINATOR = BUILDER.defineInRange("protectDenominator", 10D, 1D, 100D);
         TALISMAN_TARGET_LOSS_ANGLE_DEG = BUILDER.comment("Talisman danmaku: if the angle between its velocity and the direction to its target exceeds this many degrees, it permanently loses the target and flies straight (default 120)").defineInRange("talismanTargetLossAngleDeg", 120D, 90D, 180D);
+        DANMAKU_ENTITY_CAP = BUILDER.comment("add-remnant-touhou-bosses: hard cap on simultaneously live danmaku entities. At the cap the emitter STOPS spawning (existing bullets are never deleted, so the board reads as 'this round is over' rather than 'the boss went quiet').").defineInRange("danmakuEntityCap", 500, 16, 20000);
+        BUILDER.pop();
+
+        BUILDER.push("boss").comment("add-remnant-touhou-bosses: summoned BOSS movement / targeting / numbers. "
+                + "Seconds are the primary difficulty knob: HP = referencePlayerDps(tier) x seconds, "
+                + "danmaku damage = referencePlayerEhp(tier) / hits. The difficulty dial is the graze-rate "
+                + "threshold, not the raw hit count, because the player can carry healing consumables.");
+        BOSS_MAX_TARGETS = BUILDER.comment("Max players a BOSS locks at once (nearest N).").defineInRange("bossMaxTargets", 5, 1, 32);
+        BOSS_MOVE_MIN = BUILDER.comment("Default inner edge of the distance band; boss retreats inside it (blocks)").defineInRange("bossMoveMin", 10D, 2D, 64D);
+        BOSS_MOVE_MAX = BUILDER.comment("Default outer edge of the distance band; boss advances beyond it (blocks)").defineInRange("bossMoveMax", 30D, 4D, 128D);
+        BOSS_MOVE_SPEED = BUILDER.comment("Default wander speed multiplier on the base movement attribute. 0.17 = 实测两次下调：1.0 -> 0.34（-66%）-> 0.17（再 -50%）").defineInRange("bossMoveSpeed", 0.17D, 0.02D, 4D);
+        BOSS_WANDER_REPICK_MIN = BUILDER.comment("Wander target re-pick interval, lower bound (ticks)").defineInRange("bossWanderRepickMin", 60, 10, 1200);
+        BOSS_WANDER_REPICK_MAX = BUILDER.comment("Wander target re-pick interval, upper bound (ticks)").defineInRange("bossWanderRepickMax", 120, 10, 2400);
+        BOSS_WANDER_AVOID_PLAYER = BUILDER.comment("Wander points closer than this to any player are rejected (blocks)").defineInRange("bossWanderAvoidPlayer", 6D, 0D, 32D);
+        BOSS_WANDER_AVOID_ANCHOR = BUILDER.comment("Wander points closer than this to the summon anchor are rejected (blocks)").defineInRange("bossWanderAvoidAnchor", 8D, 0D, 64D);
+        BOSS_SECONDS_T1 = BUILDER.comment("monster-stat-budget seconds band, tier 1").defineInRange("bossSecondsT1", 60D, 5D, 3600D);
+        BOSS_SECONDS_T2 = BUILDER.defineInRange("bossSecondsT2", 110D, 5D, 3600D);
+        BOSS_SECONDS_T3 = BUILDER.defineInRange("bossSecondsT3", 180D, 5D, 3600D);
+        BOSS_SECONDS_T4 = BUILDER.defineInRange("bossSecondsT4", 240D, 5D, 3600D);
+        BOSS_SECONDS_T5 = BUILDER.defineInRange("bossSecondsT5", 300D, 5D, 3600D);
+        BIG_FAIRY_BOSS_SECONDS = BUILDER.comment("大妖精 spell-card fight length target").defineInRange("bigFairyBossSeconds", 60D, 5D, 3600D);
+        BIG_FAIRY_BOSS_HITS = BUILDER.comment("大妖精 hits-to-kill target (damage = referencePlayerEhp / this)").defineInRange("bigFairyBossHits", 10, 1, 200);
+        KUZUMONO_BOSS_SECONDS = BUILDER.defineInRange("kuzumonoBossSeconds", 75D, 5D, 3600D);
+        KUZUMONO_BOSS_HITS = BUILDER.defineInRange("kuzumonoBossHits", 8, 1, 200);
+        BOSS_STAR_DROP_MIN = BUILDER.comment("碎符卡星 drop count, lower bound").defineInRange("bossStarDropMin", 1, 0, 64);
+        BOSS_STAR_DROP_MAX = BUILDER.defineInRange("bossStarDropMax", 2, 0, 64);
         BUILDER.pop();
 
         BUILDER.push("power").comment("Spirit power pool & infrastructure");
@@ -750,9 +862,10 @@ public class GensokyouConfig {
                         + " max_spirit/spirit_power write the pool ledger; the rest go to permanent contributions grace_tier_N")
                 .defineListAllowEmpty("graceTierTable", GRACE_DEFAULT_ROWS, o -> o instanceof String);
         GRACE_FLIGHT_COST_PCT = BUILDER.comment("Flight spirit drain per second, percent of max spirit, index = tier-1"
-                        + " (5/2/1/0.5/0). Tier 5 flies for free.")
+                        + " (default 0/0/0/0/0 = flying is free at every tier). Set e.g. (5/2/1/0.5/0) to re-enable"
+                        + " per-tier drain; tier 5 stays free either way.")
                 .defineListAllowEmpty("graceFlightCostPct",
-                        List.of(5D, 2D, 1D, 0.5D, 0D), o -> o instanceof Double);
+                        List.of(0D, 0D, 0D, 0D, 0D), o -> o instanceof Double);
         GRACE_PERFORM_TICKS = BUILDER.comment("Grace rite performance length in ticks (100 = 5s)").defineInRange("gracePerformTicks", 100, 20, 2400);
         GRACE_SPIRIT_IN_RATE = BUILDER.comment("Grace rite PAYING intake rate per second (large: the cache fills the moment supply exists)").defineInRange("graceSpiritInRate", 20000, 1, Integer.MAX_VALUE);
         GRACE_PERFORM_DAMAGE_PER_SECOND = BUILDER.comment("Scripted self-damage per second during the performance (flat hearts/2)").defineInRange("gracePerformDamagePerSecond", 3D, 0D, 20D);
@@ -979,6 +1092,59 @@ public class GensokyouConfig {
                 .defineInRange("sairEnergyOutRatePerSecond", 1_000_000_000, 0, Integer.MAX_VALUE);
         SAIR_ENERGY_BASE_CAPACITY = BUILDER.comment("Sair Energy: spirit buffer capacity, refilled to full every second (infinite source; 100e = 1e10)")
                 .defineInRange("sairEnergyBaseCapacity", 10_000_000_000L, 1L, Long.MAX_VALUE);
+        BUILDER.pop();
+
+        BUILDER.push("summon").comment("Hyakki Yagyo: offering-driven summon rite. NO entry fee -- a recipe's spCost is the session CAPACITY, charged by routing/socket over ~inRateDivisor seconds");
+        SUMMON_IN_RATE_DIVISOR = BUILDER.comment("Hyakki Yagyo: declared sink rate = locked recipe spCost / this. 10 => ~10s to fill. The /10 is the rite's pacing, not a balance knob")
+                .defineInRange("summonInRateDivisor", 10, 1, 1000);
+        BUILDER.pop();
+
+        BUILDER.push("fxSummon").comment("Hyakki Yagyo FX: black-red charging ball + burst + pale-gold descent pillar. All sizes scale with structure level (1/2/3)");
+        FX_SUMMON_BALL_RADIUS_BASE = BUILDER.comment("Hyakki Yagyo FX: charging ball radius at tier 1 (blocks). 3.0 == the barrier-shatter ball's final radius on purpose")
+                .defineInRange("fxSummonBallRadiusBase", 3.0D, 0.25D, 16.0D);
+        FX_SUMMON_BALL_RADIUS_PER_TIER = BUILDER.comment("Hyakki Yagyo FX: ball radius added per tier. 3.0 => 3/6/9")
+                .defineInRange("fxSummonBallRadiusPerTier", 3.0D, 0.0D, 16.0D);
+        FX_SUMMON_BALL_LAYERS = BUILDER.comment("Hyakki Yagyo FX: concentric billboard layers forming the ball (more = smoother radial falloff, cost linear). MUST stay >= 2: one layer is a flat disc")
+                .defineInRange("fxSummonBallLayers", 6, 2, 24);
+        FX_SUMMON_BALL_BREATH_AMP = BUILDER.comment("Hyakki Yagyo FX: idle breathing amplitude of the ball radius (fraction, 0.05 = +/-5%). Time-driven ONLY -- deliberately NOT tied to charge progress, or a starved ball freezes mid-size and reads as 'stuck' together with the progress bar")
+                .defineInRange("fxSummonBallBreathAmp", 0.05D, 0.0D, 0.25D);
+        FX_SUMMON_BALL_GLOW_AMP = BUILDER.comment("Hyakki Yagyo FX: per-layer brightness swing depth (fraction). Each layer breathes on its OWN phase; a single shared scalar makes the whole ball pulse as one rigid body, which on additive blending is invisible because the core is already saturated")
+                .defineInRange("fxSummonBallGlowAmp", 0.30D, 0.0D, 1.0D);
+        FX_SUMMON_BEAM_COUNT = BUILDER.comment("Hyakki Yagyo FX: radial lightning pillars fired from the ball centre while charging").defineInRange("fxSummonBeamCount", 10, 0, 32);
+        FX_SUMMON_BEAM_REACH = BUILDER.comment("Hyakki Yagyo FX: how far each lightning pillar extends past the ball surface, as a fraction of the ball radius").defineInRange("fxSummonBeamReach", 1.6D, 0.1D, 6.0D);
+        FX_SUMMON_BEAM_JITTER = BUILDER.comment("Hyakki Yagyo FX: perpendicular jitter of each lightning polyline (blocks)").defineInRange("fxSummonBeamJitter", 0.7D, 0.0D, 4.0D);
+        FX_SUMMON_BEAM_GROW_TICKS = BUILDER.comment("Hyakki Yagyo FX: ticks for a bolt to propagate from the ball centre out to its full length. MUST stay below the shortest per-bolt lifetime (7) or bolts never reach full length. 1 = appears instantly, 6 = slow and dramatic")
+                .defineInRange("fxSummonBeamGrowTicks", 4, 1, 6);
+        FX_SUMMON_BURST_RADIUS_BASE = BUILDER.comment("Hyakki Yagyo FX: burst shockwave ring + debris final radius at tier 1 (blocks). Ring sits at the CORE TOP height, not at the ball centre")
+                .defineInRange("fxSummonBurstRadiusBase", 10.0D, 0.5D, 48.0D);
+        FX_SUMMON_BURST_RADIUS_PER_TIER = BUILDER.comment("Hyakki Yagyo FX: burst radius added per tier. 5.0 => 10/15/20").defineInRange("fxSummonBurstRadiusPerTier", 5.0D, 0.0D, 48.0D);
+        FX_SUMMON_BURST_TICKS = BUILDER.comment("Hyakki Yagyo FX: burst lifetime in ticks. 20 = 1 second").defineInRange("fxSummonBurstTicks", 20, 2, 200);
+        FX_SUMMON_BURST_RING_PUFFS = BUILDER.comment("Hyakki Yagyo FX: camera-facing puffs on the shockwave ring (cost linear)").defineInRange("fxSummonBurstRingPuffs", 48, 6, 160);
+        FX_SUMMON_BURST_DEBRIS_LAYERS = BUILDER.comment("Hyakki Yagyo FX: debris shells around the ball centre; gives the debris cloud thickness instead of a flat disc").defineInRange("fxSummonBurstDebrisLayers", 3, 1, 8);
+        FX_SUMMON_BURST_DEBRIS_PER_LAYER = BUILDER.comment("Hyakki Yagyo FX: debris puffs per shell").defineInRange("fxSummonBurstDebrisPerLayer", 20, 4, 96);
+        FX_SUMMON_PILLAR_RADIUS_BASE = BUILDER.comment("Hyakki Yagyo FX: descent pillar radius at tier 1 (blocks) -- deliberately very thick").defineInRange("fxSummonPillarRadiusBase", 5.0D, 0.5D, 32.0D);
+        FX_SUMMON_PILLAR_RADIUS_PER_TIER = BUILDER.comment("Hyakki Yagyo FX: pillar radius added per tier. 5.0 => 5/10/15").defineInRange("fxSummonPillarRadiusPerTier", 5.0D, 0.0D, 32.0D);
+        FX_SUMMON_PILLAR_HOLD_TICKS = BUILDER.comment("Hyakki Yagyo FX: how long the pillar holds full form before retracting. 40 = 2 seconds").defineInRange("fxSummonPillarHoldTicks", 40, 1, 400);
+        FX_SUMMON_PILLAR_RETRACT_TICKS = BUILDER.comment("Hyakki Yagyo FX: pillar retract/fade duration after the hold window").defineInRange("fxSummonPillarRetractTicks", 12, 1, 200);
+        FX_SUMMON_PILLAR_ALPHA_MIN = BUILDER.comment("Hyakki Yagyo FX: pillar opacity floor, seen edge-on through its own body (alpha-blended, so looking through the column must not go fully transparent)")
+                .defineInRange("fxSummonPillarAlphaMin", 0.45D, 0.0D, 1.0D);
+        FX_SUMMON_PILLAR_ALPHA_MAX = BUILDER.comment("Hyakki Yagyo FX: pillar opacity at the silhouette. Fixed regardless of viewer distance -- the pillar MUST NOT fade with range")
+                .defineInRange("fxSummonPillarAlphaMax", 0.9D, 0.0D, 1.0D);
+        BUILDER.pop();
+
+        BUILDER.push("talismanBar").comment("Touhou boss bar: one fixed ofuda/talisman shape for every Touhou boss (not per-boss). Replaces the vanilla 182x5 bar; vanilla bosses are untouched");
+        TALISMAN_BAR_WIDTH = BUILDER.comment("Talisman bar: total width in pixels").defineInRange("talismanBarWidth", 182, 120, 400);
+        TALISMAN_BAR_ROW_HEIGHT = BUILDER.comment("Talisman bar: how much vertical space one bar claims. MUST exceed vanilla's 10+lineHeight so the torn edge and the seal fit")
+                .defineInRange("talismanBarRowHeight", 28, 20, 80);
+        TALISMAN_BAR_BODY_HEIGHT = BUILDER.comment("Talisman bar: health bar body height in pixels").defineInRange("talismanBarBodyHeight", 7, 3, 20);
+        TALISMAN_BAR_COLOR_FRAME = BUILDER.comment("Talisman bar: header/footer paper border (vermilion) as 0xRRGGBB")
+                .defineInRange("talismanBarColorFrame", 0xC1272D, 0x000000, 0xFFFFFF);
+        TALISMAN_BAR_COLOR_FILL = BUILDER.comment("Talisman bar: health fill (cinnabar red) as 0xRRGGBB").defineInRange("talismanBarColorFill", 0xE03A2F, 0x000000, 0xFFFFFF);
+        TALISMAN_BAR_COLOR_GHOST = BUILDER.comment("Talisman bar: delayed damage ghost (rice-paper white) as 0xRRGGBB").defineInRange("talismanBarColorGhost", 0xF5EFE0, 0x000000, 0xFFFFFF);
+        TALISMAN_BAR_COLOR_TRACK = BUILDER.comment("Talisman bar: empty-track paper as 0xRRGGBB").defineInRange("talismanBarColorTrack", 0x2A1A1C, 0x000000, 0xFFFFFF);
+        TALISMAN_BAR_GHOST_DELAY_MS = BUILDER.comment("Talisman bar: how long the white ghost lingers behind the fill after damage, in ms. 0 disables the ghost").defineInRange("talismanBarGhostDelayMs", 400, 0, 3000);
+        TALISMAN_BAR_SEAL_SIZE = BUILDER.comment("Talisman bar: vermilion seal square drawn at the tail (blocks: 0 disables)").defineInRange("talismanBarSealSize", 5.0D, 0.0D, 16.0D);
+        TALISMAN_BAR_TORN_EDGE = BUILDER.comment("Talisman bar: torn-edge tooth count along the bottom (0 = straight edge)").defineInRange("talismanBarTornEdge", 11, 0, 40);
         BUILDER.pop();
 
         BUILDER.push("monsterBudget").comment("monster-stat-budget: same-tier monster HP/danmaku budget (see docs/mob-design-guidelines.md)");

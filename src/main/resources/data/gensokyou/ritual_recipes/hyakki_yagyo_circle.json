@@ -1,0 +1,85 @@
+{
+  "pattern": "gensokyou:hyakki_yagyo_circle",
+  "_comment": [
+    "百鬼夜行召唤配方（add-remnant-touhou-bosses）。",
+    "祭品台数即单次召唤的成本上限：一个祭品台 = 一个物品、不可堆叠，故",
+    "  L1 配方 Σcount ≤ 4（4 个台）  L2/L3 配方 Σcount ≤ 8（8 个台）。",
+    "祭品于会话开始时当场吞掉，一次召唤一只；再召下一只需再摆一次料。",
+    "各配方以「专属钥匙物品」互斥：任一份摆法至多命中一条，故不会静默召错。",
+    "spCost 恒为 10 的倍数（受灵汇速率 = 容量 ÷ 10，整除不丢量）。"
+  ],
+  "recipes": [
+    {
+      "name": "hyakki_boss_big_fairy",
+      "_comment": "L1 · 大妖精（教学档）。钥匙 = 引导书：还没打过任何 BOSS 的人拿得出来。",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "minPlayerTier": 0,
+      "spCost": 100000,
+      "ingredients": [
+        { "item": "gensokyou:guide_book", "count": 1 },
+        { "item": "gensokyou:ritual_stone_1", "count": 1 },
+        { "item": "gensokyou:refined_cinnabar", "count": 1 },
+        { "item": "gensokyou:ppoint", "count": 1 }
+      ],
+      "effect": "hyakki:big_fairy"
+    },
+    {
+      "name": "hyakki_boss_kuzumono",
+      "_comment": "L1 · 鬼蛛『堅牢』（缺「破」）。钥匙 = 碎符卡星：BOSS 专属。保底掉隙间碎片，是 T2 材料带与 L2 祭坛的唯一前置。",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "minPlayerTier": 0,
+      "spCost": 300000,
+      "ingredients": [
+        { "item": "gensokyou:broken_spell_card_star", "count": 1 },
+        { "item": "gensokyou:ritual_stone_1", "count": 1 },
+        { "item": "gensokyou:spirit_iron", "count": 1 },
+        { "item": "gensokyou:refined_cinnabar", "count": 1 }
+      ],
+      "effect": "hyakki:kuzumono"
+    },
+    {
+      "name": "hyakki_boss_kitsunebi",
+      "_comment": "L2 · 狐火『無序』（缺「序」）。钥匙 = 隙间碎片：鬼蛛给的、通往幻想乡的那把。",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 2,
+      "minPlayerTier": 0,
+      "spCost": 1000000,
+      "ingredients": [
+        { "item": "gensokyou:sukima_fragment", "count": 1 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "gensokyou:star_silver", "count": 1 },
+        { "item": "gensokyou:ritual_stone_2", "count": 1 },
+        { "item": "gensokyou:spirit_iron", "count": 1 },
+        { "item": "gensokyou:refined_cinnabar", "count": 1 },
+        { "item": "gensokyou:memory_fragment", "count": 1 },
+        { "item": "gensokyou:yen", "count": 1 }
+      ],
+      "effect": "hyakki:kitsunebi"
+    },
+    {
+      "name": "hyakki_boss_nomen",
+      "_comment": "L2 · 傩神楽面『無終』（缺「結」）。钥匙 = 整颗符卡星（8 碎换 1），压轴档。8 条料占满 8 个台，故与狐火互斥。",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 2,
+      "minPlayerTier": 0,
+      "spCost": 3000000,
+      "ingredients": [
+        { "item": "gensokyou:spellcard_star", "count": 1 },
+        { "item": "gensokyou:sukima_fragment", "count": 1 },
+        { "item": "gensokyou:star_silver", "count": 1 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "gensokyou:ritual_stone_2", "count": 1 },
+        { "item": "gensokyou:broken_spell_card_star", "count": 1 },
+        { "item": "gensokyou:spirit_iron", "count": 1 },
+        { "item": "gensokyou:yen", "count": 1 }
+      ],
+      "effect": "hyakki:nomen"
+    }
+  ]
+}

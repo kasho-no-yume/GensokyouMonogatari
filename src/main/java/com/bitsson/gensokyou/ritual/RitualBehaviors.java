@@ -9,6 +9,7 @@ import com.bitsson.gensokyou.ritual.behavior.KayaNoHimeBehavior;
 import com.bitsson.gensokyou.ritual.behavior.KukunochiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.HaniyasuBehavior;
 import com.bitsson.gensokyou.ritual.behavior.HoujounoTeihouBehavior;
+import com.bitsson.gensokyou.ritual.behavior.HyakkiYagyoBehavior;
 import com.bitsson.gensokyou.ritual.behavior.NichirinBehavior;
 import com.bitsson.gensokyou.ritual.behavior.OyamatsumiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ResonanceRelayBehavior;
@@ -31,7 +32,6 @@ public final class RitualBehaviors {
 
     private static final Map<ResourceLocation, RitualBehavior> REGISTRY = new HashMap<>();
 
-    public static final ResourceLocation SUMMON = Gensokyou.id("summon_circle");
     public static final ResourceLocation RESONANCE = Gensokyou.id("resonance_relay");
     public static final ResourceLocation BARRIER_BREAK = Gensokyou.id("barrier_break_circle");
     public static final ResourceLocation KAGUTSUICHI = Gensokyou.id("kagutsuchi_flame_circle");
@@ -52,6 +52,11 @@ public final class RitualBehaviors {
     public static final ResourceLocation KANAYAMAHIKO = Gensokyou.id("kanayamahiko_circle");
     public static final ResourceLocation HOUJOUNO_TEIHOU = Gensokyou.id("houjouno_teihou_circle");
     public static final ResourceLocation SAIR_ENERGY = Gensokyou.id("sair_energy_circle");
+    /**
+     * 百鬼夜行：祭品化召唤仪式。召唤类仪式由 {@code startsSessionViaUiAction} 独占启停
+     * （无门票，故 MUST NOT 走会预扣 {@code spCost} 的通用 {@code start()}）。
+     */
+    public static final ResourceLocation HYAKKI_YAGYO = Gensokyou.id("hyakki_yagyo_circle");
 
     static {
         register(RESONANCE, new ResonanceRelayBehavior());
@@ -74,6 +79,7 @@ public final class RitualBehaviors {
         register(KANAYAMAHIKO, new KanayamahikoBehavior());
         register(HOUJOUNO_TEIHOU, new HoujounoTeihouBehavior());
         register(SAIR_ENERGY, new SairEnergyBehavior());
+        register(HYAKKI_YAGYO, new HyakkiYagyoBehavior());
     }
 
     private RitualBehaviors() {

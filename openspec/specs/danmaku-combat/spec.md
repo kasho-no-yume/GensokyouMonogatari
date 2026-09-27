@@ -4,7 +4,9 @@
 TBD - created by archiving change phase-a-entry-loop. Update Purpose after archive.
 ## Requirements
 ### Requirement: 弹幕伤害类型
-模组 SHALL 定义数据驱动伤害类型 `gensokyou:danmaku`，经 `minecraft:bypasses_armor` 标签无视护甲；代码侧 SHALL 以 ResourceKey + Holder 构造 DamageSource，MUST NOT 继承 DamageSource。
+模组 SHALL 定义数据驱动伤害类型 `gensokyou:danmaku`，经 `minecraft:bypasses_armor` 与 `minecraft:bypasses_cooldown` 两个标签分别无视护甲与受伤无敌帧；代码侧 SHALL 以 ResourceKey + Holder 构造 DamageSource，MUST NOT 继承 DamageSource。
+
+`minecraft:bypasses_cooldown` 在 1.21.1 原版中无同名标签文件，模组 SHALL 以 `"replace": false` 纯增量方式提供该标签文件，MUST NOT 覆盖原版值。
 
 #### Scenario: 无视护甲
 - **WHEN** 全套护甲的生物被弹幕命中
@@ -13,6 +15,10 @@ TBD - created by archiving change phase-a-entry-loop. Update Purpose after archi
 #### Scenario: 来源归属
 - **WHEN** 弹幕击杀生物
 - **THEN** 死亡消息与掉落归属指向弹幕来源实体
+
+#### Scenario: 标签纯增量
+- **WHEN** 数据包加载 `data/minecraft/tags/damage_type/bypasses_cooldown.json`
+- **THEN** 该文件以 `"replace": false` 声明 `gensokyou:danmaku`，且原版在该标签下的任何取值均不被移除
 
 ### Requirement: 弹幕投射物
 模组 SHALL 提供弹幕投射物实体：无重力直线飞行；伤害值持久化到 NBT（owner 由父类持久化）；命中非来源实体造成 NBT 伤害并消失，命中方块消失；命中判定仅服务端结算，双端行为一致。
@@ -43,6 +49,8 @@ TBD - created by archiving change phase-a-entry-loop. Update Purpose after archi
 3. **弹幕抵抗阶段退役**：不再有 flat 抵抗与"90% 全局封顶"；因 `2^(−P)` 永不归零，无需封顶防免疫链。
 mu_power 等既有乘区顺序 SHALL 保持不变（先于本管线）。本管线 MUST NOT 改变非玩家实体所受弹幕结算（既有"弹幕护盾效果"场景行为回归不变）。属性最终值 SHALL 从玩家属性套件读取，MUST NOT 另立存储。
 
+本管线 SHALL 在原版受伤无敌帧判定**之前**完成结算（经 NeoForge `LivingIncomingDamageEvent`）。因此弹幕无视无敌帧时，擦弹与护壁 MUST 逐发照常生效，MUST NOT 因无敌帧被绕过而获得额外减免。
+
 #### Scenario: 擦弹免疫
 - **WHEN** 擦弹率 30% 的玩家受到一发弹幕
 - **THEN** 约 30% 的次数该次伤害为 0，其余次数继续走指数减免
@@ -62,6 +70,10 @@ mu_power 等既有乘区顺序 SHALL 保持不变（先于本管线）。本管�
 #### Scenario: 非玩家不受影响
 - **WHEN** 妖精（非玩家）受同一弹幕命中
 - **THEN** 仅走既有效果结算，玩家防御属性不参与
+
+#### Scenario: 管线先于无敌帧结算
+- **WHEN** 弹幕无视无敌帧后，一名高护壁玩家被连续弹幕命中
+- **THEN** 每一发均先经擦弹与护壁管线结算，再全额入血，护壁效果不因无敌帧被绕过而失效
 
 ### Requirement: 弹幕伤害来源归属修正
 玩家/生物发射的弹幕实体结算伤害时，DamageSource 的 directEntity SHALL 为弹幕实体本身、causingEntity 为发射者（原版投射物惯例；旧实现误将受害者作 directEntity）。击杀掉落与死亡消息归属（读 causingEntity）行为 MUST NOT 改变。该归属同时是灵力汲取"仅武器弹生效"判定的唯一依据（汲取 MUST NOT 作用于符卡等其他玩家弹幕来源）。
@@ -84,4 +96,37 @@ mu_power 等既有乘区顺序 SHALL 保持不变（先于本管线）。本管�
 #### Scenario: 非弹幕不破盾
 - **WHEN** 玩家举盾格挡普通近战或箭矢
 - **THEN** 盾牌正常格挡且不被禁用
+
+### Requirement: 弹幕无视受伤无敌帧
+弹幕伤害 SHALL 无视原版受伤无敌帧（`LivingEntity.hurt` 中 `invulnerableTime > 10` 的 0.5 秒窗口及其 `amount <= lastHurt` 整发丢弃判定）。
+
+该语义 SHALL 覆盖**全部**弹幕形态：球型、飞刀、灵符、激光、环绕玉。系统 MUST NOT 为其中某一形态另开伤害类型以单独控制本行为——弹幕的结算语义按伤害类型统一，而非按弹体分类。
+
+弹幕伤害 SHALL 继续产生原版受伤表现（受击音效、红闪、伤害粒子、击退），且 SHALL NOT 以 `minecraft:no_impact` 或 `minecraft:no_knockback` 抑制这些表现。
+
+本要求为**语义还原**而非平衡调整：弹幕单发伤害与生物数值预算的关系 MUST NOT 因本要求而改变。
+
+#### Scenario: 同 tick 多发弹幕全部生效
+- **WHEN** 一记含 10 发弹幕的符卡在同一 tick 全部命中同一生物
+- **THEN** 10 发伤害全部全额结算，无一发被无敌帧丢弃
+
+#### Scenario: 高射速连续弹幕不丢伤害
+- **WHEN** 一把射速为每 8 tick 一发的普通弹幕武器连续命中同一生物
+- **THEN** 每一发均全额结算，实际扣血速率等于「单发伤害 × 射速」
+
+#### Scenario: 散弹全部弹丸生效
+- **WHEN** 一次齐射的 5 颗弹丸全部命中同一生物
+- **THEN** 5 颗弹丸均全额结算
+
+#### Scenario: 激光连续判伤不丢伤害
+- **WHEN** 激光弹幕在持续期间每 5 tick 对射线内生物判伤一次
+- **THEN** 每次判伤均全额结算
+
+#### Scenario: 玩家受弹管线语义不变
+- **WHEN** 弹幕无视无敌帧后，玩家受弹的擦弹与灵力护壁管线照常结算
+- **THEN** 擦弹命中仍使该次伤害为 0，护壁仍按 `2^(−P)` 指数减免，且两者 MUST NOT 因无敌帧被绕过而改变
+
+#### Scenario: 数值预算不变
+- **WHEN** 本要求落地
+- **THEN** `MonsterStatBudget` 的 HP/弹伤预算、`BossCards` 与 `Track.damageScale`、`AbstractTouhouBoss.damageScale` 均无需重配平
 
