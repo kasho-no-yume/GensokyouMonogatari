@@ -50,8 +50,21 @@ A Touhou Project themed mod set in Gensokyo.
 '''
 
 # The [[mixins]] block allows you to declare your mixin config to FML so that it gets loaded.
-#[[mixins]]
-#config="${mod_id}.mixins.json"
+#
+# ⚠️⚠️ 三个坑，每一个的表现都和"配置错了"毫无关系：
+#   ① 声明途径**只有** neoforge.mods.toml 的 [[mixins]] 段。manifest 属性
+#      `MixinConfigs` 不起作用（fancymodloader 的 ModFileParser 不读它）。
+#   ② config= **绝对不能叫 neoforge.mixins.json**——NeoForge 本体就带一个同名配置
+#      （neoforge-21.1.248.jar 根目录）。同名 ⇒ 同一配置被注册两次 ⇒ 启动即抛
+#      IllegalArgumentException: Decoration with key 'fabric-modId' already exists ...
+#      （崩在 mixin prepare 阶段，**游戏日志里一行都没有**，只有控制台有）
+#   ③ 配置文件本体 MUST 放在**类路径根**（src/main/resources/gensokyou.mixins.json），
+#      **不能放 META-INF/**。META-INF 是 Forge 读 manifest 时的旧惯例；
+#      NeoForge 参照的 neoforge.mixins.json / jade.mixins.json 全都在 jar 根目录。
+#      放错位置的后果是 IllegalArgumentException:
+#      The specified resource 'xxx.mixins.json' was invalid or could not be read
+[[mixins]]
+config="gensokyou.mixins.json"
 
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg

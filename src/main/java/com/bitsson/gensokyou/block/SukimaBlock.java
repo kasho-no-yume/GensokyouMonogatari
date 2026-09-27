@@ -37,9 +37,14 @@ public class SukimaBlock extends Block implements EntityBlock {
     }
 
     /**
-     * 服务端 ticker：推进开合动画并在关门流程结束时让门体自删。
+     * 服务端 ticker：推进开合动画、在爆炸那一 tick 触发音效与击退，并在关门流程结束时让门体自删。
      *
-     * <p>状态变化时才广播（{@code syncIfChanged} 自带 diff），故稳态零包。
+     * <p>{@code syncIfChanged} <b>无条件调用</b>：它内部自带 diff，而
+     * {@code serverTick} 的返回值代表的是"另一件事"（本 tick 是否推进了状态）。
+     * 两者语义不同，<b>不能用前者的返回值去 gate 后者</b>——历史上正是这么写的，
+     * 结果最后一次状态变化（关门倒计时归零那一 tick）永远发不出去。
+     *
+     * <p>演出进度不在 diff 里：客户端用 {@code fxStartGameTime} 锚点自算，故稳态零包。
      */
     @Nullable
     @Override
@@ -51,10 +56,6 @@ public class SukimaBlock extends Block implements EntityBlock {
         return (lvl, pos, blkState, be) -> {
             if (be instanceof SukimaBlockEntity portal) {
                 portal.serverTick(GensokyouConfig.SUKIMA_PORTAL_OPEN_TICKS.get());
-                // 必须无条件同步：syncIfChanged() 内部已用 lastSent* 四个字段做差分，
-                // 外面再套一层「serverTick 返回 true 才同步」是重复门控，且会吞掉**最后一次**同步——
-                // 演出跑满那一刻 fxTicks 从 199 变 200，serverTick 此后恒返回 false，
-                // 客户端便永远停在中间值（如实测的 16），既不播完也不触发补播，屏幕上什么都不出现。
                 portal.syncIfChanged();
             }
         };

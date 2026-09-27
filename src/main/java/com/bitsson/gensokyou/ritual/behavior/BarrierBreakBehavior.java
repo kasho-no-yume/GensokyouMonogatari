@@ -69,7 +69,8 @@ public class BarrierBreakBehavior implements RitualBehavior {
 
     /** 启动爆发的击退半径（1× 眼基准，实际乘以尺寸标量）与力度。 */
     private static final double BURST_KNOCKBACK_RADIUS = 4.0D;
-    private static final double BURST_KNOCKBACK_STRENGTH = 0.85D;
+    /** 击退力度；{@code public} 是因为门体在爆炸那一 tick 调用它（见 {@link #burstKnockbackRadius}）。 */
+    public static final double BURST_KNOCKBACK_STRENGTH = 0.85D;
 
     private static final String KEY_STATE = "gui.gensokyou.ritual.barrier.state.";
     private static final String KEY_SUPPLY = "gui.gensokyou.ritual.barrier.supply";
@@ -355,18 +356,15 @@ public class BarrierBreakBehavior implements RitualBehavior {
                              RitualCoreBlockEntity core) {
         core.setBarrierLatched(true);
         consumeOfferings(level, offerings(level, match));
-        boolean twinPlaced = placePortals(level, corePos, core);
+        placePortals(level, corePos, core);
         core.setPortalPos(mainPortalPos(corePos));
-        // 击退范围随眼形尺寸同比放大（2× 眼 = 2× 波及半径）
-        double reach = BURST_KNOCKBACK_RADIUS * GensokyouConfig.BARRIER_PORTAL_SCALE.get();
-        knockback(level, corePos.above(PORTAL_UP), reach, BURST_KNOCKBACK_STRENGTH);
+        // 这里只播"门被召唤"的提示音。<b>击退不在此刻</b>——击退落在爆炸那一 tick，
+        // 由门体自身（SukimaBlockEntity#playShatterCues）依演出锚点触发：击退是玩法、
+        // 必须在服务端权威执行，而只有门体知道爆炸发生在第几 tick。
         burstSound(level, corePos.getX() + 0.5D, corePos.getY() + PORTAL_UP, corePos.getZ() + 0.5D);
-        if (twinPlaced) {
-            BlockPos twin = twinPortalPos(level, false);
-            if (twin != null) {
-                knockback(level, twin, reach, BURST_KNOCKBACK_STRENGTH);
-                burstSound(level, twin.getX() + 0.5D, twin.getY() + 0.5D, twin.getZ() + 0.5D);
-            }
+        BlockPos twin = twinPortalPos(level, false);
+        if (twin != null) {
+            burstSound(level, twin.getX() + 0.5D, twin.getY() + 0.5D, twin.getZ() + 0.5D);
         }
         ModNetworking.sendRitualInfoToViewers(level, corePos);
         // 戏剧性时刻：向附近玩家播报（不限于正在看界面的人）
@@ -379,12 +377,53 @@ public class BarrierBreakBehavior implements RitualBehavior {
     }
 
     /**
+     * 爆炸当刻的击退半径（格）。随眼形尺寸同比放大（2× 眼 = 2× 波及半径），
+     * 与烟环的 15 格<b>刻意不同</b>：击退半径调大会把玩家从祭坛上掀飞，
+     * 且与既有调好的手感冲突。
+     */
+    public static double burstKnockbackRadius(float portalScale) {
+        return BURST_KNOCKBACK_RADIUS * portalScale;
+    }
+
+    /**
+     * 让已开启的门重播整段「结界崩解」演出（双门同帧）。
+     *
+     * <p><b>仅供调试/实机验收</b>。仪式是<b>永久闩锁</b>的，且开启瞬间祭品已被消耗，
+     * 因此闩锁态下没有任何办法让演出再跑一遍——不加这个入口，表现就只能盲写。
+     * 它刻意<b>不</b>触碰闩锁、不重跑需求判定、不消耗祭品。
+     *
+     * @return 实际重播的门数（0 = 该核心没有已开启的门）
+     */
+    public static int replayShatter(ServerLevel level, BlockPos corePos, RitualCoreBlockEntity core) {
+        int burst = GensokyouConfig.SUKIMA_PORTAL_BURST_TICKS.get();
+        int replayed = 0;
+        BlockPos main = core != null && core.portalPos() != null
+                ? core.portalPos() : mainPortalPos(corePos);
+        if (level.getBlockEntity(main) instanceof SukimaBlockEntity portal) {
+            portal.requestOpen(portal.scale(), burst);
+            replayed++;
+        }
+        BlockPos twin = twinPortalPos(level, false);
+        // ⚠️ 孪生门在**幻想乡**，replay 也必须去那边找（原来误用 level，
+        // 于是 /gs_debug barrier replay 只能刷到主世界那扇，主世界之外的孪生门永远不重播）
+        ServerLevel gensokyo = twin == null ? null : gensokyoLevel(level);
+        if (gensokyo != null && gensokyo.getBlockEntity(twin) instanceof SukimaBlockEntity twinPortal) {
+            twinPortal.requestOpen(twinPortal.scale(), burst);
+            replayed++;
+        }
+        return replayed;
+    }
+
+    /**
      * 启动爆发的击退：一次性、非破坏性（MUST NOT 摧毁方块——仪式结构就围在核心周围，
      * 破坏性爆炸会炸掉自己的外环、立刻把结构打成失配）。
      *
      * <p>力度取自眼形尺寸，故放大后的门体波及范围同比变大。
+     *
+     * <p>{@code public}：调用点在门体自身（爆炸那一 tick，见 {@code SukimaBlockEntity}），
+     * 而击退是<b>玩法</b>不是表现，MUST 由服务端权威执行。
      */
-    static void knockback(ServerLevel level, BlockPos center, double radius, double strength) {
+    public static void knockback(ServerLevel level, BlockPos center, double radius, double strength) {
         if (radius <= 0.0D || strength <= 0.0D) {
             return;
         }
@@ -536,10 +575,22 @@ public class BarrierBreakBehavior implements RitualBehavior {
         if (twin == null) {
             return false;
         }
-        if (level.getBlockState(twin).is(ModBlocks.SUKIMA.get())) {
+        // ⚠️ 孪生门位是**幻想乡**里的坐标（twinPortalPos 内部走 gensokyoLevel），
+        // 所以放置与"先到先得"检查都 MUST 落在幻想乡侧。
+        // 曾经两处都误用 level（仪式的维度），后果有三条：
+        //   ① 孪生门被放进仪式的维度 ⇒ 同一维度出现两扇门，仪式靠近 (0,地表,0) 时
+        //      读作"旁边凭空多了一扇同步的门"（实机反馈）；
+        //   ② entityInside 把玩家传到**幻想乡**的 (0,地表,0)，那里根本没有门
+        //      ⇒ 过不去也回不来，"成对开门好让人原路返回"的意图彻底落空；
+        //   ③ 先到先得守卫查错维度，形同虚设。
+        ServerLevel gensokyo = gensokyoLevel(level);
+        if (gensokyo == null) {
+            return false;
+        }
+        if (gensokyo.getBlockState(twin).is(ModBlocks.SUKIMA.get())) {
             return false; // 先到先得：不覆盖既有孪生门
         }
-        placeAt(level, twin);
+        placeAt(gensokyo, twin);
         return true;
     }
 
@@ -556,8 +607,11 @@ public class BarrierBreakBehavior implements RitualBehavior {
             ok = false;
         }
         BlockPos twin = twinPortalPos(level, false);
-        if (twin != null && !gensokyoLevel(level).getBlockState(twin).is(ModBlocks.SUKIMA.get())) {
-            placeAt(level, twin);
+        // ⚠️ 同 placePortals：孪生门位属于**幻想乡**，放置 MUST 用幻想乡的 level。
+        // 这里原本只在"检查"上用了 gensokyoLevel(level)，"放置"却漏了。
+        ServerLevel gensokyo = twin == null ? null : gensokyoLevel(level);
+        if (gensokyo != null && !gensokyo.getBlockState(twin).is(ModBlocks.SUKIMA.get())) {
+            placeAt(gensokyo, twin);
         }
         return ok;
     }

@@ -79,12 +79,23 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue ICICLE_DAMAGE;
     public static final ModConfigSpec.IntValue ICICLE_COUNT;
     public static final ModConfigSpec.DoubleValue ICICLE_SPEED;
-    public static final ModConfigSpec.IntValue BARRIER_SP_COST;
+    public static final ModConfigSpec.LongValue BARRIER_CAPACITY;
+    public static final ModConfigSpec.LongValue BARRIER_DRAIN_PER_SECOND;
+    public static final ModConfigSpec.LongValue BARRIER_SUPPLY_HINT;
+    public static final ModConfigSpec.DoubleValue BARRIER_PORTAL_SCALE;
     public static final ModConfigSpec.IntValue WAND_MAX_DIMENSION;
     public static final ModConfigSpec.IntValue EDITOR_MAX_DIMENSION;
     public static final ModConfigSpec.IntValue RITUAL_BUILDER_OUTLINE_SECONDS;
     public static final ModConfigSpec.IntValue PASSIVE_CYCLE_TICKS;
     public static final ModConfigSpec.IntValue RITUAL_OUTPUT_DROP_RADIUS;
+    public static final ModConfigSpec.IntValue KANAYAMAHIKO_BASE_DURATION_SECONDS;
+    public static final ModConfigSpec.IntValue KANAYAMAHIKO_DURATION_LEVEL_DIVISOR;
+    public static final ModConfigSpec.IntValue KANAYAMAHIKO_BASE_DRAIN_PER_SECOND;
+    public static final ModConfigSpec.IntValue KANAYAMAHIKO_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue KANAYAMAHIKO_BASE_ROUTED_INPUT_PER_SECOND;
+    public static final ModConfigSpec.IntValue KANAYAMAHIKO_POWER_MULTIPLIER;
+    public static final ModConfigSpec.IntValue KANAYAMAHIKO_CAPACITY_MULTIPLIER;
+    public static final ModConfigSpec.IntValue KANAYAMAHIKO_IN_RATE_MULTIPLIER;
     public static final ModConfigSpec.DoubleValue KAGUTSUICHI_BASE_RATE_PER_SECOND;
     public static final ModConfigSpec.DoubleValue KAGUTSUICHI_BASE_OUT_RATE_PER_SECOND;
     public static final ModConfigSpec.IntValue KAGUTSUICHI_BASE_CAPACITY;
@@ -117,6 +128,9 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue FX_PILLAR_HEIGHT;
     public static final ModConfigSpec.IntValue FX_PILLAR_TICKS;
     public static final ModConfigSpec.DoubleValue FX_PILLAR_WIDTH;
+    public static final ModConfigSpec.IntValue SUKIMA_PORTAL_OPEN_TICKS;
+    public static final ModConfigSpec.IntValue SUKIMA_PORTAL_MOTES_PER_SEC;
+    public static final ModConfigSpec.IntValue SUKIMA_PORTAL_BURST_TICKS;
 
     // ---- watatsumi-fishing-ritual：绵津见神之藏（献祭钓鱼竿产水产/海洋特产）----
     public static final ModConfigSpec.IntValue WATATSUMI_BASE_COUNT;
@@ -134,6 +148,16 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue SHUJOU_SPIRIT_IN_RATE;
     public static final ModConfigSpec.IntValue SHUJOU_L2_OUTPUT_MULT;
     public static final ModConfigSpec.IntValue SHUJOU_LOOTING_LEVEL;
+    public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_CAPACITY_MULTIPLIER;
+    public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_BASE_IN_RATE_PER_SECOND;
+    public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_IN_RATE_MULTIPLIER;
+    public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_BASE_COST_PER_PEDESTAL;
+    public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_COST_MULTIPLIER;
+    public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_BASE_SAMPLE_COUNT;
+    public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_SAMPLE_COUNT_MULTIPLIER;
+    public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_CYCLE_TICKS;
+    public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_FAILURE_RETRY_TICKS;
 
     // ---- ritual-presentation-polish：迦具土贴地烈火场（原炎柱场重设计）----
     public static final ModConfigSpec.IntValue FX_FIRE_DENSITY_BASE;
@@ -147,6 +171,16 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue FX_FIRE_GLOW_INTENSITY;
     public static final ModConfigSpec.DoubleValue FX_FIRE_GLOW_PULSE_SPEED;
     public static final ModConfigSpec.DoubleValue FX_FIRE_SCROLL_SPEED;
+    public static final ModConfigSpec.IntValue FX_FORGE_EMBER_COUNT_BASE;
+    public static final ModConfigSpec.IntValue FX_FORGE_EMBER_COUNT_PER_TIER;
+    public static final ModConfigSpec.DoubleValue FX_FORGE_EMBER_RADIUS_RATIO;
+    public static final ModConfigSpec.DoubleValue FX_FORGE_EMBER_WIDTH;
+    public static final ModConfigSpec.DoubleValue FX_FORGE_EMBER_HEIGHT;
+    public static final ModConfigSpec.DoubleValue FX_FORGE_EMBER_LIFT;
+    public static final ModConfigSpec.IntValue FX_FORGE_PILLAR_PLANES;
+    public static final ModConfigSpec.IntValue FX_FORGE_PILLAR_SEGMENTS;
+    public static final ModConfigSpec.DoubleValue FX_FORGE_PILLAR_HEIGHT;
+    public static final ModConfigSpec.DoubleValue FX_FORGE_PILLAR_WIDTH;
     public static final ModConfigSpec.IntValue FX_RAMP_TICKS;
     public static final ModConfigSpec.DoubleValue FX_MIST_RADIUS;
     public static final ModConfigSpec.DoubleValue FX_MIST_BAND_WIDTH;
@@ -166,6 +200,33 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue FX_ORB_HOVER_PER_TIER;
     public static final ModConfigSpec.DoubleValue FX_ORB_BREATH_AMP;
     public static final ModConfigSpec.IntValue FX_ORB_BREATH_PERIOD_TICKS;
+    public static final ModConfigSpec.DoubleValue FX_FIELD_FILL;
+    public static final ModConfigSpec.DoubleValue FX_FIELD_ALPHA;
+    public static final ModConfigSpec.DoubleValue FX_FOCUS_RADIUS;
+    public static final ModConfigSpec.DoubleValue FX_FOCUS_HEIGHT;
+    public static final ModConfigSpec.DoubleValue FX_FOCUS_DENSITY;
+    public static final ModConfigSpec.DoubleValue FX_FOCUS_BREATH_AMP;
+    public static final ModConfigSpec.IntValue FX_FOCUS_BREATH_PERIOD_TICKS;
+    public static final ModConfigSpec.DoubleValue FX_FOCUS_BEAM_WIDTH;
+    public static final ModConfigSpec.DoubleValue FX_FOCUS_BEAM_ALPHA;
+    public static final ModConfigSpec.DoubleValue FX_PEDESTAL_BEAM_SOURCE_HEIGHT;
+    public static final ModConfigSpec.IntValue FX_SHATTER_BURST_TICKS;
+    public static final ModConfigSpec.DoubleValue FX_SHATTER_BALL_RADIUS;
+    public static final ModConfigSpec.IntValue FX_SHATTER_BALL_LAYERS;
+    public static final ModConfigSpec.IntValue FX_SHATTER_BEAM_COUNT;
+    public static final ModConfigSpec.DoubleValue FX_SHATTER_BEAM_REACH;
+    public static final ModConfigSpec.DoubleValue FX_SHATTER_BEAM_JITTER;
+    public static final ModConfigSpec.DoubleValue FX_SHATTER_RING_RADIUS;
+    public static final ModConfigSpec.IntValue FX_SHATTER_RING_LAYERS;
+    public static final ModConfigSpec.IntValue FX_SHATTER_RING_PUFFS_PER_LAYER;
+    public static final ModConfigSpec.DoubleValue FX_SHATTER_MOTE_ORBIT_SCALE;
+    public static final ModConfigSpec.IntValue FX_SHATTER_SCAN_RINGS;
+    public static final ModConfigSpec.IntValue FX_SHATTER_SCAN_PUFFS;
+    public static final ModConfigSpec.IntValue FX_SHATTER_INFLOW_PER_SEC;
+    public static final ModConfigSpec.IntValue FX_SHATTER_SHOCKWAVE_TICKS;
+    public static final ModConfigSpec.DoubleValue FX_SHATTER_SHOCKWAVE_RADIUS;
+    public static final ModConfigSpec.IntValue FX_SHATTER_SHOCKWAVE_PUFFS;
+    public static final ModConfigSpec.DoubleValue FX_SHATTER_SHAKE_SCALE;
     public static final ModConfigSpec.IntValue ZAOHUA_CRAFT_DURATION_TICKS;
     public static final ModConfigSpec.IntValue ZAOHUA_SPIRIT_IN_RATE_BASE;
     public static final ModConfigSpec.IntValue ZAOHUA_SPIRIT_IN_RATE_MULT;
@@ -258,7 +319,32 @@ public class GensokyouConfig {
     public static final ModConfigSpec.ConfigValue<List<? extends Double>> WEAPON_LEVEL_MULT;
     public static final ModConfigSpec.DoubleValue WEAPON_TALISMAN_PICK_RANGE;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> RUNE_AFFIX_POOL;
+    /** 玩家属性词条采样带行 "coreTier,key,pctMin,pctMax,weight"（缺项走内置默认带）。 */
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> RUNE_ATTR_BAND;
+    /** 弹幕护壁目标减伤带，index = 核阶-1，成对 (min,max)，反解 dP = -log2(1-r)。 */
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> RUNE_WARD_BAND;
+    /** 玩家属性词条的统一抽取权重（武器专有键沿用其行内权重）。 */
+    public static final ModConfigSpec.IntValue RUNE_ATTR_WEIGHT;
     public static final ModConfigSpec.ConfigValue<List<? extends Integer>> RUNE_AFFIX_COUNT;
+    public static final ModConfigSpec.IntValue RUNE_PITY_CAP;
+    public static final ModConfigSpec.DoubleValue RUNE_RANGE_DECAY_EXP;
+
+    // ---- seii-reroll-ritual：星移之仪阶梯 ----
+    public static final ModConfigSpec.LongValue SEII_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue SEII_CAPACITY_MULT;
+    public static final ModConfigSpec.LongValue SEII_BASE_IN_RATE;
+    public static final ModConfigSpec.IntValue SEII_IN_RATE_MULT;
+    public static final ModConfigSpec.LongValue SEII_BASE_SP_COST;
+    public static final ModConfigSpec.IntValue SEII_SP_COST_MULT;
+    public static final ModConfigSpec.IntValue SEII_PERFORM_TICKS;
+    /** 星移演出 FX（客户端 BER 本地生成，零网络包）：底座微光数基准 / 每阶增量。 */
+    public static final ModConfigSpec.IntValue FX_SEII_DIAL_GLOW_BASE;
+    public static final ModConfigSpec.IntValue FX_SEII_DIAL_GLOW_PER_TIER;
+    /** 铜环节点数（中阶起）与环半径（格）。 */
+    public static final ModConfigSpec.IntValue FX_SEII_RING_NODES;
+    public static final ModConfigSpec.DoubleValue FX_SEII_RING_RADIUS;
+    /** 天极星光柱高度（格，五阶起）。 */
+    public static final ModConfigSpec.IntValue FX_SEII_PILLAR_HEIGHT;
     public static final ModConfigSpec.DoubleValue CORE_SPHERE_MULT;
     public static final ModConfigSpec.IntValue CORE_SPHERE_SP_COST;
     public static final ModConfigSpec.IntValue CORE_SPHERE_RATE;
@@ -481,7 +567,7 @@ public class GensokyouConfig {
         BASE_REGEN_PER_SECOND = BUILDER.comment("Player self spirit regen base (balance-player-monster-stats: 0; regen comes from the grace tier table as a flat per-tier value)").defineInRange("baseRegenPerSecond", 0D, 0D, 1000D);
         RESONANCE_BASE_IN_QUOTA = BUILDER.comment("resonance relay: base input-link quota at tier 2, doubled per level").defineInRange("resonanceBaseInQuota", 2, 1, 1024);
         RESONANCE_BASE_OUT_QUOTA = BUILDER.comment("resonance relay: base output-link quota at tier 2, doubled per level").defineInRange("resonanceBaseOutQuota", 4, 1, 1024);
-        RESONANCE_BASE_RADIUS = BUILDER.comment("resonance relay: base XZ radius at tier 2, doubled per level (Y unlimited, same dimension)").defineInRange("resonanceBaseRadius", 10, 1, 1024);
+        RESONANCE_BASE_RADIUS = BUILDER.comment("resonance relay: base XZ radius at tier 2, doubled per level (Y unlimited, same dimension)").defineInRange("resonanceBaseRadius", 40, 1, 1024);
         SETTLE_PERIOD_TICKS = BUILDER.comment("spirit transfer settlement period in ticks (20 = 1s); rates are per second, transfers settle in batches of this period").defineInRange("settlePeriodTicks", 20, 1, 200);
         MU_POWER_NUMERATOR = BUILDER.comment("Damage taken multiplier = (numerator + level) / denominator").defineInRange("muPowerNumerator", 3D, 0D, 100D);
         MU_POWER_DENOMINATOR = BUILDER.defineInRange("muPowerDenominator", 2D, 1D, 100D);
@@ -489,7 +575,10 @@ public class GensokyouConfig {
         ICICLE_COUNT = BUILDER.defineInRange("icicleCardCount", 5, 1, 32);
         ICICLE_SPEED = BUILDER.defineInRange("icicleCardSpeed", 0.9D, 0.05D, 4D);
         BUILDER.push("barrier");
-        BARRIER_SP_COST = BUILDER.comment("One-time spirit power cost to break the barrier").defineInRange("barrierSpCost", 8000, 0, 100000000);
+        BARRIER_CAPACITY = BUILDER.comment("Barrier-break rite: core cache capacity. This is the ONLY hard activation gate (cache full + offerings satisfied)").defineInRange("barrierCapacity", 5000000L, 0L, 1000000000L);
+        BARRIER_DRAIN_PER_SECOND = BUILDER.comment("Barrier-break rite: spirit power bleeding out of the cache every second while charging").defineInRange("barrierDrainPerSecond", 150000L, 0L, 1000000000L);
+        BARRIER_SUPPLY_HINT = BUILDER.comment("Barrier-break rite: advisory total supply the player should prepare, losses included. Informational only - never blocks charging").defineInRange("barrierSupplyHint", 6000000L, 0L, 1000000000L);
+        BARRIER_PORTAL_SCALE = BUILDER.comment("Barrier-break rite: eye scale written onto its portals (1.0 = default eye size; 2.0 doubles width and height)").defineInRange("barrierPortalScale", 2.0D, 0.1D, 8.0D);
         BUILDER.pop();
         BUILDER.push("ritual");
         WAND_MAX_DIMENSION = BUILDER.comment("Max AABB dimension (blocks) the ritual wand can capture").defineInRange("wandMaxDimension", 16, 1, 64);
@@ -497,6 +586,14 @@ public class GensokyouConfig {
         RITUAL_BUILDER_OUTLINE_SECONDS = BUILDER.comment("How long the red conflict outline lingers after a blocked ritual build (seconds)").defineInRange("ritualBuilderOutlineSeconds", 15, 1, 60);
         PASSIVE_CYCLE_TICKS = BUILDER.comment("Cycle ticks for passive ritual recipe processing").defineInRange("passiveCycleTicks", 40, 1, 12000);
         RITUAL_OUTPUT_DROP_RADIUS = BUILDER.comment("Horizontal spawn radius (blocks, uniform over disc) around the ritual core for passive recipe output drops").defineInRange("ritualOutputDropRadius", 3, 0, 16);
+        KANAYAMAHIKO_BASE_DURATION_SECONDS = BUILDER.defineInRange("kanayamahikoBaseDurationSeconds", 8, 1, 3600);
+        KANAYAMAHIKO_DURATION_LEVEL_DIVISOR = BUILDER.defineInRange("kanayamahikoDurationLevelDivisor", 2, 1, 100);
+        KANAYAMAHIKO_BASE_DRAIN_PER_SECOND = BUILDER.defineInRange("kanayamahikoBaseDrainPerSecond", 200, 0, Integer.MAX_VALUE);
+        KANAYAMAHIKO_BASE_CAPACITY = BUILDER.defineInRange("kanayamahikoBaseCapacity", 40000, 1, Integer.MAX_VALUE);
+        KANAYAMAHIKO_BASE_ROUTED_INPUT_PER_SECOND = BUILDER.defineInRange("kanayamahikoBaseRoutedInputPerSecond", 4000, 0, Integer.MAX_VALUE);
+        KANAYAMAHIKO_POWER_MULTIPLIER = BUILDER.defineInRange("kanayamahikoPowerMultiplier", 4, 1, 1000);
+        KANAYAMAHIKO_CAPACITY_MULTIPLIER = BUILDER.defineInRange("kanayamahikoCapacityMultiplier", 4, 1, 1000);
+        KANAYAMAHIKO_IN_RATE_MULTIPLIER = BUILDER.defineInRange("kanayamahikoInRateMultiplier", 4, 1, 1000);
         KAGUTSUICHI_BASE_RATE_PER_SECOND = BUILDER.comment("Kagutsuchi Flame: base spirit power per second at level 0 (level N multiplies by 4^N)").defineInRange("kagutsuchiBaseRatePerSecond", 20D, 0D, 1000000D);
         KAGUTSUICHI_BASE_OUT_RATE_PER_SECOND = BUILDER.comment("Kagutsuchi Flame: base max routed output (supply) rate per second at level 0 (level N multiplies by 4^N); independent of the production rate above, defaults equal").defineInRange("kagutsuchiBaseOutRatePerSecond", 20D, 0D, 1000000D);
         KAGUTSUICHI_BASE_CAPACITY = BUILDER.comment("Kagutsuchi Flame: base buffer capacity at level 0 (level N multiplies by 10^N)").defineInRange("kagutsuchiBaseCapacity", 1000, 1, Integer.MAX_VALUE);
@@ -547,7 +644,23 @@ public class GensokyouConfig {
         SHUJOU_LOOTING_LEVEL = BUILDER.comment("Shujou: looting level simulated from level 1 onward (0 = no looting)").defineInRange("shujouLootingLevel", 3, 0, 10);
         BUILDER.pop();
 
+        BUILDER.push("houjounoTeihou");
+        HOUJOUNO_TEIHOU_BASE_CAPACITY = BUILDER.defineInRange("baseCapacity", 40000, 1, Integer.MAX_VALUE);
+        HOUJOUNO_TEIHOU_CAPACITY_MULTIPLIER = BUILDER.defineInRange("capacityMultiplier", 12, 1, 1000);
+        HOUJOUNO_TEIHOU_BASE_IN_RATE_PER_SECOND = BUILDER.defineInRange("baseInRatePerSecond", 40000, 0, Integer.MAX_VALUE);
+        HOUJOUNO_TEIHOU_IN_RATE_MULTIPLIER = BUILDER.defineInRange("inRateMultiplier", 12, 1, 1000);
+        HOUJOUNO_TEIHOU_BASE_COST_PER_PEDESTAL = BUILDER.defineInRange("baseCostPerPedestal", 4000, 0, Integer.MAX_VALUE);
+        HOUJOUNO_TEIHOU_COST_MULTIPLIER = BUILDER.defineInRange("costMultiplier", 4, 1, 1000);
+        HOUJOUNO_TEIHOU_BASE_SAMPLE_COUNT = BUILDER.defineInRange("baseSampleCount", 1, 1, 64);
+        HOUJOUNO_TEIHOU_SAMPLE_COUNT_MULTIPLIER = BUILDER.defineInRange("sampleCountMultiplier", 4, 1, 8);
+        HOUJOUNO_TEIHOU_CYCLE_TICKS = BUILDER.defineInRange("cycleTicks", 1200, 1, 72000);
+        HOUJOUNO_TEIHOU_FAILURE_RETRY_TICKS = BUILDER.defineInRange("failureRetryTicks", 20, 1, 1200);
+        BUILDER.pop();
+
         BUILDER.push("ritualFx").comment("Ritual runtime grid/shader FX (ritual-presentation-polish): fire bed, mist ribbon, bolt arcs, spirit orb");
+        SUKIMA_PORTAL_OPEN_TICKS = BUILDER.comment("Sukima portal: full eye open/close animation duration in ticks").defineInRange("sukimaPortalOpenTicks", 40, 2, 400);
+        SUKIMA_PORTAL_MOTES_PER_SEC = BUILDER.comment("Sukima portal: ambient green cross-stars (vanilla GLOW particle) emitted per second around an open eye, scaled by the eye open progress").defineInRange("sukimaPortalMotesPerSec", 80, 0, 512);
+        SUKIMA_PORTAL_BURST_TICKS = BUILDER.comment("Sukima portal: barrier-shatter charge duration in ticks, i.e. how long the blue-white ball grows and the light pillars fire before the burst and the eye opening. Driven client-side off the portal's own fxStartGameTime anchor, so this is a one-packet value on both sides").defineInRange("sukimaPortalBurstTicks", 160, 5, 1200);
         FX_FIRE_DENSITY_BASE = BUILDER.comment("Kagutsuchi fire bed: deterministic ground fire points at tier 0").defineInRange("fxFireDensityBase", 26, 1, 256);
         FX_FIRE_DENSITY_PER_TIER = BUILDER.comment("Kagutsuchi fire bed: extra ground fire points per tier").defineInRange("fxFireDensityPerTier", 10, 0, 128);
         FX_FIRE_RADIUS_RATIO = BUILDER.comment("Kagutsuchi fire bed: fraction of structure horizontal radius covered (hard-clamped <= structure radius, never spills outside)").defineInRange("fxFireRadiusRatio", 0.92D, 0.1D, 1.0D);
@@ -559,6 +672,18 @@ public class GensokyouConfig {
         FX_FIRE_GLOW_INTENSITY = BUILDER.comment("Kagutsuchi fire bed: ground glow alpha scale (0..1)").defineInRange("fxFireGlowIntensity", 0.55D, 0.0D, 1.0D);
         FX_FIRE_GLOW_PULSE_SPEED = BUILDER.comment("Kagutsuchi fire bed: ground glow pulse angular speed (rad/tick)").defineInRange("fxFireGlowPulseSpeed", 0.08D, 0.0D, 1.0D);
         FX_FIRE_SCROLL_SPEED = BUILDER.comment("Kagutsuchi fire bed: tongue texture V scroll speed (uv per tick) -> upward lick").defineInRange("fxFireScrollSpeed", 0.08D, 0.0D, 0.5D);
+        BUILDER.push("forge").comment("Kanayamahiko forge FX: dense ember field around the core + flame pillar on every burning pedestal");
+        FX_FORGE_EMBER_COUNT_BASE = BUILDER.comment("Forge ember field: flame wisps at ritual level 0").defineInRange("fxForgeEmberCountBase", 180, 0, 2048);
+        FX_FORGE_EMBER_COUNT_PER_TIER = BUILDER.comment("Forge ember field: extra flame wisps per ritual level").defineInRange("fxForgeEmberCountPerTier", 70, 0, 1024);
+        FX_FORGE_EMBER_RADIUS_RATIO = BUILDER.comment("Forge ember field: fraction of structure horizontal radius covered (hard-clamped, never spills outside)").defineInRange("fxForgeEmberRadiusRatio", 1.0D, 0.1D, 1.0D);
+        FX_FORGE_EMBER_WIDTH = BUILDER.comment("Forge ember field: wisp half-width in blocks").defineInRange("fxForgeEmberWidth", 0.14D, 0.01D, 1.0D);
+        FX_FORGE_EMBER_HEIGHT = BUILDER.comment("Forge ember field: wisp height in blocks").defineInRange("fxForgeEmberHeight", 0.42D, 0.02D, 3.0D);
+        FX_FORGE_EMBER_LIFT = BUILDER.comment("Forge ember field: how high wisps rise while fading (blocks)").defineInRange("fxForgeEmberLift", 1.35D, 0.0D, 6.0D);
+        FX_FORGE_PILLAR_PLANES = BUILDER.comment("Forge pedestal pillar: cross planes per flame column (more = rounder, pricier)").defineInRange("fxForgePillarPlanes", 3, 1, 8);
+        FX_FORGE_PILLAR_SEGMENTS = BUILDER.comment("Forge pedestal pillar: ribbon segments per plane").defineInRange("fxForgePillarSegments", 6, 2, 24);
+        FX_FORGE_PILLAR_HEIGHT = BUILDER.comment("Forge pedestal pillar: flame column height in blocks").defineInRange("fxForgePillarHeight", 1.5D, 0.2D, 6.0D);
+        FX_FORGE_PILLAR_WIDTH = BUILDER.comment("Forge pedestal pillar: flame column half-width in blocks").defineInRange("fxForgePillarWidth", 0.34D, 0.02D, 1.5D);
+        BUILDER.pop();
         FX_RAMP_TICKS = BUILDER.comment("Fade in/out envelope length in ticks for all ritual FX (no single-frame pop)").defineInRange("fxRampTicks", 4, 1, 20);
         FX_MIST_RADIUS = BUILDER.comment("Spirit mist ribbon base orbit radius around the tower axis (blocks)").defineInRange("fxMistRadius", 3.0D, 0.5D, 10.0D);
         FX_MIST_BAND_WIDTH = BUILDER.comment("Spirit mist ribbon half-width (blocks); thick & visible per requirement").defineInRange("fxMistBandWidth", 1.6D, 0.2D, 4.0D);
@@ -572,12 +697,39 @@ public class GensokyouConfig {
         FX_BOLT_JITTER = BUILDER.comment("Bolt perpendicular offset magnitude (blocks, mid-length max; ends taper to 0)").defineInRange("fxBoltJitter", 0.6D, 0.0D, 3.0D);
         FX_BOLT_CORE_WIDTH = BUILDER.comment("Bolt bright-core ribbon half-width (blocks)").defineInRange("fxBoltCoreWidth", 0.16D, 0.02D, 1.0D);
         FX_BOLT_GLOW_WIDTH = BUILDER.comment("Bolt outer-glow ribbon half-width (blocks)").defineInRange("fxBoltGlowWidth", 0.5D, 0.05D, 2.0D);
-        FX_ORB_RADIUS_BASE = BUILDER.comment("Bafang Guiyuan spirit orb radius at tier 0 (blocks)").defineInRange("fxOrbRadiusBase", 0.7D, 0.1D, 4.0D);
-        FX_ORB_RADIUS_PER_TIER = BUILDER.comment("Spirit orb radius added per tier").defineInRange("fxOrbRadiusPerTier", 1.6D, 0.0D, 8.0D);
-        FX_ORB_HOVER_BASE = BUILDER.comment("Spirit orb center height above core top at tier 0 (blocks)").defineInRange("fxOrbHoverBase", 1.3D, 0.3D, 6.0D);
-        FX_ORB_HOVER_PER_TIER = BUILDER.comment("Spirit orb hover added per tier").defineInRange("fxOrbHoverPerTier", 0.18D, 0.0D, 2.0D);
-        FX_ORB_BREATH_AMP = BUILDER.comment("Spirit orb breathing scale amplitude (fraction of radius)").defineInRange("fxOrbBreathAmp", 0.06D, 0.0D, 0.5D);
-        FX_ORB_BREATH_PERIOD_TICKS = BUILDER.comment("Spirit orb breathing full-cycle period (ticks)").defineInRange("fxOrbBreathPeriodTicks", 40, 4, 400);
+        FX_ORB_RADIUS_BASE = BUILDER.comment("Bafang Guiyuan qi FIELD radius at tier 0 (blocks)").defineInRange("fxOrbRadiusBase", 0.7D, 0.1D, 4.0D);
+        FX_ORB_RADIUS_PER_TIER = BUILDER.comment("Qi field radius added per tier").defineInRange("fxOrbRadiusPerTier", 1.6D, 0.0D, 8.0D);
+        FX_ORB_HOVER_BASE = BUILDER.comment("Qi field center height above core top at tier 0 (blocks)").defineInRange("fxOrbHoverBase", 1.3D, 0.3D, 6.0D);
+        FX_ORB_HOVER_PER_TIER = BUILDER.comment("Qi field hover added per tier").defineInRange("fxOrbHoverPerTier", 0.18D, 0.0D, 2.0D);
+        FX_ORB_BREATH_AMP = BUILDER.comment("Qi field breathing scale amplitude (fraction of radius)").defineInRange("fxOrbBreathAmp", 0.06D, 0.0D, 0.5D);
+        FX_ORB_BREATH_PERIOD_TICKS = BUILDER.comment("Qi field breathing full-cycle period (ticks)").defineInRange("fxOrbBreathPeriodTicks", 40, 4, 400);
+        FX_FIELD_FILL = BUILDER.comment("Qi field interior base density (0 = hollow shell, 1 = solid ball). Keep low: the field must read as mist with no silhouette").defineInRange("fxFieldFill", 0.08D, 0.0D, 1.0D);
+        FX_FIELD_ALPHA = BUILDER.comment("Qi field overall alpha scale. Lower than the old 220/255 so the field stays background once the focus core exists").defineInRange("fxFieldAlpha", 0.6D, 0.0D, 1.0D);
+        FX_FOCUS_RADIUS = BUILDER.comment("Focus core radius (blocks)").defineInRange("fxFocusRadius", 1.0D, 0.1D, 4.0D);
+        FX_FOCUS_HEIGHT = BUILDER.comment("Focus core center height above the CORE BLOCK TOP FACE (blocks)").defineInRange("fxFocusHeight", 1.5D, 0.0D, 8.0D);
+        FX_FOCUS_DENSITY = BUILDER.comment("Focus core interior base opacity (alpha blending, so this really occludes). 0.72 => ~0.92 effective through the middle, since both hemispheres are drawn").defineInRange("fxFocusDensity", 0.72D, 0.0D, 1.0D);
+        FX_FOCUS_BREATH_AMP = BUILDER.comment("Focus core breathing scale amplitude (fraction of radius)").defineInRange("fxFocusBreathAmp", 0.10D, 0.0D, 0.5D);
+        FX_FOCUS_BREATH_PERIOD_TICKS = BUILDER.comment("Focus core breathing full-cycle period (ticks)").defineInRange("fxFocusBreathPeriodTicks", 30, 4, 400);
+        FX_FOCUS_BEAM_WIDTH = BUILDER.comment("Pedestal->core beam half-width (blocks)").defineInRange("fxFocusBeamWidth", 0.16D, 0.01D, 1.0D);
+        FX_FOCUS_BEAM_ALPHA = BUILDER.comment("Pedestal->core beam alpha scale. Cyan-white so 24 of them do not merge into the green core").defineInRange("fxFocusBeamAlpha", 0.85D, 0.0D, 1.0D);
+        FX_PEDESTAL_BEAM_SOURCE_HEIGHT = BUILDER.comment("Beam start height above the pedestal block (blocks)").defineInRange("fxPedestalBeamSourceHeight", 1.1D, 0.0D, 3.0D);
+        FX_SHATTER_BURST_TICKS = BUILDER.comment("Barrier shatter: smoke ring expansion window in ticks, starting at the burst instant").defineInRange("fxShatterBurstTicks", 40, 5, 400);
+        FX_SHATTER_BALL_RADIUS = BUILDER.comment("Barrier shatter: final blue-white ball radius in blocks (must be monotonic; the ball grows 0 -> this over the charge window)").defineInRange("fxShatterBallRadius", 3.0D, 0.25D, 16.0D);
+        FX_SHATTER_BALL_LAYERS = BUILDER.comment("Barrier shatter: concentric billboard layers making up the charging ball (more layers = smoother radial falloff, cost is linear). MUST stay >= 2: a single layer is a flat disc, not a ball").defineInRange("fxShatterBallLayers", 6, 2, 24);
+        FX_SHATTER_BEAM_COUNT = BUILDER.comment("Barrier shatter: radial light pillars fired from the ball centre during the charge window").defineInRange("fxShatterBeamCount", 10, 0, 32);
+        FX_SHATTER_BEAM_REACH = BUILDER.comment("Barrier shatter: how far each light pillar extends past the ball surface, as a fraction of the ball radius").defineInRange("fxShatterBeamReach", 1.6D, 0.1D, 6.0D);
+        FX_SHATTER_BEAM_JITTER = BUILDER.comment("Barrier shatter: perpendicular jitter of each pillar's polyline (blocks)").defineInRange("fxShatterBeamJitter", 0.7D, 0.0D, 4.0D);
+        FX_SHATTER_RING_RADIUS = BUILDER.comment("Barrier shatter: final smoke ring radius in blocks. A horizontal ring, not a sphere: the middle stays clear so the player keeps sight of the ritual").defineInRange("fxShatterRingRadius", 15.0D, 1.0D, 48.0D);
+        FX_SHATTER_RING_LAYERS = BUILDER.comment("Barrier shatter: horizontal layers of puffs forming the ring (gives it thickness instead of a 2D circle)").defineInRange("fxShatterRingLayers", 3, 1, 8);
+        FX_SHATTER_RING_PUFFS_PER_LAYER = BUILDER.comment("Barrier shatter: puffs per ring layer").defineInRange("fxShatterRingPuffsPerLayer", 24, 4, 96);
+        FX_SHATTER_MOTE_ORBIT_SCALE = BUILDER.comment("Barrier shatter: ambient green cross-star orbit radius as a multiple of the eye half-width/height. Keep near 1.0: the orbit already sits outside the eye, and vanilla GLOW particles add their own ~0.8-block upward drift on top. Motes stop being emitted beyond 24 blocks regardless").defineInRange("fxShatterMoteOrbitScale", 1.15D, 0.5D, 8.0D);
+        FX_SHATTER_SCAN_RINGS = BUILDER.comment("Barrier shatter: bright rings sweeping the charging ball's surface. They give the growing ball a readable SIZE reference; 0 disables").defineInRange("fxShatterScanRings", 3, 0, 8);
+        FX_SHATTER_SCAN_PUFFS = BUILDER.comment("Barrier shatter: camera-facing puffs per scan ring (cost is linear)").defineInRange("fxShatterScanPuffs", 28, 6, 96);
+        FX_SHATTER_INFLOW_PER_SEC = BUILDER.comment("Barrier shatter: vanilla END_ROD particles spawned just outside the charging ball and spiralling inward, visually consumed as the ball grows. 0 disables").defineInRange("fxShatterInflowPerSec", 26, 0, 256);
+        FX_SHATTER_SHOCKWAVE_TICKS = BUILDER.comment("Barrier shatter: ground shockwave ring lifetime in ticks, starting at the burst instant. Deliberately much faster than the smoke ring (fxShatterBurstTicks): the shockwave is THE hit, the smoke is the afterglow. 0 disables").defineInRange("fxShatterShockwaveTicks", 20, 0, 200);
+        FX_SHATTER_SHOCKWAVE_RADIUS = BUILDER.comment("Barrier shatter: final ground shockwave ring radius in blocks").defineInRange("fxShatterShockwaveRadius", 9.0D, 0.5D, 48.0D);
+        FX_SHATTER_SHOCKWAVE_PUFFS = BUILDER.comment("Barrier shatter: puffs on the ground shockwave ring (cost is linear)").defineInRange("fxShatterShockwavePuffs", 40, 6, 128);
+        FX_SHATTER_SHAKE_SCALE = BUILDER.comment("Barrier shatter: camera roll/pitch shake multiplier, applied on top of the built-in amplitudes (peak roll 15.6 deg, peak pitch 10.9 deg at 1.0 and point-blank range). This is the knob to turn if it feels too weak or too nauseating -- no rebuild needed. 0 disables shake entirely").defineInRange("fxShatterShakeScale", 1.0D, 0.0D, 3.0D);
         BUILDER.pop();
         BUILDER.push("skills").comment("Learned spell card slots");
         SKILL_MUSOU_SP_COST = BUILDER.defineInRange("musouFuuinSpCost", 120, 0, 10000);
@@ -653,10 +805,12 @@ public class GensokyouConfig {
                 .defineListAllowEmpty("weaponLevelMult", List.of(1.0D, 2.0D, 4.0D), o -> o instanceof Double);
         WEAPON_TALISMAN_PICK_RANGE = BUILDER.comment("Talisman core target raytrace range (blocks)")
                 .defineInRange("talismanPickRange", 40D, 4D, 128D);
-        RUNE_AFFIX_POOL = BUILDER.comment("Affix pool entries: id,min,max,weight,tier (exact tier; per-tier ranges)."
-                        + " tiers follow the weapon band (T1=tier1-2, T2=tier3-4, T3=tier5); 3 tiers total."
-                        + " ids: damage_pct / attack_rate_pct / spirit_cost_pct / crit_chance_pct / crit_damage_pct"
-                        + " (unknown ids are ignored). Max-roll total budget <= +80% effective DPS (rune-affix-pool spec)")
+        RUNE_AFFIX_POOL = BUILDER.comment("Weapon-only affix pool entries: id,min,max,weight,coreTier (EXACT core tier)."
+                        + " Core tiers follow the weapon band (T1=tier1-2, T2=tier3-4, T3=tier5); 3 tiers total."
+                        + " ids: damage_pct / attack_rate_pct / spirit_cost_pct / range_pct."
+                        + " Player-attribute affixes are NOT listed here - they come from AttributeKey"
+                        + " and are scaled by RUNE_ATTR_BAND instead."
+                        + " Max-roll total budget <= +80% effective DPS (rune-affix-pool spec)")
                 .defineListAllowEmpty("runeAffixPool",
                         List.of(
                                 "damage_pct,0.03,0.06,10,1", "damage_pct,0.07,0.12,10,2",
@@ -665,13 +819,36 @@ public class GensokyouConfig {
                                 "attack_rate_pct,0.10,0.15,8,3",
                                 "spirit_cost_pct,-0.08,-0.03,8,1", "spirit_cost_pct,-0.14,-0.06,8,2",
                                 "spirit_cost_pct,-0.22,-0.10,8,3",
-                                "crit_chance_pct,0.02,0.04,6,1", "crit_chance_pct,0.04,0.07,6,2",
-                                "crit_chance_pct,0.06,0.12,6,3",
-                                "crit_damage_pct,0.06,0.12,5,1", "crit_damage_pct,0.14,0.25,5,2",
-                                "crit_damage_pct,0.25,0.45,5,3"),
+                                "range_pct,0.03,0.06,6,1", "range_pct,0.06,0.10,6,2",
+                                "range_pct,0.08,0.12,6,3"),
                         o -> o instanceof String);
-        RUNE_AFFIX_COUNT = BUILDER.comment("Affixes rolled onto one amp core, index = tier-1 (3 tiers, follow the weapon band)")
-                .defineListAllowEmpty("runeAffixCount", List.of(2, 3, 4), o -> o instanceof Integer);
+        RUNE_ATTR_BAND = BUILDER.comment("Player-attribute affix band entries: coreTier,key,pctMin,pctMax,weight."
+                        + " value = uniform(pctMin,pctMax) * (cumulative grace-tier standard value of that key"
+                        + " at the reference player tier: coreTier1->tier1, coreTier2->tier3, coreTier3->tier5)."
+                        + " So an affix is always 'a few percent of what you already built' and never decays"
+                        + " relatively as the player grows. Missing rows fall back to the built-in default bands"
+                        + " (T1 1-3% / T2 2-5% / T3 5-8%).")
+                .defineListAllowEmpty("runeAttrBand", List.of(), o -> o instanceof String);
+        RUNE_WARD_BAND = BUILDER.comment("danmaku_reduce is a dimensionless exponent P (damage taken x 2^-P), so a"
+                        + " percentage-of-P band is degenerate. These entries are target MITIGATION percentages,"
+                        + " index = coreTier-1, converted by dP = -log2(1-r). T3 5-8% mitigation = +0.074~0.120 P.")
+                .defineListAllowEmpty("runeWardBand", List.of(0.01D, 0.03D, 0.02D, 0.05D, 0.05D, 0.08D),
+                        o -> o instanceof Double);
+        RUNE_ATTR_WEIGHT = BUILDER.comment("Flat draw weight applied to every player-attribute affix key"
+                        + " (weapon-only keys keep their per-row weight). Tunes how likely the roll pool leans"
+                        + " player-attribute vs weapon-only.")
+                .defineInRange("runeAttrWeight", 6, 1, 100);
+        RUNE_AFFIX_COUNT = BUILDER.comment("Affixes rolled onto one amp core, index = coreTier-1 (3 tiers, follow the weapon band)")
+                .defineListAllowEmpty("runeAffixCount", List.of(1, 3, 5), o -> o instanceof Integer);
+        RUNE_PITY_CAP = BUILDER.comment("Soft-pity ramp for amp-core rerolls: band widening reaches full strength at"
+                        + " this rune_rerolls count. t = min(rerolls,cap)/cap; lo' = lo+(hi-lo)*t*0.5;"
+                        + " hi' = lo+(hi-lo)*(1+t*0.5). Rerolls halve on accept.")
+                .defineInRange("runePityCap", 10, 1, 1000);
+        RUNE_RANGE_DECAY_EXP = BUILDER.comment("range_pct diminishing-returns exponent: effective multiplier ="
+                        + " (1+r)^exp. 0.75 turns +12% into +8.9%. The ONLY safeguard needed - a single core"
+                        + " holds at most one range_pct (same-id uniqueness) and a weapon has one amp-core slot,"
+                        + " so no hard cap is required.")
+                .defineInRange("runeRangeDecayExp", 0.75D, 0.1D, 4D);
         BUILDER.push("coreSphere");
         CORE_SPHERE_MULT = BUILDER.defineInRange("coreBaseMult", 1.0D, 0D, 100D);
         CORE_SPHERE_SP_COST = BUILDER.defineInRange("spiritCost", 10, 0, 10000);
@@ -727,6 +904,39 @@ public class GensokyouConfig {
         CORE_LASER_CANNON_DURATION = BUILDER.comment("Active phase seconds").defineInRange("durationSeconds", 3.0D, 0.05D, 30D);
         BUILDER.pop();
         BUILDER.pop();
+        BUILDER.pop();
+
+        BUILDER.push("seii").comment("seii-reroll-ritual: 星移之仪 wash ladder");
+        SEII_BASE_CAPACITY = BUILDER.comment("Spirit cache at ritual level 1; capacity = base * mult^(level-1)."
+                        + " Seii deliberately does NOT use the grace/craft session-state capacity override -"
+                        + " its cache is a real buffer that carries leftovers into the next wash.")
+                .defineInRange("baseCapacity", 50_000L, 0L, Long.MAX_VALUE);
+        SEII_CAPACITY_MULT = BUILDER.comment("Cache multiplier per ritual level (x12 => level 1/3/5 = 50k/7.2M/1.037B)")
+                .defineInRange("capacityMult", 12, 1, 1000);
+        SEII_BASE_IN_RATE = BUILDER.comment("Intake rate at ritual level 1, per second."
+                        + " Derivation: (highest core tier this ritual level may wash) spCost / 1.5s."
+                        + " L1 washes T1 (30k) => 20k/s; L3 washes T2 (3M) => 2M/s; L5 washes T3 (300M) => 200M/s")
+                .defineInRange("baseInRate", 20_000L, 1L, Long.MAX_VALUE);
+        SEII_IN_RATE_MULT = BUILDER.comment("Intake rate multiplier per ritual level (x10)")
+                .defineInRange("inRateMult", 10, 1, 1000);
+        SEII_BASE_SP_COST = BUILDER.comment("Wash cost for a T1 amp core; cost = base * mult^(coreTier-1)."
+                        + " Cost follows the CORE tier, not the ritual level: core tier = payoff ladder,"
+                        + " ritual level = throughput ladder.")
+                .defineInRange("baseSpCost", 30_000L, 0L, Long.MAX_VALUE);
+        SEII_SP_COST_MULT = BUILDER.comment("Wash cost multiplier per core tier (x100 => T1/T2/T3 = 30k/3M/300M)")
+                .defineInRange("spCostMult", 100, 1, 1000);
+    SEII_PERFORM_TICKS = BUILDER.comment("Star-shift performance length in ticks (60 = 3s)")
+            .defineInRange("performTicks", 60, 20, 2400);
+    FX_SEII_DIAL_GLOW_BASE = BUILDER.comment("Seii FX: ground dial glow particles per tick at ritual level 1")
+            .defineInRange("fxSeiiDialGlowBase", 12, 0, 64);
+    FX_SEII_DIAL_GLOW_PER_TIER = BUILDER.comment("Seii FX: extra ground dial glow particles per ritual level")
+            .defineInRange("fxSeiiDialGlowPerTier", 6, 0, 64);
+    FX_SEII_RING_NODES = BUILDER.comment("Seii FX: orbiting copper-ring nodes (ritual level >= 3)")
+            .defineInRange("fxSeiiRingNodes", 8, 0, 32);
+    FX_SEII_RING_RADIUS = BUILDER.comment("Seii FX: copper-ring radius in blocks (ritual level >= 3)")
+            .defineInRange("fxSeiiRingRadius", 2.0D, 0.25D, 8.0D);
+    FX_SEII_PILLAR_HEIGHT = BUILDER.comment("Seii FX: celestial light-column height in blocks (ritual level 5)")
+            .defineInRange("fxSeiiPillarHeight", 6, 1, 32);
         BUILDER.pop();
 
         BUILDER.push("crystal").comment("Endless Treasury Crystal item storage (rework-crystal-storage: dual-mode)");

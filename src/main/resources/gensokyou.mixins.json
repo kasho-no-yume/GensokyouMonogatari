@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "minVersion": "0.8.5",
+  "package": "com.bitsson.gensokyou.mixin.client",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "LevelRendererShakeMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

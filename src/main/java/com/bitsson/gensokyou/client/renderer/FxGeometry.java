@@ -4,6 +4,10 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
+import org.joml.Quaternionfc;
+import org.joml.Vector3f;
 
 /**
  * 仪式运行态特效共享几何（ritual-fx-overhaul D2）：从 {@link LaserDanmakuRenderer}
@@ -24,6 +28,69 @@ public final class FxGeometry {
     private static final double RAD = 180.0D / Math.PI;
 
     private FxGeometry() {
+    }
+
+    /**
+     * 闪电弧折线顶点：等长分段 + 垂直双向随机抖动，抖动幅度沿正弦包络、<b>两端归零</b>。
+     *
+     * <p>供<b>两处</b>共用：万象共鸣塔的持续放电弧（{@code RitualCoreRenderer#renderBolts}）
+     * 与结界崩解的径向光柱（{@code SukimaPortalRenderer}）。抽到这里而不是各写一份，
+     * 是因为"抖动折线"这个形态本身已经实机验证过，复制一份等于复制一份待回归的代码。
+     *
+     * <p>返回 {@code [x,y,z]*(segments+1)}，供 {@link #emitAlignedBeam} 逐段消费。
+     * 结果完全由 {@code seed} 决定：同一 seed 恒给出同一条折线，所以"重掷形状"可以安全地
+     * 按节奏切换而不产生抖动。
+     *
+     * @param segLen      目标段长（格）；实际段数为 {@code clamp(dist/segLen, 4, maxSegments)}
+     * @param jitter      垂直抖动幅度（格）
+     * @param maxSegments 段数上限（防长距离通道段数无界增长）
+     */
+    public static float[] buildBoltPoints(float ax, float ay, float az, float bx, float by, float bz,
+                                           float segLen, float jitter, int maxSegments, long seed) {
+        float dx = bx - ax, dy = by - ay, dz = bz - az;
+        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        int segments = Mth.clamp((int) (dist / Math.max(0.1F, segLen)), 4, maxSegments);
+        // 垂直正交基：u 取水平垂向，v = dir×u，均需归一（v 长度含 |d| 因子，勿遗漏）
+        float ux, uy, uz;
+        if (Math.sqrt(dx * dx + dz * dz) > 1.0E-4F) {
+            ux = -dz;
+            uy = 0.0F;
+            uz = dx;
+        } else {
+            ux = 1.0F;
+            uy = 0.0F;
+            uz = 0.0F;
+        }
+        float ul = (float) Math.sqrt(ux * ux + uy * uy + uz * uz);
+        ux /= ul;
+        uy /= ul;
+        uz /= ul;
+        float vx = dy * uz - dz * uy;
+        float vy = dz * ux - dx * uz;
+        float vz = dx * uy - dy * ux;
+        float vl = (float) Math.sqrt(vx * vx + vy * vy + vz * vz);
+        if (vl < 1.0E-4F) {
+            vx = 0.0F;
+            vy = 1.0F;
+            vz = 0.0F;
+        } else {
+            vx /= vl;
+            vy /= vl;
+            vz /= vl;
+        }
+        RandomSource random = RandomSource.create(seed);
+        float[] pts = new float[(segments + 1) * 3];
+        for (int i = 0; i <= segments; i++) {
+            float t = i / (float) segments;
+            float amp = i == 0 || i == segments ? 0.0F
+                    : jitter * Mth.sin(t * (float) Math.PI);
+            float o1 = random.nextFloat() * 2.0F - 1.0F;
+            float o2 = random.nextFloat() * 2.0F - 1.0F;
+            pts[i * 3] = Mth.lerp(t, ax, bx) + (ux * o1 + vx * o2) * amp;
+            pts[i * 3 + 1] = Mth.lerp(t, ay, by) + (uy * o1 + vy * o2) * amp;
+            pts[i * 3 + 2] = Mth.lerp(t, az, bz) + (uz * o1 + vz * o2) * amp;
+        }
+        return pts;
     }
 
     /** 输出一个自发光顶点（NEW_ENTITY 格式；法线固定朝上，加法材质不依赖精确法线）。 */
@@ -101,7 +168,16 @@ public final class FxGeometry {
     }
 
     /**
-     * 端点十字光斑（落雷点等）：三轴三张全幅贴图面片交叉，径向渐变贴图下任意角度呈光晕。
+     * 端点十字光斑（落雷点、激光终点等）：三轴三张全幅贴图面片交叉，径向渐变贴图下任意角度呈光晕。
+     *
+     * <p><b>⚠️ 只适用于"单个点的高亮"。</b>因为它发的是<b>轴对齐</b>方片（不是 billboard），
+     * 所以：① 掠射角会被透视压成扁椭圆/薄片；② 拿它堆 N 份凑体积时，每份都自带
+     * <b>完整</b>的径向渐变，于是 N 份叠起来是"一堆各自成形的球"而<b>不是</b>一个球
+     * （加法叠加只会让 N 个球心一起变亮，永不合并）；③ 拿它排成水平环时，XZ 面片被压扁、
+     * XY/YZ 面片立成板，整圈读作"被拉长的椭圆"。
+     *
+     * <p>要画<b>体积</b>（光球、灵气场）或要每团都是<b>正圆</b>（烟、雾），
+     * 用 {@link #emitBillboard}——同心分层或 camera-facing 精灵。
      */
     public static void emitCrossGlow(PoseStack pose, VertexConsumer c,
                                      float cx, float cy, float cz, float half,
@@ -126,6 +202,47 @@ public final class FxGeometry {
             pose.popPose();
         }
         pose.popPose();
+    }
+
+    /**
+     * **正对摄像机**的单张面片（billboard）。
+     *
+     * <p>与 {@link #emitCrossGlow} 的根本区别：那张发的是<b>三张轴对齐方片</b>（XY/XZ/YZ），
+     * 靠"任意角度都有正对分量"来冒充体积。代价是<b>它只在正对时才是圆的</b>——
+     * 掠射角会被透视压成扁椭圆/薄片。这是上一版结界崩解被读成
+     * 「一堆小球」和「一圈被拉长的椭圆」的唯一原因：蓄能球是 40 个斐波那球点各带 3 张
+     * 轴对齐方片，屏幕上是 120 个各自带完整径向渐变的亮心；烟环在无旋转的世界系里发同样的
+     * 轴对齐方片，平视时 XZ 面片被压扁、XY/YZ 面片立成板。
+     *
+     * <p>本方法按传入的摄像机旋转把面片摆正，于是<b>无论从哪个角度看每一片都是正圆</b>，
+     * 且多片叠加能积成平滑的径向衰减（这正是"读作一个球/一团烟"的前提）。
+     *
+     * <p>刻意<b>不</b>在本类里取摄像机：保持"不依赖摄像机向量"的既有约定，
+     * 旋转由调用方传入（渲染器手里有 {@code dispatcher.camera}）。
+     *
+     * @param halfW 半宽（沿摄像机右向量）；传 {@code halfH == halfW} 即正圆
+     * @param halfH 半高（沿摄像机上向量）
+     */
+    public static void emitBillboard(VertexConsumer c, PoseStack.Pose pose, Quaternionfc camRot,
+                                     float cx, float cy, float cz,
+                                     float halfW, float halfH,
+                                     int r, int g, int b, int a) {
+        if (halfW <= 0F || halfH <= 0F || a <= 0) {
+            return;
+        }
+        // 摄像机右/上向量：把局部 X、Y 轴转到世界，即得到面片所在平面的两条轴。
+        // ⚠️ 调用方的局部系 MUST 只有平移、没有旋转（否则这里要把 pose 的旋转逆掉）。
+        //    结界崩解的演出段正好满足：传入姿态仅平移，故世界方向即可直接当局部方向用。
+        Vector3f right = new Vector3f(1.0F, 0.0F, 0.0F);
+        Vector3f up = new Vector3f(0.0F, 1.0F, 0.0F);
+        camRot.transform(right);
+        camRot.transform(up);
+        float rx = right.x() * halfW, ry = right.y() * halfW, rz = right.z() * halfW;
+        float ux = up.x() * halfH, uy = up.y() * halfH, uz = up.z() * halfH;
+        vertex(c, pose, cx - rx - ux, cy - ry - uy, cz - rz - uz, 0.0F, 1.0F, r, g, b, a);
+        vertex(c, pose, cx + rx - ux, cy + ry - uy, cz + rz - uz, 1.0F, 1.0F, r, g, b, a);
+        vertex(c, pose, cx + rx + ux, cy + ry + uy, cz + rz + uz, 1.0F, 0.0F, r, g, b, a);
+        vertex(c, pose, cx - rx + ux, cy - ry + uy, cz - rz + uz, 0.0F, 0.0F, r, g, b, a);
     }
 
     /**

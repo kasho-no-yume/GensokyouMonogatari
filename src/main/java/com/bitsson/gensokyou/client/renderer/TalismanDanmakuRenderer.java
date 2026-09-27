@@ -65,6 +65,19 @@ public class TalismanDanmakuRenderer extends AbstractDanmakuRenderer<TalismanDan
         super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
     }
 
+    /**
+     * 本渲染器<b>不是 billboard</b>：纸面放平于局部 X-Z 水平面，外法向是局部 +Y 而非 +Z。
+     * 外发光沿 +Y 推离 0.004 格，使它与纸面不共面。
+     *
+     * <p><b>已知接受的瑕疵</b>：纸面 {@code noCull} 双面可见，而偏移只有一个方向，
+     * 故从<b>正下方</b>观察时外发光落在纸背之后、会被纸面写入的深度拒掉。外发光 alpha
+     * 仅 110，实际不可见。若日后见到"灵符仰视时没有光晕"，答案在此，不是新 bug。
+     */
+    @Override
+    protected void offsetGlow(PoseStack poseStack) {
+        poseStack.translate(0.0D, GLOW_OFFSET, 0.0D);
+    }
+
     @Override
     protected void renderShape(TalismanDanmaku entity, PoseStack poseStack, VertexConsumer consumer,
                                 int r, int g, int b, int a, int light) {

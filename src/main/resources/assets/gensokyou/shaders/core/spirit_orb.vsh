@@ -13,8 +13,9 @@ out vec3 viewNormal;
 out vec3 viewPos;
 out vec2 scrollCoord;
 
-/* 灵气球（ritual-fx-overhaul D6）：单位球心在原点，法线 = normalize(Position)。
-   UV 为球面参数化坐标，双轴漂移采样雾噪声出"气"的流动。 */
+/* Qi field (ritual-fx-overhaul D6): unit sphere centred on the origin, normal =
+   normalize(Position). UV is the spherical parameterisation, used only as a two-axis
+   coordinate for scrolling mist noise. */
 void main() {
     vec4 mv = ModelViewMat * vec4(Position, 1.0);
     gl_Position = ProjMat * mv;

@@ -374,53 +374,10 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         }
     }
 
-    /** 折线顶点：等长分段 + 垂直双向随机抖动，正弦包络两端归零。返回 [x,y,z]*。 */
+    /** 折线顶点：等长分段 + 垂直双向随机抖动，正弦包络两端归零。见 {@link FxGeometry#buildBoltPoints}。 */
     private static float[] buildBoltPoints(float ax, float ay, float az, float bx, float by, float bz,
                                            float segLen, float jitter, int maxSegments, long seed) {
-        float dx = bx - ax, dy = by - ay, dz = bz - az;
-        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        int segments = Mth.clamp((int) (dist / Math.max(0.1F, segLen)), 4, maxSegments);
-        // 垂直正交基：u 取水平垂向，v = dir×u，均需归一（v 长度含 |d| 因子，勿遗漏）
-        float ux, uy, uz;
-        if (Math.sqrt(dx * dx + dz * dz) > 1.0E-4F) {
-            ux = -dz;
-            uy = 0.0F;
-            uz = dx;
-        } else {
-            ux = 1.0F;
-            uy = 0.0F;
-            uz = 0.0F;
-        }
-        float ul = (float) Math.sqrt(ux * ux + uy * uy + uz * uz);
-        ux /= ul;
-        uy /= ul;
-        uz /= ul;
-        float vx = dy * uz - dz * uy;
-        float vy = dz * ux - dx * uz;
-        float vz = dx * uy - dy * ux;
-        float vl = (float) Math.sqrt(vx * vx + vy * vy + vz * vz);
-        if (vl < 1.0E-4F) {
-            vx = 0.0F;
-            vy = 1.0F;
-            vz = 0.0F;
-        } else {
-            vx /= vl;
-            vy /= vl;
-            vz /= vl;
-        }
-        RandomSource random = RandomSource.create(seed);
-        float[] pts = new float[(segments + 1) * 3];
-        for (int i = 0; i <= segments; i++) {
-            float t = i / (float) segments;
-            float amp = i == 0 || i == segments ? 0.0F
-                    : jitter * Mth.sin(t * (float) Math.PI);
-            float o1 = random.nextFloat() * 2.0F - 1.0F;
-            float o2 = random.nextFloat() * 2.0F - 1.0F;
-            pts[i * 3] = Mth.lerp(t, ax, bx) + (ux * o1 + vx * o2) * amp;
-            pts[i * 3 + 1] = Mth.lerp(t, ay, by) + (uy * o1 + vy * o2) * amp;
-            pts[i * 3 + 2] = Mth.lerp(t, az, bz) + (uz * o1 + vz * o2) * amp;
-        }
-        return pts;
+        return FxGeometry.buildBoltPoints(ax, ay, az, bx, by, bz, segLen, jitter, maxSegments, seed);
     }
 
     private static float[] boltEnvelopes(BlockPos pos, int channels) {

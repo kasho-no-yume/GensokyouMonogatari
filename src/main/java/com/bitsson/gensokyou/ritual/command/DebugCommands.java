@@ -125,6 +125,12 @@ public final class DebugCommands {
                                     return probeKagutsuchi(context.getSource().getPlayerOrException(), pos);
                                 })))
                 .then(Commands.literal("barrier")
+                        .then(Commands.literal("replay")
+                                .then(Commands.argument("core",
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                        .executes(context -> replayBarrier(context.getSource(),
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                        .getLoadedBlockPos(context, "core")))))
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
                                 .executes(context -> probeBarrier(context.getSource(),
@@ -708,6 +714,32 @@ public final class DebugCommands {
     private static void emitGs(net.minecraft.commands.CommandSourceStack source, String msg) {
         Gensokyou.LOGGER.info(msg);
         source.sendSystemMessage(Component.literal(msg));
+    }
+
+    /**
+     * 资源源探测：重播 [GS-AUTO] BARRIER REPLAY —— 让已开启的隙间门再放一遍「结界崩解」演出。
+     *
+     * <p>仪式是<b>永久闩锁</b>的且开启瞬间祭品已被消耗，闩锁态下没有任何别的办法让演出
+     * 再跑一遍；没有这个入口，表现就只能盲写（历史上正是"观测不到"被当成了"不存在"）。
+     * 刻意不触碰闩锁、不重跑需求判定、不消耗祭品。
+     */
+    private static int replayBarrier(net.minecraft.commands.CommandSourceStack source,
+                                     net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        if (!(serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core)) {
+            emitGs(source, "[GS-AUTO] BARRIER REPLAY NO-CORE");
+            return 1;
+        }
+        int replayed = com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior
+                .replayShatter(serverLevel, pos, core);
+        emitGs(source, "[GS-AUTO] BARRIER REPLAY doors=" + replayed
+                + " latched=" + core.isBarrierLatched()
+                + " burstTicks=" + com.bitsson.gensokyou.config.GensokyouConfig
+                        .SUKIMA_PORTAL_BURST_TICKS.get());
+        return replayed > 0 ? 1 : 0;
     }
 
     /** 赛尔能源探针：单行 [GS-AUTO] SAIR，含缓存/上限/供灵速率与命中态。 */

@@ -237,53 +237,88 @@ class BarrierOfferingSlotTest {
     // ------------------------------------------------------------------ 开眼动画两条曲线
 
     /**
-     * <b>内景与眼缘不得脱钩。</b>
+     * <b>内景与眼缘不得脱钩（横向）。</b>
      *
      * <p>实机连续反馈「开闭动画不正确、像上下浮动了一下」。结构上眼睑<b>确实</b>已整体绕 Z 倾
      * 10°（与用户所述一致），开闭轴随之倾斜；真正的缺陷是一次改动里给内景虚空与眼睑外框
-     * 用了<b>两条不同曲线</b>，而两者在几何上是同一条边界：
+     * 用了<b>两条不同曲线</b>，而两者在几何上是同一条边界。
+     *
+     * <p>开合轴已翻到<b>竖直长轴</b>：眼形是 1 格宽 × 2 格高的<b>竖立杏仁</b>，尖端在左右两侧
+     * 的眼中线高度，故唯一的开合量是<b>横向半宽</b>，左右两片眼睑各覆盖半个杏仁：
      *
      * <pre>
-     *   虚空上缘   = UPPER_LID * scale * s
-     *   上片眼睑上沿 = 2 * (0.5 * UPPER_LID * scale * s) = UPPER_LID * scale * s
+     *   内景全宽     = 2 * voidHalfW(s, scale)
+     *   两片合计     = 2 * (2 * lidPieceHalfW(s, scale)) = 2 * voidHalfW(s, scale)
      * </pre>
-     *
-     * <p>两条曲线下 {@code s} 不同，黑色内景就会<b>溢出眼缘</b>或<b>小于眼缘</b>，
-     * 表现为开闭进度错位——视觉上恰好像「开闭轴歪了」。
      *
      * <p>本断言钉死这个 2 倍关系：若有人又给两者分别推导不同曲线，本条即失败。
      */
     @Test
     void voidInteriorStaysRegisteredWithTheRim() {
-        float scale = 2.0F;
-        // \u9010\u5f00\u5408\u7cfb\u6570\u626b\uff08\u542b\u8fc7\u51b2\u6bb5 >1\uff09\uff0c\u786e\u4fdd 2:1 \u5728\u6574\u4e2a\u533a\u95f4\u90fd\u6210\u7acb\u3002
-        for (float travel : new float[]{0.0F, 0.35F, 2.0F}) {
+        for (float scale : new float[]{1.0F, 2.0F}) {
             for (float t = 0.0F; t <= 1.0F; t += 0.01F) {
-                float extent = SukimaPortalRenderer.lensExtent(t, travel);
-                assertEquals(2.0F * SukimaPortalRenderer.lidUpQuadHalf(extent, scale),
-                        SukimaPortalRenderer.voidUpHalf(extent, scale), 1.0E-5F,
-                        "t=" + t + " travel=" + travel
-                                + " \u5185\u666f\u4e0e\u773c\u7eb2\u8131\u94a9\uff1a\u9ed1\u8272\u4f1a\u6ea2\u51fa\u6216\u5c0f\u4e8e\u773c\u7eb2\u8f6e\u5ed3");
+                float extent = SukimaPortalRenderer.lensExtent(t);
+                assertEquals(2.0F * (2.0F * SukimaPortalRenderer.lidPieceHalfW(extent, scale)),
+                        2.0F * SukimaPortalRenderer.voidHalfW(extent, scale), 1.0E-5F,
+                        "t=" + t + " scale=" + scale
+                                + " 内景与眼缘脱钩：黑色会溢出或小于眼缘轮廓");
             }
         }
     }
 
     /**
-     * \u5916\u6846\u5fc5\u987b\u4fdd\u7559\u8fc7\u51b2\uff08\u5426\u5219\u5931\u53bb\u300c\u731b\u5730\u7741\u5f00\u300d\u7684\u56de\u5f39\u624b\u611f\uff09\uff0c
-     * \u4f46\u8fc7\u51b2\u5fc5\u987b\u6709\u754c\u2014\u2014\u8fc7\u5f3a\u4f1a\u628a\u773c\u7eb2\u649e\u5f97\u8fc7\u5927\uff0c\u53cd\u800c\u8bfb\u4e0d\u51fa\u662f\u5728\u7741\u773c\u3002
+     * <b>纵向跨度 MUST NOT 随开合进度变化。</b>
+     *
+     * <p>开合轴是竖直长轴，纵向（上盖 0.85 / 下弧 1.15）恒定：若有人误把纵向也挂上
+     * {@code s}，闭眼态就会退化成一条 1 格宽的<b>水平</b>细缝——那正是本次要修掉的旧行为。
      */
     @Test
-    void rimKeepsBoundedOvershoot() {
-        float peak = 0.0F;
-        for (float t = 0.0F; t <= 1.0F; t += 0.01F) {
-            peak = Math.max(peak, SukimaPortalRenderer.lensExtent(t, 0.35F));
+    void verticalSpanIsConstantAcrossTheOpenCycle() {
+        for (float scale : new float[]{1.0F, 2.0F}) {
+            for (float t = 0.0F; t <= 1.0F; t += 0.01F) {
+                assertEquals(1.0F, SukimaPortalRenderer.voidHalfH(scale) / scale, 1.0E-4F,
+                        "纵向半跨度必须恒为 (0.85+1.15)/2 * scale，与开合进度无关（t=" + t + "）");
+            }
         }
-        assertTrue(peak > 1.0F, "\u5916\u6846\u5e94\u4fdd\u7559\u8fc7\u51b2\u56de\u5f39\uff0c\u5b9e\u6d4b\u5cf0\u503c " + peak);
-        assertTrue(peak < 1.35F, "\u5916\u6846\u8fc7\u51b2\u8fc7\u5f3a\uff08\u5cf0\u503c " + peak + "\uff09\uff0c\u4f1a\u628a\u773c\u7eb2\u649e\u5f97\u8fc7\u5927");
-        assertEquals(0.0F, SukimaPortalRenderer.lensExtent(0.0F, 0.35F), 1.0E-6F,
-                "t=0 \u5e94\u4e3a\u5b8c\u5168\u95ed\u5408");
-        assertEquals(1.0F, SukimaPortalRenderer.lensExtent(1.0F, 0.35F), 1.0E-6F,
-                "t=1 \u5e94\u4e3a\u81ea\u7136\u5168\u5f00");
+    }
+
+    /**
+     * <b>开合 MUST NOT 过冲。</b>
+     *
+     * <p>旧的 easeOutBack 过冲回弹观感很差（读作「弹一下」而不是「睁开」），已退役。
+     * 曲线 MUST 单调不减、终值精确为自然尺寸、全程最大值不超过自然尺寸。
+     */
+    @Test
+    void openCycleIsMonotonicAndNeverOvershoots() {
+        float peak = 0.0F;
+        float previous = -1.0F;
+        for (float t = 0.0F; t <= 1.0F; t += 0.001F) {
+            float extent = SukimaPortalRenderer.lensExtent(t);
+            assertTrue(extent >= previous - 1.0E-6F,
+                    "开合系数必须单调不减，t=" + t + " 处出现回退（" + previous + " -> " + extent + "）");
+            previous = extent;
+            peak = Math.max(peak, extent);
+        }
+        assertEquals(1.0F, peak, 1.0E-6F, "全程最大值必须恰为自然尺寸，不得过冲（实测峰值 " + peak + "）");
+        assertEquals(0.0F, SukimaPortalRenderer.lensExtent(0.0F), 1.0E-6F, "t=0 应为完全闭合");
+        assertEquals(1.0F, SukimaPortalRenderer.lensExtent(1.0F), 1.0E-6F, "t=1 应为自然全开");
+    }
+
+    /**
+     * <b>闭眼态是竖缝而非横缝。</b>
+     *
+     * <p>开合轴 = 竖直长轴，故 {@code t=0} 时横向半宽归零而纵向全高保留：一条贯穿 2 格
+     * 全高、宽度趋零的竖直细缝。横向若不归零，就说明轴又翻回了旧的纵向缩放。
+     */
+    @Test
+    void closedStateIsAVerticalSlit() {
+        float scale = 2.0F;
+        assertEquals(0.0F, SukimaPortalRenderer.voidHalfW(0.0F, scale), 1.0E-6F,
+                "闭眼时横向半宽必须归零（否则闭眼态是一条水平细缝，开合轴反了）");
+        assertTrue(SukimaPortalRenderer.voidHalfH(scale) > 0.0F,
+                "闭眼时纵向半跨度必须保留（长轴恒定）");
+        assertTrue(SukimaPortalRenderer.voidHalfH(scale) > SukimaPortalRenderer.voidHalfW(1.0F, scale),
+                "全开时长轴（纵向）仍应比短轴（横向）长——眼形是 1 宽 x 2 高的竖立杏仁");
     }
 
     // ------------------------------------------------------------------ 眼睑贴图分辨率
