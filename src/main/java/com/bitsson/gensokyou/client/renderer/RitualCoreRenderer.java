@@ -2,11 +2,17 @@ package com.bitsson.gensokyou.client.renderer;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
+import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
+import com.bitsson.gensokyou.client.ritual.ClientRitualData;
 import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualFxLayout;
+import com.bitsson.gensokyou.ritual.RitualPedestals;
 import com.bitsson.gensokyou.ritual.RitualRenderState;
+import com.bitsson.gensokyou.spirit.SpiritCoreItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -15,12 +21,14 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 仪式核心运行态特效渲染器：据只读渲染态按 {@code kind} 分发——
@@ -38,6 +46,9 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/fire_tongue.png");
     private static final ResourceLocation FIRE_BED_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/fire_bed.png");
+    /** 煅炉火星场专用噪声火团：与火柱的 fire_tongue 刻意分开的第二张图。 */
+    private static final ResourceLocation FIRE_EMBER_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/fire_ember.png");
     private static final ResourceLocation MIST_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/spirit_mist.png");
     private static final ResourceLocation BOLT_CORE_TEXTURE =
@@ -47,11 +58,36 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
     private static final ResourceLocation CAP_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/entity/laser_cap.png");
 
-    // 闪电弧通道色沿用原语义：入=青蓝、出=绿；雾带紫、灵气球绿。
     private static final int MIST_R = 199, MIST_G = 92, MIST_B = 250;
     private static final int MIST_DIM_R = 120, MIST_DIM_G = 52, MIST_DIM_B = 160;
-    private static final int IN_R = 76, IN_G = 191, IN_B = 242;
-    private static final int OUT_R = 76, OUT_G = 217, OUT_B = 89;
+
+    /**
+     * 闪电弧通道色：入（抽取侧）= <b>青绿</b> {@code #1FD0C8}、出（注入侧）= <b>橙红</b>
+     * {@code #FF6040}。二者为互补色对——在加法混合的过曝区里，邻近色相（旧的青↔绿）会一起
+     * 泛白而不可分，互补对则各自保持可辨。雾带紫、灵气球绿不在此列。
+     */
+    private static final int IN_R = 31, IN_G = 208, IN_B = 200;
+    private static final int OUT_R = 255, OUT_G = 96, OUT_B = 64;
+
+    /**
+     * 亮芯层向白提亮比例。<b>MUST NOT 超过 0.58</b>——亮芯 alpha 高（235）且是远处主导画面的
+     * 那一层，旧的 0.72 意味着 72% 白，加法混合下双向弧一起洗白，正是「特定情况下分不出
+     * 输入输出」的主因。0.58 仍保证亮芯至少保留 42% 通道色相。
+     */
+    private static final float BOLT_CORE_WHITEN = 0.58F;
+
+    /**
+     * 落点端光斑向白提亮比例。**两端必须异色**，否则弧体本体洗白后读不出流向：
+     * 塔端用通道本色（能量自此出发），落点端提亮 40%（能量在此汇聚）。
+     */
+    private static final float BOLT_TARGET_CAP_WHITEN = 0.4F;
+
+    /**
+     * 八方归元祭品台汇流激光色：<b>青白</b> {@code #C8F0FF}。
+     *
+     * <p>MUST NOT 与焦点核同族（核为绿）。24 条绿激光叠在绿核上会糊成一团、读不出条数。
+     */
+    private static final int BEAM_R = 200, BEAM_G = 240, BEAM_B = 255;
 
     /** 雾带螺旋角速度（rad/tick，沿旧 age=now*0.05 口径）。 */
     private static final float MIST_ROT_SPEED = 0.05F;
@@ -62,6 +98,17 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
     private static final Map<BlockPos, float[]> BOLT_ENVELOPES = new WeakHashMap<>();
     /** 闪电弧折线缓存：pos → 路径（按 roll tick 重掷）。 */
     private static final Map<BlockPos, BoltPaths> BOLT_PATHS = new WeakHashMap<>();
+    /** 星移演出逐 tick 发射去重：pos → 上次发射的 gameTime（BER 逐帧回调，不去重会按帧率放大）。 */
+    private static final Map<BlockPos, Long> SEII_LAST_TICK = new WeakHashMap<>();
+    /** 八方归元祭品台激光逐台包络：pos → float[台数]。台数随阶级变，重建时保留已有分量。 */
+    private static final Map<BlockPos, float[]> BAFANG_BEAM_ENVELOPES = new WeakHashMap<>();
+    /**
+     * 八方归元台位偏移缓存：阶级 → 该阶台位（相对核心，规范序）。
+     *
+     * <p>纯函数结果，故可长期缓存；数据源（pattern JSON）登录时一次性下发，之后不变。
+     * 用 ConcurrentHashMap 而非 WeakHashMap：key 是小整数 boxed，无需也不应回收。
+     */
+    private static final Map<Integer, List<BlockPos>> BAFANG_PEDESTALS = new ConcurrentHashMap<>();
 
     public RitualCoreRenderer(BlockEntityRendererProvider.Context context) {
     }
@@ -82,12 +129,16 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             }
             case RitualRenderState.KIND_KAGUTSUICHI ->
                     renderFlame(blockEntity, state, now, poseStack, bufferSource);
+            case RitualRenderState.KIND_KANAYAMAHIKO ->
+                    renderForge(blockEntity, state, now, poseStack, bufferSource);
             case RitualRenderState.KIND_BAFANG ->
                     renderOrb(blockEntity, state, now, poseStack, bufferSource);
             case RitualRenderState.KIND_SACRIFICE ->
                     renderPillar(blockEntity, state, now, poseStack, bufferSource);
             case RitualRenderState.KIND_WUJINZANG ->
                     renderWujinzang(blockEntity, state, now, poseStack, bufferSource);
+            case RitualRenderState.KIND_SEII ->
+                    renderSeii(blockEntity, state, now, poseStack, bufferSource);
             default -> {
             }
         }
@@ -115,10 +166,19 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         int kind = blockEntity.renderState().kind();
         double r = kind == RitualRenderState.KIND_RELAY ? 96.0D
                 : kind == RitualRenderState.KIND_WUJINZANG ? 32.0D : 16.0D;
+        // 煅炉火星场铺满结构水平半径（maxY 即半径），L2 约 20 格，向上抬到火柱顶
+        double forgeLift = GensokyouConfig.FX_FORGE_EMBER_LIFT.get()
+                + GensokyouConfig.FX_FORGE_PILLAR_HEIGHT.get();
         double up = kind == RitualRenderState.KIND_WUJINZANG
-                ? Math.max(48.0D, GensokyouConfig.FX_WUJINZANG_LASER_HEIGHT.get()) : 48.0D;
-        return new AABB(p.getX() - r, p.getY() - 16.0D, p.getZ() - r,
-                p.getX() + r, p.getY() + up, p.getZ() + r);
+                ? Math.max(48.0D, GensokyouConfig.FX_WUJINZANG_LASER_HEIGHT.get())
+                : kind == RitualRenderState.KIND_KANAYAMAHIKO
+                        ? Math.max(16.0D, blockEntity.renderState().maxY() + forgeLift)
+                        : 48.0D;
+        double radius = kind == RitualRenderState.KIND_KANAYAMAHIKO
+                ? Math.max(r, blockEntity.renderState().maxY() + 1.0D)
+                : r;
+        return new AABB(p.getX() - radius, p.getY() - 16.0D, p.getZ() - radius,
+                p.getX() + radius, p.getY() + up, p.getZ() + radius);
     }
 
     /** 距离上限放宽：共鸣塔链接半径最高 ±80，且特效本体远大于核心，取宽松值。 */
@@ -247,6 +307,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         // 三遍严格顺序提交：请求不同 RenderType 会**立即结算上一批**（BufferSource 别名规则），
         // 因此绝不可先把多个 consumer 全取出来再交叉写（首测崩溃 "Not building!" 即此）。
         // 每遍开始前才 getBuffer，遍内只写同一种 RenderType。
+        // 两端落点光斑：塔端取通道本色、落点端同色相向白提亮，使流向在弧体洗白时仍可读。
         VertexConsumer caps = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(CAP_TEXTURE));
         for (int i = 0; i < channels; i++) {
             float[] pts = ptsOf[i];
@@ -263,7 +324,11 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                     glowHalf * 1.5F * env, cr, cg, cb, (int) (160F * env));
             int last = segments * 3;
             FxGeometry.emitCrossGlow(poseStack, caps, pts[last], pts[last + 1], pts[last + 2],
-                    glowHalf * 1.7F * env, cr, cg, cb, (int) (190F * env));
+                    glowHalf * 1.7F * env,
+                    (int) Mth.lerp(BOLT_TARGET_CAP_WHITEN, 255, cr),
+                    (int) Mth.lerp(BOLT_TARGET_CAP_WHITEN, 255, cg),
+                    (int) Mth.lerp(BOLT_TARGET_CAP_WHITEN, 255, cb),
+                    (int) (190F * env));
         }
         VertexConsumer glowBuf = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(BOLT_GLOW_TEXTURE));
         for (int i = 0; i < channels; i++) {
@@ -301,9 +366,9 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                 FxGeometry.emitAlignedBeam(poseStack, coreBuf,
                         pts[i0], pts[i0 + 1], pts[i0 + 2], pts[i1], pts[i1 + 1], pts[i1 + 2],
                         coreHalf * env, 2, scroll + s * 0.7F,
-                        (int) Mth.lerp(0.72F, out ? OUT_R : IN_R, 255),
-                        (int) Mth.lerp(0.72F, out ? OUT_G : IN_G, 255),
-                        (int) Mth.lerp(0.72F, out ? OUT_B : IN_B, 255),
+                        (int) Mth.lerp(BOLT_CORE_WHITEN, out ? OUT_R : IN_R, 255),
+                        (int) Mth.lerp(BOLT_CORE_WHITEN, out ? OUT_G : IN_G, 255),
+                        (int) Mth.lerp(BOLT_CORE_WHITEN, out ? OUT_B : IN_B, 255),
                         (int) (235F * env));
             }
         }
@@ -451,9 +516,176 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                 0.0D, 0.02D, 0.0D);
     }
 
-    // ================================================================ 灵气球
+    // ============================================================ 金山彦命煅炉
 
-    /** 八方归元灵气球：fresnel shader 球 + 阶级缩放 + 呼吸（含轻微上下浮动）。 */
+    /**
+     * 煅炉燃烧表现（两段）：
+     * <ol>
+     *   <li><b>密集火星场</b>：结构水平半径内铺满小型火舌几何（{@link RitualFxLayout#emberField}），
+     *       每点按自身 {@code cycle} 上升并渐隐，视觉等同"大量火焰粒子"——
+     *       MUST NOT 走 {@link ParticleTypes}，全部是加法混合交叉面片。</li>
+     *   <li><b>祭品台火柱</b>：仅对 {@code movingMask} 中点亮的台位绘制分段 ribbon 火柱，
+     *       台面物品本身被火舌包裹；熄灭位立即收火（包络淡出，无硬切）。</li>
+     * </ol>
+     * 两种几何共用同一 RenderType，故可一次 {@code getBuffer} 连续写完，无需分批。
+     */
+    private void renderForge(RitualCoreBlockEntity be, RitualRenderState state, double now,
+                             PoseStack poseStack, MultiBufferSource buffers) {
+        BlockPos core = be.getBlockPos();
+        float env = advanceEnvelope(core, 3, state.enabled() && state.forgeBurning() ? 1F : 0F, now);
+        if (env <= 0F) {
+            return;
+        }
+        int tier = state.tier();
+        // 火星场与火柱用**两张不同纹理**，故是两种 RenderType；必须"取一批写完再取下一批"，
+        // 绝不能交叉写（取新 RenderType 会立即结算上一批）。
+        VertexConsumer embersOut = buffers.getBuffer(
+                DanmakuRenderTypes.additiveGlow(FIRE_EMBER_TEXTURE));
+
+        // ---- 1. 密集火星场 ----
+        List<RitualFxLayout.EmberPoint> embers = RitualFxLayout.emberField(
+                core, tier,
+                GensokyouConfig.FX_FORGE_EMBER_COUNT_BASE.get(),
+                GensokyouConfig.FX_FORGE_EMBER_COUNT_PER_TIER.get(),
+                state.maxY(),   // kind=KANAYAMAHIKO 时 maxY 语义为结构水平半径
+                GensokyouConfig.FX_FORGE_EMBER_RADIUS_RATIO.get());
+        float emberHalf = GensokyouConfig.FX_FORGE_EMBER_WIDTH.get().floatValue();
+        float emberHeight = GensokyouConfig.FX_FORGE_EMBER_HEIGHT.get().floatValue();
+        float lift = GensokyouConfig.FX_FORGE_EMBER_LIFT.get().floatValue();
+        // 上升周期（tick）：阶级越高火星越密，单点循环越快，铺满感来自"数量"而非"速度"
+        double cycleTicks = Math.max(6.0D, 26.0D - 4.0D * tier);
+        float scroll = (float) (now * GensokyouConfig.FX_FIRE_SCROLL_SPEED.get() * 1.6D);
+        for (RitualFxLayout.EmberPoint ember : embers) {
+            float edgeFade = 1.0F - 0.55F * ember.edge();
+            if (edgeFade <= 0.01F) {
+                continue;
+            }
+            RandomSource phase = RandomSource.create(ember.seed());
+            float jitter = phase.nextFloat();
+            // 每个点一个循环相位：t=0 生于台面，t=1 升到最高并熄灭
+            float t = (float) (((now / cycleTicks) + ember.cycle()) % 1.0D);
+            float rise = lift * t;
+            // 淡入（前 18%）— 稳定 — 淡出（后 55%），端点都收 0，避免整片硬切
+            float fadeOut = (float) Mth.smoothstep((t - 0.45D) / 0.55D);
+            float envelope = Math.min(1.0F, t / 0.18F) * (1.0F - Mth.clamp(fadeOut, 0.0F, 1.0F));
+            float flicker = 0.72F + 0.28F * Mth.sin((float) (now * 0.35D + jitter * 12.56D));
+            float scale = ember.scale() * edgeFade * flicker * envelope * env;
+            if (scale <= 0.02F) {
+                continue;
+            }
+            // 越升越淡越宽（火焰受热膨胀的观感）
+            float swell = 1.0F + 0.45F * t;
+            poseStack.pushPose();
+            poseStack.translate(ember.x(), ember.y() + 1.0D + rise, ember.z());
+            FxGeometry.emitCrossPlanes(poseStack, embersOut, 2,
+                    emberHalf * scale * swell, emberHeight * scale,
+                    scroll + jitter, scroll + jitter + emberHeight,
+                    255, 176, 92, (int) (200F * scale));
+            poseStack.popPose();
+        }
+
+        // ---- 2. 祭品台火柱（火舌条带贴图，与火星场刻意区分）----
+        VertexConsumer flames = buffers.getBuffer(
+                DanmakuRenderTypes.additiveGlow(FIRE_TONGUE_TEXTURE));
+        int planes = GensokyouConfig.FX_FORGE_PILLAR_PLANES.get();
+        int segments = GensokyouConfig.FX_FORGE_PILLAR_SEGMENTS.get();
+        float pillarHalf = GensokyouConfig.FX_FORGE_PILLAR_WIDTH.get().floatValue();
+        float pillarHeight = GensokyouConfig.FX_FORGE_PILLAR_HEIGHT.get().floatValue();
+        float pillarScroll = (float) (now * GensokyouConfig.FX_FIRE_SCROLL_SPEED.get() * 1.15D);
+        for (int i = 0; i < state.channelCount(); i++) {
+            if (!state.forgePedestalBurning(i)) {
+                continue;
+            }
+            BlockPos ped = state.linkAt(i);
+            poseStack.pushPose();
+            poseStack.translate(ped.getX() - core.getX() + 0.5D, 1.0D,
+                    ped.getZ() - core.getZ() + 0.5D);
+            // 外层焰：宽而暗
+            emitForgePillar(poseStack, flames, planes, segments, now, i,
+                    pillarHalf * 1.9F, pillarHeight * 1.15F, pillarScroll, 0.42F * env);
+            // 内芯：窄而亮
+            emitForgePillar(poseStack, flames, planes, segments, now, i + 7,
+                    pillarHalf * 0.85F, pillarHeight, pillarScroll + 0.37F, 0.85F * env);
+            poseStack.popPose();
+        }
+    }
+
+    /**
+     * 单根分段火柱：每面沿高 {@code segments} 段 ribbon，逐段收束 + 摆动 + 渐隐。
+     *
+     * @param intensity 亮度/不透明度系数（外焰暗、内芯亮）
+     */
+    private void emitForgePillar(PoseStack poseStack, VertexConsumer c, int planes, int segments,
+                                 double now, int phase, float halfWidth, float height,
+                                 float scroll, float intensity) {
+        float ph = phase * 2.3999632F;
+        float prevLeft = 0.0F;
+        float prevRight = 0.0F;
+        float prevY = 0.0F;
+        float prevV = 0.0F;
+        float prevAlpha = 0.0F;
+        for (int plane = 0; plane < planes; plane++) {
+            float planePhase = ph + plane * 1.7F;
+            prevLeft = 0.0F;
+            prevRight = 0.0F;
+            prevY = 0.0F;
+            prevV = 0.0F;
+            prevAlpha = 0.0F;
+            for (int s = 0; s <= segments; s++) {
+                float t = (float) s / segments;
+                float y = t * height;
+                float taper = 1.0F - 0.55F * t * t;
+                float wobble = 0.80F + 0.20F * Mth.sin(t * 6.5F + planePhase + (float) now * 0.13F);
+                float half = halfWidth * taper * wobble;
+                float sway = 0.16F * t * Mth.sin(t * 4.2F + planePhase * 1.6F + (float) now * 0.10F);
+                float flicker = 0.82F + 0.18F * Mth.sin(t * 9.5F + planePhase + (float) now * 0.21F);
+                float alpha = intensity * (1.0F - t) * flicker;
+                float v = scroll + t * height;
+                float left = sway - half;
+                float right = sway + half;
+                poseStack.pushPose();
+                poseStack.mulPose(Axis.YP.rotationDegrees(plane * 180.0F / planes));
+                PoseStack.Pose p = poseStack.last();
+                if (s > 0) {
+                    FxGeometry.vertex(c, p, prevLeft, prevY, 0.0F, 0.0F, prevV,
+                            255, 210, 140, (int) (prevAlpha * 255.0F));
+                    FxGeometry.vertex(c, p, prevRight, prevY, 0.0F, 1.0F, prevV,
+                            255, 210, 140, (int) (prevAlpha * 255.0F));
+                    FxGeometry.vertex(c, p, right, y, 0.0F, 1.0F, v,
+                            255, 226, 170, (int) Mth.clamp(alpha * 255.0F, 0.0F, 255.0F));
+                    FxGeometry.vertex(c, p, left, y, 0.0F, 0.0F, v,
+                            255, 226, 170, (int) Mth.clamp(alpha * 255.0F, 0.0F, 255.0F));
+                }
+                poseStack.popPose();
+                prevLeft = left;
+                prevRight = right;
+                prevY = y;
+                prevV = v;
+                prevAlpha = alpha;
+            }
+        }
+    }
+
+    // ================================================================ 灵气场 + 焦点核
+
+    /**
+     * 八方归元：<b>灵气场</b>（大片淡雾，高空）+ <b>焦点核</b>（不透明绿球，核心顶面 +1.5）
+     * + 每座合格祭品台汇向焦点核的青白激光。
+     *
+     * <p><b>绘制顺序即深度策略</b>（三者均为不同 RenderType，故 getBuffer 换类型会立即结算
+     * 上一批，顺序确定）：
+     * <ol>
+     *   <li><b>焦点核</b>——画面中唯一写深度的实体，先画。于是其后的祭品台激光在球体轮廓内
+     *       被正确剔除（读作"光束打进核里"），而近端那半截仍画在核之上。</li>
+     *   <li><b>激光</b>——加法外层，不写深度。</li>
+     *   <li><b>灵气场</b>——加法外层，不写深度，最后画，故它包裹住前两者（读作弥漫的雾）。</li>
+     * </ol>
+     * 反过来（场先、核后）会让场的前半球先写入深度、把核整颗剔掉。
+     *
+     * <p><b>零新增网络包</b>：祭品台坐标由已同步的 pattern JSON 本地推导（见
+     * {@link RitualPedestals#offsets}），台内是否合格由祭品台方块实体已同步的 held 判定
+     * （与服务端 {@code BafangGuiyuanBehavior} 同一判据）。
+     */
     private void renderOrb(RitualCoreBlockEntity be, RitualRenderState state, double now,
                            PoseStack poseStack, MultiBufferSource buffers) {
         BlockPos core = be.getBlockPos();
@@ -461,7 +693,112 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         if (env <= 0F) {
             return;
         }
-        // D6 单点装配：阶级 → 半径/高度（未来水位表现仅改此处取值源）
+        Level level = be.getLevel();
+        List<BlockPos> pedestals = bafangPedestalOffsets(state.tier());
+        // 逐台包络：放上合格核心即淡入亮起，取走即淡出熄灭（非整数硬切）
+        float[] beamEnv = bafangBeamEnvelopes(core, pedestals.size());
+        float step = lastEnvelopeStep(core);
+        int active = 0;
+        for (int i = 0; i < pedestals.size(); i++) {
+            boolean fed = level != null && pedestalFed(level, core, pedestals.get(i), state.tier());
+            beamEnv[i] = Mth.clamp(beamEnv[i] + (fed ? step : -step), 0F, 1F);
+            if (beamEnv[i] > 0.02F) {
+                active++;
+            }
+        }
+        if (active == 0) {
+            // 一台都没有：既无核也无光，只留高空那片场
+            this.renderQiField(state, now, env, poseStack, buffers);
+            return;
+        }
+
+        this.renderFocusCore(state, now, env, active, pedestals.size(), poseStack, buffers);
+        this.renderPedestalBeams(core, pedestals, beamEnv, now, poseStack, buffers);
+        this.renderQiField(state, now, env, poseStack, buffers);
+    }
+
+    /** 焦点核中心的<b>局部</b> Y（相对核心方块原点）：方块顶面以上 {@code fxFocusHeight} 格。 */
+    private static float focusLocalY() {
+        return (float) (1.0D + GensokyouConfig.FX_FOCUS_HEIGHT.get());
+    }
+
+    /** 焦点核半径（含呼吸）。 */
+    private static float focusRadius(double now) {
+        float radius = GensokyouConfig.FX_FOCUS_RADIUS.get().floatValue();
+        double period = Math.max(2.0D, GensokyouConfig.FX_FOCUS_BREATH_PERIOD_TICKS.get());
+        float breath = (float) Math.sin(now * Math.PI * 2.0D / period);
+        return radius * (1.0F + GensokyouConfig.FX_FOCUS_BREATH_AMP.get().floatValue() * breath);
+    }
+
+    /** 有效台数占比 → 核的亮度系数（读作"在充能"）。 */
+    private static float focusGlow(int active, int total) {
+        float ratio = total <= 0 ? 0F : (float) active / total;
+        return 0.45F + 0.55F * ratio;
+    }
+
+    private void renderFocusCore(RitualRenderState state, double now, float env,
+                                 int active, int total, PoseStack poseStack,
+                                 MultiBufferSource buffers) {
+        float glow = focusGlow(active, total);
+        if (SpiritOrbRenderTypes.densityUniform != null) {
+            SpiritOrbRenderTypes.densityUniform.set(
+                    GensokyouConfig.FX_FOCUS_DENSITY.get().floatValue());
+        }
+        poseStack.pushPose();
+        poseStack.translate(0.5D, focusLocalY(), 0.5D);
+        FxGeometry.emitUnitSphere(buffers.getBuffer(SpiritOrbRenderTypes.CORE), poseStack.last(),
+                focusRadius(now), (int) (255 * glow), 255, (int) (255 * glow), (int) (255 * env));
+        poseStack.popPose();
+    }
+
+    /**
+     * 逐台激光：台面中心上方 → 焦点核中心，青白。
+     *
+     * <p>按 RenderType 分趟提交（见 {@link FxGeometry#emitAlignedBeam} 与
+     * {@code MultiBufferSource} 的别名规则）：换 {@code getBuffer} 的类型会立即结算上一批，
+     * 故 MUST 先写完全部光晕段再取亮芯缓冲，MUST NOT 把两个 consumer 交叉写。
+     */
+    private void renderPedestalBeams(BlockPos core, List<BlockPos> pedestals, float[] beamEnv,
+                                     double now, PoseStack poseStack, MultiBufferSource buffers) {
+        float half = GensokyouConfig.FX_FOCUS_BEAM_WIDTH.get().floatValue();
+        float alpha = (int) (255.0F * GensokyouConfig.FX_FOCUS_BEAM_ALPHA.get().floatValue());
+        float scroll = (float) (now * 0.45D);
+        double sourceY = GensokyouConfig.FX_PEDESTAL_BEAM_SOURCE_HEIGHT.get();
+        float targetY = focusLocalY();
+        int beamR = BEAM_R, beamG = BEAM_G, beamB = BEAM_B;
+
+        VertexConsumer glowBuf = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(BOLT_GLOW_TEXTURE));
+        for (int i = 0; i < pedestals.size(); i++) {
+            float e = beamEnv[i];
+            if (e <= 0.02F) {
+                continue;
+            }
+            BlockPos p = pedestals.get(i);
+            FxGeometry.emitAlignedBeam(poseStack, glowBuf,
+                    p.getX() + 0.5F, (float) (p.getY() + sourceY), p.getZ() + 0.5F,
+                    0.5F, targetY, 0.5F,
+                    half * 2.2F * e, 3, scroll + i * 0.7F,
+                    beamR, beamG, beamB, (int) (alpha * 0.45F * e));
+        }
+        VertexConsumer coreBuf = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(BOLT_CORE_TEXTURE));
+        for (int i = 0; i < pedestals.size(); i++) {
+            float e = beamEnv[i];
+            if (e <= 0.02F) {
+                continue;
+            }
+            BlockPos p = pedestals.get(i);
+            FxGeometry.emitAlignedBeam(poseStack, coreBuf,
+                    p.getX() + 0.5F, (float) (p.getY() + sourceY), p.getZ() + 0.5F,
+                    0.5F, targetY, 0.5F,
+                    half * e, 2, scroll + i * 0.7F,
+                    beamR, beamG, beamB, (int) (alpha * e));
+        }
+    }
+
+    /** 灵气场：阶级缩放 + 呼吸 + 轻微浮动；淡到只作背景。 */
+    private void renderQiField(RitualRenderState state, double now, float env,
+                               PoseStack poseStack, MultiBufferSource buffers) {
+        // 单点装配：阶级 → 半径/高度（未来水位表现仅改此处取值源）
         float radius = GensokyouConfig.FX_ORB_RADIUS_BASE.get().floatValue()
                 + GensokyouConfig.FX_ORB_RADIUS_PER_TIER.get().floatValue() * state.tier();
         // 悬浮高度与半径联动：大球抬得更高、底缘将触未触核心，"凝于塔上"
@@ -472,17 +809,66 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         double breath = Math.sin(now * Math.PI * 2.0D / period);
         float scale = radius * (1.0F + (float) (GensokyouConfig.FX_ORB_BREATH_AMP.get() * breath));
         float bob = hover + 0.1F * (float) breath;
+        int alpha = (int) (255.0F * GensokyouConfig.FX_FIELD_ALPHA.get().floatValue() * env);
 
         poseStack.pushPose();
         poseStack.translate(0.5D, bob, 0.5D);
         if (SpiritOrbRenderTypes.timeUniform != null) {
             SpiritOrbRenderTypes.timeUniform.set((float) (now % 1000000.0D));
         }
-        VertexConsumer orb = buffers.getBuffer(SpiritOrbRenderTypes.ORB);
-        FxGeometry.emitUnitSphere(orb, poseStack.last(), scale,
-                255, 255, 255, (int) (220F * env));
+        if (SpiritOrbRenderTypes.fillUniform != null) {
+            SpiritOrbRenderTypes.fillUniform.set(GensokyouConfig.FX_FIELD_FILL.get().floatValue());
+        }
+        FxGeometry.emitUnitSphere(buffers.getBuffer(SpiritOrbRenderTypes.ORB), poseStack.last(),
+                scale, 255, 255, 255, alpha);
         poseStack.popPose();
     }
+
+    /**
+     * 八方归元该阶的祭品台偏移（相对核心），纯客户端推导。
+     *
+     * <p>数据源全部是已同步内容：仪式 pattern JSON（{@code RitualDataSyncPayload} →
+     * {@code ClientRitualData}）在<b>加载期</b>就完成了四重展开与 {@code (y,z,x)} 规范排序，
+     * 故台位集合是 {@code (patternId, tier)} 的纯函数。缓存命中失败时返回空列表。
+     */
+    private static List<BlockPos> bafangPedestalOffsets(int tier) {
+        return BAFANG_PEDESTALS.computeIfAbsent(tier, t -> ClientRitualData
+                .pattern(RitualBehaviors.BAFANG_GUIYUAN)
+                .map(pattern -> RitualPedestals.offsets(pattern, t))
+                .orElse(List.of()));
+    }
+
+    private static float[] bafangBeamEnvelopes(BlockPos core, int channels) {
+        float[] envs = BAFANG_BEAM_ENVELOPES.get(core);
+        if (envs == null || envs.length != channels) {
+            float[] rebuilt = new float[channels];
+            if (envs != null) {
+                System.arraycopy(envs, 0, rebuilt, 0, Math.min(envs.length, channels));
+            }
+            BAFANG_BEAM_ENVELOPES.put(core, rebuilt);
+            envs = rebuilt;
+        }
+        return envs;
+    }
+
+    /**
+     * 该祭品台是否放有<b>符合要求</b>的灵力核心。
+     *
+     * <p>判据与服务端 {@code BafangGuiyuanBehavior.hosted} <b>逐条对应</b>：物品类型谓词
+     * + 阶级比较上限。改动服务端判据时 MUST 同步改这里——跨端一致性只能靠代码评审保证，
+     * 没有任何编译期或运行期断言能覆盖它。
+     *
+     * <p>{@code markHeldChanged()} 不广播，但那只在<b>能量数值</b>变动时调用；槽内物品的有无
+     * 走 {@code setHeld}/{@code takeHeld}，两者都广播，故本判定不会读到陈旧值。
+     */
+    private static boolean pedestalFed(Level level, BlockPos core, BlockPos offset, int tier) {
+        if (!(level.getBlockEntity(core.offset(offset)) instanceof RitualPedestalBlockEntity pedestal)) {
+            return false;
+        }
+        ItemStack held = pedestal.getHeld();
+        return held.getItem() instanceof SpiritCoreItem item && item.tier() <= tier;
+    }
+
 
     // ============================================================ 献祭光柱
 
@@ -521,7 +907,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         poseStack.popPose();
     }
 
-    /** 献祭光柱色（0=石 1=木 2=土 3=草 4=绵津见水蓝 5=众生余录灵魂紫）。 */
+    /** 献祭光柱色（0=石 1=木 2=土 3=草 4=绵津见水蓝 5=众生余录灵魂紫 6=丰穰神金穗）。 */
     private static int[] pillarColor(int index) {
         return switch (index) {
             case 1 -> new int[]{141, 110, 99};
@@ -529,8 +915,126 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             case 3 -> new int[]{129, 199, 132};
             case 4 -> new int[]{90, 180, 200};
             case 5 -> new int[]{156, 111, 214};
+            case 6 -> new int[]{232, 190, 96};
             default -> new int[]{176, 190, 197};
         };
+    }
+
+    // ============================================================ 星移之仪洗练演出
+
+    /**
+     * 星移演出（<b>纯客户端本地生成</b>，服务端零持续包）。
+     *
+     * <p>服务端只下发「演出中 + 档位 + 起始 gameTime + 总时长」四个标量
+     * （{@link RitualRenderState#KIND_SEII}），本方法用
+     * {@code elapsed = now - startTick} 自行推进动画，因此客户端重新加载区块也能自行
+     * 接上正确阶段，不需要补发任何包。
+     *
+     * <p>三档递进（与原服务端实现逐点对应）：
+     * <ol>
+     *   <li>底座星盘微光螺旋（一阶即有）</li>
+     *   <li>铜环环转（仪式阶 ≥ 3）</li>
+     *   <li>天极星光柱 + 顶端天极星（仪式阶 5）</li>
+     * </ol>
+     */
+    private void renderSeii(RitualCoreBlockEntity be, RitualRenderState state, double now,
+                            PoseStack poseStack, MultiBufferSource buffers) {
+        if (!state.enabled()) {
+            return;
+        }
+        int start = state.seiiStartTick();
+        if (start == 0) {
+            return;
+        }
+        int tier = Math.max(1, state.tier());
+        int duration = state.seiiDurationTicks();
+        double elapsed = now - start;
+        // 服务端翻转 enabled 前的那几个 tick 里不再画，避免粒子拖尾
+        if (elapsed < 0D || elapsed > duration + 4D) {
+            return;
+        }
+        // 收尾淡出：最后 8 tick 线性收束，避免粒子硬切
+        double fade = elapsed >= duration - 8D ? Math.max(0D, (duration - elapsed) / 8D) : 1D;
+        if (fade <= 0D) {
+            return;
+        }
+        emitSeiiTick(be, tier, elapsed, fade);
+    }
+
+    /**
+     * 逐 tick 发射星移演出粒子。
+     *
+     * <p><b>per-tick 去重守卫</b>：BER 逐帧回调，而 {@code getGameTime()} 每 tick 只 +1，
+     * 故同一 tick 内可能被调 2~3 次；不去重会按帧率放大粒子量。用
+     * {@link #SEII_LAST_TICK}（键为常驻 BE 的 {@link BlockPos}，弱引用防泄漏）按
+     * gameTime 去重，与本文件其他演出同一范式。
+     */
+    private static void emitSeiiTick(RitualCoreBlockEntity be, int tier, double elapsed, double fade) {
+        Level level = be.getLevel();
+        if (level == null) {
+            return;
+        }
+        BlockPos core = be.getBlockPos();
+        long tick = level.getGameTime();
+        Long last = SEII_LAST_TICK.get(core);
+        if (last != null && last == tick) {
+            return;
+        }
+        SEII_LAST_TICK.put(core, tick);
+
+        double x = core.getX() + 0.5D;
+        double y = core.getY() + 1.0D;
+        double z = core.getZ() + 0.5D;
+        int glow = GensokyouConfig.FX_SEII_DIAL_GLOW_BASE.get()
+                + GensokyouConfig.FX_SEII_DIAL_GLOW_PER_TIER.get() * tier;
+        if (glow > 0) {
+            for (int i = 0; i < glow; i++) {
+                // 微光螺旋：角度随 tick 推进，固定半径 2.2 格
+                double ang = elapsed * 0.35D + i * 2.399963D;
+                level.addParticle(ParticleTypes.GLOW,
+                        x + Math.cos(ang) * 2.2D,
+                        y + 0.15D + Math.sin(elapsed * 0.5D + i) * 0.2D,
+                        z + Math.sin(ang) * 2.2D,
+                        0.0D, 0.01D, 0.0D);
+            }
+        }
+        if (tier >= 3) {
+            int nodes = GensokyouConfig.FX_SEII_RING_NODES.get();
+            double radius = GensokyouConfig.FX_SEII_RING_RADIUS.get();
+            double spin = elapsed * 0.35D;
+            for (int i = 0; i < nodes; i++) {
+                double ang = spin + i * (Math.PI * 2D / Math.max(1, nodes));
+                level.addParticle(ParticleTypes.END_ROD,
+                        x + Math.cos(ang) * radius, y + 0.2D, z + Math.sin(ang) * radius,
+                        0.0D, 0.02D, 0.0D);
+            }
+        }
+        if (tier >= 5) {
+            int height = GensokyouConfig.FX_SEII_PILLAR_HEIGHT.get();
+            // (0,0,1..h) 通道自下而上逐段点亮
+            for (int h = 1; h <= height; h++) {
+                double lit = Math.min(1D, Math.max(0D, (elapsed - h * 2D) / 6D));
+                if (lit <= 0D) {
+                    continue;
+                }
+                int count = (int) Math.ceil(2D * lit * fade);
+                for (int c = 0; c < count; c++) {
+                    level.addParticle(ParticleTypes.END_ROD,
+                            x + level.getRandom().nextDouble() * 0.24D - 0.12D,
+                            core.getY() + h + 0.5D,
+                            z + level.getRandom().nextDouble() * 0.24D - 0.12D,
+                            0.0D, 0.01D, 0.0D);
+                }
+            }
+            int star = (int) Math.ceil(6D * fade);
+            for (int i = 0; i < star; i++) {
+                level.addParticle(ParticleTypes.FLAME,
+                        x, core.getY() + height + 1.5D, z,
+                        (level.getRandom().nextDouble() - 0.5D) * 0.3D,
+                        0.02D,
+                        (level.getRandom().nextDouble() - 0.5D) * 0.3D);
+            }
+        }
     }
 
     // ============================================================ 无尽藏
@@ -646,18 +1150,30 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
 
     // ================================================================= 公用
 
-    /** 包络推进：slot 0=雾带 1=火柱 2=灵气球 3=无尽藏雾带；按 ramp ticks 线性淡入淡出（跳帧钳 2 tick 步长）。 */
+    /**
+     * 包络推进：slot 0=雾带 1=火柱 2=灵气场 3=无尽藏雾带；按 ramp ticks 线性淡入淡出（跳帧钳 2 tick 步长）。
+     *
+     * <p>槽位 4 存上次时间、槽位 5 存本帧步长——后者供<b>逐台</b>包络（祭品台激光）复用，
+     * 使两者共用同一条时钟，避免出现两套"上一次时间"导致步长不一致。
+     */
     private static float advanceEnvelope(BlockPos pos, int slot, float target, double now) {
-        float[] st = ENVELOPES.computeIfAbsent(pos, k -> new float[]{0F, 0F, 0F, 0F, -1F});
+        float[] st = ENVELOPES.computeIfAbsent(pos, k -> new float[]{0F, 0F, 0F, 0F, -1F, 0F});
         float last = st[4];
         double elapsed = last < 0F ? 0F : Mth.clamp(now - last, 0F, 2.0D);
         st[4] = (float) now;
         float ramp = Math.max(1, GensokyouConfig.FX_RAMP_TICKS.get());
         float step = (float) elapsed / ramp;
+        st[5] = step;
         float value = st[slot];
         value = target > value ? Math.min(target, value + step) : Math.max(target, value - step);
         st[slot] = value;
         return value;
+    }
+
+    /** 本帧包络步长（由本帧先调用的 {@link #advanceEnvelope} 写入），供逐台包络复用。 */
+    private static float lastEnvelopeStep(BlockPos pos) {
+        float[] st = ENVELOPES.get(pos);
+        return st == null ? 0F : st[5];
     }
 
     /** 闪电弧路径缓存：一次 roll tick 内各通道折线稳定，跨 roll 重掷。 */

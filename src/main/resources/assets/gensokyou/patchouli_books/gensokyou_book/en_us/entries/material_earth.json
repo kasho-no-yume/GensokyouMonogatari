@@ -1,0 +1,29 @@
+{
+  "name": "gensokyou.book.entry.material_earth",
+  "category": "gensokyou:fantasy_materials",
+  "icon": "gensokyou:spirit_soil",
+  "sortnum": 2,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.material_earth.p1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_soil,0.97,3;gensokyou:porcelain_clay,0.97,3;gensokyou:higan_soil,0.78,3"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "minecraft:soul_sand,3.7,1;minecraft:soul_soil,2.8,1",
+      "advancement": "gensokyou:guide/nether_unlock"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "gensokyou:moon_sand,0.30,4",
+      "advancement": "gensokyou:guide/end_unlock"
+    }
+  ]
+}

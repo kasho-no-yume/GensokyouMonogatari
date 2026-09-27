@@ -75,7 +75,9 @@ public interface RitualBehavior {
                 ItemStack rep = status.requirement().item().representative();
                 String itemId = rep.isEmpty()
                         ? "" : BuiltInRegistries.ITEM.getKey(rep.getItem()).toString();
-                lines.add(new InfoLine("", new String[0], itemId, 0, -1F, status.satisfied()));
+                // CONTROL_ITEM：给图标补 18x18 凹槽边框（否则物品裸悬在信息框里）
+                lines.add(new InfoLine("", new String[0], itemId, 0, -1F, status.satisfied(),
+                        0, InfoLine.CONTROL_ITEM, InfoLine.LINK_NONE, "", new String[0]));
             }
         }
         // 当前激活配方
@@ -101,6 +103,17 @@ public interface RitualBehavior {
      */
     default boolean usesCoreSocket() {
         return true;
+    }
+
+    /**
+     * 本仪式是否使用核心 GUI 的「目标物品槽」（紧邻灵力核心槽右侧）。
+     *
+     * <p>与祭品台<b>刻意分开</b>：祭品台一台一件且是配方催化剂的载体，低阶结构台位少
+     * （星移 1 阶只有 4 台），核若占一台就挤掉催化剂位。返回 true 的仪式其目标物
+     * （如星移的增幅核）走这个专用槽，祭品台全部留给催化剂。缺省 false。
+     */
+    default boolean usesTargetSlot() {
+        return false;
     }
 
     /**

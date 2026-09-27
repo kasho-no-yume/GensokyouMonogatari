@@ -6,6 +6,7 @@ import com.bitsson.gensokyou.block.DanmakuAssemblyBenchBlock;
 import com.bitsson.gensokyou.block.RitualCoreBlock;
 import com.bitsson.gensokyou.block.RitualPedestalBlock;
 import com.bitsson.gensokyou.block.SukimaBlock;
+import com.bitsson.gensokyou.block.SpiritPlantBlock;
 import com.bitsson.gensokyou.block.SpiritSaplingBlock;
 import com.bitsson.gensokyou.block.TieredBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
@@ -16,6 +17,7 @@ import net.minecraft.world.level.block.WallBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
@@ -128,12 +130,20 @@ public final class ModBlocks {
             BLOCKS.registerBlock("magic_leaves", Block::new, leavesProperties());
     public static final DeferredBlock<Block> ETERNAL_LEAVES =
             BLOCKS.registerBlock("eternal_leaves", Block::new, leavesProperties());
-    public static final DeferredBlock<Block> SACRED_SAPLING =
-            BLOCKS.registerBlock("sacred_sapling", SpiritSaplingBlock::new, saplingProperties());
-    public static final DeferredBlock<Block> MAGIC_SAPLING =
-            BLOCKS.registerBlock("magic_sapling", SpiritSaplingBlock::new, saplingProperties());
-    public static final DeferredBlock<Block> ETERNAL_SAPLING =
-            BLOCKS.registerBlock("eternal_sapling", SpiritSaplingBlock::new, saplingProperties());
+    public static final DeferredBlock<SpiritSaplingBlock> SACRED_SAPLING =
+            BLOCKS.registerBlock("sacred_sapling", SpiritSaplingBlock::new, plantProperties());
+    public static final DeferredBlock<SpiritSaplingBlock> MAGIC_SAPLING =
+            BLOCKS.registerBlock("magic_sapling", SpiritSaplingBlock::new, plantProperties());
+    public static final DeferredBlock<SpiritSaplingBlock> ETERNAL_SAPLING =
+            BLOCKS.registerBlock("eternal_sapling", SpiritSaplingBlock::new, plantProperties());
+    public static final DeferredBlock<SpiritPlantBlock> SPIRIT_HERB =
+            BLOCKS.registerBlock("spirit_herb", SpiritPlantBlock::new, plantProperties());
+    public static final DeferredBlock<SpiritPlantBlock> GENTIAN =
+            BLOCKS.registerBlock("gentian", SpiritPlantBlock::new, plantProperties());
+    public static final DeferredBlock<SpiritPlantBlock> HIGANBANA =
+            BLOCKS.registerBlock("higanbana", SpiritPlantBlock::new, plantProperties());
+    public static final DeferredBlock<SpiritPlantBlock> MAGIC_MUSHROOM =
+            BLOCKS.registerBlock("magic_mushroom", SpiritPlantBlock::new, plantProperties());
 
     private static BlockBehaviour.Properties oreProperties() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.STONE)
@@ -160,9 +170,10 @@ public final class ModBlocks {
                 .strength(0.2F).sound(SoundType.GRASS).noOcclusion().ignitedByLava();
     }
 
-    private static BlockBehaviour.Properties saplingProperties() {
+    private static BlockBehaviour.Properties plantProperties() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.PLANT)
-                .noCollission().instabreak().sound(SoundType.GRASS).noOcclusion();
+                .noCollission().instabreak().sound(SoundType.GRASS)
+                .pushReaction(PushReaction.DESTROY);
     }
 
     /** 查询方块的仪式品阶；非品阶方块返回 -1（如仪式核心、单方块化后的祭品台）。 */

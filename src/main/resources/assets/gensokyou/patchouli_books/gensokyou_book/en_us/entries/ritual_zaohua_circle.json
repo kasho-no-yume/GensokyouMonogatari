@@ -5,10 +5,6 @@
   "sortnum": 12,
   "pages": [
     {
-      "type": "patchouli:text",
-      "text": "gensokyou.book.entry.ritual.zaohua_circle.text"
-    },
-    {
       "type": "patchouli:multiblock",
       "name": "gensokyou.book.ritual.structure.0",
       "multiblock": {

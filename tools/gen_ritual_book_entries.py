@@ -32,7 +32,10 @@ ENTRIES_DIR = os.path.join(
     REPO,
     "src/main/resources/assets/gensokyou/patchouli_books/gensokyou_book/en_us/entries")
 
+LANG_FILE = os.path.join(REPO, "src/main/resources/assets/gensokyou/lang/en_us.json")
 CATEGORY = "gensokyou:rituals"
+# 缺正文语言键的仪式（运行结束时报警并以非零码退出）
+MISSING_TEXT = []
 MAX_RECIPE_PAGES = 12
 TOOL_LOOT_RITUALS = {
     "haniyasu_circle", "kukunochi_circle", "kaya_no_hime_circle", "oyamatsumi_circle",
@@ -86,7 +89,39 @@ ENTRIES = [
     ("kami_no_megumi_circle", "gensokyou:spirit_core_1", False),
     ("bafang_guiyuan_circle", "gensokyou:spirit_core_5", False),
     ("resonance_relay", "gensokyou:crystal", False),
+    ("kanayamahiko_circle", "minecraft:furnace", True),
+    ("houjouno_teihou_circle", "minecraft:wheat_seeds", True),
+    # 星移之仪：增幅核全量洗练。no_recipes=False —— 其 seii_core_* 配方只出 effect
+    # （不产出物品），没有对应物品条目，配方页是玩家获知催化剂的唯一途径。
+    ("seii_circle", "gensokyou:amp_core_t1", False),
+    # 结界破坏：无 activation/passive 配方（祭品走 pattern requirements，非配方目录），
+    # 故 no_recipes=True。阶级参数页现算缓存/流失/备料，供灵上限随归元托管核变动。
+    ("barrier_break_circle", "gensokyou:sukima_fragment", True),
 ]
+
+ITEM_RECIPE_ENTRIES = [
+    ("gensokyou:danmaku_weapon", "ritual", "zaohua_danmaku_weapon_frame", "weapons", 10),
+    ("gensokyou:core_sphere_single", "ritual", "zaohua_core_sphere_single", "weapons", 11),
+    ("gensokyou:core_sphere_shotgun", "ritual", "zaohua_core_sphere_shotgun", "weapons", 12),
+    ("gensokyou:core_knife", "ritual", "zaohua_core_knife", "weapons", 13),
+    ("gensokyou:core_talisman", "ritual", "zaohua_core_talisman", "weapons", 14),
+    ("gensokyou:core_laser_gun", "ritual", "zaohua_core_laser_gun", "weapons", 15),
+    ("gensokyou:weapon_core_lv1", "ritual", "zaohua_weapon_core_lv1", "weapons", 16),
+    ("gensokyou:weapon_core_lv2", "ritual", "zaohua_weapon_core_lv2", "weapons", 17),
+    ("gensokyou:amp_core_t1", "ritual", "zaohua_amp_core_t1", "weapons", 18),
+    ("gensokyou:amp_core_t2", "ritual", "zaohua_amp_core_t2", "weapons", 19),
+    ("gensokyou:spirit_core_0", "crafting", "spirit_core_0", "items", 40),
+    ("gensokyou:spirit_core_1", "ritual", "zaohua_spirit_core_1", "items", 41),
+    ("gensokyou:spirit_core_2", "ritual", "zaohua_spirit_core_2", "items", 42),
+    ("gensokyou:ritual_pedestal", "crafting", "ritual_pedestal", "items", 43),
+    ("gensokyou:danmaku_assembly_bench", "crafting", "danmaku_assembly_bench", "weapons", 44),
+]
+
+ITEM_RECIPE_TEXT_OVERRIDES = {
+    "gensokyou:ritual_pedestal": "gensokyou.book.entry.item_recipe.pedestal.p1",
+    "gensokyou:danmaku_weapon": "gensokyou.book.entry.item_danmaku_weapon.p1",
+    "gensokyou:danmaku_assembly_bench": "gensokyou.book.entry.item_danmaku_assembly_bench.p1",
+}
 
 
 def fmt_pct(percent):
@@ -177,6 +212,28 @@ def watatsumi_entries(level):
     return out
 
 
+def intro_text_keys(path):
+    """按语言文件里实际存在的 ``.pN`` 键收集正文页键（N 升序）。
+
+    <p>正文页数量由语言文件决定，而不是硬编码一页：玩家读的是多段落的连贯叙述，
+    硬塞进单页会变成技术手册那样的长块。每段一页，翻页节奏才正常。
+
+    <p>一个键都没有时返回空列表并由调用方报警 —— 少了语言键会在游戏内显示原始
+    key 字符串，这种缺陷必须吵，不能静默（见 tasks 14.7）。
+    """
+    prefix = f"gensokyou.book.entry.ritual.{path}.p"
+    with open(LANG_FILE, "r", encoding="utf-8") as handle:
+        lang = json.load(handle)
+    numbered = []
+    for key in lang:
+        if key.startswith(prefix):
+            tail = key[len(prefix):]
+            if tail.isdigit():
+                numbered.append((int(tail), key))
+    numbered.sort()
+    return [key for _, key in numbered]
+
+
 def build_entry(path, icon, no_recipes, sortnum):
     ritual_file = os.path.join(RITUALS_DIR, path + ".json")
     with open(ritual_file, "r", encoding="utf-8") as handle:
@@ -186,7 +243,10 @@ def build_entry(path, icon, no_recipes, sortnum):
     anchor = data["anchorKey"]
     levels = sorted({entry["level"] for entry in data["levels"]})
 
-    pages = [{"type": "patchouli:text", "text": f"gensokyou.book.entry.ritual.{path}.text"}]
+    intro_keys = intro_text_keys(path)
+    if not intro_keys:
+        MISSING_TEXT.append(path)
+    pages = [{"type": "patchouli:text", "text": key} for key in intro_keys]
 
     for level in levels:
         multiblock = build_multiblock(cumulative_cells(data, level), palette, anchor)
@@ -283,9 +343,76 @@ def build_entry(path, icon, no_recipes, sortnum):
           f"loot_pages={loot_pages} entry_gate={entry_gate or '-'} pages={len(pages)}")
 
 
+def build_item_entry(item_id, source, recipe_name, category, sortnum):
+    namespace, path = item_id.split(":", 1)
+    if source == "ritual":
+        recipe_file = os.path.join(RECIPES_DIR, "zaohua_circle.json")
+        with open(recipe_file, "r", encoding="utf-8") as handle:
+            recipe_data = json.load(handle)
+        recipes = {recipe["name"]: recipe for recipe in recipe_data["recipes"]}
+        recipe = recipes[recipe_name]
+        description_key = "gensokyou.book.entry.item_recipe.p1"
+        recipe_page = {
+            "type": "gensokyou:ritual_page",
+            "ritual": recipe_data["pattern"],
+            "recipe": f"gensokyou:{recipe_name}",
+        }
+        entry_gate = gate_for(recipe.get("minTier", 1)) or ""
+    elif source == "crafting":
+        description_key = "gensokyou.book.entry.item_recipe.crafting.p1"
+        recipe_page = {
+            "type": "patchouli:crafting",
+            "recipe": f"gensokyou:{recipe_name}",
+        }
+        entry_gate = ""
+    else:
+        raise ValueError(f"unknown item recipe source: {source}")
+    description_key = ITEM_RECIPE_TEXT_OVERRIDES.get(item_id, description_key)
+    entry = {
+        "name": f"item.{namespace}.{path}",
+        "category": f"gensokyou:{category}",
+        "icon": item_id,
+        "sortnum": sortnum,
+        "pages": [
+            {
+                "type": "patchouli:spotlight",
+                "item": item_id,
+                "text": description_key,
+            },
+            recipe_page,
+        ],
+    }
+    if entry_gate:
+        entry["advancement"] = entry_gate
+        entry["secret"] = True
+    out = os.path.join(ENTRIES_DIR, f"item_{path}.json")
+    with open(out, "w", encoding="utf-8") as handle:
+        json.dump(entry, handle, ensure_ascii=False, indent=2)
+    print(f"item:{path:<25} sortnum={sortnum:<3} source={source} recipe={recipe_name} "
+          f"entry_gate={entry_gate or '-'}")
+
+
+def build_item_entries():
+    for item_id, source, recipe_name, category, sortnum in ITEM_RECIPE_ENTRIES:
+        build_item_entry(item_id, source, recipe_name, category, sortnum)
+
+
 def main():
-    for sortnum, (path, icon, no_recipes) in enumerate(ENTRIES, start=1):
-        build_entry(path, icon, no_recipes, sortnum)
+    args = sys.argv[1:]
+    unknown = [arg for arg in args if arg != "--items-only"]
+    if unknown:
+        raise SystemExit(f"unknown arguments: {' '.join(unknown)}")
+    if "--items-only" not in args:
+        for sortnum, (path, icon, no_recipes) in enumerate(ENTRIES, start=1):
+            build_entry(path, icon, no_recipes, sortnum)
+    build_item_entries()
+    if MISSING_TEXT:
+        # 缺键 = 游戏内该页显示原始 key 字符串。必须失败，别让缺陷静默溜过去。
+        print("\nMISSING intro text keys (book page would render the raw key):",
+              file=sys.stderr)
+        for path in MISSING_TEXT:
+            print(f"  - gensokyou.book.entry.ritual.{path}.p1 (and .p2 ...)", file=sys.stderr)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

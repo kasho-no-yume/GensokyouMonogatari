@@ -453,16 +453,17 @@ public final class YaoyorozuGraceService {
         return true;
     }
 
-    /** initiator 关闭核心界面：当场制预览作废（关界面=不选，保留原属性）。 */
+    /**
+     * 核心界面关闭：<b>刻意不做事</b>。
+     *
+     * <p>历史行为是"关界面 = 不选，保留原 roll"，这会把玩家在演出期间的本能动作
+     * （关掉界面看演出）变成静默吞掉一次 300M 级别的洗练。现改为待决态永久存续、
+     * 决策权绑定 initiator：关界面既不会作废他人的待决，也不会被当作一次决策。
+     *
+     * <p>唯一收场路径：绑定者做出决策、任何人启动新一次洗练（作废旧预览）、结构失效。
+     */
     public static void onViewerClosed(ServerLevel level, BlockPos corePos, ServerPlayer viewer) {
-        if (!(level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core)) {
-            return;
-        }
-        RitualCoreBlockEntity.GraceSession session = core.graceSession();
-        if (session.phase() == RitualCoreBlockEntity.GracePhase.REVIEW
-                && viewer.getUUID().equals(session.initiator())) {
-            core.clearGraceSession();
-        }
+        // no-op —— 见上方说明
     }
 
     // ---- 查询/工具 ----

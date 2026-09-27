@@ -5,6 +5,8 @@ import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
+import com.bitsson.gensokyou.ritual.RitualSmeltRule;
+import com.bitsson.gensokyou.ritual.RitualSmeltRuleLoader;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -32,6 +34,7 @@ public final class ClientRitualData {
 
     private static volatile Map<ResourceLocation, RitualPattern> patterns = Map.of();
     private static volatile List<RitualRecipe> recipes = List.of();
+    private static volatile List<RitualSmeltRule> smeltRules = List.of();
     private static volatile boolean diskChecked = false;
 
     private ClientRitualData() {
@@ -55,6 +58,17 @@ public final class ClientRitualData {
         return out;
     }
 
+    /** 煅炉规则（书内 smelt_page 与 JEI 煅炉页签共用，避免两边配比走样）。 */
+    public static List<RitualSmeltRule> smeltsFor(ResourceLocation patternId) {
+        ensureLoaded();
+        return smeltRules.stream().filter(rule -> rule.patternId().equals(patternId)).toList();
+    }
+
+    public static List<RitualSmeltRule> smeltsAll() {
+        ensureLoaded();
+        return smeltRules;
+    }
+
     public static boolean hasData() {
         ensureLoaded();
         return !patterns.isEmpty();
@@ -64,6 +78,7 @@ public final class ClientRitualData {
     public static void applyJson(String snapshotJson) {
         Map<ResourceLocation, RitualPattern> parsedPatterns = new LinkedHashMap<>();
         List<RitualRecipe> parsedRecipes = new ArrayList<>();
+        List<RitualSmeltRule> parsedSmelts = new ArrayList<>();
         try {
             JsonObject root = JsonParser.parseString(snapshotJson).getAsJsonObject();
             if (root.has("patterns")) {
@@ -73,8 +88,8 @@ public final class ClientRitualData {
                         continue;
                     }
                     try {
-                        parsedPatterns.put(id, RitualPatternLoader.parseForEdit(id,
-                                entry.getValue().getAsJsonObject()));
+                        parsedPatterns.put(id, RitualPatternLoader.parseForEdit(
+                                id, entry.getValue().getAsJsonObject()));
                     } catch (Exception ex) {
                         Gensokyou.LOGGER.warn("Client rejected ritual pattern {}: {}",
                                 id, ex.getMessage());
@@ -96,12 +111,29 @@ public final class ClientRitualData {
                     }
                 }
             }
+            if (root.has("smelt_rules")) {
+                for (Map.Entry<String, JsonElement> entry
+                        : root.getAsJsonObject("smelt_rules").entrySet()) {
+                    ResourceLocation fileId = ResourceLocation.tryParse(entry.getKey());
+                    if (fileId == null) {
+                        continue;
+                    }
+                    try {
+                        parsedSmelts.addAll(RitualSmeltRuleLoader.parseFileForClient(fileId,
+                                entry.getValue().getAsJsonObject()));
+                    } catch (Exception ex) {
+                        Gensokyou.LOGGER.warn("Client rejected ritual smelt rule file {}: {}",
+                                fileId, ex.getMessage());
+                    }
+                }
+            }
         } catch (Exception ex) {
             Gensokyou.LOGGER.warn("Client rejected ritual data sync: {}", ex.getMessage());
             return;
         }
         patterns = Map.copyOf(parsedPatterns);
         recipes = List.copyOf(parsedRecipes);
+        smeltRules = List.copyOf(parsedSmelts);
         diskChecked = true;
         writeCache(snapshotJson);
     }

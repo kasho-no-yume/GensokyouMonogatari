@@ -1,0 +1,20 @@
+{
+  "name": "item.gensokyou.core_knife",
+  "category": "gensokyou:weapons",
+  "icon": "gensokyou:core_knife",
+  "sortnum": 13,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:core_knife",
+      "text": "gensokyou.book.entry.item_recipe.p1"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_core_knife"
+    }
+  ],
+  "advancement": "gensokyou:guide/nether_unlock",
+  "secret": true
+}

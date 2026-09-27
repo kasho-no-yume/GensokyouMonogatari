@@ -1,0 +1,20 @@
+{
+  "name": "item.gensokyou.core_sphere_shotgun",
+  "category": "gensokyou:weapons",
+  "icon": "gensokyou:core_sphere_shotgun",
+  "sortnum": 12,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:core_sphere_shotgun",
+      "text": "gensokyou.book.entry.item_recipe.p1"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_core_sphere_shotgun"
+    }
+  ],
+  "advancement": "gensokyou:guide/nether_unlock",
+  "secret": true
+}

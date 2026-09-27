@@ -106,4 +106,69 @@ class RitualFxLayoutTest {
             assertTrue(p.edge() >= 0F && p.edge() <= 1F, "edge=" + p.edge());
         }
     }
+
+    // ==================== 金山彦命煅炉：密集火星场 ====================
+
+    @Test
+    void emberFieldIsDeterministic() {
+        assertEquals(RitualFxLayout.emberField(CORE, 2, 60, 20, 8, 1.0D),
+                RitualFxLayout.emberField(CORE, 2, 60, 20, 8, 1.0D));
+    }
+
+    /** 台数随阶级增长：这是"大量火焰"观感的来源。 */
+    @Test
+    void emberCountGrowsWithTier() {
+        int tier0 = RitualFxLayout.emberField(CORE, 0, 100, 40, 8, 1.0D).size();
+        int tier2 = RitualFxLayout.emberField(CORE, 2, 100, 40, 8, 1.0D).size();
+        assertEquals(100, tier0);
+        assertEquals(180, tier2);
+    }
+
+    /**
+     * 半径硬钳：绝不溢出结构水平半径。
+     *
+     * <p>容差 1e-9：ratio=1.0 时采样半径正好压在上界，最终坐标由 cos/sin 投影得出，
+     * 末位舍入可能高出 1 ulp（7.5 → 7.500000000000001）。这是浮点表示误差而非越界，
+     * 故按"不超出容差"判定。
+     */
+    @Test
+    void emberFieldNeverSpillsOutsideRadius() {
+        double cap = 7.5D;
+        double tolerance = 1.0E-9D;
+        for (RitualFxLayout.EmberPoint p : RitualFxLayout.emberField(CORE, 2, 200, 80, cap, 1.0D)) {
+            double dx = p.x() - 0.5D;
+            double dz = p.z() - 0.5D;
+            double radius = Math.hypot(dx, dz);
+            assertTrue(radius <= cap + tolerance,
+                    "radius " + radius + " must stay <= " + cap);
+        }
+    }
+
+    /** 覆盖到结构外围，不能全挤在核心附近。 */
+    @Test
+    void emberFieldReachesStructureEdge() {
+        List<RitualFxLayout.EmberPoint> points =
+                RitualFxLayout.emberField(CORE, 1, 200, 60, 8, 1.0D);
+        double max = 0.0D;
+        for (RitualFxLayout.EmberPoint p : points) {
+            max = Math.max(max, Math.hypot(p.x() - 0.5D, p.z() - 0.5D));
+        }
+        assertTrue(max > 8.0D * 0.6D, "max radius " + max + " should reach the structure edge");
+    }
+
+    /** 每点的循环相位与尺寸抖动都在合法区间，渲染端无需兜底判断。 */
+    @Test
+    void emberCycleAndScaleInRange() {
+        for (RitualFxLayout.EmberPoint p : RitualFxLayout.emberField(CORE, 2, 200, 80, 8, 1.0D)) {
+            assertTrue(p.cycle() >= 0.0D && p.cycle() < 1.0D, "cycle=" + p.cycle());
+            assertTrue(p.scale() >= 0.5F && p.scale() <= 1.0F, "scale=" + p.scale());
+            assertTrue(p.edge() >= 0F && p.edge() <= 1F, "edge=" + p.edge());
+        }
+    }
+
+    /** 关掉火星（base=0）时不得凭空生成。 */
+    @Test
+    void emberFieldCanBeDisabled() {
+        assertTrue(RitualFxLayout.emberField(CORE, 2, 0, 0, 8, 1.0D).isEmpty());
+    }
 }

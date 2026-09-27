@@ -1,0 +1,17 @@
+{
+  "name": "item.gensokyou.spirit_core_0",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:spirit_core_0",
+  "sortnum": 40,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:spirit_core_0",
+      "text": "gensokyou.book.entry.item_recipe.crafting.p1"
+    },
+    {
+      "type": "patchouli:crafting",
+      "recipe": "gensokyou:spirit_core_0"
+    }
+  ]
+}

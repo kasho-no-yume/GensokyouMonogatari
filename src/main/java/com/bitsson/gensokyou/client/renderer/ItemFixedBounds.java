@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.client.renderer.block.model.ItemTransform;
 import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -12,6 +13,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import org.joml.Vector3f;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,7 +66,14 @@ final class ItemFixedBounds {
         if (model == null || model.isCustomRenderer()) {
             return FALLBACK;
         }
-        List<BakedQuad> quads = model.getQuads(null, null, RandomSource.create(42L));
+        RandomSource random = RandomSource.create();
+        List<BakedQuad> quads = new ArrayList<>();
+        for (Direction direction : Direction.values()) {
+            random.setSeed(42L);
+            quads.addAll(model.getQuads(null, direction, random));
+        }
+        random.setSeed(42L);
+        quads.addAll(model.getQuads(null, null, random));
         if (quads.isEmpty()) {
             return FALLBACK;
         }

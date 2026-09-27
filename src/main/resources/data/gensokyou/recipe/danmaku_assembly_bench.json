@@ -3,7 +3,7 @@
   "category": "misc",
   "pattern": [
     "SIS",
-    "IRI",
+    "ICI",
     "SSS"
   ],
   "key": {
@@ -13,8 +13,8 @@
     "I": {
       "item": "minecraft:iron_ingot"
     },
-    "R": {
-      "item": "gensokyou:spellcard_star"
+    "C": {
+      "item": "gensokyou:refined_cinnabar"
     }
   },
   "result": {

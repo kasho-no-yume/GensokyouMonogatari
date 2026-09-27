@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualLink;
 import com.bitsson.gensokyou.ritual.RitualRenderState;
@@ -144,5 +145,33 @@ class ResonanceRelayBehaviorTest {
                 new long[]{inA.asLong(), outA.asLong()}, 1, mask);
         assertEquals(true, state.channelMoving(0));
         assertEquals(true, state.channelMoving(1));
+    }
+
+    /**
+     * \u4e07\u8c61\u5171\u9e23\u4e4b\u5f0f\uff1a2 \u9636\u57fa\u7840\u534a\u5f84\u9ed8\u8ba4\u4e3a 40\u3002
+     *
+     * <p>\u53d6 {@code getDefault()} \u800c\u4e0d\u662f {@code get()}\uff1a\u5355\u6d4b\u4e0d\u9700\u8981\u52a0\u8f7d\u914d\u7f6e\u6587\u4ef6\u5373\u53ef\u65ad\u8a00\u300c\u9ed8\u8ba4\u503c\u300d\uff0c
+     * \u4e5f\u4e0d\u4f1a\u88ab\u73a9\u5bb6\u81ea\u5df1\u6539\u8fc7\u7684\u914d\u7f6e\u5e26\u504f\u3002
+     */
+    @Test
+    void baseRadiusDefaultsTo40() {
+        assertEquals(40, GensokyouConfig.RESONANCE_BASE_RADIUS.getDefault());
+    }
+
+    /**
+     * \u5347\u9636\u9012\u589e\uff1a2 \u9636 40 / 3 \u9636 80 / 4 \u9636 160 / 5 \u9636 320\u3002
+     *
+     * <p>\u4e0d\u80fd\u76f4\u63a5\u8c03 {@code radius(int)}\u2014\u2014\u5b83\u8bfb {@code RESONANCE_BASE_RADIUS.get()}\uff0c\u5355\u6d4b\u73af\u5883\u914d\u7f6e\u672a\u52a0\u8f7d\u65f6\u4e0d\u53ef\u9760\u3002
+     * \u6545\u6309\u516c\u5f0f {@code base * (1 << max(0, level-2))} \u5728\u57fa\u7840\u503c\u4e0a\u65ad\u8a00\u9012\u589e\u6bd4\u3002
+     */
+    @Test
+    void radiusDoublesPerTierFrom40() {
+        int base = GensokyouConfig.RESONANCE_BASE_RADIUS.getDefault();
+        assertEquals(40, base);
+        for (int lv = 2; lv <= 5; lv++) {
+            final int level = lv;
+            assertEquals(40 << (level - 2), base * (1 << Math.max(0, level - 2)),
+                    () -> "tier " + level + " radius");
+        }
     }
 }

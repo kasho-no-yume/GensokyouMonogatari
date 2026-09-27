@@ -16,6 +16,16 @@ public final class RitualFxLayout {
     public record FirePoint(double x, double y, double z, float edge, long seed) {
     }
 
+    /**
+     * 一点煅炉火星：局部坐标 + 边缘衰减 + 循环相位 + 尺寸抖动 + 确定性种子。
+     *
+     * @param cycle 该点的上升/渐隐循环相位（0..1，确定性，渲染端按时间偏移）
+     * @param scale 尺寸抖动系数（0.55..1.0，确定性）
+     */
+    public record EmberPoint(double x, double y, double z, float edge,
+                             double cycle, float scale, long seed) {
+    }
+
     private RitualFxLayout() {
     }
 
@@ -57,6 +67,45 @@ public final class RitualFxLayout {
             double dx = p.getX() - core.getX() + 0.5D;
             double dz = p.getZ() - core.getZ() + 0.5D;
             out.add(new FirePoint(dx, 0.0D, dz, edgeOf(Math.hypot(dx, dz), rMax), posLong));
+        }
+        return out;
+    }
+
+    /**
+     * 金山彦命煅炉的**密集火星场**：结构水平半径内铺满小型火舌点，
+     * 客户端按 {@code seed} 驱动上升/渐隐循环，观感等同"大量火焰粒子"，
+     * 但全部是交叉面片几何，MUST NOT 走原版粒子系统。
+     *
+     * <p>与 {@link #fireBed} 的区别：火床是"少量大贴地火舌"，本方法是"海量小火点"，
+     * 因此不做祭品台补点（台位由煅炉自己的火柱负责），改为每个点自带
+     * {@code cycle}（0..1 循环相位）与 {@code scale}（尺寸抖动），让渲染端
+     * 无需任何额外随机数即可得到稳定且各不相同的跳动。
+     *
+     * <p>半径硬钳：任一采样点水平半径 MUST ≤ {@code structureRadius}，绝不溢出结构。
+     */
+    public static List<EmberPoint> emberField(BlockPos core, int tier,
+                                               int baseCount, int countPerTier,
+                                               double structureRadius, double radiusRatio) {
+        double hardCap = Math.max(MIN_RADIUS, structureRadius);
+        double rMax = hardCap * clamp(radiusRatio, 0.1D, 1.0D);
+        int count = Math.max(0, baseCount + Math.max(0, tier) * countPerTier);
+        long seedBase = core.asLong() * 0xD1B54A32D192ED03L + 0x2545F491L;
+        RandomSource random = RandomSource.create(seedBase);
+        double golden = Math.PI * (3.0D - Math.sqrt(5.0D));
+        List<EmberPoint> out = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            double t = (i + 0.5D) / Math.max(1, count);
+            double rad = rMax * Math.sqrt(t) * (1.0D + (random.nextDouble() - 0.5D) * 0.22D);
+            rad = Math.min(rad, hardCap);
+            double angle = i * golden + (random.nextDouble() - 0.5D) * 0.4D;
+            out.add(new EmberPoint(
+                    0.5D + Math.cos(angle) * rad,
+                    0.0D,
+                    0.5D + Math.sin(angle) * rad,
+                    edgeOf(rad, rMax),
+                    random.nextDouble(),
+                    0.55F + 0.45F * (float) random.nextDouble(),
+                    seedBase + i * 65537L));
         }
         return out;
     }

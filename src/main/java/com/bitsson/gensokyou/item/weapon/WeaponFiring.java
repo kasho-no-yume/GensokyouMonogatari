@@ -39,8 +39,9 @@ public final class WeaponFiring {
             return;
         }
         CoreStats stats = core.stats();
-        RuneSummary runes = RuneSummary.of(
-                slots.slot3().getOrDefault(ModDataComponents.RUNE_AFFIXES.get(), List.of()));
+        RuneSummary.Weapon runes = RuneSummary.of(
+                        slots.slot3().getOrDefault(ModDataComponents.RUNE_AFFIXES.get(), List.of()))
+                .weapon();
 
         int cost = Math.max(0, Math.round(stats.spiritCost().getAsInt() * (1F + runes.spiritCostPct())));
         var power = ModAttachments.get(player);
@@ -51,10 +52,11 @@ public final class WeaponFiring {
         }
         ModAttachments.set(player, power.withCurrent(power.current() - cost));
 
-        // 暴击：发射时服务端 roll 一次，系数烘入伤害（命中不重 roll），并随弹 NBT 持久化
-        // 增幅核的暴击率/暴伤词条在此折入
+        // 暴击：发射时服务端 roll 一次，系数烘入伤害（命中不重 roll），并随弹 NBT 持久化。
+        // 暴击率/暴伤已迁到玩家属性域（核的 crit_chance / crit_damage 走 contribution 加区），
+        // 故此处不再有增幅核侧的额外参数。
         float critMult = com.bitsson.gensokyou.spirit.attr.PlayerAttributes
-                .rollCrit(player, player.getRandom(), runes.critChancePct(), runes.critDamagePct());
+                .rollCrit(player, player.getRandom());
 
         float finalDamage = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.spiritPower(player)
                 * stats.coreBaseMult().get()
@@ -64,11 +66,16 @@ public final class WeaponFiring {
 
         int rate = Math.max(1, Math.round(stats.attackRateTicks().getAsInt()
                 * (1F - Math.min(0.8F, Math.max(0F, runes.attackRatePct())))));
-        fire(player, core.pattern(), finalDamage, critMult);
+        fire(player, core.pattern(), finalDamage, critMult, runes.rangeMultiplier());
         player.getCooldowns().addCooldown(weapon.getItem(), rate);
     }
 
-    private static void fire(ServerPlayer player, FirePattern pattern, float damage, float critMult) {
+    /**
+     * {@code rangeMultiplier} = 弹道有效距离倍率（{@code (1+range_pct)^exp}，指数衰减）。
+     * 施加于激光长度与弹幕存活时间（射程 = 弹速 × 存活时间）；符卡索敌半径刻意不参与。
+     */
+    private static void fire(ServerPlayer player, FirePattern pattern, float damage, float critMult,
+                             float rangeMultiplier) {
         Level level = player.level();
         Vec3 look = player.getLookAngle();
         Set<EntityType<?>> whitelist = Set.of();
@@ -76,7 +83,7 @@ public final class WeaponFiring {
         if (pattern.isLaser()) {
             Vec3 origin = player.getEyePosition().add(look.scale(0.5D));
             LaserDanmaku laser = new LaserDanmaku(level, origin, look, damage, 0,
-                    pattern.laserMaxLength().getAsDouble(),
+                    pattern.laserMaxLength().getAsDouble() * rangeMultiplier,
                     pattern.laserRadius().getAsDouble(),
                     pattern.laserDelaySeconds().getAsDouble(),
                     pattern.laserDurationSeconds().getAsDouble(),
@@ -103,7 +110,9 @@ public final class WeaponFiring {
         int count = Math.max(1, pattern.count().getAsInt());
         double spread = pattern.spreadAngleDeg().getAsDouble();
         double speed = pattern.projectileSpeed().getAsDouble();
-        int lifetime = (int) Math.round(pattern.lifetimeSeconds().getAsDouble() * 20.0D);
+        // range_pct 的语义是"弹道有效距离"：对投射物即存活时间（射程 = 弹速 × 存活时间）
+        double lifetimeSeconds = pattern.lifetimeSeconds().getAsDouble() * rangeMultiplier;
+        int lifetime = lifetimeSeconds > 0D ? (int) Math.round(lifetimeSeconds * 20.0D) : 0;
         for (int i = 0; i < count; i++) {
             double offset = count <= 1 ? 0D
                     : Math.toRadians(spread * (i - (count - 1) / 2.0D) / (count - 1));

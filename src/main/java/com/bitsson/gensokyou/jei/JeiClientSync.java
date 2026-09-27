@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.jei;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.client.ritual.ClientRitualData;
 import com.bitsson.gensokyou.ritual.RitualLootLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import net.neoforged.api.distmarker.Dist;
@@ -22,6 +23,7 @@ public final class JeiClientSync {
             GensokyouJeiPlugin.syncFromLoader(RitualRecipeLoader.all());
             GensokyouJeiPlugin.syncLoot(RitualLootLoader.all());
             GensokyouJeiPlugin.syncWatatsumi();
+            GensokyouJeiPlugin.syncSmelt(ClientRitualData.smeltsAll());
         }
     }
 }

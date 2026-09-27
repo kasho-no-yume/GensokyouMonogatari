@@ -33,7 +33,7 @@ public class RitualPedestalRenderer implements BlockEntityRenderer<RitualPedesta
     /** 台面高度（祭品台为整砖，顶面 y=1）。 */
     private static final double SURFACE_Y = 1.0D;
     /** 静置态防 z-fighting 的极小离隙（不算悬浮）。 */
-    private static final double REST_GAP = 0.01D;
+    private static final double REST_GAP = 0.001D;
     /** 激活立起时底缘离台间隙。 */
     private static final double ACTIVE_GAP = 0.06D;
     private static final float SPIN_DEGREES_PER_TICK = 1.2F;

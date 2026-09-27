@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:item/magic_mushroom"
+  },
+  "render_type": "minecraft:cutout"
+}

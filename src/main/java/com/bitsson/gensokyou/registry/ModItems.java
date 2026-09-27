@@ -19,6 +19,7 @@ import com.bitsson.gensokyou.item.spellcard.MusouFuuinCardItem;
 import com.bitsson.gensokyou.item.weapon.AmpCoreItem;
 import com.bitsson.gensokyou.item.weapon.BulletCoreItem;
 import com.bitsson.gensokyou.item.weapon.CoreStats;
+import com.bitsson.gensokyou.item.weapon.DanmakuKind;
 import com.bitsson.gensokyou.item.weapon.DanmakuWeaponItem;
 import com.bitsson.gensokyou.item.weapon.FirePattern;
 import com.bitsson.gensokyou.item.weapon.WeaponLevelCoreItem;
@@ -60,6 +61,8 @@ public final class ModItems {
     // 矿产/土产/木材共 11 种为可放置方块；成品金属与粗矿仍为物品。
     public static final DeferredItem<BlockItem> CINNABAR =
             ITEMS.registerSimpleBlockItem("cinnabar", ModBlocks.CINNABAR);
+    public static final DeferredItem<Item> ROUGH_CINNABAR_ORE = simpleMaterial("rough_cinnabar_ore");
+    public static final DeferredItem<Item> REFINED_CINNABAR = simpleMaterial("refined_cinnabar");
     // 原矿（大山津见产出）；成品金属 spirit_iron / star_silver 由金山彦命之仪炼出（后续）
     public static final DeferredItem<BlockItem> SPIRIT_IRON_ORE =
             ITEMS.registerSimpleBlockItem("spirit_iron_ore", ModBlocks.SPIRIT_IRON_ORE);
@@ -102,10 +105,14 @@ public final class ModItems {
     public static final DeferredItem<Item> MERMAID_SCALE = simpleMaterial("mermaid_scale");
     public static final DeferredItem<Item> TIDE_CRYSTAL = simpleMaterial("tide_crystal");
     public static final DeferredItem<Item> DRAGON_SCALE = simpleMaterial("dragon_scale");
-    public static final DeferredItem<Item> SPIRIT_HERB = simpleMaterial("spirit_herb");
-    public static final DeferredItem<Item> GENTIAN = simpleMaterial("gentian");
-    public static final DeferredItem<Item> HIGANBANA = simpleMaterial("higanbana");
-    public static final DeferredItem<Item> MAGIC_MUSHROOM = simpleMaterial("magic_mushroom");
+    public static final DeferredItem<BlockItem> SPIRIT_HERB =
+            ITEMS.registerSimpleBlockItem("spirit_herb", ModBlocks.SPIRIT_HERB);
+    public static final DeferredItem<BlockItem> GENTIAN =
+            ITEMS.registerSimpleBlockItem("gentian", ModBlocks.GENTIAN);
+    public static final DeferredItem<BlockItem> HIGANBANA =
+            ITEMS.registerSimpleBlockItem("higanbana", ModBlocks.HIGANBANA);
+    public static final DeferredItem<BlockItem> MAGIC_MUSHROOM =
+            ITEMS.registerSimpleBlockItem("magic_mushroom", ModBlocks.MAGIC_MUSHROOM);
     public static final DeferredItem<Item> SPIRIT_CHARCOAL = simpleMaterial("spirit_charcoal");
     public static final DeferredItem<Item> TALISMAN_PAPER = simpleMaterial("talisman_paper");
     public static final DeferredItem<Item> SUKIMA_FRAGMENT = simpleMaterial("sukima_fragment");
@@ -230,6 +237,7 @@ public final class ModItems {
             ITEMS.register("core_sphere_single", () -> new BulletCoreItem(
                     new Item.Properties().stacksTo(1),
                     FirePattern.ofBullet(
+                             DanmakuKind.SPHERE,
                             (level, owner, damage) -> new SphereDanmaku(level, owner, damage, 0, 0.4F, Set.of()),
                             () -> 1,
                             () -> 0D, () -> 0.9D, () -> 0D),
@@ -240,6 +248,7 @@ public final class ModItems {
             ITEMS.register("core_sphere_shotgun", () -> new BulletCoreItem(
                     new Item.Properties().stacksTo(1),
                     FirePattern.ofBullet(
+                             DanmakuKind.SPHERE,
                             (level, owner, damage) -> new SphereDanmaku(level, owner, damage, 0, 0.3F, Set.of()),
                             GensokyouConfig.CORE_SHOTGUN_COUNT::get,
                             GensokyouConfig.CORE_SHOTGUN_SPREAD::get,
@@ -252,6 +261,7 @@ public final class ModItems {
             ITEMS.register("core_knife", () -> new BulletCoreItem(
                     new Item.Properties().stacksTo(1),
                     FirePattern.ofBullet(
+                             DanmakuKind.KNIFE,
                             (level, owner, damage) -> new KnifeDanmaku(level, owner, damage, Set.of()),
                             () -> 1, () -> 0D, GensokyouConfig.CORE_KNIFE_SPEED::get, () -> 0D),
                     stats(GensokyouConfig.CORE_KNIFE_MULT::get, GensokyouConfig.CORE_KNIFE_SP_COST::get,
@@ -261,6 +271,7 @@ public final class ModItems {
             ITEMS.register("core_talisman", () -> new BulletCoreItem(
                     new Item.Properties().stacksTo(1),
                     FirePattern.ofTalisman(
+                             DanmakuKind.TALISMAN,
                             (level, owner, damage) -> new TalismanDanmaku(level, owner, damage, 0, null,
                                     0D, Set.of()),
                             GensokyouConfig.CORE_TALISMAN_SPEED::get,
@@ -271,7 +282,7 @@ public final class ModItems {
     public static final DeferredItem<BulletCoreItem> CORE_LASER_GUN =
             ITEMS.register("core_laser_gun", () -> new BulletCoreItem(
                     new Item.Properties().stacksTo(1),
-                    FirePattern.ofLaser(UNSUPPORTED_FACTORY, GensokyouConfig.CORE_LASER_GUN_LENGTH::get,
+                    FirePattern.ofLaser(DanmakuKind.LASER, UNSUPPORTED_FACTORY, GensokyouConfig.CORE_LASER_GUN_LENGTH::get,
                             GensokyouConfig.CORE_LASER_GUN_RADIUS::get, GensokyouConfig.CORE_LASER_GUN_DELAY::get,
                             GensokyouConfig.CORE_LASER_GUN_DURATION::get),
                     stats(GensokyouConfig.CORE_LASER_GUN_MULT::get, GensokyouConfig.CORE_LASER_GUN_SP_COST::get,
@@ -280,7 +291,7 @@ public final class ModItems {
     public static final DeferredItem<BulletCoreItem> CORE_LASER_CANNON =
             ITEMS.register("core_laser_cannon", () -> new BulletCoreItem(
                     new Item.Properties().stacksTo(1),
-                    FirePattern.ofLaser(UNSUPPORTED_FACTORY, GensokyouConfig.CORE_LASER_CANNON_LENGTH::get,
+                    FirePattern.ofLaser(DanmakuKind.LASER, UNSUPPORTED_FACTORY, GensokyouConfig.CORE_LASER_CANNON_LENGTH::get,
                             GensokyouConfig.CORE_LASER_CANNON_RADIUS::get, GensokyouConfig.CORE_LASER_CANNON_DELAY::get,
                             GensokyouConfig.CORE_LASER_CANNON_DURATION::get),
                     stats(GensokyouConfig.CORE_LASER_CANNON_MULT::get, GensokyouConfig.CORE_LASER_CANNON_SP_COST::get,

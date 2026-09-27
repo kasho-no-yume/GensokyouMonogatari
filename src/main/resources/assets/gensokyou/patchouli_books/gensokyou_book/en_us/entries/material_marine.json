@@ -1,0 +1,23 @@
+{
+  "name": "gensokyou.book.entry.material_marine",
+  "category": "gensokyou:fantasy_materials",
+  "icon": "gensokyou:tide_crystal",
+  "sortnum": 4,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.material_marine.p1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "gensokyou:sanzu_flask,24,3;gensokyou:spirit_fish,30,3;gensokyou:mermaid_scale,30,3"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "gensokyou:tide_crystal,9.0,4;gensokyou:dragon_scale,7.5,4",
+      "advancement": "gensokyou:guide/end_unlock"
+    }
+  ]
+}

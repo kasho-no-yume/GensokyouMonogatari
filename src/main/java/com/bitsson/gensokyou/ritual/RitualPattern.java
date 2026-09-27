@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.ritual;
 
+import com.bitsson.gensokyou.registry.ModBlocks;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -7,7 +8,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.AbstractCauldronBlock;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
 import javax.annotation.Nullable;
@@ -47,8 +50,12 @@ public record RitualPattern(ResourceLocation id, char anchorKey,
         public boolean test(BlockState state) {
             return switch (kind) {
                 case IGNORE -> true;
-                case AIR -> state.isAir();
-                case EXACT -> block != null && state.is(block);
+                // 隙间视同空气：它无形、无碰撞、无掉落，概念上就是「空间的一个洞」。
+                // 图案里的空气格往往正是传送门的插座（结界破坏仪式的中柱通道），
+                // 门放下后若不再满足谓词，仪式会当场变成不成型。
+                case AIR -> state.isAir() || state.is(ModBlocks.SUKIMA.get());
+                case EXACT -> block != null && (state.is(block)
+                        || block == Blocks.CAULDRON && state.getBlock() instanceof AbstractCauldronBlock);
                 case TAG -> tag != null && state.is(tag);
             };
         }

@@ -1,0 +1,17 @@
+{
+  "name": "item.gensokyou.ritual_pedestal",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:ritual_pedestal",
+  "sortnum": 43,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:ritual_pedestal",
+      "text": "gensokyou.book.entry.item_recipe.pedestal.p1"
+    },
+    {
+      "type": "patchouli:crafting",
+      "recipe": "gensokyou:ritual_pedestal"
+    }
+  ]
+}

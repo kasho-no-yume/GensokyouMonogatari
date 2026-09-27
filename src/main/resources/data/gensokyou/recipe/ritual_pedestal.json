@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "SSS",
+    "RPR",
+    "SSS"
+  ],
+  "key": {
+    "S": { "item": "minecraft:smooth_stone" },
+    "R": { "item": "gensokyou:ritual_stone_0" },
+    "P": { "item": "gensokyou:ppoint" }
+  },
+  "result": {
+    "id": "gensokyou:ritual_pedestal",
+    "count": 1
+  }
+}

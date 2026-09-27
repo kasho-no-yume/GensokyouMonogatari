@@ -56,7 +56,12 @@ import java.util.Set;
  */
 public abstract class AbstractDanmakuProjectile extends Projectile {
     /** 最大存活时间：60 秒。 */
-    protected static final int MAX_LIFETIME_TICKS = 1200;
+    /**
+     * 弹丸存活上限（tick）。{@code FirePattern.lifetimeSeconds <= 0} 表示"不覆盖"，
+     * 此时沿用本值。公开它是为了让 tooltip 能报出<b>真实</b>存活与有效距离
+     * （否则不覆盖的核会显示成 0.00s / 0.00 格）。
+     */
+    public static final int MAX_LIFETIME_TICKS = 1200;
 
     /** 存活时间，发射方可按核覆写（散弹等短射程行为）。 */
     private int lifetimeTicks = MAX_LIFETIME_TICKS;

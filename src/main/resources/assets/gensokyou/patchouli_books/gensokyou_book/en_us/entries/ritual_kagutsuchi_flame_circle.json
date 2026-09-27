@@ -5,10 +5,6 @@
   "sortnum": 1,
   "pages": [
     {
-      "type": "patchouli:text",
-      "text": "gensokyou.book.entry.ritual.kagutsuchi_flame_circle.text"
-    },
-    {
       "type": "patchouli:multiblock",
       "name": "gensokyou.book.ritual.structure.0",
       "multiblock": {

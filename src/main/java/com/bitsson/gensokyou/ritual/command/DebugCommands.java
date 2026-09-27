@@ -85,6 +85,12 @@ public final class DebugCommands {
                                 .executes(context -> probeWujinzang(context.getSource(),
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument
                                                 .getLoadedBlockPos(context, "core")))))
+                .then(Commands.literal("kanayamahiko")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeKanayamahiko(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core")))))
                 .then(Commands.literal("sair")
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
@@ -100,6 +106,15 @@ public final class DebugCommands {
                                                     .getLoadedBlockPos(context, "core");
                                     return probeBafang(context.getSource(), pos);
                                 })))
+                .then(Commands.literal("seii")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> {
+                                    net.minecraft.core.BlockPos pos =
+                                            net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                    .getLoadedBlockPos(context, "core");
+                                    return probeSeii(context.getSource(), pos);
+                                })))
                 .then(Commands.literal("kagutsuchi")
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
@@ -109,6 +124,12 @@ public final class DebugCommands {
                                                     .getLoadedBlockPos(context, "core");
                                     return probeKagutsuchi(context.getSource().getPlayerOrException(), pos);
                                 })))
+                .then(Commands.literal("barrier")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeBarrier(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core")))))
                 .then(Commands.literal("nichirin")
                         .then(Commands.literal("at")
                                 .then(Commands.argument("daytime", IntegerArgumentType.integer(0, 23999))
@@ -171,6 +192,12 @@ public final class DebugCommands {
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
                                 .executes(context -> probeShujou(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core")))))
+                .then(Commands.literal("houjouno")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeHoujouno(context.getSource(),
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument
                                                 .getLoadedBlockPos(context, "core")))))
                 .then(Commands.literal("crystal_mode")
@@ -463,6 +490,28 @@ public final class DebugCommands {
         return 1;
     }
 
+    private static int probeHoujouno(net.minecraft.commands.CommandSourceStack source,
+                                     net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null
+                && com.bitsson.gensokyou.ritual.RitualBehaviors.HOUJOUNO_TEIHOU
+                        .equals(core.activeMatch().patternId())) {
+            msg = "[GS-AUTO] HOUJOUNO "
+                    + com.bitsson.gensokyou.ritual.behavior.HoujounoTeihouBehavior
+                            .debugSummary(serverLevel, pos, core.activeMatch(), core);
+        } else {
+            msg = "[GS-AUTO] HOUJOUNO NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
     /** 众生余录探针：单行 [GS-AUTO] SHUJOU，含等级/祭品台/有效典籍/去重 species/成本/容量/L2/试掷。 */
     private static int probeShujou(net.minecraft.commands.CommandSourceStack source,
                                    net.minecraft.core.BlockPos pos) {
@@ -533,6 +582,29 @@ public final class DebugCommands {
         return 1;
     }
 
+    private static int probeKanayamahiko(net.minecraft.commands.CommandSourceStack source,
+                                          net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null
+                && com.bitsson.gensokyou.ritual.RitualBehaviors.KANAYAMAHIKO
+                        .equals(core.activeMatch().patternId())) {
+            msg = "[GS-AUTO] KANAYAMAHIKO "
+                    + com.bitsson.gensokyou.ritual.behavior.KanayamahikoBehavior
+                            .debugSummary(serverLevel, pos, core.activeMatch(), core)
+                    + " enabled=" + core.isEnabled();
+        } else {
+            msg = "[GS-AUTO] KANAYAMAHIKO NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
     /** 八方归元储灵池探针：聚合态单行 [GS-AUTO]，日志+指令源双输出（服务器函数上下文可跑）。 */
     /** 无尽藏探针：单行 [GS-AUTO] WUJINZANG，含分区/容量/耗电/被占。 */
     private static int probeWujinzang(net.minecraft.commands.CommandSourceStack source,
@@ -558,6 +630,30 @@ public final class DebugCommands {
         return 1;
     }
 
+    /** 星移之仪探针：机读单行（phase / 核阶 / 花费 / 缓存 / 暂存条数 / 洗练度）。 */
+    private static int probeSeii(net.minecraft.commands.CommandSourceStack source,
+                                 net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null) {
+            var am = core.activeMatch();
+            msg = "[GS-AUTO] SEII "
+                    + com.bitsson.gensokyou.ritual.behavior.SeiiService.debugSummary(core)
+                    + " pattern=" + am.patternId() + " enabled=" + core.isEnabled()
+                    + " ladder cap=" + com.bitsson.gensokyou.item.weapon.SeiiNumbers.capacity(am.level())
+                    + " inRate=" + com.bitsson.gensokyou.item.weapon.SeiiNumbers.inRate(am.level())
+                    + " maxCoreTier=" + com.bitsson.gensokyou.item.weapon.SeiiNumbers.maxCoreTier(am.level());
+        } else {
+            msg = "[GS-AUTO] SEII NO-MATCH";
+        }
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(msg), false);
+        return 1;
+    }
+
     private static int probeBafang(net.minecraft.commands.CommandSourceStack source,
                                    net.minecraft.core.BlockPos pos) {
         if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
@@ -579,6 +675,39 @@ public final class DebugCommands {
         Gensokyou.LOGGER.info(msg);
         source.sendSystemMessage(Component.literal(msg));
         return 1;
+    }
+
+    /**
+     * 结界破坏探针：单行 [GS-AUTO] BARRIER，含五态、缓存/上限、流失、供灵诊断与双门在位情况。
+     * 供灵不足导致进度条倒退时，本行是唯一的机读判据（state=INSUFFICIENT + net&lt;0）。
+     */
+    private static int probeBarrier(net.minecraft.commands.CommandSourceStack source,
+                                    net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        if (!(serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core)
+                || core.activeMatch() == null
+                || !core.activeMatch().patternId()
+                        .equals(com.bitsson.gensokyou.ritual.RitualBehaviors.BARRIER_BREAK)) {
+            emitGs(source, "[GS-AUTO] BARRIER NO-MATCH");
+            return 1;
+        }
+        emitGs(source, "[GS-AUTO] BARRIER "
+                + com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior
+                        .debugSummary(serverLevel, pos, core.activeMatch(), core)
+                + " level=" + core.activeMatch().level());
+        for (String row : com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior
+                .debugOfferings(serverLevel, core.activeMatch(), core)) {
+            emitGs(source, "[GS-AUTO] BARRIER " + row);
+        }
+        return 1;
+    }
+
+    private static void emitGs(net.minecraft.commands.CommandSourceStack source, String msg) {
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
     }
 
     /** 赛尔能源探针：单行 [GS-AUTO] SAIR，含缓存/上限/供灵速率与命中态。 */

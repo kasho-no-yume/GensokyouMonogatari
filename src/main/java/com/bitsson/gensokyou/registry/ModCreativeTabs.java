@@ -32,6 +32,8 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.MEMORY_FRAGMENT.get());
                         // 幻想乡素材（按 矿产/土产/木材/海产/植物 排列）
                         output.accept(ModItems.CINNABAR.get());
+                        output.accept(ModItems.ROUGH_CINNABAR_ORE.get());
+                        output.accept(ModItems.REFINED_CINNABAR.get());
                         output.accept(ModItems.SPIRIT_IRON_ORE.get());
                         output.accept(ModItems.ROUGH_SPIRIT_IRON_ORE.get());
                         output.accept(ModItems.STAR_SILVER_ORE.get());
@@ -88,13 +90,13 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.WEAPON_CORE_LV1.get());
                         output.accept(ModItems.WEAPON_CORE_LV2.get());
                         output.accept(ModItems.WEAPON_CORE_LV3.get());
-                        // 增幅核：预生成词条+晶石随机色，创造栏即所见即所得
+                        // 增幅核：创造栏给<b>未 roll</b> 的裸核（无词条/无晶石色）。
+                        // 取出后由 AmpCoreItem.inventoryTick 首次 roll —— 创造栏不该出现
+                        // "每次进栏都变"的随机词条，玩家无法在创造栏里比大小。
                         for (AmpCoreItem amp : new AmpCoreItem[]{
                                 ModItems.AMP_CORE_T1.get(), ModItems.AMP_CORE_T2.get(),
                                 ModItems.AMP_CORE_T3.get()}) {
-                            ItemStack core = new ItemStack(amp);
-                            RuneGenerator.ensureGenerated(core, amp.tier());
-                            output.accept(core);
+                            output.accept(new ItemStack(amp));
                         }
                     })
                     .build());

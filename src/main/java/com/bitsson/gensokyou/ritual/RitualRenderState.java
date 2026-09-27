@@ -16,6 +16,8 @@ import java.util.Arrays;
  *   <li>{@link #KIND_KAGUTSUICHI}：linkPos=祭品台 'P' 坐标（规范序，可能为空），
  *       movingMask bit0=燃烧中，**maxY=结构水平半径（格）**——火柱铺面依据（不依赖台位数据）。</li>
  *   <li>{@link #KIND_BAFANG}：仅 enabled+tier 有意义。</li>
+ *   <li>{@link #KIND_KANAYAMAHIKO}：linkPos=祭品台 'P' 坐标（规范序），
+ *       maxY=结构水平半径（格），movingMask bit0=存在燃烧任务、bit(i+1)=第 i 台位燃烧。</li>
  *   <li>{@link #KIND_NONE}：客户端不绘制。</li>
  * </ul>
  * 位宽 {@code long} 上限 {@link #MAX_CHANNELS} 条，超限由构建侧截断（未来配额翻倍越界
@@ -29,16 +31,29 @@ public record RitualRenderState(int kind, boolean enabled, int tier, int minY, i
     public static final int KIND_RELAY = 1;
     public static final int KIND_KAGUTSUICHI = 2;
     public static final int KIND_BAFANG = 3;
-    /** 献祭仪式产出光柱：minY=光柱高度(格)、maxY=剩余刻、period=色索引(0..5)。 */
+    /** 献祭仪式产出光柱：minY=光柱高度(格)、maxY=剩余刻、period=色索引(0..6)。 */
     public static final int KIND_SACRIFICE = 4;
     /** 无尽藏之仪：minY/maxY=结构 Y 范围（雾带高度），linkPos=底座 8 个激光锚点（绝对坐标）。 */
     public static final int KIND_WUJINZANG = 5;
+    /**
+     * 金山彦命煅炉：linkPos=祭品台 'P' 坐标（规范序，可能为空），
+     * maxY=结构水平半径（格），movingMask bit0=存在燃烧任务、bit(i+1)=第 i 个台位在燃烧。
+     */
+    public static final int KIND_KANAYAMAHIKO = 6;
+    /**
+     * 星移之仪洗练演出：{@code enabled} = 演出中；{@code tier} = 仪式阶（1/3/5，决定演出档）；
+     * {@code minY} = <b>演出起始 gameTime</b>（客户端据此推进进度，MUST NOT 逐帧同步）；
+     * {@code maxY} = 演出总时长 tick。
+     */
+    public static final int KIND_SEII = 7;
 
-    /** 位掩码通道上限（当前 L5 配额合计 40 &lt; 64）。 */
+    /** 位掩码通道上限（当前 L5 配额合计 40 < 64）。 */
     public static final int MAX_CHANNELS = 64;
 
     /** 迦具土燃烧标记（kind=KAGUTSUICHI 时 movingMask 的 bit0）。 */
     public static final long MASK_KAGUTSUCHI_BURNING = 1L;
+    /** 煅炉"存在燃烧任务"标记（kind=KANAYAMAHIKO 时 movingMask 的 bit0）。 */
+    public static final long MASK_KANAYAMAHIKO_BURNING = 1L;
 
     public static final RitualRenderState EMPTY =
             new RitualRenderState(KIND_NONE, false, 0, 0, 0, 20, new long[0], 0, 0L);
@@ -66,12 +81,50 @@ public record RitualRenderState(int kind, boolean enabled, int tier, int minY, i
         return kind == KIND_KAGUTSUICHI && (movingMask & MASK_KAGUTSUCHI_BURNING) != 0L;
     }
 
+    /** kind=KANAYAMAHIKO：当前是否有任务在燃烧。 */
+    public boolean forgeBurning() {
+        return kind == KIND_KANAYAMAHIKO && (movingMask & MASK_KANAYAMAHIKO_BURNING) != 0L;
+    }
+
+    /**
+     * kind=KANAYAMAHIKO：第 index 个祭品台是否在燃烧。
+     *
+     * <p>bit0 被"存在燃烧任务"占用，故台位 i 占用 bit(i+1)；
+     * 这样 63 个台位可独立点亮（结构上限 32，留有余量）。
+     */
+    public boolean forgePedestalBurning(int index) {
+        if (kind != KIND_KANAYAMAHIKO || index < 0 || index >= linkPos.length
+                || index + 1 >= MAX_CHANNELS) {
+            return false;
+        }
+        return (movingMask & (1L << (index + 1))) != 0L;
+    }
+
+    /** 构造煅炉燃烧掩码：bit0=任一燃烧，bit(i+1)=第 i 个台位燃烧。 */
+    public static long forgeBurnMask(boolean anyBurning, long pedestalBurningMask) {
+        long high = clampMask(pedestalBurningMask, MAX_CHANNELS - 1) << 1;
+        return anyBurning ? (high | MASK_KANAYAMAHIKO_BURNING) : high;
+    }
+
     /** 把 mask 收敛到前 bits 位（链接截断/重置时防残留位点亮错位通道）。 */
     public static long clampMask(long mask, int bits) {
         if (bits >= MAX_CHANNELS) {
             return mask;
         }
         return bits <= 0 ? 0L : mask & ((1L << bits) - 1L);
+    }
+
+    /**
+     * kind=SEII：本客户端进入演出态的<b>起始 gameTime</b>（含小数 tick 由客户端自行插值）。
+     * 非演出态返回 0。
+     */
+    public int seiiStartTick() {
+        return kind == KIND_SEII && enabled ? minY : 0;
+    }
+
+    /** kind=SEII：演出总时长 tick。 */
+    public int seiiDurationTicks() {
+        return kind == KIND_SEII ? Math.max(1, maxY) : 1;
     }
 
     public CompoundTag toTag() {

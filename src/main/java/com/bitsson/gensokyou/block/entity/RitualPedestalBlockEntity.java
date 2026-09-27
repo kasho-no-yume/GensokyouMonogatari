@@ -15,6 +15,15 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class RitualPedestalBlockEntity extends BlockEntity {
     private static final String TAG_HELD = "Held";
+    /**
+     * 渲染态瞬时广播键。
+     *
+     * <p>刻意**不进** {@link #saveAdditional}：该方法同时服务落盘与 update tag，
+     * 而 {@code ritualActive} 的唯一事实源是核心（见字段注释），落盘即过期值。
+     * 故只在 {@link #getUpdateTag} 追加、只在 {@link #loadAdditional} 读；
+     * 落盘旧档无此键 → 读出 {@code false}，正是"不持久化"的期望默认值。
+     */
+    private static final String TAG_ACTIVE = "Active";
 
     /**
      * 台面持有物（单件不变量：常规上限 1 个物品，经 {@link #setHeld} 强制）。
@@ -80,6 +89,7 @@ public class RitualPedestalBlockEntity extends BlockEntity {
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
         CompoundTag tag = super.getUpdateTag(registries);
         saveAdditional(tag, registries);
+        tag.putBoolean(TAG_ACTIVE, ritualActive);
         return tag;
     }
 
@@ -90,9 +100,10 @@ public class RitualPedestalBlockEntity extends BlockEntity {
 
     /**
      * NeoForge 默认实现（{@code IBlockEntityExtension#onDataPacket}）在 update tag 为**空**时
-     * 直接跳过 {@code loadWithComponents}。本 BE 的「台面清空」正对应空 tag（Held 不写入），
+     * 直接跳过 {@code loadWithComponents}。本 BE 的「台面清空」正对应 Held 不写入的空 tag，
      * 若沿用默认实现，清空后客户端会残留上一件物品的渲染（重登/区块重载才消失）。
-     * 故此处无条件载入，保证空 tag 也把 held 清成 EMPTY。
+     * 同理「仪式停机」也依赖 {@code Active=false} 被可靠读入。
+     * 故此处无条件载入，保证缺键的 tag 也把 held 清成 EMPTY、渲染态归位。
      */
     @Override
     public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket packet,
@@ -114,6 +125,8 @@ public class RitualPedestalBlockEntity extends BlockEntity {
         held = tag.contains(TAG_HELD)
                 ? ItemStack.parse(registries, tag.getCompound(TAG_HELD)).orElse(ItemStack.EMPTY)
                 : ItemStack.EMPTY;
-        // ritualActive 不持久化（旧档多余键静默忽略）：由所属核心在成型/启停时广播为唯一事实源
+        // 渲染态：只从 update tag 到达客户端（磁盘无此键 → 恒为 false，符合"不持久化"）；
+        // 服务端区块重载后由核心成型时 setPedestalsActive 重新广播为唯一事实源。
+        ritualActive = tag.getBoolean(TAG_ACTIVE);
     }
 }

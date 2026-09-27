@@ -1,0 +1,20 @@
+{
+  "name": "item.gensokyou.amp_core_t2",
+  "category": "gensokyou:weapons",
+  "icon": "gensokyou:amp_core_t2",
+  "sortnum": 19,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:amp_core_t2",
+      "text": "gensokyou.book.entry.item_recipe.p1"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_amp_core_t2"
+    }
+  ],
+  "advancement": "gensokyou:guide/end_unlock",
+  "secret": true
+}

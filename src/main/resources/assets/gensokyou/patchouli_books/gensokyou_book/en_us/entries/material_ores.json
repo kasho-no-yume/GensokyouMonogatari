@@ -1,0 +1,35 @@
+{
+  "name": "gensokyou.book.entry.material_ores",
+  "category": "gensokyou:fantasy_materials",
+  "icon": "gensokyou:cinnabar",
+  "sortnum": 1,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.material_ores.p1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "gensokyou:cinnabar,0.98,3;gensokyou:spirit_iron_ore,0.98,3"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "minecraft:netherrack,10,1;minecraft:magma_block,0.17,1;minecraft:nether_quartz_ore,2.6,1",
+      "advancement": "gensokyou:guide/nether_unlock"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "minecraft:end_stone,9.4,2;minecraft:purpur_block,0.16,2",
+      "advancement": "gensokyou:guide/end_unlock"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "gensokyou:star_silver_ore,0.30,4;gensokyou:oni_stone,0.30,4",
+      "advancement": "gensokyou:guide/end_unlock"
+    }
+  ]
+}

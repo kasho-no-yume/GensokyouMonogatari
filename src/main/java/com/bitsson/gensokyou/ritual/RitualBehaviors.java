@@ -4,13 +4,16 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior;
 import com.bitsson.gensokyou.ritual.behavior.BafangGuiyuanBehavior;
 import com.bitsson.gensokyou.ritual.behavior.KagutsuchiFlameBehavior;
+import com.bitsson.gensokyou.ritual.behavior.KanayamahikoBehavior;
 import com.bitsson.gensokyou.ritual.behavior.KayaNoHimeBehavior;
 import com.bitsson.gensokyou.ritual.behavior.KukunochiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.HaniyasuBehavior;
+import com.bitsson.gensokyou.ritual.behavior.HoujounoTeihouBehavior;
 import com.bitsson.gensokyou.ritual.behavior.NichirinBehavior;
 import com.bitsson.gensokyou.ritual.behavior.OyamatsumiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ResonanceRelayBehavior;
 import com.bitsson.gensokyou.ritual.behavior.SairEnergyBehavior;
+import com.bitsson.gensokyou.ritual.behavior.SeiiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ShujouYorokuBehavior;
 import com.bitsson.gensokyou.ritual.behavior.TsukikageBehavior;
 import com.bitsson.gensokyou.ritual.behavior.WatatsumiBehavior;
@@ -35,6 +38,7 @@ public final class RitualBehaviors {
     public static final ResourceLocation BAFANG_GUIYUAN = Gensokyou.id("bafang_guiyuan_circle");
     public static final ResourceLocation ZAOHUA = Gensokyou.id("zaohua_circle");
     public static final ResourceLocation KAMI_NO_MEGUMI = Gensokyou.id("kami_no_megumi_circle");
+    public static final ResourceLocation SEII = Gensokyou.id("seii_circle");
     public static final ResourceLocation YUMEWATARI = Gensokyou.id("yumewatari_circle");
     public static final ResourceLocation NICHIRIN = Gensokyou.id("nichirin_circle");
     public static final ResourceLocation TSUKIKAGE = Gensokyou.id("tsukikage_circle");
@@ -45,6 +49,8 @@ public final class RitualBehaviors {
     public static final ResourceLocation WATATSUMI = Gensokyou.id("watatsumi_circle");
     public static final ResourceLocation SHUJOU = Gensokyou.id("shujou_yoroku_circle");
     public static final ResourceLocation WUJINZANG = Gensokyou.id("wujinzang_circle");
+    public static final ResourceLocation KANAYAMAHIKO = Gensokyou.id("kanayamahiko_circle");
+    public static final ResourceLocation HOUJOUNO_TEIHOU = Gensokyou.id("houjouno_teihou_circle");
     public static final ResourceLocation SAIR_ENERGY = Gensokyou.id("sair_energy_circle");
 
     static {
@@ -54,6 +60,7 @@ public final class RitualBehaviors {
         register(BAFANG_GUIYUAN, new BafangGuiyuanBehavior());
         register(ZAOHUA, new ZaohuaCraftingBehavior());
         register(KAMI_NO_MEGUMI, new YaoyorozuGraceBehavior());
+        register(SEII, new SeiiBehavior());
         register(YUMEWATARI, new YumewatariBehavior());
         register(NICHIRIN, new NichirinBehavior());
         register(TSUKIKAGE, new TsukikageBehavior());
@@ -64,6 +71,8 @@ public final class RitualBehaviors {
         register(WATATSUMI, new WatatsumiBehavior());
         register(SHUJOU, new ShujouYorokuBehavior());
         register(WUJINZANG, new WujinzangBehavior());
+        register(KANAYAMAHIKO, new KanayamahikoBehavior());
+        register(HOUJOUNO_TEIHOU, new HoujounoTeihouBehavior());
         register(SAIR_ENERGY, new SairEnergyBehavior());
     }
 
@@ -81,7 +90,7 @@ public final class RitualBehaviors {
                 || patternId.equals(WATATSUMI);
     }
 
-    /** 献祭光柱色索引（服务端写入渲染态；客户端映射 RGB）：石0/木1/土2/草3/绵津见4水蓝/众生余录5紫。 */
+    /** 献祭光柱色索引（服务端写入渲染态；客户端映射 RGB）：石0/木1/土2/草3/绵津见4水蓝/众生余录5紫/丰穰神6金穗。 */
     public static int sacrificeColorIndex(ResourceLocation patternId) {
         if (patternId.equals(KUKUNOCHI)) {
             return 1;
@@ -97,6 +106,9 @@ public final class RitualBehaviors {
         }
         if (patternId.equals(SHUJOU)) {
             return 5;
+        }
+        if (patternId.equals(HOUJOUNO_TEIHOU)) {
+            return 6;
         }
         return 0;
     }

@@ -69,11 +69,16 @@ public final class PlayerAttributes {
     }
 
     /**
-     * 写入临时改写层（变身用）；白名单外键与未知键拒绝（越界改写被拒）。
-     * 返回是否生效。
+     * 写入临时改写层；白名单外键与未知键拒绝（越界改写被拒）。
+     *
+     * <p><b>白名单约束的是"来源"而不是"层"</b>：{@link AttributeKey#isTransformRewritable()} 描述的是
+     * <b>降神变身</b>的改写域，故只有变身来源命名空间受它约束；装备来源（{@code seii_rune_*} 等前缀）
+     * 写入同一层时不受限制 —— "变身可改写"与"装备提供"是两个独立语义，把白名单当作层级别的写权限会混淆二者。
+     *
+     * @return 是否生效
      */
     public static boolean setTemp(ServerPlayer player, AttributeKey key, String sourceId, float value) {
-        if (key == null || !key.isTransformRewritable()) {
+        if (key == null || (isTransformSource(sourceId) && !key.isTransformRewritable())) {
             return false;
         }
         PlayerAttributesData data = data(player);
@@ -83,7 +88,39 @@ public final class PlayerAttributes {
         return true;
     }
 
-    /** 整层丢弃临时改写（变身到期=恢复原值）。 */
+    /** 装备来源前缀（主手武器增幅核的玩家属性词条）。 */
+    public static final String EQUIPPED_SOURCE_PREFIX = "seii_rune_";
+
+    /** 来源是否属于降神变身命名空间（即 MUST 受 transformRewritable 白名单约束）。 */
+    public static boolean isTransformSource(String sourceId) {
+        return sourceId == null || !sourceId.startsWith(EQUIPPED_SOURCE_PREFIX);
+    }
+
+    /** 写入装备来源的加区贡献（不受变身白名单约束）。 */
+    public static boolean setEquipped(ServerPlayer player, AttributeKey key, String sourceId, float value) {
+        return setTemp(player, key, EQUIPPED_SOURCE_PREFIX + sourceId, value);
+    }
+
+    /** 丢弃某层内指定前缀的全部来源（换装 / 卸下主手时清装备贡献，不动变身来源）。 */
+    public static void clearSources(ServerPlayer player, String prefix) {
+        PlayerAttributesData data = data(player);
+        Map<String, Map<String, Float>> temp = copyLayers(data.temp());
+        boolean changed = false;
+        var it = temp.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, Map<String, Float>> e = it.next();
+            e.getValue().keySet().removeIf(id -> id.startsWith(prefix));
+            if (e.getValue().isEmpty()) {
+                it.remove();
+                changed = true;
+            }
+        }
+        if (changed) {
+            store(player, new PlayerAttributesData(data.permanent(), temp));
+        }
+    }
+
+    /** 整层丢弃临时改写（变身到期=恢复原值；换装=装备贡献清空）。 */
     public static void clearTemp(ServerPlayer player) {
         PlayerAttributesData data = data(player);
         if (data.temp().isEmpty()) {

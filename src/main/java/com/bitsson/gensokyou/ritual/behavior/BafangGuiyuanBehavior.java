@@ -7,6 +7,7 @@ import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualMatch;
 import com.bitsson.gensokyou.ritual.RitualPedestals;
+import com.bitsson.gensokyou.ritual.RitualScaling;
 import com.bitsson.gensokyou.spirit.SpiritCoreItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -298,6 +299,27 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
     @Override
     public long extract(ServerLevel level, BlockPos corePos, RitualMatch match, long maxAmount) {
         return transfer(level, corePos, match, maxAmount, false);
+    }
+
+    @Override
+    public long extractable(ServerLevel level, BlockPos corePos, RitualMatch match) {
+        List<Hosted> cores = hosted(level, match);
+        if (cores.isEmpty()) {
+            return 0L;
+        }
+        BlockPos key = corePos.immutable();
+        long now = level.getGameTime();
+        int period = GensokyouConfig.SETTLE_PERIOD_TICKS.get();
+        Map<BlockPos, TickRateLedger> ledgers = OUT_LEDGER.computeIfAbsent(
+                key, k -> new ConcurrentHashMap<>());
+        long total = 0L;
+        for (Hosted hosted : cores) {
+            TickRateLedger ledger = ledgers.computeIfAbsent(hosted.pos(), k -> new TickRateLedger());
+            long budget = ledger.peek(now, hosted.outRate(), period);
+            long head = Math.max(0L, hosted.stored());
+            total = RitualScaling.saturatingAdd(total, Math.min(budget, head));
+        }
+        return total;
     }
 
     /**

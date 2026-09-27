@@ -12,6 +12,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -43,13 +44,26 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     /** 信息行布局：图标行占 18px，纯文本行占 11px。 */
     private static final int INFO_X = 8;
     private static final int INFO_Y_START = 60;
+    /**
+     * 目标物品槽（星移之仪的增幅核）占据信息区首行时的高度。
+     * 槽在 (8,60)、18px 见方，标注画在其右侧，故整条占 {@code INFO_TARGET_ROW_H}。
+     */
+    private static final int INFO_TARGET_ROW_H = 20;
     private static final int INFO_MAX_Y = INFO_HEIGHT - 22;
-    private static final int STATE_X = 124;
     /** 信息盒右钳界：背景贴图分隔线 x=116 留 4px 余量，进度条/高亮/命中区不得越入按钮列。 */
     private static final int INFO_BOX_RIGHT = 112;
     /** 启停按钮（头排右列）。 */
     private static final int TOGGLE_BUTTON_X = 120;
     private static final int TOGGLE_BUTTON_W = 50;
+    /**
+     * 三态标记（✓/✗）右对齐锚点 = 信息盒内壁。
+     *
+     * <p>此前固定在 {@code STATE_X = 124}，但右侧按钮列从 {@link #TOGGLE_BUTTON_X}(120) 起——
+     * 标记实际画进了按钮列里（表现为"超框"）。改为右对齐到信息盒内壁，绘制与文本让位都以此为准。
+     */
+    private static final int STATE_RIGHT = INFO_BOX_RIGHT - 1;
+    /** 三态标记预留宽（"✓"/"✗" 约 6px，留 2px 余量）。 */
+    private static final int STATE_MARK_W = 8;
 
     @Nullable
     private Button startButton;
@@ -59,6 +73,13 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     /** 信息区滚动状态与可交互行命中矩形（绝对屏幕坐标 x,y,w,h,actionId）。 */
     private int infoScroll;
     private int infoContentHeight;
+    /** 玩家已显式滚轮翻动过：本次开界面内不再自动对齐，不与玩家抢镜头。 */
+    private boolean userScrolled;
+    /**
+     * 本帧信息区内容的实际起始 y：目标物品槽可见时被压低一行。
+     * 悬停命中区、滚动条、裁剪区、绘制起点全部共用它，避免各处各算一套。
+     */
+    private int infoTop = INFO_Y_START;
     private int lastMouseX = -1;
     private int lastMouseY = -1;
     private final List<int[]> interactiveRowHits = new ArrayList<>();
@@ -77,6 +98,7 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     @Override
     protected void init() {
         super.init();
+        userScrolled = false; // 每次开界面重置"玩家已手动滚动"，恢复自动对齐
         // 启停按钮：头排右列（电池槽右侧）
         startButton = addRenderableWidget(Button.builder(
                         Component.translatable("gui.gensokyou.ritual.start"), b -> send(0))
@@ -114,6 +136,17 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
                 .orElse(true);
     }
 
+    /** 该仪式是否声明目标物品槽（星移之仪的增幅核）。 */
+    private static boolean targetSocket(RitualInfoPayload info) {
+        if (info.patternId().isEmpty()) {
+            return false;
+        }
+        return com.bitsson.gensokyou.ritual.RitualBehaviors
+                .get(ResourceLocation.parse(info.patternId()))
+                .map(com.bitsson.gensokyou.ritual.RitualBehavior::usesTargetSlot)
+                .orElse(false);
+    }
+
     @Override
     public void containerTick() {
         super.containerTick();
@@ -121,6 +154,9 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         boolean ours = info != null && info.blockPos().equals(menu.pos());
         boolean showButtons = ours && info.toggleable();
         menu.syncCoreSocketVisible(ours && coreSocket(info));
+        menu.syncTargetSocketVisible(ours && targetSocket(info));
+        // 目标物品槽占信息区首行 → 整条信息区下移一行（仅声明该槽的仪式付此代价）
+        infoTop = INFO_Y_START + (menu.targetSocketShown() ? INFO_TARGET_ROW_H : 0);
         if (startButton != null) {
             startButton.visible = showButtons && !(ours && info.enabled());
         }
@@ -191,12 +227,13 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        int viewHeight = INFO_MAX_Y - INFO_Y_START;
+        int viewHeight = INFO_MAX_Y - infoTop;
         boolean overInfo = mouseX >= leftPos + INFO_X && mouseX < leftPos + INFO_BOX_RIGHT
-                && mouseY >= topPos + INFO_Y_START && mouseY < topPos + INFO_MAX_Y;
+                && mouseY >= topPos + infoTop && mouseY < topPos + INFO_MAX_Y;
         if (overInfo && infoContentHeight > viewHeight) {
             infoScroll = Mth.clamp((int) (infoScroll - scrollY * 18D),
                     0, infoContentHeight - viewHeight);
+            userScrolled = true;
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -206,6 +243,26 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         graphics.blit(BACKGROUND, leftPos, topPos, 0, 0, PANEL_WIDTH, PANEL_HEIGHT,
                 PANEL_WIDTH, PANEL_HEIGHT);
+        // 目标物品槽（星移之仪的增幅核）落在信息区首行，GUI 贴图里没有对应槽框，
+        // 故在此补画一个与电池槽同款的描边框（注意框在槽坐标 −1 处，见 paintSlotFrame）。
+        if (menu.targetSocketShown()) {
+            paintSlotFrame(graphics, leftPos + RitualCoreMenu.TARGET_SLOT_X - 1,
+                    topPos + RitualCoreMenu.TARGET_SLOT_Y - 1);
+        }
+    }
+
+    /**
+     * 18×18 槽框：1px 亮紫描边、无填充，与 GUI 贴图里电池槽的画法一致。
+     *
+     * <p><b>坐标约定</b>：本 GUI 的槽框画在<b>槽坐标 −1</b> 处（与贴图里电池槽
+     * {@code (29,39) 框 / (30,40) 槽} 的关系相同），物品由原版 {@code renderSlot}
+     * 画在槽坐标上，故天然内缩 1px 居中。调用方须传 {@code slotX - 1, slotY - 1}。
+     */
+    private static void paintSlotFrame(GuiGraphics graphics, int x, int y) {
+        graphics.fill(x, y, x + 18, y + 1, SLOT_FRAME_BORDER);
+        graphics.fill(x, y + 17, x + 18, y + 18, SLOT_FRAME_BORDER);
+        graphics.fill(x, y, x + 1, y + 18, SLOT_FRAME_BORDER);
+        graphics.fill(x + 17, y, x + 18, y + 18, SLOT_FRAME_BORDER);
     }
 
     @Override
@@ -251,6 +308,13 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
                     RitualCoreMenu.BATTERY_SLOT_X + 20, RitualCoreMenu.BATTERY_SLOT_Y + 4,
                     COLOR_TEXT, false);
         }
+        // 目标物品槽（星移之仪的增幅核）：位于信息区首行，标注画在槽右侧、垂直居中于框
+        if (menu.targetSocketShown()) {
+            graphics.drawString(font,
+                    Component.translatable("gui.gensokyou.ritual.target_slot"),
+                    RitualCoreMenu.TARGET_SLOT_X + 20, RitualCoreMenu.TARGET_SLOT_Y + 4,
+                    COLOR_TEXT, false);
+        }
         // —— 信息区：行为产出的 InfoLine 逐行渲染（电池槽行下方起笔，避免与槽标注叠行） ——
         renderInfoLines(graphics, font, info.infoLines());
         // 一次性状态消息（启停反馈等）：信息区底部
@@ -260,62 +324,44 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         }
     }
 
-    /** InfoLine 渲染：滚动窗口 + 裁剪；图标(18px) + 文本/三态行 + 进度条 + ✓✗。 */
-    private void renderInfoLines(GuiGraphics graphics, Font font, List<InfoLine> lines) {
-        int viewHeight = INFO_MAX_Y - INFO_Y_START;
-        int total = 0;
-        for (InfoLine line : lines) {
-            total += line.iconItemId().isEmpty() ? 11 : 18;
-        }
-        this.infoContentHeight = total;
-        infoScroll = Mth.clamp(infoScroll, 0, Math.max(0, total - viewHeight));
-        interactiveRowHits.clear();
-        tipRowHits.clear();
-        graphics.enableScissor(leftPos + INFO_X - 4, topPos + INFO_Y_START - 2,
-                leftPos + PANEL_WIDTH - 4, topPos + INFO_MAX_Y + 2);
-        int y = INFO_Y_START - infoScroll;
-        for (InfoLine line : lines) {
-            int rowH = line.iconItemId().isEmpty() ? 11 : 18;
-            renderInfoLine(graphics, font, line, y, rowH);
-            boolean visible = y + rowH > INFO_Y_START && y < INFO_MAX_Y;
-            // 命中区右缘钳至信息盒：启停/行为按钮列（x≥116）点击不被行交互吞掉
-            int rowW = INFO_BOX_RIGHT - (INFO_X - 4);
-            if (line.interactive() && visible) {
-                interactiveRowHits.add(new int[]{leftPos + INFO_X - 4,
-                        topPos + Math.max(y, INFO_Y_START), rowW,
-                        Math.min(y + rowH, INFO_MAX_Y) - Math.max(y, INFO_Y_START),
-                        line.actionId()});
-            }
-            if (line.tipped() && visible) {
-                tipRowHits.add(new TipHit(leftPos + INFO_X - 4, topPos + Math.max(y, INFO_Y_START),
-                        rowW,
-                        Math.min(y + rowH, INFO_MAX_Y) - Math.max(y, INFO_Y_START), line));
-            }
-            y += rowH;
-        }
-        graphics.disableScissor();
+    /**
+     * 一条 InfoLine 的客户端排版结果。
+     *
+     * <p>文本按信息盒可用宽预换行（{@code wrapped}），行高随换行段数增长，
+     * 使"量内容高度"与"实际绘制"共用同一份排版结果——否则换行会画到框外或吃掉下一行。
+     */
+    private record InfoRow(InfoLine line, @Nullable MutableComponent text, int textX,
+                           boolean hasIcon, List<FormattedCharSequence> wrapped, int height) {
     }
 
-    /** 单行绘制：三态链接行 = 状态标记 + 名称 + 字面尾巴；悬停交互行淡高亮。 */
-    private void renderInfoLine(GuiGraphics graphics, Font font, InfoLine line, int y, int rowH) {
-        int textY = y + (line.iconItemId().isEmpty() ? 0 : 4);
-        int color = line.color() != 0 ? line.color() : COLOR_TEXT;
-        int textX = INFO_X;
-        if (line.interactive()) {
-            int mx = lastMouseX - leftPos;
-            int my = lastMouseY - topPos;
-            if (mx >= INFO_X - 4 && mx < INFO_BOX_RIGHT && my >= y && my < y + rowH) {
-                graphics.fill(INFO_X - 4, y, INFO_BOX_RIGHT, y + rowH, 0x22FFFFFF);
-            }
+    /** 纯文本行高 / 带图标行高（图标 16px + 上下留白）。 */
+    private static final int ROW_H_TEXT = 11;
+    private static final int ROW_H_ICON = 18;
+    /** 槽框描边色：取自贴图里电池槽框的实际像素 #AC98D6。 */
+    private static final int SLOT_FRAME_BORDER = 0xFFAC98D6;
+    /** 进度条相对 textX 的固定起点偏移（barX = textX + BAR_OFFSET）。 */
+    private static final int BAR_OFFSET = 52;
+
+    /**
+     * 文本可用宽度：右缘一律钳到信息盒 {@link #INFO_BOX_RIGHT}。
+     *
+     * <p>刻意不用 {@code PANEL_WIDTH - 6}：那会让文字横穿背景分隔线画进右侧按钮列。
+     * 有三态标记时还要让开 {@link #STATE_X}，有进度条时让开 {@link #BAR_OFFSET} 起笔区。
+     */
+    private int maxTextWidth(InfoLine line, int textX) {
+        int maxW = INFO_BOX_RIGHT - textX;
+        if (line.state() != null) {
+            // 为右对齐的 ✓/✗ 让位：标记左缘 = STATE_RIGHT - STATE_MARK_W
+            maxW = Math.min(maxW, STATE_RIGHT - STATE_MARK_W - textX);
         }
-        if (!line.iconItemId().isEmpty()) {
-            ItemStack icon = ClientRitualState.stackFor(line.iconItemId());
-            if (!icon.isEmpty()) {
-                graphics.renderItem(icon, INFO_X, y);
-                textX = INFO_X + 20;
-            }
+        if (line.progress() >= 0F) {
+            maxW = Math.min(maxW, BAR_OFFSET - 2);
         }
-        MutableComponent text;
+        return Math.max(1, maxW);
+    }
+
+    /** 构造行内可见文本（与服务端语义无关的纯客户端拼装）。 */
+    private @Nullable MutableComponent buildText(InfoLine line) {
         if (line.controlKind() == InfoLine.CONTROL_LINK) {
             // 可见行 = 状态标记 + 名称；坐标/上限等明细走悬浮 tip
             String stateKey = switch (line.linkState()) {
@@ -323,46 +369,177 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
                 case InfoLine.LINK_OUT -> "gui.gensokyou.ritual.link_out";
                 default -> "gui.gensokyou.ritual.link_none";
             };
-            text = Component.translatable(stateKey)
+            return Component.translatable(stateKey)
                     .append(Component.translatable(line.textKey()));
-        } else if (line.controlKind() == InfoLine.CONTROL_ATTR) {
+        }
+        if (line.controlKind() == InfoLine.CONTROL_ATTR) {
             // 属性名客户端本地化（服务端只有 key），值字符串已由行为格式化
-            text = Component.translatable(line.textKey())
-                    .append(Component.literal(": " + (line.textArgs().length > 0 ? line.textArgs()[0] : "")));
-        } else if (!line.textKey().isEmpty()) {
-            text = Component.translatable(line.textKey(), (Object[]) line.textArgs());
+            return Component.translatable(line.textKey())
+                    .append(Component.literal(": "
+                            + (line.textArgs().length > 0 ? line.textArgs()[0] : "")));
+        }
+        if (!line.textKey().isEmpty()) {
+            return Component.translatable(line.textKey(), (Object[]) line.textArgs());
+        }
+        return null;
+    }
+
+    /**
+     * 预排版：解图标、拼文本、按信息盒宽换行、算行高。
+     *
+     * <p>{@code CONTROL_ITEM} 行的图标即使 id 解析不出物品也保留占位（画空槽），
+     * 免得"槽突然消失"导致行高跳变。
+     */
+    private InfoRow layoutRow(Font font, InfoLine line) {
+        int textX = INFO_X;
+        boolean framed = line.controlKind() == InfoLine.CONTROL_ITEM;
+        boolean hasIcon = false;
+        if (!line.iconItemId().isEmpty()) {
+            ItemStack icon = ClientRitualState.stackFor(line.iconItemId());
+            if (!icon.isEmpty() || framed) {
+                hasIcon = true;
+                textX = INFO_X + 20;
+            }
+        }
+        MutableComponent text = buildText(line);
+        List<FormattedCharSequence> wrapped = text == null
+                ? List.of()
+                : font.split(text, maxTextWidth(line, textX));
+        int base = hasIcon ? ROW_H_ICON : ROW_H_TEXT;
+        int height = base + Math.max(0, wrapped.size() - 1) * font.lineHeight;
+        return new InfoRow(line, text, textX, hasIcon, wrapped, height);
+    }
+
+    /**
+     * InfoLine 渲染：滚动窗口 + 裁剪；图标(18px) + 自动换行文本 + 进度条 + ✓✗。
+     *
+     * <p>溢出可发现性（通用，非特定仪式）：内容超出视口时渲染滚动条滑块；且当快照里存在
+     * 落在视口外的可交互行时自动把滚动位置对齐到它 —— 否则"决策按钮在第 16 行、视口只有 6 行"
+     * 会表现为"面板里啥也没有"。玩家一旦显式滚轮翻动过，本会话内不再自动对齐（不与玩家抢镜头）。
+     */
+    private void renderInfoLines(GuiGraphics graphics, Font font, List<InfoLine> lines) {
+        int viewHeight = INFO_MAX_Y - infoTop;
+        List<InfoRow> rows = new ArrayList<>(lines.size());
+        int total = 0;
+        int firstInteractiveIndex = -1;
+        int firstInteractiveTop = 0;
+        for (int i = 0; i < lines.size(); i++) {
+            InfoLine line = lines.get(i);
+            InfoRow row = layoutRow(font, line);
+            rows.add(row);
+            if (firstInteractiveIndex < 0 && line.interactive()) {
+                firstInteractiveIndex = i;
+                firstInteractiveTop = total;
+            }
+            total += row.height();
+        }
+        this.infoContentHeight = total;
+        int maxScroll = Math.max(0, total - viewHeight);
+        if (!userScrolled) {
+            int target = infoScroll;
+            if (firstInteractiveIndex >= 0) {
+                int rowTop = firstInteractiveTop;
+                int rowBottom = rowTop + rows.get(firstInteractiveIndex).height();
+                if (rowTop < infoScroll || rowBottom > infoScroll + viewHeight) {
+                    target = rowTop; // 对齐到首个可交互行的顶边
+                }
+            }
+            infoScroll = Mth.clamp(target, 0, maxScroll);
         } else {
-            text = null;
+            infoScroll = Mth.clamp(infoScroll, 0, maxScroll);
+        }
+        interactiveRowHits.clear();
+        tipRowHits.clear();
+        graphics.enableScissor(leftPos + INFO_X - 4, topPos + infoTop - 2,
+                leftPos + PANEL_WIDTH - 4, topPos + INFO_MAX_Y + 2);
+        int y = infoTop - infoScroll;
+        for (InfoRow row : rows) {
+            int rowH = row.height();
+            renderInfoRow(graphics, font, row, y);
+            boolean visible = y + rowH > infoTop && y < INFO_MAX_Y;
+            // 命中区右缘钳至信息盒：启停/行为按钮列（x≥116）点击不被行交互吞掉
+            int rowW = INFO_BOX_RIGHT - (INFO_X - 4);
+            InfoLine line = row.line();
+            if (line.interactive() && visible) {
+                interactiveRowHits.add(new int[]{leftPos + INFO_X - 4,
+                        topPos + Math.max(y, infoTop), rowW,
+                        Math.min(y + rowH, INFO_MAX_Y) - Math.max(y, infoTop),
+                        line.actionId()});
+            }
+            if (line.tipped() && visible) {
+                tipRowHits.add(new TipHit(leftPos + INFO_X - 4, topPos + Math.max(y, infoTop),
+                        rowW,
+                        Math.min(y + rowH, INFO_MAX_Y) - Math.max(y, infoTop), line));
+            }
+            y += rowH;
+        }
+        graphics.disableScissor();
+        if (maxScroll > 0) {
+            renderScrollbar(graphics, viewHeight, maxScroll);
+        }
+    }
+
+    /**
+     * 滚动条滑块：贴在信息盒右缘内侧（钳在 {@link #INFO_BOX_RIGHT} 之内，不越分隔线）。
+     * 滑块高 ∝ 视口/内容，位置随 infoScroll 线性变化；总高不足一屏时（maxScroll 很小）按比例放大。
+     */
+    private void renderScrollbar(GuiGraphics graphics, int viewHeight, int maxScroll) {
+        int trackH = viewHeight;
+        int thumbH = Math.max(12, (int) ((long) trackH * viewHeight
+                / Math.max(1, viewHeight + maxScroll)));
+        thumbH = Math.min(thumbH, trackH);
+        int travel = trackH - thumbH;
+        int thumbY = infoTop + (maxScroll <= 0 ? 0
+                : (int) ((long) travel * infoScroll / maxScroll));
+        int x = INFO_BOX_RIGHT - 2;
+        graphics.fill(x, infoTop, x + 2, infoTop + trackH, 0x30FFFFFF);
+        graphics.fill(x, thumbY, x + 2, thumbY + thumbH, 0xC0FFFFFF);
+    }
+
+    /** 单行绘制：换行后的每一段都画（不再只取首段），悬停交互行淡高亮。 */
+    private void renderInfoRow(GuiGraphics graphics, Font font, InfoRow row, int y) {
+        InfoLine line = row.line();
+        int rowH = row.height();
+        int textX = row.textX();
+        int color = line.color() != 0 ? line.color() : COLOR_TEXT;
+        if (line.interactive()) {
+            int mx = lastMouseX - leftPos;
+            int my = lastMouseY - topPos;
+            if (mx >= INFO_X - 4 && mx < INFO_BOX_RIGHT && my >= y && my < y + rowH) {
+                graphics.fill(INFO_X - 4, y, INFO_BOX_RIGHT, y + rowH, 0x22FFFFFF);
+            }
+        }
+        if (row.hasIcon()) {
+            // CONTROL_ITEM：先补凹槽边框，再画物品（否则物品裸悬在信息框里）
+            if (line.controlKind() == InfoLine.CONTROL_ITEM) {
+                paintSlotFrame(graphics, INFO_X, y);
+            }
+            ItemStack icon = ClientRitualState.stackFor(line.iconItemId());
+            if (!icon.isEmpty()) {
+                graphics.renderItem(icon, INFO_X + 1, y + 1);
+            }
         }
         // 注：renderLabels 处于面板相对 pose，坐标 MUST NOT 再叠 leftPos/topPos
-        int barX = textX + 52;
-        if (text != null) {
-            int maxW = (line.state() != null ? STATE_X - 10 : PANEL_WIDTH - 6) - textX;
-            if (line.progress() >= 0F) {
-                // 进度行文本让位进度条：可见文本不得压入 barX 起笔区
-                maxW = Math.min(maxW, barX - 2 - textX);
-            }
-            // 横向溢出保护：超宽行按面板可用宽裁断（首行），杜绝画到框外
-            if (maxW > 0 && font.width(text) > maxW) {
-                var wrapped = font.split(text, maxW);
-                graphics.drawString(font, wrapped.get(0), textX, textY, color, false);
-            } else {
-                graphics.drawString(font, text, textX, textY, color, false);
-            }
+        int lineY = y + (row.hasIcon() ? 4 : 0);
+        for (FormattedCharSequence segment : row.wrapped()) {
+            graphics.drawString(font, segment, textX, lineY, color, false);
+            lineY += font.lineHeight;
         }
         if (line.progress() >= 0F) {
+            int barX = textX + BAR_OFFSET;
             int barW = Math.min(40, INFO_BOX_RIGHT - barX);
             int barY = y + 5;
             if (barW > 0) {
                 graphics.fill(barX, barY, barX + barW, barY + 4, 0xFF202030);
-                graphics.fill(barX, barY, barX + (int) (barW * Math.min(1F, line.progress())),
+                graphics.fill(barX, barY,
+                        barX + (int) (barW * Math.min(1F, line.progress())),
                         barY + 4, 0xFFE8912A);
             }
         }
         if (line.state() != null) {
             String mark = line.state() ? "✓" : "✗";
             int markColor = line.state() ? COLOR_OK : COLOR_BAD;
-            graphics.drawString(font, mark, STATE_X - font.width(mark), y + 4, markColor, true);
+            graphics.drawString(font, mark, STATE_RIGHT - font.width(mark), y + 4, markColor, true);
         }
     }
 }

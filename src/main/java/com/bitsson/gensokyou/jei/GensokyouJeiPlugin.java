@@ -7,6 +7,7 @@ import com.bitsson.gensokyou.ritual.RitualLootLoader;
 import com.bitsson.gensokyou.ritual.RitualLootTable;
 import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
+import com.bitsson.gensokyou.ritual.RitualSmeltRule;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
@@ -49,6 +50,10 @@ public class GensokyouJeiPlugin implements IModPlugin {
             RitualBehaviors.KUKUNOCHI,
             RitualBehaviors.HANIYASU,
             RitualBehaviors.KAYA_NO_HIME);
+
+    /** 煅炉仪式：各自一页签，卡面直接列出「矿石 + 灵炭配比 → 矿物」（数据源 ritual_smelt_recipes）。 */
+    private static final List<ResourceLocation> SMELT_TABS = List.of(
+            RitualBehaviors.KANAYAMAHIKO);
     private static final RecipeType<RitualRecipeCardWrapper> FALLBACK_TYPE =
             RitualRecipeCategory.typeFor(null);
 
@@ -61,6 +66,7 @@ public class GensokyouJeiPlugin implements IModPlugin {
     private static volatile Map<ResourceLocation, List<RitualLootCardWrapper>> syncedLoot = Map.of();
     private static volatile int syncedLootSignature = Integer.MIN_VALUE;
     private static volatile List<WatatsumiLootCardWrapper> syncedWatatsumi = List.of();
+    private static volatile Map<ResourceLocation, List<RitualSmeltCardWrapper>> syncedSmelt = Map.of();
 
     @Override
     public ResourceLocation getPluginUid() {
@@ -89,6 +95,14 @@ public class GensokyouJeiPlugin implements IModPlugin {
         registration.addRecipeCategories(new WatatsumiLootCategory(guiHelper, RitualBehaviors.WATATSUMI,
                 guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK,
                         new ItemStack(Items.FISHING_ROD))));
+
+        List<RitualSmeltCategory> smeltCategories = new ArrayList<>();
+        for (ResourceLocation patternId : SMELT_TABS) {
+            smeltCategories.add(new RitualSmeltCategory(guiHelper, patternId,
+                    guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK,
+                            new ItemStack(Items.FURNACE))));
+        }
+        registration.addRecipeCategories(smeltCategories.toArray(new RitualSmeltCategory[0]));
     }
 
     private static IDrawable tabIcon(IGuiHelper guiHelper, @Nullable ResourceLocation patternId) {
@@ -113,6 +127,51 @@ public class GensokyouJeiPlugin implements IModPlugin {
         syncFromLoader(RitualRecipeLoader.all());
         syncLoot(RitualLootLoader.all());
         syncWatatsumi();
+        syncSmelt(com.bitsson.gensokyou.client.ritual.ClientRitualData.smeltsAll());
+    }
+
+    /**
+     * 煅炉配方卡同步：按煅炉增删卡片；无内容（数据未载入）时隐藏页签。
+     * 数据源为服务端下发的仪式快照（{@link com.bitsson.gensokyou.client.ritual.ClientRitualData}），
+     * 与指导书 smelt_page 完全同源，故书里与 JEI 里的配比必然一致。
+     */
+    static void syncSmelt(List<RitualSmeltRule> rules) {
+        IJeiRuntime rt = runtime;
+        if (rt == null) {
+            return;
+        }
+        Map<ResourceLocation, List<RitualSmeltCardWrapper>> desired = new LinkedHashMap<>();
+        for (ResourceLocation patternId : SMELT_TABS) {
+            List<RitualSmeltCardWrapper> cards = new ArrayList<>();
+            for (RitualSmeltRule rule : rules) {
+                if (rule.patternId().equals(patternId)) {
+                    cards.add(RitualSmeltCardWrapper.of(rule));
+                }
+            }
+            desired.put(patternId, List.copyOf(cards));
+        }
+        if (desired.equals(syncedSmelt)) {
+            return;
+        }
+        IRecipeManager manager = rt.getRecipeManager();
+        for (ResourceLocation patternId : SMELT_TABS) {
+            RecipeType<RitualSmeltCardWrapper> type = RitualSmeltCategory.typeFor(patternId);
+            List<RitualSmeltCardWrapper> old = syncedSmelt.getOrDefault(patternId, List.of());
+            List<RitualSmeltCardWrapper> neu = desired.getOrDefault(patternId, List.of());
+            if (old.equals(neu)) {
+                continue;
+            }
+            if (!old.isEmpty()) {
+                manager.hideRecipes(type, old);
+            }
+            if (neu.isEmpty()) {
+                manager.hideRecipeCategory(type);
+            } else {
+                manager.unhideRecipeCategory(type);
+                manager.addRecipes(type, neu);
+            }
+        }
+        syncedSmelt = Map.copyOf(desired);
     }
 
     /** 献祭权重卡同步：按仪式增删卡片；无内容（数据未载入）时隐藏页签。 */

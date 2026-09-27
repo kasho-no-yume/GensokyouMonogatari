@@ -10,7 +10,7 @@
       "ingredients": [
         { "item": "minecraft:diamond", "count": 4 },
         { "item": "gensokyou:ritual_stone_0", "count": 4 },
-        { "item": "gensokyou:cinnabar", "count": 4 }
+        { "item": "gensokyou:refined_cinnabar", "count": 4 }
       ],
       "result": { "item": "gensokyou:ritual_stone_1", "count": 1 }
     },
@@ -22,8 +22,8 @@
       "spCost": 20000,
       "ingredients": [
         { "item": "gensokyou:ritual_stone_1", "count": 4 },
-        { "item": "gensokyou:spirit_iron_ore", "count": 4 },
-        { "item": "gensokyou:star_silver_ore", "count": 2 },
+        { "item": "gensokyou:spirit_iron", "count": 4 },
+        { "item": "gensokyou:star_silver", "count": 2 },
         { "item": "gensokyou:tide_crystal", "count": 1 }
       ],
       "result": { "item": "gensokyou:ritual_stone_2", "count": 1 }
@@ -39,6 +39,18 @@
         { "item": "gensokyou:spirit_herb", "count": 1 }
       ],
       "result": { "item": "gensokyou:talisman_paper", "count": 2 }
+    },
+    {
+      "name": "zaohua_spirit_charcoal",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 1000,
+      "ingredients": [
+        { "item": "minecraft:charcoal", "count": 4 },
+        { "item": "gensokyou:sacred_wood", "count": 4 }
+      ],
+      "result": { "item": "gensokyou:spirit_charcoal", "count": 4 }
     },
     {
       "name": "zaohua_codex_of_beings",
@@ -64,6 +76,175 @@
         { "item": "gensokyou:broken_spell_card_star", "count": 8 }
       ],
       "result": { "item": "gensokyou:spellcard_star", "count": 1 }
+    },
+    {
+      "name": "zaohua_danmaku_weapon_frame",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 20000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_1", "count": 1 },
+        { "item": "gensokyou:spirit_iron", "count": 2 },
+        { "item": "minecraft:netherite_ingot", "count": 1 },
+        { "item": "gensokyou:star_silver", "count": 1 },
+        { "item": "gensokyou:ppoint", "count": 4 }
+      ],
+      "result": { "item": "gensokyou:danmaku_weapon", "count": 1 }
+    },
+    {
+      "name": "zaohua_core_sphere_single",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 8000,
+      "ingredients": [
+        { "item": "gensokyou:refined_cinnabar", "count": 1 },
+        { "item": "minecraft:quartz", "count": 2 },
+        { "item": "minecraft:amethyst_shard", "count": 2 },
+        { "item": "gensokyou:ppoint", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:core_sphere_single", "count": 1 }
+    },
+    {
+      "name": "zaohua_core_sphere_shotgun",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 12000,
+      "ingredients": [
+        { "item": "gensokyou:refined_cinnabar", "count": 2 },
+        { "item": "minecraft:blaze_powder", "count": 2 },
+        { "item": "minecraft:redstone", "count": 4 },
+        { "item": "minecraft:gunpowder", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:core_sphere_shotgun", "count": 1 }
+    },
+    {
+      "name": "zaohua_core_knife",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 10000,
+      "ingredients": [
+        { "item": "gensokyou:spirit_iron", "count": 1 },
+        { "item": "minecraft:quartz", "count": 2 },
+        { "item": "minecraft:iron_ingot", "count": 2 },
+        { "item": "minecraft:amethyst_shard", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:core_knife", "count": 1 }
+    },
+    {
+      "name": "zaohua_core_talisman",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 2,
+      "spCost": 24000,
+      "ingredients": [
+        { "item": "gensokyou:talisman_paper", "count": 4 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "gensokyou:magic_mushroom", "count": 1 },
+        { "item": "gensokyou:star_silver", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:core_talisman", "count": 1 }
+    },
+    {
+      "name": "zaohua_core_laser_gun",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 2,
+      "spCost": 24000,
+      "ingredients": [
+        { "item": "gensokyou:star_silver", "count": 2 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "minecraft:sea_lantern", "count": 1 },
+        { "item": "minecraft:redstone_block", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:core_laser_gun", "count": 1 }
+    },
+    {
+      "name": "zaohua_weapon_core_lv1",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 20000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_1", "count": 1 },
+        { "item": "minecraft:quartz_block", "count": 1 },
+        { "item": "minecraft:redstone_block", "count": 1 },
+        { "item": "gensokyou:ppoint", "count": 4 }
+      ],
+      "result": { "item": "gensokyou:weapon_core_lv1", "count": 1 }
+    },
+    {
+      "name": "zaohua_weapon_core_lv2",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 2,
+      "spCost": 40000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_2", "count": 1 },
+        { "item": "gensokyou:star_silver", "count": 2 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "gensokyou:broken_spell_card_star", "count": 4 }
+      ],
+      "result": { "item": "gensokyou:weapon_core_lv2", "count": 1 }
+    },
+    {
+      "name": "zaohua_amp_core_t1",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 30000,
+      "ingredients": [
+        { "item": "gensokyou:talisman_paper", "count": 2 },
+        { "item": "gensokyou:memory_fragment", "count": 4 },
+        { "item": "minecraft:amethyst_shard", "count": 4 },
+        { "item": "gensokyou:broken_spell_card_star", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:amp_core_t1", "count": 1 }
+    },
+    {
+      "name": "zaohua_amp_core_t2",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 2,
+      "spCost": 60000,
+      "ingredients": [
+        { "item": "gensokyou:star_silver", "count": 1 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "gensokyou:talisman_paper", "count": 2 },
+        { "item": "gensokyou:memory_fragment", "count": 8 }
+      ],
+      "result": { "item": "gensokyou:amp_core_t2", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_core_1",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 20000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_1", "count": 1 },
+        { "item": "gensokyou:spirit_iron", "count": 1 },
+        { "item": "minecraft:soul_sand", "count": 4 },
+        { "item": "minecraft:quartz", "count": 4 }
+      ],
+      "result": { "item": "gensokyou:spirit_core_1", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_core_2",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 2,
+      "spCost": 50000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_2", "count": 1 },
+        { "item": "gensokyou:star_silver", "count": 2 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "gensokyou:sukima_fragment", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:spirit_core_2", "count": 1 }
     }
   ]
 }

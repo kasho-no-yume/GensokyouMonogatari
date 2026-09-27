@@ -21,6 +21,17 @@ import javax.annotation.Nullable;
      *       CONTROL_LINK 行客户端自动在 tip 首行前置对象名称</li>
      * </ul>
  * color 为 ARGB 文本色（0 = 默认面板色）。
+ *
+ * <p><b>长度标准（产出方 MUST 遵守）</b>：信息盒右缘 x=112、文本起点 x=8（带图标 x=28），
+ * 默认字体 1 汉字≈9px、1 ASCII≈6px，故行预算为：纯文本 ≤11 汉字、带图标 ≤9 汉字、
+ * 带进度条 ≤5 汉字（起笔固定 textX+52，只剩 50px）、带 ✓✗ ≤11 汉字。
+ * 超宽会在客户端按盒宽自动换行（不丢内容，但会撑高行、挤掉后续行），
+ * 故换行只应作兜底：
+ * <ul>
+ *   <li>一行最多堆 3 个字段，更多明细用 {@link #tipped} 下沉到悬浮 tooltip</li>
+ *   <li>数值 MUST 经 {@link #compact}，精确值走 tooltip</li>
+ *   <li>逐项罗列（每核心速率等）SHALL 拆成多行，MUST NOT 拼成长文本</li>
+ * </ul>
  */
 public record InfoLine(String textKey, String[] textArgs, String iconItemId, int color,
                        float progress, @Nullable Boolean state,
@@ -34,6 +45,15 @@ public record InfoLine(String textKey, String[] textArgs, String iconItemId, int
     public static final int CONTROL_BUTTON = 2;
     /** 本地化属性行：可见 = 客户端按 textKey 译属性名 + ": " + textArgs[0]（值侧格式化在服务端）。 */
     public static final int CONTROL_ATTR = 3;
+    /**
+     * 物品格行：在信息区内画一个 18×18 的凹槽边框，物品图标置于槽中，文本在槽右侧。
+     *
+     * <p>用于行为在信息区里<b>展示</b>物品（配方预览、催化剂、目标物…）而不必占用祭品台。
+     * 与"真槽位"（如星移之仪的增幅核目标槽）的区别：本类型只读、不可点击、不可取出；
+     * 需要玩家投放的真槽位走菜单协议（{@code RitualCoreMenu} 的 Slot），其边框由
+     * {@code RitualCoreScreen} 用同一套 painter 绘制。
+     */
+    public static final int CONTROL_ITEM = 4;
 
     public static final int LINK_NONE = 0;
     public static final int LINK_IN = 1;

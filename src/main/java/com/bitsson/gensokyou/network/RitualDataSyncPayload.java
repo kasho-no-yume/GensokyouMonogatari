@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.network;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
+import com.bitsson.gensokyou.ritual.RitualSmeltRuleLoader;
 import com.google.gson.JsonObject;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -17,8 +18,11 @@ import java.util.zip.GZIPOutputStream;
 
 /**
  * S2C 全量仪式数据快照（guide-book 方案 B）。
- * 登录与 datapack 重载时下发 rituals / ritual_recipes 的原始 JSON。
+ * 登录与 datapack 重载时下发 rituals / ritual_recipes / ritual_smelt_recipes 的原始 JSON。
  * 原始约 150KB，超过 STRING_UTF8 默认上限，故 GZIP 压缩为 byte[] 传输（压缩后约 15KB）。
+ *
+ * <p>三类数据都要走这条路：{@code AddReloadListenerEvent} 只在逻辑服务端触发，
+ * 专用客户端不加载这些 reload listener，直接读 loader 在联机上恒为空。
  */
 public record RitualDataSyncPayload(byte[] data) implements CustomPacketPayload {
 
@@ -30,15 +34,18 @@ public record RitualDataSyncPayload(byte[] data) implements CustomPacketPayload 
                     ByteBufCodecs.byteArray(1_048_576), RitualDataSyncPayload::data,
                     RitualDataSyncPayload::new);
 
-    /** 服务端组装：patterns / recipes 以 id → 原始 JSON 对象打包并 GZIP。 */
+    /** 服务端组装：patterns / recipes / smelt_rules 以 id → 原始 JSON 对象打包并 GZIP。 */
     public static RitualDataSyncPayload snapshot() {
         JsonObject patterns = new JsonObject();
         RitualPatternLoader.rawAll().forEach((id, json) -> patterns.add(id.toString(), json));
         JsonObject recipes = new JsonObject();
         RitualRecipeLoader.rawAll().forEach((id, json) -> recipes.add(id.toString(), json));
+        JsonObject smeltRules = new JsonObject();
+        RitualSmeltRuleLoader.rawAll().forEach((id, json) -> smeltRules.add(id.toString(), json));
         JsonObject root = new JsonObject();
         root.add("patterns", patterns);
         root.add("recipes", recipes);
+        root.add("smelt_rules", smeltRules);
         return new RitualDataSyncPayload(compress(root.toString()));
     }
 

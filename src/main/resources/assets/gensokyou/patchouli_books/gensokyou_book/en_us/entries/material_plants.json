@@ -1,0 +1,29 @@
+{
+  "name": "gensokyou.book.entry.material_plants",
+  "category": "gensokyou:fantasy_materials",
+  "icon": "gensokyou:spirit_herb",
+  "sortnum": 5,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.material_plants.p1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "gensokyou:spirit_herb,0.97,3;gensokyou:gentian,0.78,3;gensokyou:higanbana,0.78,3"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "minecraft:nether_wart,2.7,1;minecraft:crimson_roots,1.8,1;minecraft:warped_roots,1.8,1;minecraft:crimson_fungus,0.90,1;minecraft:warped_fungus,0.90,1;minecraft:twisting_vines,0.90,1;minecraft:weeping_vines,0.90,1;minecraft:shroomlight,0.45,1",
+      "advancement": "gensokyou:guide/nether_unlock"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "gensokyou:magic_mushroom,0.30,4",
+      "advancement": "gensokyou:guide/end_unlock"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "item.gensokyou.spirit_charcoal",
+  "category": "gensokyou:fantasy_materials",
+  "icon": "gensokyou:spirit_charcoal",
+  "sortnum": 9,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:spirit_charcoal",
+      "text": "gensokyou.book.entry.material_spirit_charcoal.p1"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_spirit_charcoal"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.material_spirit_charcoal.p2"
+    }
+  ]
+}

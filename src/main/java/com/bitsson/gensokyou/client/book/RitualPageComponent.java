@@ -30,6 +30,7 @@ public class RitualPageComponent implements ICustomComponent {
     private static final int LINE_HEIGHT = 11;
 
     private ResourceLocation ritualId;
+    private ResourceLocation recipeId;
     private int recipeIndex;
 
     @Override
@@ -37,6 +38,10 @@ public class RitualPageComponent implements ICustomComponent {
         String raw = lookup.apply(IVariable.wrap("#ritual#", registries)).asString("");
         if (raw != null && !raw.isEmpty() && !raw.equals("#ritual#")) {
             ritualId = ResourceLocation.tryParse(raw);
+        }
+        String recipe = lookup.apply(IVariable.wrap("#recipe#", registries)).asString("");
+        if (recipe != null && !recipe.isEmpty() && !recipe.equals("#recipe#")) {
+            recipeId = ResourceLocation.tryParse(recipe);
         }
         String index = lookup.apply(IVariable.wrap("#recipe_index#", registries)).asString("0");
         try {
@@ -67,14 +72,19 @@ public class RitualPageComponent implements ICustomComponent {
             return;
         }
         List<RitualRecipe> recipes = ClientRitualData.recipesFor(ritualId);
-        if (recipeIndex >= recipes.size()) {
+        RitualRecipe recipe = selectRecipe(recipes, recipeId, recipeIndex);
+        if (recipe == null) {
+            if (recipeId != null) {
+                graphics.drawString(mc.font, Component.translatable("gensokyou.book.ritual.missing"),
+                        x, y, BODY_COLOR, false);
+            }
             return;
         }
-        RitualRecipe recipe = recipes.get(recipeIndex);
-        y = drawWrapped(graphics, mc,
-                Component.translatable("gensokyou.book.ritual.recipe_header", recipeIndex + 1, recipes.size())
-                        .copy().append("  ").append(recipe.displayName()),
-                x, y, HEADER_COLOR);
+        Component header = recipeId != null
+                ? recipe.displayName()
+                : Component.translatable("gensokyou.book.ritual.recipe_header", recipeIndex + 1, recipes.size())
+                        .copy().append("  ").append(recipe.displayName());
+        y = drawWrapped(graphics, mc, header, x, y, HEADER_COLOR);
         y += 4;
         int col = 0;
         for (RitualRecipe.Ingredient ingredient : recipe.ingredients()) {
@@ -113,6 +123,13 @@ public class RitualPageComponent implements ICustomComponent {
                 drawWrapped(graphics, mc, effect, x, y, BODY_COLOR);
             }
         }
+    }
+
+    public static RitualRecipe selectRecipe(List<RitualRecipe> recipes, ResourceLocation recipeId, int recipeIndex) {
+        if (recipeId != null) {
+            return recipes.stream().filter(candidate -> candidate.id().equals(recipeId)).findFirst().orElse(null);
+        }
+        return recipeIndex >= 0 && recipeIndex < recipes.size() ? recipes.get(recipeIndex) : null;
     }
 
     /** 按页宽自动换行绘制文本，返回下一行的 y。 */

@@ -1,0 +1,65 @@
+{
+  "pattern": "gensokyou:kanayamahiko_circle",
+  "rules": [
+    {
+      "id": "gensokyou:kanayamahiko_cinnabar",
+      "primary": "gensokyou:cinnabar",
+      "auxiliary": "gensokyou:spirit_charcoal",
+      "auxiliary_count": 1,
+      "result": {
+        "item": "gensokyou:refined_cinnabar",
+        "count": 1
+      }
+    },
+    {
+      "id": "gensokyou:kanayamahiko_rough_cinnabar",
+      "primary": "gensokyou:rough_cinnabar_ore",
+      "auxiliary": "gensokyou:spirit_charcoal",
+      "auxiliary_count": 1,
+      "result": {
+        "item": "gensokyou:refined_cinnabar",
+        "count": 1
+      }
+    },
+    {
+      "id": "gensokyou:kanayamahiko_spirit_iron",
+      "primary": "gensokyou:spirit_iron_ore",
+      "auxiliary": "gensokyou:spirit_charcoal",
+      "auxiliary_count": 1,
+      "result": {
+        "item": "gensokyou:spirit_iron",
+        "count": 1
+      }
+    },
+    {
+      "id": "gensokyou:kanayamahiko_rough_spirit_iron",
+      "primary": "gensokyou:rough_spirit_iron_ore",
+      "auxiliary": "gensokyou:spirit_charcoal",
+      "auxiliary_count": 1,
+      "result": {
+        "item": "gensokyou:spirit_iron",
+        "count": 1
+      }
+    },
+    {
+      "id": "gensokyou:kanayamahiko_star_silver",
+      "primary": "gensokyou:star_silver_ore",
+      "auxiliary": "gensokyou:spirit_charcoal",
+      "auxiliary_count": 2,
+      "result": {
+        "item": "gensokyou:star_silver",
+        "count": 1
+      }
+    },
+    {
+      "id": "gensokyou:kanayamahiko_rough_star_silver",
+      "primary": "gensokyou:rough_star_silver_ore",
+      "auxiliary": "gensokyou:spirit_charcoal",
+      "auxiliary_count": 2,
+      "result": {
+        "item": "gensokyou:star_silver",
+        "count": 1
+      }
+    }
+  ]
+}

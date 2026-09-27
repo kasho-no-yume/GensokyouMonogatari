@@ -1,13 +1,52 @@
-Starting a Gradle Daemon (subsequent builds will be faster)
-Reusing configuration cache.
+﻿Reusing configuration cache.
+> Task :generateModMetadata UP-TO-DATE
+> Task :processResources UP-TO-DATE
 > Task :createMinecraftArtifacts UP-TO-DATE
+> Task :compileJava UP-TO-DATE
+> Task :classes UP-TO-DATE
 
-> Task :compileJava
-注: D:\code\Gensokyou\src\main\java\com\bitsson\gensokyou\entity\FairyEntity.java使用或覆盖了已过时的 API。
-注: 有关详细信息, 请使用 -Xlint:deprecation 重新编译。
+> Task :compileTestJava FAILED
+.\gradlew.bat : D:\code\Gensokyou\src\test\java\com\bitsson\gensokyou\ritual\FantasyMaterialsBookTest.java:168: 閿欒: 鎵句
+笉鍒扮鍙?                        entry.get("name").getAsString() + " 鎸囧悜涓嶅瓨鍦ㄧ殑浠紡閰嶆柟 " + page.recipe());
+所在位置 行:1 字符: 1
++ .\gradlew.bat compileTestJava --console=plain 2>&1 | Out-File -FilePa ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (D:\code\Gensoky...page.recipe());:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+                                                                               ^
+  绗﹀彿:   鏂规硶 recipe()
+  浣嶇疆: 绫诲瀷涓篜age鐨勫彉閲?page
+D:\code\Gensokyou\src\test\java\com\bitsson\gensokyou\ritual\FantasyMaterialsBookTest.java:167: 閿欒: 鎵句笉鍒扮鍙?          
+      assertTrue(known.contains(page.recipe()),
+                                              ^
+  绗﹀彿:   鏂规硶 recipe()
+  浣嶇疆: 绫诲瀷涓篜age鐨勫彉閲?page
+2 涓敊璇?
 
 [Incubating] Problems report is available at: file:///D:/code/Gensokyou/build/reports/problems/problems-report.html
 
-BUILD SUCCESSFUL in 17s
-2 actionable tasks: 1 executed, 1 up-to-date
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileTestJava'.
+> Compilation failed; see the compiler output below.
+  D:\code\Gensokyou\src\test\java\com\bitsson\gensokyou\ritual\FantasyMaterialsBookTest.java:168: 閿欒: 鎵句笉鍒扮鍙?        
+                  entry.get("name").getAsString() + " 鎸囧悜涓嶅瓨鍦ㄧ殑浠紡閰嶆柟 " + page.recipe());
+                                                                                 ^
+    绗﹀彿:   鏂规硶 recipe()
+    浣嶇疆: 绫诲瀷涓篜age鐨勫彉閲?page
+  D:\code\Gensokyou\src\test\java\com\bitsson\gensokyou\ritual\FantasyMaterialsBookTest.java:167: 閿欒: 鎵句笉鍒扮鍙?        
+          assertTrue(known.contains(page.recipe()),
+                                                ^
+    绗﹀彿:   鏂规硶 recipe()
+    浣嶇疆: 绫诲瀷涓篜age鐨勫彉閲?page
+  2 涓敊璇?
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to generate a Build Scan (powered by Develocity).
+
+BUILD FAILED in 2s
+5 actionable tasks: 1 executed, 4 up-to-date
 Configuration cache entry reused.

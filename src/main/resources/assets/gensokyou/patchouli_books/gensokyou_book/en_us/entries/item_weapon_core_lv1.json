@@ -1,0 +1,20 @@
+{
+  "name": "item.gensokyou.weapon_core_lv1",
+  "category": "gensokyou:weapons",
+  "icon": "gensokyou:weapon_core_lv1",
+  "sortnum": 16,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:weapon_core_lv1",
+      "text": "gensokyou.book.entry.item_recipe.p1"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_weapon_core_lv1"
+    }
+  ],
+  "advancement": "gensokyou:guide/nether_unlock",
+  "secret": true
+}

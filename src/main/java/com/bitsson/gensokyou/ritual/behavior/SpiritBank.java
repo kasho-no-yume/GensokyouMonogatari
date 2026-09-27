@@ -20,6 +20,10 @@ public interface SpiritBank {
     /** 注入至多 maxAmount，逐载体按各自速率限速并行写入，返回实际注入量。 */
     long receive(ServerLevel level, BlockPos corePos, RitualMatch match, long maxAmount);
 
+    default long extractable(ServerLevel level, BlockPos corePos, RitualMatch match) {
+        return 0L;
+    }
+
     /** 取出至多 maxAmount，逐载体按各自速率限速并行抽出，返回实际取出量。 */
     long extract(ServerLevel level, BlockPos corePos, RitualMatch match, long maxAmount);
 }

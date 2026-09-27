@@ -50,18 +50,34 @@ public final class SukimaPortalQuads {
     public static void draw(PoseStack poseStack, MultiBufferSource bufferSource,
                             RenderType renderType, float halfW, float halfH,
                             float uPhase, float vPhase, int tint, int alpha, int light) {
+        float u0 = wrap(uPhase);
+        float v0 = wrap(vPhase);
+        drawUvRange(poseStack, bufferSource, renderType, halfW, halfH,
+                u0, v0, u0 + 1.0F, v0 + 1.0F, tint, alpha, light);
+    }
+
+    /**
+     * 以**显式 UV 区间**绘制一张 billboard quad（宽 2×halfW、高 2×halfH，z=0）。
+     *
+     * <p>供需要只取贴图某一段的几何使用——例如眼睑描边沿眼中线切成上下两片、各自独立
+     * 开合：给上片 {@code v ∈ [0, vTip]}、下片 {@code v ∈ [vTip, 1]}，配合被压扁的 quad
+     * 即得「眼睑开合」而非整幅缩放。
+     *
+     * <p>本类不引用任何项目方块实体/渲染器类型；UV 区间作为通用参数传入。
+     */
+    public static void drawUvRange(PoseStack poseStack, MultiBufferSource bufferSource,
+                                   RenderType renderType, float halfW, float halfH,
+                                   float u0, float v0, float u1, float v1,
+                                   int tint, int alpha, int light) {
         VertexConsumer consumer = bufferSource.getBuffer(renderType);
         PoseStack.Pose pose = poseStack.last();
         Matrix4f matrix = pose.pose();
 
-        float u0 = wrap(uPhase);
-        float v0 = wrap(vPhase);
-        float u1 = u0 + 1.0F;
-        float v1 = v0 + 1.0F;
         int r = (tint >> 16) & 0xFF;
         int g = (tint >> 8) & 0xFF;
         int b = tint & 0xFF;
 
+        // V=0 对应贴图顶部：quad 底边取 v1、顶边取 v0
         vertex(consumer, matrix, pose, -halfW, -halfH, u0, v1, r, g, b, alpha, light);
         vertex(consumer, matrix, pose, halfW, -halfH, u1, v1, r, g, b, alpha, light);
         vertex(consumer, matrix, pose, halfW, halfH, u1, v0, r, g, b, alpha, light);

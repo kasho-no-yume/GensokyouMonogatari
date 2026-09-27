@@ -1,7 +1,7 @@
 # ritual-pedestal Specification
 
 ## Purpose
-TBD - created by archiving change ritual-system-normalization. Update Purpose after archive.
+祭品台：仪式图案的承台组件，全局单一注册方块 + `tier` blockstate 自动染色；支持单件存取、平躺/悬浮自转双态渲染；其生存获取为不依赖任何仪式的工作台配方，是整条仪式链的开局 bootstrap 入口。
 ## Requirements
 ### Requirement: 祭品台存取
 祭品台方块 SHALL 支持右键放入单个物品手中物品、空手右键取回；内容随方块实体持久化。台面持有量 SHALL 受**单件不变量**约束：任何写入路径（含仪式逻辑与自动化代理）使台面物品数超过 1 时，超出部分 MUST 当场在台面位置掉落为物品实体（仅服务端）。手动放料既有交互不变——台面非空时右键仍为"取出/换料"而非堆叠。存档加载 MAY 容忍历史超限栈，但此类台面 SHALL 视为满槽（不可再插入），并随消耗/抽出自然回落。
@@ -66,4 +66,34 @@ TBD - created by archiving change ritual-system-normalization. Update Purpose af
 #### Scenario: 激活起旋与停用停旋连续
 - **WHEN** 台面有物品时仪式启动随后停止
 - **THEN** 物品自转随激活进度平滑加速、停止时平滑减速至静止，任一帧转角增量与转速成正比，无暴旋/单帧扫圈
+
+### Requirement: 祭品台由工作台平滑石祭台配方产出
+系统 SHALL 提供普通工作台有序合成配方 `gensokyou:ritual_pedestal`，图案为 `SSS / RPR / SSS`（`S`=`minecraft:smooth_stone`、`R`=`gensokyou:ritual_stone_0`、`P`=`gensokyou:ppoint`），产出 `ritual_pedestal×1`。该配方 MUST NOT 出现在任何 `ritual_recipes/*.json` 中，MUST NOT 声明 `spCost`、`minTier` 或任何灵力消耗，MUST NOT 依赖灵力核心、维度进度或已建成的仪式结构。
+
+#### Scenario: 首个仪式前可造出祭品台
+- **WHEN** 玩家尚未建成任何仪式、尚未获得任何灵力核心，仅有平滑石、圆石与 P 点
+- **THEN** 玩家可在工作台完成 `SSS / RPR / SSS` 并获得一个祭品台
+
+#### Scenario: 祭品台不需要灵力
+- **WHEN** 玩家查看或执行该配方
+- **THEN** 配方不消耗灵力，玩家的灵力池为空也能正常合成
+
+#### Scenario: 祭品台不存在仪式产出路径
+- **WHEN** 审查任一 `ritual_recipes/*.json`
+- **THEN** 没有任何配方以 `ritual_pedestal` 为产物，祭品台只有本条工作台获取路径
+
+#### Scenario: 配方原料全部为开局可得
+- **WHEN** 审查配方原料
+- **THEN** 原料仅为 `minecraft:smooth_stone`、`gensokyou:ritual_stone_0` 与 `gensokyou:ppoint`，不含需仪式或维度才能获得的材料
+
+### Requirement: 祭品台指导书物品词条展示工作台配方
+系统 SHALL 在 `gensokyou:items` 分类建立祭品台 Patchouli 物品词条 `item.gensokyou.ritual_pedestal`，包含 spotlight 说明页与 `patchouli:crafting` 配方页，指向 `gensokyou:ritual_pedestal` 工作台配方。该词条 MUST NOT 挂 `advancement` 或 `secret`，SHALL 常驻可见。
+
+#### Scenario: 词条显示祭品台工作台配方
+- **WHEN** 玩家在指导书中打开祭品台词条
+- **THEN** 第二页显示 `SSS / RPR / SSS` 工作台配方与平滑石、仪式石、P 点三类原料
+
+#### Scenario: 词条常驻可见
+- **WHEN** 玩家尚未获得下界或末地进度
+- **THEN** 祭品台词条仍可见且不显示为未解锁
 

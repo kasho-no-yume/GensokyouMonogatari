@@ -1,0 +1,35 @@
+{
+  "name": "gensokyou.book.entry.material_wood",
+  "category": "gensokyou:fantasy_materials",
+  "icon": "gensokyou:sacred_wood",
+  "sortnum": 3,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.material_wood.p1"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "gensokyou:sacred_wood,0.98,3;gensokyou:magic_wood,0.98,3"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "minecraft:crimson_stem,5.2,1;minecraft:warped_stem,5.2,1;minecraft:nether_wart_block,2.6,1;minecraft:shroomlight,0.43,1",
+      "advancement": "gensokyou:guide/nether_unlock"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "minecraft:chorus_flower,1.7,2;minecraft:chorus_fruit,0.84,2",
+      "advancement": "gensokyou:guide/end_unlock"
+    },
+    {
+      "type": "gensokyou:loot_page",
+      "mode": "tool",
+      "entries": "gensokyou:eternal_wood,0.30,4",
+      "advancement": "gensokyou:guide/end_unlock"
+    }
+  ]
+}

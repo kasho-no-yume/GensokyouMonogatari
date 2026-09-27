@@ -1,0 +1,20 @@
+{
+  "name": "item.gensokyou.star_silver",
+  "category": "gensokyou:fantasy_materials",
+  "icon": "gensokyou:star_silver",
+  "sortnum": 8,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:star_silver",
+      "text": "gensokyou.book.entry.material_star_silver.p1"
+    },
+    {
+      "type": "gensokyou:smelt_page",
+      "ritual": "gensokyou:kanayamahiko_circle",
+      "result": "gensokyou:star_silver"
+    }
+  ],
+  "advancement": "gensokyou:guide/end_unlock",
+  "secret": true
+}

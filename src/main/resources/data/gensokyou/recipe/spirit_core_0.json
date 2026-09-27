@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "gensokyou:ritual_stone_0" },
+    { "item": "gensokyou:ritual_stone_0" },
+    { "item": "gensokyou:ritual_stone_0" },
+    { "item": "gensokyou:ritual_stone_0" },
+    { "item": "gensokyou:ppoint" },
+    { "item": "gensokyou:ppoint" },
+    { "item": "gensokyou:ppoint" },
+    { "item": "gensokyou:ppoint" },
+    { "item": "minecraft:amethyst_block" }
+  ],
+  "result": {
+    "id": "gensokyou:spirit_core_0",
+    "count": 1
+  }
+}

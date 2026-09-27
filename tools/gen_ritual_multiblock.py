@@ -217,6 +217,8 @@ def main():
         if gate:
             structure_page["advancement"] = gate
             tier_page["advancement"] = gate
+        if args.no_recipes:
+            tier_page["show_recipes"] = False
         pages.append(structure_page)
         pages.append(tier_page)
 

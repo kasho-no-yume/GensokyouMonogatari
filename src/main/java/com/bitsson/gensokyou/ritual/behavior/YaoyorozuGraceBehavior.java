@@ -143,6 +143,8 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
                             / (float) Math.max(1, GensokyouConfig.GRACE_PERFORM_TICKS.get())), null));
             case REVIEW -> {
                 if (initiator) {
+                    // 决策按钮置顶（见 appendReviewLines 首部）——信息区视口只有 68px≈6 行，
+                    // 按钮若排在逐键对比之后会落在折线以下，表现为"没见到选择面板"。
                     appendReviewLines(lines, core, viewer);
                 } else {
                     lines.add(new InfoLine("gui.gensokyou.ritual.grace.review_waiting",
@@ -152,7 +154,9 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
             default -> {
             }
         }
-        if (viewer != null) {
+        // REVIEW 期属性面板刻意隐藏：洗练对比本身即是该时刻的信息主体，
+        // 且两者叠加会把行数推到 33 行（≈363px）而视口仅 68px。
+        if (viewer != null && phase != RitualCoreBlockEntity.GracePhase.REVIEW) {
             appendAttributePanel(lines, viewer);
         }
         return lines;
@@ -188,17 +192,32 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
                 trim(data.spiritDamage()), 0));
     }
 
-    /** 洗练预览：新 vs 当前逐键 + 采纳/保留按钮行（仅 initiator，REVIEW 态）。 */
+    /**
+     * 洗练预览：<b>决策按钮置顶</b> + 逐键"新 vs 当前"对比。
+     *
+     * <p>按钮必须在最前两行 —— 信息区视口（68px ≈ 6 行）放不下完整对比，
+     * 按钮排在末尾等于不存在。决策权绑定 initiator（他人由 uiInfo 的 review_waiting 分支接手）。
+     */
     private static void appendReviewLines(List<InfoLine> lines, RitualCoreBlockEntity core,
                                           ServerPlayer viewer) {
         GraceNumbers.GraceRoll preview = core.graceSession().pendingRefine();
         if (preview == null) {
             return;
         }
+        lines.add(new InfoLine("gui.gensokyou.ritual.grace.refine_accept",
+                new String[0], "", COLOR_OK_ACTION, -1F, null,
+                YaoyorozuGraceService.ACTION_REFINE_ACCEPT, InfoLine.CONTROL_BUTTON,
+                InfoLine.LINK_NONE, "gui.gensokyou.ritual.grace.refine_accept_tip", new String[0]));
+        lines.add(new InfoLine("gui.gensokyou.ritual.grace.refine_keep",
+                new String[0], "", COLOR_KEEP_ACTION, -1F, null,
+                YaoyorozuGraceService.ACTION_REFINE_KEEP, InfoLine.CONTROL_BUTTON,
+                InfoLine.LINK_NONE, "gui.gensokyou.ritual.grace.refine_keep_tip", new String[0]));
         int tier = preview.tier();
         GraceNumbers.GraceRoll current = GraceService.currentRoll(viewer, tier);
         lines.add(new InfoLine("gui.gensokyou.ritual.grace.refine_title",
                 new String[]{String.valueOf(tier)}, "", 0xFFE0B0FF, -1F, null));
+        lines.add(new InfoLine("gui.gensokyou.ritual.grace.refine_permanent",
+                new String[0], "", 0xFFB39DDB, -1F, null));
         lines.add(attrLine(AttributeKey.MAX_SPIRIT.langKey(),
                 trim(current.maxGain()) + " → " + trim(preview.maxGain()), 0xFFA5D6A7));
         lines.add(attrLine(AttributeKey.SPIRIT_POWER.langKey(),
@@ -216,14 +235,6 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
                     format(key, oldValue == null ? 0F : oldValue) + " → "
                             + format(key, newValue == null ? 0F : newValue), 0xFFA5D6A7));
         }
-        lines.add(new InfoLine("gui.gensokyou.ritual.grace.refine_accept",
-                new String[0], "", COLOR_OK_ACTION, -1F, null,
-                YaoyorozuGraceService.ACTION_REFINE_ACCEPT, InfoLine.CONTROL_BUTTON,
-                InfoLine.LINK_NONE, "", new String[0]));
-        lines.add(new InfoLine("gui.gensokyou.ritual.grace.refine_keep",
-                new String[0], "", COLOR_KEEP_ACTION, -1F, null,
-                YaoyorozuGraceService.ACTION_REFINE_KEEP, InfoLine.CONTROL_BUTTON,
-                InfoLine.LINK_NONE, "", new String[0]));
     }
 
     // ---- 格式化 ----

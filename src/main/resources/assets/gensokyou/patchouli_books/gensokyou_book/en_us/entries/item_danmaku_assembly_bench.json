@@ -1,0 +1,17 @@
+{
+  "name": "item.gensokyou.danmaku_assembly_bench",
+  "category": "gensokyou:weapons",
+  "icon": "gensokyou:danmaku_assembly_bench",
+  "sortnum": 44,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:danmaku_assembly_bench",
+      "text": "gensokyou.book.entry.item_danmaku_assembly_bench.p1"
+    },
+    {
+      "type": "patchouli:crafting",
+      "recipe": "gensokyou:danmaku_assembly_bench"
+    }
+  ]
+}

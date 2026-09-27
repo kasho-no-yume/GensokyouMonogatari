@@ -1,0 +1,20 @@
+{
+  "name": "item.gensokyou.danmaku_weapon",
+  "category": "gensokyou:weapons",
+  "icon": "gensokyou:danmaku_weapon",
+  "sortnum": 10,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:danmaku_weapon",
+      "text": "gensokyou.book.entry.item_danmaku_weapon.p1"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_danmaku_weapon_frame"
+    }
+  ],
+  "advancement": "gensokyou:guide/nether_unlock",
+  "secret": true
+}

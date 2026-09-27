@@ -1,6 +1,9 @@
 package com.bitsson.gensokyou.spirit;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
+import com.bitsson.gensokyou.ritual.RitualBehaviors;
+import com.bitsson.gensokyou.ritual.RitualMatch;
+import com.bitsson.gensokyou.ritual.behavior.SpiritBank;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
@@ -25,9 +28,9 @@ public final class SpiritPowerHelper {
         if (battery.getItem() instanceof SpiritCoreItem) {
             sum = saturatingAdd(sum, SpiritCoreItem.getStored(battery));
         }
-        sum = saturatingAdd(sum, core.getStored());
+        sum = saturatingAdd(sum, extractable(level, core));
         for (RitualCoreBlockEntity storage : storagesAround(level, center, PAYMENT_RADIUS)) {
-            sum = saturatingAdd(sum, storage.getStored());
+            sum = saturatingAdd(sum, extractable(level, storage));
         }
         return sum;
     }
@@ -48,7 +51,7 @@ public final class SpiritPowerHelper {
         if (want <= 0L) {
             return 0L;
         }
-        long[] plan = drainPlan(batteryStored(core), core.getStored(),
+        long[] plan = drainPlan(batteryStored(core), extractable(level, core),
                 surroundAvailable(level, center), want);
         long remaining = want;
         long taken = Math.min(remaining, plan[0]);
@@ -83,9 +86,21 @@ public final class SpiritPowerHelper {
     private static long surroundAvailable(ServerLevel level, BlockPos center) {
         long sum = 0L;
         for (RitualCoreBlockEntity storage : storagesAround(level, center, PAYMENT_RADIUS)) {
-            sum = saturatingAdd(sum, storage.getStored());
+            sum = saturatingAdd(sum, extractable(level, storage));
         }
         return sum;
+    }
+
+    private static long extractable(ServerLevel level, RitualCoreBlockEntity storage) {
+        RitualMatch match = storage.activeMatch();
+        if (match != null) {
+            return RitualBehaviors.get(match.patternId())
+                    .filter(SpiritBank.class::isInstance)
+                    .map(SpiritBank.class::cast)
+                    .map(bank -> bank.extractable(level, storage.getBlockPos(), match))
+                    .orElseGet(storage::getStored);
+        }
+        return storage.getStored();
     }
 
     /**

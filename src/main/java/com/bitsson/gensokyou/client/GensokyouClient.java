@@ -75,6 +75,7 @@ public final class GensokyouClient {
         event.registerBlockEntityRenderer(ModBlockEntities.CRYSTAL.get(), CrystalRenderer::new);
     }
 
+
     @SubscribeEvent
     public static void onRegisterShaders(RegisterShadersEvent event) throws IOException {
         // 隙间虚空着色器（克隆原版 end portal 机理，黑红调色板 + 低层密度）
@@ -92,7 +93,7 @@ public final class GensokyouClient {
                     RitualGhostRenderTypes.ritualGhostShader = shader;
                     RitualGhostRenderTypes.tintUniform = shader.getUniform("Tint");
                 });
-        // 八方归元灵气球 fresnel 着色器（POSITION_COLOR_TEX_LIGHTMAP，采样雾噪声，Tint 默认绿）
+        // 八方归元灵气场 fresnel 着色器（POSITION_COLOR_TEX_LIGHTMAP，采样雾噪声，Tint 默认绿）
         event.registerShader(
                 new ShaderInstance(event.getResourceProvider(),
                         ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "spirit_orb"),
@@ -100,6 +101,16 @@ public final class GensokyouClient {
                 shader -> {
                     SpiritOrbRenderTypes.spiritOrbShader = shader;
                     SpiritOrbRenderTypes.timeUniform = shader.getUniform("Time");
+                    SpiritOrbRenderTypes.fillUniform = shader.getUniform("Fill");
+                });
+        // 八方归元焦点核着色器（同顶点格式；常规 alpha 混合的**不透明**核，Density 为体内基础不透明度）
+        event.registerShader(
+                new ShaderInstance(event.getResourceProvider(),
+                        ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "spirit_core"),
+                        DefaultVertexFormat.POSITION_COLOR_TEX_LIGHTMAP),
+                shader -> {
+                    SpiritOrbRenderTypes.spiritCoreShader = shader;
+                    SpiritOrbRenderTypes.densityUniform = shader.getUniform("Density");
                 });
     }
 

@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.client.ritual.ClientRitualData;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualRecipe;
+import com.bitsson.gensokyou.ritual.RitualScaling;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.HolderLookup;
@@ -182,6 +183,32 @@ public class RitualTierComponent implements ICustomComponent {
                 }
                 add(out, "产出", loot);
             }
+            case "houjouno_teihou_circle" -> {
+                int slots = switch (L) {
+                    case 1 -> 8;
+                    case 2 -> 12;
+                    default -> 4;
+                };
+                long capacity = RitualScaling.scale(
+                        GensokyouConfig.HOUJOUNO_TEIHOU_BASE_CAPACITY.get(),
+                        GensokyouConfig.HOUJOUNO_TEIHOU_CAPACITY_MULTIPLIER.get(), L);
+                long inRate = RitualScaling.scale(
+                        GensokyouConfig.HOUJOUNO_TEIHOU_BASE_IN_RATE_PER_SECOND.get(),
+                        GensokyouConfig.HOUJOUNO_TEIHOU_IN_RATE_MULTIPLIER.get(), L);
+                long unitCost = RitualScaling.scale(
+                        GensokyouConfig.HOUJOUNO_TEIHOU_BASE_COST_PER_PEDESTAL.get(),
+                        GensokyouConfig.HOUJOUNO_TEIHOU_COST_MULTIPLIER.get(), L);
+                long totalCost = RitualScaling.saturatingMultiply(unitCost, slots);
+                long samples = RitualScaling.scale(
+                        GensokyouConfig.HOUJOUNO_TEIHOU_BASE_SAMPLE_COUNT.get(),
+                        GensokyouConfig.HOUJOUNO_TEIHOU_SAMPLE_COUNT_MULTIPLIER.get(), L);
+                add(out, "缓存", compact(capacity));
+                add(out, "受灵上限", compact(inRate) + " /秒");
+                add(out, "单台耗灵", compact(unitCost));
+                add(out, "满台耗灵", compact(totalCost));
+                add(out, "每台采样", compact(samples) + " 次");
+                add(out, "冷却", ((GensokyouConfig.HOUJOUNO_TEIHOU_CYCLE_TICKS.get() + 19) / 20) + " 秒");
+            }
             case "nichirin_circle" -> {
                 add(out, "峰值产灵", secs(GensokyouConfig.NICHIRIN_BASE_RATE_PER_SECOND.get() * pow(4, L)));
                 add(out, "输出上限", compact(GensokyouConfig.NICHIRIN_OUT_RATE_PER_SECOND.get()) + " /秒");
@@ -199,6 +226,18 @@ public class RitualTierComponent implements ICustomComponent {
                 add(out, "运行耗灵", compact((long) GensokyouConfig.WUJINZANG_BASE_DRAIN.get()
                         * pow(GensokyouConfig.WUJINZANG_MULT.get(), L)) + " /秒");
             }
+            case "kanayamahiko_circle" -> {
+                long divisor = Math.max(1L, pow(GensokyouConfig.KANAYAMAHIKO_DURATION_LEVEL_DIVISOR.get(), L));
+                long durationTicks = Math.max(1L, (GensokyouConfig.KANAYAMAHIKO_BASE_DURATION_SECONDS.get() * 20L
+                        + divisor - 1L) / divisor);
+                add(out, "熔炼时间", String.format(java.util.Locale.ROOT, "%.1f", durationTicks / 20.0D) + " 秒");
+                add(out, "单件耗灵", compact((long) GensokyouConfig.KANAYAMAHIKO_BASE_DRAIN_PER_SECOND.get()
+                        * pow(GensokyouConfig.KANAYAMAHIKO_POWER_MULTIPLIER.get(), L)) + " /秒");
+                add(out, "缓存", compact((long) GensokyouConfig.KANAYAMAHIKO_BASE_CAPACITY.get()
+                        * pow(GensokyouConfig.KANAYAMAHIKO_CAPACITY_MULTIPLIER.get(), L)));
+                add(out, "受灵上限", compact((long) GensokyouConfig.KANAYAMAHIKO_BASE_ROUTED_INPUT_PER_SECOND.get()
+                        * pow(GensokyouConfig.KANAYAMAHIKO_IN_RATE_MULTIPLIER.get(), L)) + " /秒");
+            }
             case "zaohua_circle" -> add(out, "受灵上限", compact((long) GensokyouConfig.ZAOHUA_SPIRIT_IN_RATE_BASE.get()
                     * pow(GensokyouConfig.ZAOHUA_SPIRIT_IN_RATE_MULT.get(), L)) + " /秒");
             case "kami_no_megumi_circle" -> add(out, "受灵上限", compact(GensokyouConfig.GRACE_SPIRIT_IN_RATE.get()) + " /秒");
@@ -208,6 +247,15 @@ public class RitualTierComponent implements ICustomComponent {
                 add(out, "输入连接", String.valueOf(GensokyouConfig.RESONANCE_BASE_IN_QUOTA.get() * scale));
                 add(out, "输出连接", String.valueOf(GensokyouConfig.RESONANCE_BASE_OUT_QUOTA.get() * scale));
                 add(out, "连接半径", (GensokyouConfig.RESONANCE_BASE_RADIUS.get() * scale) + " 格");
+            }
+            case "barrier_break_circle" -> {
+                // 单一阶级，故各项不随 L 变化；数值全部现算自 config，不写公式。
+                // 受灵上限一行刻意不填数值——它等于八方归元的聚合输出，随托管核而变，
+                // 写死任何数字都是谎报；且在阶门槛（末地）之前尚无可用的二阶灵核。
+                add(out, "结界缓存", compact(GensokyouConfig.BARRIER_CAPACITY.get()));
+                add(out, "自然流失", compact(GensokyouConfig.BARRIER_DRAIN_PER_SECOND.get()) + " /秒");
+                add(out, "受灵上限", "视归元托管数而定");
+                add(out, "建议备料", compact(GensokyouConfig.BARRIER_SUPPLY_HINT.get()));
             }
             default -> {
             }

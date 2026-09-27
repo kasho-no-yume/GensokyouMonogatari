@@ -19,12 +19,15 @@ import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipeMatcher;
 import com.bitsson.gensokyou.ritual.RitualRenderState;
+import com.bitsson.gensokyou.ritual.behavior.HoujounoTeihouBehavior;
 import com.bitsson.gensokyou.ritual.behavior.SpiritBank;
 import com.bitsson.gensokyou.ritual.behavior.TickRateLedger;
+import com.bitsson.gensokyou.ritual.behavior.KanayamahikoSmeltSession;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -43,7 +46,9 @@ import net.neoforged.neoforge.items.IItemHandler;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public class RitualCoreBlockEntity extends BlockEntity {
@@ -57,8 +62,12 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 旧版结界引爆开关字段：收编为 enabled 的存档兼容读。 */
     private static final String TAG_LEGACY_BARRIER_ACTIVATED = "BarrierActivated";
     private static final String TAG_PORTAL_POS = "PortalPos";
+    /** 结界闩锁（独立于 Enabled；缺字段的旧存档按未闩锁处理）。 */
+    private static final String TAG_BARRIER_LATCHED = "BarrierLatched";
     private static final String TAG_ACTIVE_RECIPE = "ActiveRecipe";
     private static final String TAG_BATTERY = "SpiritCoreBattery";
+    /** 星移之仪的增幅核目标槽（与祭品台分开，避免占用催化剂台位）。 */
+    private static final String TAG_SEII_TARGET = "SeiiTargetCore";
     private static final String TAG_BURN = "KagutsuchiBurn";
     private static final String TAG_BURN_FUEL = "Fuel";
     private static final String TAG_BURN_TOTAL = "TotalTicks";
@@ -83,6 +92,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private static final String TAG_GRACE_REFINE = "GraceRefine";
     private static final String TAG_GRACE_RECIPE = "GraceRecipe";
     private static final String TAG_GRACE_INITIATOR = "GraceInitiator";
+    private static final String TAG_GRACE_PENDING = "GracePending";
     /** 献祭仪式：结算后强制冷却剩余 tick（通用字段，仅该行为族使用）。 */
     private static final String TAG_ACTION_COOLDOWN = "ActionCooldown";
     /** 无尽藏之仪托管数据段键：分区组表 + 孤儿段 + 段位坐标（由 {@code WujinzangStorage} 读写）。 */
@@ -96,6 +106,13 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private long storedSpiritPower;
     private boolean enabled;
     private BlockPos portalPos;
+    /**
+     * 结界破坏仪式的闩锁：一经置位即需跨结构失配存续（拆方块又补回来传送门必须仍是开的）。
+     * <p>MUST NOT 复用 {@code enabled}——框架在 activeMatch 失效时会把 enabled 归零。
+     * 仅在「核心被破坏」或「该核心变为其他仪式」时清除（见 BarrierBreakBehavior.onStructureLost
+     * 与 RitualCoreBlock.onRemove）。
+     */
+    private boolean barrierLatched;
     /** 当前激活配方（配方驱动的仪式启动时记录，停止/失效清除）。 */
     private ResourceLocation activeRecipeId;
     /** 万象共鸣：输入/输出链接（身份 = 目标核心坐标 + 图案）。 */
@@ -138,6 +155,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private CompoundTag wujinzangVault;
     /** 无尽藏：电池核心→缓存的定点进位累加器（与产能方向的 fillCarry 分道）。 */
     private long cacheFillCarry;
+    private final KanayamahikoSmeltSession kanayamahikoSession = new KanayamahikoSmeltSession();
 
     public RitualCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RITUAL_CORE.get(), pos, state);
@@ -148,6 +166,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
     public void setRemoved() {
         clearRoutedLedgers();
         if (activeMatch != null && level instanceof ServerLevel serverLevel) {
+            if (activeMatch.patternId().equals(RitualBehaviors.HOUJOUNO_TEIHOU)) {
+                HoujounoTeihouBehavior.clearRuntimeFailures(serverLevel, getBlockPos());
+            }
             RitualCoreRegistry registry = RitualCoreRegistry.peek(serverLevel);
             if (registry != null) {
                 registry.unregister(getBlockPos(), activeMatch.patternId());
@@ -206,6 +227,15 @@ public class RitualCoreBlockEntity extends BlockEntity {
         this.cacheFillCarry = value;
     }
 
+    public KanayamahikoSmeltSession kanayamahikoSession() {
+        return kanayamahikoSession;
+    }
+
+    public void clearKanayamahikoSession() {
+        kanayamahikoSession.clear();
+        setChanged();
+    }
+
     /** 每 tick 递减冷却（核心 tick 统一调用）。 */
     private void tickActionCooldown() {
         if (actionCooldown > 0) {
@@ -262,6 +292,15 @@ public class RitualCoreBlockEntity extends BlockEntity {
             if (activeMatch.patternId().equals(RitualBehaviors.SAIR_ENERGY)) {
                 return GensokyouConfig.SAIR_ENERGY_BASE_CAPACITY.get();
             }
+            if (activeMatch.patternId().equals(RitualBehaviors.BARRIER_BREAK)) {
+                return barrierCapacity();
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.KANAYAMAHIKO)) {
+                return kanayamahikoCapacity(activeMatch.level());
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.HOUJOUNO_TEIHOU)) {
+                return HoujounoTeihouBehavior.capacity(activeMatch.level());
+            }
             if (activeMatch.patternId().equals(RitualBehaviors.NICHIRIN)) {
                 return daycycleCapacity(activeMatch.level(),
                         GensokyouConfig.NICHIRIN_BASE_CAPACITY.get());
@@ -284,12 +323,30 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 return phase == GracePhase.PAYING || phase == GracePhase.PERFORM
                         ? grace.cost() : 0L;
             }
+            if (activeMatch.patternId().equals(RitualBehaviors.SEII)) {
+                // 星移刻意不做会话态覆盖：缓存是跨洗练持久的真实蓄水池，
+                // 一次洗练只抽本次花费量，剩余 (阶梯值 - 花费) 结转下一次。
+                return com.bitsson.gensokyou.item.weapon.SeiiNumbers.capacity(activeMatch.level());
+            }
         }
         return DEFAULT_CORE_CAPACITY;
     }
 
     /** 杂项仪式（无专属缓存语义）的兜底缓存上限。 */
     public static final long DEFAULT_CORE_CAPACITY = 10_000L;
+
+    /**
+     * 结界破坏仪式缓存上限。单一阶级（tiers [2]），故不随 level 缩放。
+     * 这是该仪式唯一的硬性开启门槛：缓存充盈 + 祭品齐备即闩锁开门。
+     */
+    public static long barrierCapacity() {
+        return Math.max(0L, GensokyouConfig.BARRIER_CAPACITY.get());
+    }
+
+    /** 结界破坏仪式每秒自然流失量（充能期与待献祭期的行为差异由行为侧裁决）。 */
+    public static long barrierDrainPerSecond() {
+        return Math.max(0L, GensokyouConfig.BARRIER_DRAIN_PER_SECOND.get());
+    }
 
     /** 加具土命缓存上限 = 基础值 × 4^等级。 */
     public static long kagutsuchiCapacity(int level) {
@@ -331,6 +388,10 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 献祭工具仪式缓存上限 = 基值 × 4^等级。 */
     public static long sacrificeCapacity(int level) {
         return daycycleCapacity(level, GensokyouConfig.SACRIFICE_BASE_CAPACITY.get());
+    }
+
+    public static long kanayamahikoCapacity(int level) {
+        return com.bitsson.gensokyou.ritual.behavior.KanayamahikoSmelting.capacity(level);
     }
 
     /** 无尽藏之仪缓存上限 = 基值 × mult^等级。 */
@@ -803,9 +864,11 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
 
         public void save(CompoundTag tag) {
-            if (phase == GracePhase.IDLE || phase == GracePhase.REVIEW) {
-                return; // 预览当场制：REVIEW 不持久化（重启即作废）
+            if (phase == GracePhase.IDLE) {
+                return;
             }
+            // REVIEW 也写盘：待决预览永久存续（跨区块卸载 / 服务器重启），
+            // 决策权绑定 initiator，不会被他人关闭界面或掉线吞掉。
             tag.putString(TAG_GRACE_PHASE, phase.name());
             tag.putLong(TAG_GRACE_SESSION, sessionId);
             tag.putLong(TAG_GRACE_COLLECTED, collected);
@@ -819,9 +882,54 @@ public class RitualCoreBlockEntity extends BlockEntity {
             if (initiator != null) {
                 tag.putUUID(TAG_GRACE_INITIATOR, initiator);
             }
+            // REVIEW 的待决 roll 必须落盘：否则重启后 REVIEW 回来了但没有可决策的 roll，
+            // 玩家既看不到结果也无法"全收 / 保留"，等于待决预览丢失。
+            if (phase == GracePhase.REVIEW && pendingRefine != null) {
+                tag.put(TAG_GRACE_PENDING, writeGraceRoll(pendingRefine));
+            }
         }
 
-        /** 读档：仅 PAYING 复活（initiator 离线时由服务侧首 tick 取消退还）；其余脏态清退。 */
+        private static CompoundTag writeGraceRoll(
+                com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll roll) {
+            CompoundTag t = new CompoundTag();
+            t.putInt("tier", roll.tier());
+            t.putFloat("maxGain", roll.maxGain());
+            t.putFloat("powerGain", roll.powerGain());
+            ListTag list = new ListTag();
+            for (var entry : roll.contributions().entrySet()) {
+                CompoundTag one = new CompoundTag();
+                one.putString("k", entry.getKey().id());
+                one.putFloat("v", entry.getValue());
+                list.add(one);
+            }
+            t.put("contrib", list);
+            return t;
+        }
+
+        private static @Nullable com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll
+        readGraceRoll(CompoundTag t) {
+            if (!t.contains("contrib", Tag.TAG_LIST)) {
+                return null;
+            }
+            Map<com.bitsson.gensokyou.spirit.attr.AttributeKey, Float> contrib = new LinkedHashMap<>();
+            ListTag list = t.getList("contrib", Tag.TAG_COMPOUND);
+            for (int i = 0; i < list.size(); i++) {
+                CompoundTag one = list.getCompound(i);
+                var key = com.bitsson.gensokyou.spirit.attr.AttributeKey.byId(one.getString("k"));
+                if (key != null) {
+                    contrib.put(key, one.getFloat("v"));
+                }
+            }
+            return new com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll(
+                    t.getInt("tier"), t.getFloat("maxGain"), t.getFloat("powerGain"),
+                    Map.copyOf(contrib));
+        }
+
+        /**
+         * 读档：PAYING 复活（initiator 离线时由服务侧首 tick 取消退还）；REVIEW 复活为待决态
+         * （暂存的 roll 不写盘而是按 tier 重新 roll —— 精确复现需要额外持久化，收益不匹配）；
+         * PERFORM 视为不可续作，清退。
+         */
         public void load(CompoundTag tag) {
             if (!tag.contains(TAG_GRACE_PHASE)) {
                 return;
@@ -831,8 +939,11 @@ public class RitualCoreBlockEntity extends BlockEntity {
             } catch (IllegalArgumentException exception) {
                 phase = GracePhase.IDLE;
             }
-            if (phase != GracePhase.PAYING) {
-                clear();
+            if (phase == GracePhase.IDLE) {
+                return;
+            }
+            if (phase == GracePhase.PERFORM) {
+                clear(); // 演出不可续作：效果已入账，清态不重演
                 return;
             }
             sessionId = tag.getLong(TAG_GRACE_SESSION);
@@ -845,10 +956,60 @@ public class RitualCoreBlockEntity extends BlockEntity {
                     ? ResourceLocation.tryParse(tag.getString(TAG_GRACE_RECIPE)) : null;
             initiator = tag.hasUUID(TAG_GRACE_INITIATOR) ? tag.getUUID(TAG_GRACE_INITIATOR) : null;
             pendingRefine = null;
+            if (phase == GracePhase.REVIEW && tag.contains(TAG_GRACE_PENDING, Tag.TAG_COMPOUND)) {
+                pendingRefine = readGraceRoll(tag.getCompound(TAG_GRACE_PENDING));
+            }
+            // REVIEW 却读不出待决 roll（老存档 / 词条键已退役）→ 退回 IDLE，
+            // 绝不停在一个"有 REVIEW 相位、无可决策内容"的死状态。
+            if (phase == GracePhase.REVIEW && pendingRefine == null) {
+                phase = GracePhase.IDLE;
+            }
         }
     }
 
     private final GraceSession grace = new GraceSession();
+
+    /** 星移之仪会话态（第三份会话持有者，对照 craft / grace 的既有范式）。 */
+    private final com.bitsson.gensokyou.ritual.behavior.SeiiSession seii =
+            new com.bitsson.gensokyou.ritual.behavior.SeiiSession();
+
+    public com.bitsson.gensokyou.ritual.behavior.SeiiSession seiiSession() {
+        return seii;
+    }
+
+    /** 开始星移会话：锁定配方、记花费与目标核阶、进 PAYING。 */
+    public long beginSeiiSession(ResourceLocation recipeId, long spCost,
+                                 int coreTier, java.util.UUID who) {
+        long id = seii.begin(recipeId, spCost, coreTier, who);
+        activeRecipeId = recipeId;
+        setChanged();
+        return id;
+    }
+
+    public void addSeiiCollected(long amount) {
+        seii.addCollected(amount);
+        setChanged();
+    }
+
+    public void enterSeiiPerform(com.bitsson.gensokyou.ritual.behavior.SeiiSession.Pending staged) {
+        seii.stage(staged);
+        setChanged();
+    }
+
+    public void tickSeiiPerform() {
+        seii.tickPerform();
+    }
+
+    public void promoteSeiiReview() {
+        seii.promoteReview();
+        setChanged();
+    }
+
+    public void clearSeiiSession() {
+        seii.clear();
+        activeRecipeId = null;
+        setChanged();
+    }
 
     public GraceSession graceSession() {
         return grace;
@@ -933,6 +1094,32 @@ public class RitualCoreBlockEntity extends BlockEntity {
     public void setBatteryStack(ItemStack stack) {
         this.batteryStack = stack;
         setChanged();
+    }
+
+    // ---- 仪式专用物品槽（星移之仪的增幅核目标槽） ----
+    //
+    // 刻意与「祭品台」分开：祭品台是配方催化剂的载体且一台一件，若核也占台位会挤掉催化剂
+    // （1 阶只有 4 台）。核有自己的 GUI 槽位，祭品台全部留给催化剂。
+
+    private ItemStack seiiTargetStack = ItemStack.EMPTY;
+
+    /** 槽内增幅核（空栈表示无）。 */
+    public ItemStack seiiTargetStack() {
+        return seiiTargetStack;
+    }
+
+    /** 写入槽内增幅核（自动归一为 1 个；空栈写空）。 */
+    public void setSeiiTargetStack(ItemStack stack) {
+        this.seiiTargetStack = (stack == null || stack.isEmpty())
+                ? ItemStack.EMPTY : stack.copyWithCount(1);
+        setChanged();
+    }
+
+    private final IItemHandler seiiTargetHandler = new SeiiTargetHandler();
+
+    /** 目标槽的 item handler 视图（供 RitualCoreMenu 的 TargetSlot 绑定）。 */
+    public IItemHandler seiiTargetHandler() {
+        return seiiTargetHandler;
     }
 
     /**
@@ -1153,6 +1340,19 @@ public class RitualCoreBlockEntity extends BlockEntity {
             return new RitualRenderState(RitualRenderState.KIND_BAFANG, enabled,
                     activeMatch.level(), 0, 0, 0, new long[0], 0, 0L);
         }
+        if (id.equals(RitualBehaviors.SEII)) {
+            return buildSeiiRenderState();
+        }
+        if (id.equals(RitualBehaviors.KANAYAMAHIKO)) {
+            // maxY 语义 = 结构水平半径（格）：客户端据此铺满密集火星场
+            // 锚点与燃烧掩码共用同一份规范序台位，保证 bit(i+1) 与锚点 i 严格对齐
+            List<BlockPos> forgePedestals = pedestalPositions();
+            return new RitualRenderState(RitualRenderState.KIND_KANAYAMAHIKO, enabled,
+                    activeMatch.level(), boundsMinY, structureRadiusXZ(), 0,
+                    kanayamahikoPillarAnchors(forgePedestals), 0,
+                    com.bitsson.gensokyou.ritual.behavior.KanayamahikoSmelting
+                            .renderBurnMask(forgePedestals, kanayamahikoSession));
+        }
         if (id.equals(RitualBehaviors.WUJINZANG)) {
             return new RitualRenderState(RitualRenderState.KIND_WUJINZANG, enabled,
                     activeMatch.level(), boundsMinY, boundsMaxY, 0,
@@ -1160,11 +1360,12 @@ public class RitualCoreBlockEntity extends BlockEntity {
                             .laserAnchors(this, activeMatch),
                     0, 0L);
         }
-        if (RitualBehaviors.isToolSacrifice(id) || id.equals(RitualBehaviors.SHUJOU)) {
+        if (RitualBehaviors.isToolSacrifice(id) || id.equals(RitualBehaviors.SHUJOU)
+                || id.equals(RitualBehaviors.HOUJOUNO_TEIHOU)) {
             if (sacrificeFxTicks <= 0) {
                 return null;
             }
-            // 复用字段：minY=光柱高度(格)、maxY=剩余刻、period=色索引(0..5)
+            // 复用字段：minY=光柱高度(格)、maxY=剩余刻、period=色索引(0..6)
             return new RitualRenderState(RitualRenderState.KIND_SACRIFICE, enabled,
                     activeMatch.level(),
                     (int) Math.round(GensokyouConfig.FX_PILLAR_HEIGHT.get()),
@@ -1203,6 +1404,19 @@ public class RitualCoreBlockEntity extends BlockEntity {
         return out;
     }
 
+    /**
+     * 煅炉火柱锚点：与 {@link com.bitsson.gensokyou.ritual.behavior.KanayamahikoSmelting
+     * #renderBurnMask} 传入的台位列表完全一致，故"第 i 位点亮"必然对应"第 i 个台位冒火"。
+     */
+    private long[] kanayamahikoPillarAnchors(List<BlockPos> pedestals) {
+        int cap = RitualRenderState.MAX_CHANNELS;
+        long[] out = new long[Math.min(pedestals.size(), cap)];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = pedestals.get(i).asLong();
+        }
+        return out;
+    }
+
     @Nullable
     private RitualRenderState buildRelayRenderState() {
         int cap = RitualRenderState.MAX_CHANNELS;
@@ -1227,6 +1441,24 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 boundsMinY, boundsMaxY,
                 Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get()), links, inCount,
                 RitualRenderState.clampMask(resoMovingMask, total));
+    }
+
+    /**
+     * 星移演出渲染态：只下发"演出中 + 档位 + 起始 gameTime + 总时长"四个标量，
+     * 逐帧粒子表现全在客户端 BER 本地生成（稳态零持续包）。
+     *
+     * <p>{@code startTick = gameTime - session.ticks()}：PERFORM 期间两者每 tick 同步 +1，
+     * 故该差值恒定且自校正 —— 无需给会话新增持久化字段，也不会累积漂移。
+     */
+    private RitualRenderState buildSeiiRenderState() {
+        com.bitsson.gensokyou.ritual.behavior.SeiiSession session = seiiSession();
+        boolean performing = level != null && !level.isClientSide
+                && session.phase() == com.bitsson.gensokyou.ritual.behavior.SeiiSession.Phase.PERFORM;
+        int duration = com.bitsson.gensokyou.config.GensokyouConfig.SEII_PERFORM_TICKS.get();
+        int startTick = performing
+                ? (int) (level.getGameTime() - session.ticks()) : 0;
+        return new RitualRenderState(RitualRenderState.KIND_SEII, performing,
+                activeMatch.level(), startTick, duration, 0, new long[0], 0, 0L);
     }
 
     @Override
@@ -1376,6 +1608,28 @@ public class RitualCoreBlockEntity extends BlockEntity {
         setChanged();
     }
 
+    // ---- 结界闩锁（独立于 enabled，跨结构失配存续） ----
+
+    /** 闩锁是否已置位：置位后传送门永久开启，不再校验祭品也不再耗灵。 */
+    public boolean isBarrierLatched() {
+        return barrierLatched;
+    }
+
+    /**
+     * 置位/清除闩锁。置位时同时记录主世界侧门位与幻想乡侧孪生门位（可为 null）。
+     * 清除时一并清空门位，避免残留坐标被后续逻辑误用。
+     */
+    public void setBarrierLatched(boolean latched) {
+        if (this.barrierLatched == latched) {
+            return;
+        }
+        this.barrierLatched = latched;
+        if (!latched) {
+            this.portalPos = null;
+        }
+        setChanged();
+    }
+
     // ---- 自动化接口：祭品台代理箱（槽位 ⇄ 成型结构内祭品台，每槽容量 1，活代理） ----
 
     /** 代理箱 handler（稳定单例：NeoForge 按返回实例缓存 capability）。 */
@@ -1505,8 +1759,66 @@ public class RitualCoreBlockEntity extends BlockEntity {
     }
 
     /** 电池槽单槽代理：仅收灵力核心物品，直读直写 BE 字段（SlotItemHandler.set 要求可写接口）。 */
-    private final class BatteryHandler implements net.neoforged.neoforge.items.IItemHandlerModifiable {
+    /**
+     * 星移之仪的增幅核目标槽 handler：只收增幅核，永远 1 个（与祭品台的一台一件同理）。
+     * 允许取出（玩家要把核拿回去），但取出前若有待决洗练，服务侧复验会发现核已不在而拒绝写入。
+     */
+    private final class SeiiTargetHandler implements net.neoforged.neoforge.items.IItemHandlerModifiable {
 
+        @Override
+        public void setStackInSlot(int slot, ItemStack stack) {
+            if (slot == 0) {
+                setSeiiTargetStack(stack);
+            }
+        }
+
+        @Override
+        public int getSlots() {
+            return 1;
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return slot == 0 ? seiiTargetStack : ItemStack.EMPTY;
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (slot != 0 || !isItemValid(slot, stack)) {
+                return stack;
+            }
+            if (!simulate && seiiTargetStack.isEmpty()) {
+                setSeiiTargetStack(stack);
+                return stack.copyWithCount(stack.getCount() - 1);
+            }
+            return simulate ? stack : stack.copyWithCount(0);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            if (slot != 0 || seiiTargetStack.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+            int n = Math.min(amount, seiiTargetStack.getCount());
+            ItemStack out = seiiTargetStack.copyWithCount(n);
+            if (!simulate) {
+                setSeiiTargetStack(ItemStack.EMPTY);
+            }
+            return out;
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return 1;
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return slot == 0 && stack.getItem() instanceof com.bitsson.gensokyou.item.weapon.AmpCoreItem;
+        }
+    }
+
+    private final class BatteryHandler implements net.neoforged.neoforge.items.IItemHandlerModifiable {
         @Override
         public void setStackInSlot(int slot, ItemStack stack) {
             if (slot == 0 && isItemValid(slot, stack)) {
@@ -1722,8 +2034,14 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (portalPos != null) {
             tag.putLong(TAG_PORTAL_POS, portalPos.asLong());
         }
+        if (barrierLatched) {
+            tag.putBoolean(TAG_BARRIER_LATCHED, true);
+        }
         if (!batteryStack.isEmpty()) {
             tag.put(TAG_BATTERY, batteryStack.save(registries));
+        }
+        if (!seiiTargetStack.isEmpty()) {
+            tag.put(TAG_SEII_TARGET, seiiTargetStack.save(registries));
         }
         if (burnTotalTicks > 0) {
             CompoundTag burn = new CompoundTag();
@@ -1742,6 +2060,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
         craft.save(tag);
         grace.save(tag);
+        seii.save(tag);
         if (lastPowered) {
             tag.putBoolean(TAG_LAST_POWERED, true);
         }
@@ -1754,6 +2073,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (cacheFillCarry != 0L) {
             tag.putLong("WujinzangCacheCarry", cacheFillCarry);
         }
+        kanayamahikoSession.save(tag, registries);
     }
 
     @Override
@@ -1772,10 +2092,16 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
         portalPos = tag.contains(TAG_PORTAL_POS)
                 ? BlockPos.of(tag.getLong(TAG_PORTAL_POS)) : null;
+        // 缺字段 = 未闩锁（向后兼容：旧存档的 BarrierActivated 是一次性扣费时代的语义，
+        // 不得据此推断闩锁——那是两个不同的状态）
+        barrierLatched = tag.getBoolean(TAG_BARRIER_LATCHED);
         activeRecipeId = tag.contains(TAG_ACTIVE_RECIPE)
                 ? ResourceLocation.parse(tag.getString(TAG_ACTIVE_RECIPE)) : null;
         batteryStack = tag.contains(TAG_BATTERY)
                 ? ItemStack.parseOptional(registries, tag.getCompound(TAG_BATTERY))
+                : ItemStack.EMPTY;
+        seiiTargetStack = tag.contains(TAG_SEII_TARGET)
+                ? ItemStack.parseOptional(registries, tag.getCompound(TAG_SEII_TARGET))
                 : ItemStack.EMPTY;
         if (tag.contains(TAG_BURN)) {
             CompoundTag burn = tag.getCompound(TAG_BURN);
@@ -1789,11 +2115,13 @@ public class RitualCoreBlockEntity extends BlockEntity {
         fillCarry = tag.getLong(TAG_FILL_ACCUM);
         craft.load(tag);
         grace.load(tag);
+        seii.load(tag);
         lastPowered = tag.getBoolean(TAG_LAST_POWERED);
         actionCooldown = Math.max(0, tag.getInt(TAG_ACTION_COOLDOWN));
         wujinzangVault = tag.contains(TAG_WUJINZANG_VAULT)
                 ? tag.getCompound(TAG_WUJINZANG_VAULT).copy() : null;
         cacheFillCarry = tag.getLong("WujinzangCacheCarry");
+        kanayamahikoSession.load(tag, registries);
         if (tag.contains(TAG_RENDER_STATE)) {
             renderState = RitualRenderState.fromTag(tag.getCompound(TAG_RENDER_STATE));
         }

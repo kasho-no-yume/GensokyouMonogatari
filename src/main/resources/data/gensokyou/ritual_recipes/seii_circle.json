@@ -1,0 +1,20 @@
+{
+  "pattern": "gensokyou:seii_circle",
+  "recipes": [
+    {
+      "name": "seii_core_1",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "minPlayerTier": 0,
+      "spCost": 30000,
+      "ingredients": [
+        { "item": "gensokyou:refined_cinnabar", "count": 1 },
+        { "item": "gensokyou:spirit_iron", "count": 1 },
+        { "item": "minecraft:netherite_scrap", "count": 1 },
+        { "item": "minecraft:diamond", "count": 1 }
+      ],
+      "effect": "seii:core_1"
+    }
+  ]
+}

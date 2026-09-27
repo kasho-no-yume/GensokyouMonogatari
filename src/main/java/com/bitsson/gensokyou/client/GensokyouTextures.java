@@ -19,7 +19,19 @@ public final class GensokyouTextures {
     public static final ResourceLocation SUKIMA_PORTAL = entity("sukima_portal");
     public static final ResourceLocation CRYSTAL = entity("crystal");
 
+    /**
+     * 「结界崩解」光斑粒子贴图：柔和的径向白色光斑。
+     *
+     * <p>与 {@link #DUST} 用的尘埃点不同——本图中心近实、边缘平滑归零，
+     * 半透明混合后大量叠加才能积成「一团光」而非「一堆小点」。
+     */
+    public static final ResourceLocation SHATTER_GLOW = particle("shatter_glow");
+
     private GensokyouTextures() {
+    }
+
+    private static ResourceLocation particle(String name) {
+        return ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/particle/" + name + ".png");
     }
 
     private static ResourceLocation entity(String name) {

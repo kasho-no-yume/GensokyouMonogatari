@@ -1,0 +1,20 @@
+{
+  "name": "item.gensokyou.spirit_core_1",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:spirit_core_1",
+  "sortnum": 41,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:spirit_core_1",
+      "text": "gensokyou.book.entry.item_recipe.p1"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_spirit_core_1"
+    }
+  ],
+  "advancement": "gensokyou:guide/nether_unlock",
+  "secret": true
+}

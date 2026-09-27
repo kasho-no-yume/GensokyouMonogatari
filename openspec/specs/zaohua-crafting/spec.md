@@ -68,7 +68,7 @@ TBD - created by archiving change implement-zaohua-crafting. Update Purpose afte
 - **THEN** 会话阶段与已聚灵进度保持，飞行物回到当前时刻应有的轨迹位置继续演出
 
 ### Requirement: 示例配方与本地化
-系统 SHALL 交付一仪式一文件的配方数据 `data/gensokyou/ritual_recipes/zaohua_circle.json`（顶层 `pattern` + `recipes[]`，每条含 `name`/`mode`/`match:"max"`/`minTier:0`）：①`zaohua_stone_t1`：4×diamond + 4×ritual_stone_0 → 1×ritual_stone_1（spCost 2,000）；②`zaohua_spellcard_star`：8×broken_spell_card_star → 1×spellcard_star（spCost 8,000）。spCost 数值为可调占位（改 JSON 即生效，MUST NOT 硬编码进 Java）。仪式名、按钮文案、状态与失败消息 SHALL 备齐中英语言键。配方目录展示归 JEI，仪式 GUI MUST NOT 罗列可用配方。
+系统 SHALL 交付一仪式一文件的配方数据 `data/gensokyou/ritual_recipes/zaohua_circle.json`（顶层 `pattern` + `recipes[]`，每条含 `name`/`mode`/`match:"max"`/`minTier:0`）：①`zaohua_stone_t1`：4×diamond + 4×ritual_stone_0 + 4×refined_cinnabar → 1×ritual_stone_1（spCost 2,000）；②`zaohua_spellcard_star`：8×broken_spell_card_star → 1×spellcard_star（spCost 8,000）。spCost 数值为可调占位（改 JSON 即生效，MUST NOT 硬编码进 Java）。仪式名、按钮文案、状态与失败消息 SHALL 备齐中英语言键。配方目录展示归 JEI，仪式 GUI MUST NOT 罗列可用配方。
 
 #### Scenario: 0 阶可造 1 阶仪式石
 - **WHEN** 0 阶源初造化的 8 个祭品台各放 1 件（4 钻石 + 4 仪式石 0）且灵力足额，触发合成
@@ -77,4 +77,17 @@ TBD - created by archiving change implement-zaohua-crafting. Update Purpose afte
 #### Scenario: max 匹配余料不动
 - **WHEN** 台面为 4a+3b+5c+1d（a/b/c/d 对应两条示例配方的实际物品混合）时触发
 - **THEN** 仅按可命中的最大匹配配方消耗对应件数，其余物品留在原台面
+
+### Requirement: 碎符卡星为 BOSS 专属稀缺物，不提供配方
+`broken_spell_card_star` SHALL 为**有意的稀缺材料**：当前 MUST NOT 存在任何工作台配方、源初造化配方、锻造配方或其它可稳定量产的生产路径，其唯一来源为 BOSS 掉落。系统 MUST NOT 为其补任何合成配方，`zaohua_spellcard_star` SHALL 保持 `minTier:0`、8×碎符卡星配方不变。
+
+该设计为有意决策而非遗漏：弹幕方术台与符星铳因此位于 BOSS 之后，属于中期目标而非开局可及。任何变更若要为其增加生产路径，SHALL 先作为独立的稀缺度调整变更讨论，MUST NOT 在补链类变更中顺带加入。
+
+#### Scenario: 碎符卡星不可制造
+- **WHEN** 审查 `data/gensokyou/recipe/`、`ritual_recipes/` 与 `ritual_smelt_recipes/` 中以 `broken_spell_card_star` 为产物的条目
+- **THEN** 一条都没有；该物品只能从 BOSS 获得
+
+#### Scenario: 符卡星仍可由碎星重铸
+- **WHEN** 玩家持有 8 枚碎符卡星
+- **THEN** 可在 0 阶源初造化之仪上重铸出 1 枚符卡星（8,000 灵力）
 

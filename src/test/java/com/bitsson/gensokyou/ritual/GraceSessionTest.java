@@ -7,10 +7,12 @@ import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -102,7 +104,35 @@ class GraceSessionTest {
         review.promoteReview();
         CompoundTag reviewTag = new CompoundTag();
         review.save(reviewTag);
-        assertTrue(reviewTag.isEmpty(), "REVIEW 不入存档（预览当场制）");
+        assertFalse(reviewTag.isEmpty(),
+                "REVIEW 入存档（待决永久存续，关界面/重启都不作废）");
+        RitualCoreBlockEntity.GraceSession restored = new RitualCoreBlockEntity.GraceSession();
+        restored.load(reviewTag);
+        assertEquals(RitualCoreBlockEntity.GracePhase.REVIEW, restored.phase(),
+                "REVIEW 永久存续：重启后仍在待决态");
+        assertEquals(WHO, restored.initiator(), "决策权仍归原发起者");
+        // 待决 roll 本身也必须落盘：否则重启后 REVIEW 回来了却无可决策内容，
+        // 玩家既看不到结果也无法"全收 / 保留"。
+        assertNotNull(restored.pendingRefine(), "REVIEW 的待决 roll 必须随存档恢复");
+        assertEquals(1, restored.pendingRefine().tier());
+        assertEquals(200F, restored.pendingRefine().maxGain());
+        assertEquals(8F, restored.pendingRefine().powerGain());
+        assertEquals(Map.of(
+                        com.bitsson.gensokyou.spirit.attr.AttributeKey.DANMAKU_REDUCE, 0.1F),
+                restored.pendingRefine().contributions(),
+                "待决 roll 的词条贡献必须逐条保真");
+    }
+
+    @Test
+    void reviewWithoutPendingRollFallsBackToIdle() {
+        // 老存档（REVIEW 相位已写盘但没有 GracePending）不得停在"有相位、无内容"的死状态
+        CompoundTag legacy = new CompoundTag();
+        legacy.putString("GracePhase", RitualCoreBlockEntity.GracePhase.REVIEW.name());
+        legacy.putLong("GraceSession", 7L);
+        RitualCoreBlockEntity.GraceSession loaded = new RitualCoreBlockEntity.GraceSession();
+        loaded.load(legacy);
+        assertEquals(RitualCoreBlockEntity.GracePhase.IDLE, loaded.phase());
+        assertNull(loaded.pendingRefine());
     }
 
     @Test
