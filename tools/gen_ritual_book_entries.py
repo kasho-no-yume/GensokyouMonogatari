@@ -3,7 +3,7 @@
 
 读取 data/gensokyou/rituals/*.json 与 ritual_recipes/，为每个**可正常游玩**的
 已实现仪式生成独立 Patchouli 条目：
-  故事+引言（同一页）→ 逐阶结构页 / 阶级参数页 → 配方页 / 献祭产出页。
+  故事+引言（.text 单页，或 .pN 拆多页）→ 逐阶结构页 / 阶级参数页 → 配方页 / 献祭产出页。
 
 - 最低结构阶 ≥ 1 的仪式，条目挂该阶对应的**世界进度门槛**（secret），否则常驻可见。
 - 阶级参数由客户端组件（RitualTierComponent）按该阶从 config 计算，不写公式。
@@ -32,7 +32,10 @@ ENTRIES_DIR = os.path.join(
     REPO,
     "src/main/resources/assets/gensokyou/patchouli_books/gensokyou_book/en_us/entries")
 
-LANG_FILE = os.path.join(REPO, "src/main/resources/assets/gensokyou/lang/en_us.json")
+# 书内正文只在 zh_cn 维护（guide-book「新增书内文案仅维护 zh_cn」：
+# en_us 缺键不算缺陷）。故事页键是否存在，以 zh_cn 为准——曾经误读 en_us，
+# 结果 21 个仪式里有 19 个被判定为「无正文」，故事页被整条从条目里抹掉。
+LANG_FILE = os.path.join(REPO, "src/main/resources/assets/gensokyou/lang/zh_cn.json")
 CATEGORY = "gensokyou:rituals"
 # 缺正文语言键的仪式（运行结束时报警并以非零码退出）
 MISSING_TEXT = []
@@ -100,6 +103,9 @@ ENTRIES = [
     # 百鬼夜行：召唤仪式。配方只出 effect（不产出物品），故配方页是玩家获知
     # 召唤配方的唯一途径，不能 no_recipes。3 条配方 <= MAX_RECIPE_PAGES，故会补配方页。
     ("hyakki_yagyo_circle", "minecraft:soul_lantern", False),
+    # 灵浴：浴亭内的玩家注灵仪式。**无任何配方**（充灵靠槽核/路由供灵，不烧材料），
+    # 故 no_recipes=True。阶级参数页现算缓存/受灵上限/注灵速率/兑换比。
+    ("reiyoku_circle", "minecraft:sea_lantern", True),
 ]
 
 ITEM_RECIPE_ENTRIES = [
@@ -216,7 +222,13 @@ def watatsumi_entries(level):
 
 
 def intro_text_keys(path):
-    """按语言文件里实际存在的 ``.pN`` 键收集正文页键（N 升序）。
+    """收集该仪式的正文（故事）页键，按页序返回。
+
+    <p>两种形态都合法：
+    * ``.text``——单页正文，绝大多数仪式用它；
+    * ``.p1``/``.p2``/…——长正文按段拆页（Patchouli 页列表是静态的，无法运行期
+      增页，故长文本在生成期拆成多张 ``patchouli:text``），见 guide-book
+      「仪式章节配方卡与结构展示」。
 
     <p>正文页数量由语言文件决定，而不是硬编码一页：玩家读的是多段落的连贯叙述，
     硬塞进单页会变成技术手册那样的长块。每段一页，翻页节奏才正常。
@@ -224,17 +236,24 @@ def intro_text_keys(path):
     <p>一个键都没有时返回空列表并由调用方报警 —— 少了语言键会在游戏内显示原始
     key 字符串，这种缺陷必须吵，不能静默（见 tasks 14.7）。
     """
-    prefix = f"gensokyou.book.entry.ritual.{path}.p"
+    prefix = f"gensokyou.book.entry.ritual.{path}."
     with open(LANG_FILE, "r", encoding="utf-8") as handle:
         lang = json.load(handle)
+    single = None
     numbered = []
     for key in lang:
-        if key.startswith(prefix):
-            tail = key[len(prefix):]
-            if tail.isdigit():
-                numbered.append((int(tail), key))
+        if not key.startswith(prefix):
+            continue
+        tail = key[len(prefix):]
+        if tail == "text":
+            single = key
+        elif tail.startswith("p") and tail[1:].isdigit():
+            numbered.append((int(tail[1:]), key))
     numbered.sort()
-    return [key for _, key in numbered]
+    if numbered:
+        # 拆页形态优先：它是 .text 的细化，两者同存时不该把整段再重复一遍。
+        return [key for _, key in numbered]
+    return [single] if single else []
 
 
 def build_entry(path, icon, no_recipes, sortnum):
@@ -410,11 +429,14 @@ def main():
             build_entry(path, icon, no_recipes, sortnum)
     build_item_entries()
     if MISSING_TEXT:
-        # 缺键 = 游戏内该页显示原始 key 字符串。必须失败，别让缺陷静默溜过去。
-        print("\nMISSING intro text keys (book page would render the raw key):",
+        # 缺键 = 故事页被整条抹掉（条目直接从结构页开始，读者看不到任何来历）。
+        # 必须失败，别让缺陷静默溜过去。
+        print("\nMISSING intro text keys in", os.path.relpath(LANG_FILE, REPO),
+              "(the entry would open straight onto the structure page):",
               file=sys.stderr)
         for path in MISSING_TEXT:
-            print(f"  - gensokyou.book.entry.ritual.{path}.p1 (and .p2 ...)", file=sys.stderr)
+            print(f"  - gensokyou.book.entry.ritual.{path}.text"
+                  f"  (or .p1 / .p2 ...)", file=sys.stderr)
         raise SystemExit(1)
 
 

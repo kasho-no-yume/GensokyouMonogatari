@@ -820,6 +820,11 @@
       "type": "gensokyou:ritual_page",
       "ritual": "gensokyou:hyakki_yagyo_circle",
       "recipe_index": 2
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:hyakki_yagyo_circle",
+      "recipe_index": 3
     }
   ],
   "advancement": "gensokyou:guide/nether_unlock",

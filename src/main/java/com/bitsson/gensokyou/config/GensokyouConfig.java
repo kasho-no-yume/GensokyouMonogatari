@@ -461,6 +461,117 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue SAIR_ENERGY_OUT_RATE_PER_SECOND;
     public static final ModConfigSpec.LongValue SAIR_ENERGY_BASE_CAPACITY;
 
+    // ---- add-reiyoku-ritual：灵浴（浴区内玩家按结构等级标准池的固定百分比被注灵）----
+    /** 1 阶缓存上限基值（缓存点数）。每升一阶 ×12^(L-1)。 */
+    public static final ModConfigSpec.LongValue REIYOKU_BASE_CAPACITY;
+    /** 1 阶受灵上限基值（缓存点数/秒）。每升一阶 ×12^(L-1)。 */
+    public static final ModConfigSpec.LongValue REIYOKU_BASE_IN_RATE;
+    /** 逐阶玩家阶级标准最大灵力表，下标 0 = 1 阶。充灵速率按结构等级在此表取值。 */
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> REIYOKU_TIER_MAX_SPIRIT;
+    /** 充灵速率 = 标准池 × 本值（0.01 => 满池约 100 秒）。MUST NOT 改成按玩家实际池的百分比。 */
+    public static final ModConfigSpec.DoubleValue REIYOKU_CHARGE_PERCENT;
+    /** 兑换比：多少点缓存兑换 1 点玩家灵力。 */
+    public static final ModConfigSpec.IntValue REIYOKU_CACHE_PER_SPIRIT;
+    /**
+     * 充灵期间向客户端同步灵力池的间隔（tick）：1 = 每 tick 同步，20 = 退回 1Hz。
+     *
+     * <p>灵浴的池值每 tick 都在涨，但写入走静默路径（避免 20 包/秒/人 落到所有灵力写入上）；
+     * 不同步则客户端只能等统一 1Hz 快照心跳才看到新值，实机读作"按秒补"。故在<b>充灵期间</b>
+     * 按本间隔补同步 —— 开销只落在"此刻正在被充灵的人"身上，离池即停。
+     *
+     * <p>注意客户端 HUD 仍是<b>整点</b>（{@code Math.round}，槽位 0~5 语义），故低阶
+     * （0.5 点/tick）最快每 2 tick 跳 1 格；调小本值低于 2 不会更平滑。
+     */
+    public static final ModConfigSpec.IntValue REIYOKU_CHARGE_SYNC_TICKS;
+    /** 浴区水平半径（格，欧氏）。 */
+    public static final ModConfigSpec.DoubleValue REIYOKU_BATH_RADIUS;
+    /** 浴区自核心 Y 向上容许的高度（格，闭区间 [coreY, coreY+H]）。 */
+    public static final ModConfigSpec.IntValue REIYOKU_BATH_HEIGHT;
+    /** 水面高度（格）：自底层顶面（核心 Y）向上占据的高度。 */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_WATER_HEIGHT;
+    /** 水面色 R 0..255。 */
+    public static final ModConfigSpec.IntValue FX_REIYOKU_WATER_R;
+    /** 水面色 G 0..255。 */
+    public static final ModConfigSpec.IntValue FX_REIYOKU_WATER_G;
+    /** 水面色 B 0..255。 */
+    public static final ModConfigSpec.IntValue FX_REIYOKU_WATER_B;
+    /** 水面贴图 V 滚动速率（uv/tick），即"流动"感。 */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_WATER_SCROLL_SPEED;
+    /** 水面呼吸幅度（小数，0.08 = ±8%）。 */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_WATER_BREATH_AMP;
+    /** 水面呼吸整周期（tick）。 */
+    public static final ModConfigSpec.IntValue FX_REIYOKU_WATER_BREATH_PERIOD_TICKS;
+    /** 水面整体不透明度（0..1；渲染时乘 255 才是 vertex alpha）。 */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_WATER_ALPHA;
+    /** 贴边格的水面减光深度（0..1，作用于最外 1~2 圈；0 = 池面完全均匀无渐隐）。 */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_WATER_RIM_FADE;
+    /** 距离 LOD：超过该距离（格）时水面抽样密度降档。 */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_WATER_LOD_DISTANCE;
+    /** 远距 LOD 下的水面抽样密度比例（0..1）。 */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_WATER_LOD_RATIO;
+    /**
+     * 灵气<b>横截半径</b> = {@code REIYOKU_BATH_RADIUS × 本值}。
+     *
+     * <p>MUST 绑到充灵半径上，MUST NOT 单设绝对值：用户要求「灵气范围与充灵范围一样大」，
+     * 两个独立旋钮迟早漂移，而漂移后柱身与浴区不同宽，读作亭中一根细管。
+     * 绝对半径 1.0（2 格宽）在 6 格净空的亭子里尤其像<b>烟囱</b>。
+     */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_QI_WIDTH_RATIO;
+    /**
+     * 雾团<b>竖向拉伸</b>倍数（1.0 = 正方形）：只拉高、不拉宽。
+     *
+     * <p>这是把「上下叠得够密（光滑）」与「横截面积固定」<b>解耦</b>的手段 —— 竖向拉长后
+     * 相邻两片在垂直方向重叠更多，而横截面仍严格等于充灵半径。
+     */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_QI_TALL;
+    /**
+     * 垂直间距 = 雾团<b>自身高度</b> × 本值（不是绝对格数）。
+     *
+     * <p>做成比例而非绝对值：雾团变大时间距自动同比变大，光滑度恒定。绝对间距会与雾团
+     * 尺寸脱钩 —— 半宽 1（2 格高）配 4 格间距即"一股一股"（实机反馈：像烟囱）。
+     * 本值 &lt; 1 即保证重叠；0.25 → 每处约 4 片叠加。
+     */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_QI_SPACING_RATIO;
+    /** 雾团色 R 0..255。 */
+    public static final ModConfigSpec.IntValue FX_REIYOKU_QI_R;
+    /** 雾团色 G 0..255。 */
+    public static final ModConfigSpec.IntValue FX_REIYOKU_QI_G;
+    /** 雾团色 B 0..255。 */
+    public static final ModConfigSpec.IntValue FX_REIYOKU_QI_B;
+    /**
+     * 雾团片数上限（成本闸）：柱很高时按间距会算出数百片，本值封顶。
+     *
+     * <p>顶到世界顶时柱高可达 256 格，间距比 0.25 会算出约 95~190 片 —— 与既有煅炉火星场
+     * （180 + 70×L 个点、每点 3 面片）同量级，192 足够。
+     */
+    public static final ModConfigSpec.IntValue FX_REIYOKU_QI_MAX_SPRITES;
+    /** 循环上升速率（格/tick；0 = 静止）。 */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_QI_DRIFT;
+    /**
+     * 高度分布指数：{@code y = 底 + 柱高 × u^k} 中的 k。
+     *
+     * <p><b>方向极易搞反</b>：{@code k > 1} 才是"低处密、高处疏"（k=2.5、u=0.05 → 柱高×0.0004，
+     * 贴底）；{@code k < 1} 反过来把采样点<b>往上推</b>。默认 1.0 = 沿柱均匀。
+     */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_QI_SPREAD;
+    /** 半径随高度张开倍数（0=等径；1=顶为底的 2 倍），读作蒸汽上升扩散。 */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_QI_GROW;
+    /** 单片不透明度（0..1；渲染时乘 255 才是 vertex alpha）。片数多故须压低，靠重叠累积。 */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_QI_ALPHA;
+    /**
+     * 顶缘不透明度占底缘的比例（0..1）。
+     *
+     * <p>灵气升腾时逐渐变薄，故显著小于 1；0 则收成尖端、读作"光柱"而非"灵气"。
+     */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_QI_TOP_ALPHA;
+    /**
+     * 灵气高度占「水面基准面 → 世界建筑上限」跨度的比例（1.0 = 恰好升到世界顶）。
+     *
+     * <p>顶面取自 client level 的 {@code getMaxBuildHeight()} 而非写死 320：超高于 320 的
+     * 世界若写死会在柱顶被截断。&lt;1 可缩短到屋顶附近。
+     */
+    public static final ModConfigSpec.DoubleValue FX_REIYOKU_QI_HEIGHT_RATIO;
+
     // ---- add-hyakki-yagyo-summon-ritual：百鬼夜行召唤仪式 ----
 
     /** 受灵汇速率 = 锁定配方 spCost ÷ 本值（默认 10 → 目标 10 秒充满）。 */
@@ -1094,6 +1205,73 @@ public class GensokyouConfig {
                 .defineInRange("sairEnergyOutRatePerSecond", 1_000_000_000, 0, Integer.MAX_VALUE);
         SAIR_ENERGY_BASE_CAPACITY = BUILDER.comment("Sair Energy: spirit buffer capacity, refilled to full every second (infinite source; 100e = 1e10)")
                 .defineInRange("sairEnergyBaseCapacity", 10_000_000_000L, 1L, Long.MAX_VALUE);
+        BUILDER.pop();
+
+        BUILDER.push("reiyoku").comment("Reiyoku (Spirit Bath): charges players standing in the bath pavilion. Charge rate = the STRUCTURE level's standard player spirit pool x chargePercent -- deliberately NOT the player's own tier");
+        REIYOKU_BASE_CAPACITY = BUILDER.comment("Reiyoku: spirit buffer capacity at level 1; every level up multiplies by 12^(L-1) (10e/1.2e/1.44e/1.728e/2.0736e)")
+                .defineInRange("reiyokuBaseCapacity", 10_000L, 1L, Long.MAX_VALUE);
+        REIYOKU_BASE_IN_RATE = BUILDER.comment("Reiyoku: declared sink rate (buffer points per second) at level 1; every level up multiplies by 12^(L-1). Static per level (routing memoises rates)")
+                .defineInRange("reiyokuBaseInRate", 1_000L, 0L, Long.MAX_VALUE);
+        REIYOKU_TIER_MAX_SPIRIT = BUILDER.comment("Reiyoku: standard player spirit pool per superhuman tier, index = tier-1"
+                        + " (default 1e3/1e4/1e5/1e6/1e7, i.e. x10 per tier, matching superhuman-temper's pool curve)."
+                        + " Charge rate looks this up by STRUCTURE level, not by the player's own tier")
+                .defineListAllowEmpty("reiyokuTierMaxSpirit",
+                        List.of(1000D, 10000D, 100000D, 1000000D, 10000000D), o -> o instanceof Double);
+        REIYOKU_CHARGE_PERCENT = BUILDER.comment("Reiyoku: charge rate as a fraction of the standard pool (0.01 => ~100s to fill from empty). MUST stay a fixed fraction of the STANDARD pool, never a percentage of the player's live pool")
+                .defineInRange("reiyokuChargePercent", 0.01D, 0.0D, 1.0D);
+        REIYOKU_CACHE_PER_SPIRIT = BUILDER.comment("Reiyoku: how many buffer points convert into 1 point of player spirit")
+                .defineInRange("reiyokuCachePerSpirit", 10, 1, 1000);
+        REIYOKU_CHARGE_SYNC_TICKS = BUILDER.comment("Reiyoku: how often (in ticks) the spirit pool is pushed to the client WHILE a player is being charged. 1 = every tick, so the number visibly rises continuously instead of jumping once a second. Cost is bounded to players currently in the bath")
+                .defineInRange("reiyokuChargeSyncTicks", 1, 1, 20);
+        REIYOKU_BATH_RADIUS = BUILDER.comment("Reiyoku: bath zone horizontal radius in blocks (Euclidean, measured from the core block). 3.0 exactly covers the pavilion interior")
+                .defineInRange("reiyokuBathRadius", 3.0D, 0.5D, 16.0D);
+        REIYOKU_BATH_HEIGHT = BUILDER.comment("Reiyoku: how far above the core's Y a player may stand and still bathe (closed interval [coreY, coreY+H]). Never symmetric -- a player tunnelled under the platform must NOT qualify")
+                .defineInRange("reiyokuBathHeight", 2, 0, 16);
+        BUILDER.pop();
+
+        BUILDER.push("fxReiyoku").comment("Reiyoku FX: flowing blue spirit water filling the footprint of the platform layer below the core, plus a pale-green qi column. Gated on `enabled` ONLY -- independent of buffer level and of whether anyone is bathing");
+        FX_REIYOKU_WATER_HEIGHT = BUILDER.comment("Reiyoku FX: water column height in blocks, measured UP from the top face of the layer below the core (0.8 reads as a shallow bath the player wades in)")
+                .defineInRange("fxReiyokuWaterHeight", 0.8D, 0.05D, 2.0D);
+        FX_REIYOKU_WATER_R = BUILDER.comment("Reiyoku FX: water tint red 0..255").defineInRange("fxReiyokuWaterR", 70, 0, 255);
+        FX_REIYOKU_WATER_G = BUILDER.comment("Reiyoku FX: water tint green 0..255").defineInRange("fxReiyokuWaterG", 150, 0, 255);
+        FX_REIYOKU_WATER_B = BUILDER.comment("Reiyoku FX: water tint blue 0..255").defineInRange("fxReiyokuWaterB", 255, 0, 255);
+        FX_REIYOKU_WATER_SCROLL_SPEED = BUILDER.comment("Reiyoku FX: water texture V-scroll speed (uv per tick) -> the flowing look")
+                .defineInRange("fxReiyokuWaterScrollSpeed", 0.05D, 0.0D, 0.5D);
+        FX_REIYOKU_WATER_BREATH_AMP = BUILDER.comment("Reiyoku FX: water breathing amplitude (fraction, 0.08 = +/-8%)")
+                .defineInRange("fxReiyokuWaterBreathAmp", 0.08D, 0.0D, 0.5D);
+        FX_REIYOKU_WATER_BREATH_PERIOD_TICKS = BUILDER.comment("Reiyoku FX: water breathing full-cycle period in ticks")
+                .defineInRange("fxReiyokuWaterBreathPeriodTicks", 50, 4, 400);
+        FX_REIYOKU_WATER_ALPHA = BUILDER.comment("Reiyoku FX: water opacity (0..1; multiplied by 255 for the vertex alpha)")
+                .defineInRange("fxReiyokuWaterAlpha", 0.42D, 0.0D, 1.0D);
+        FX_REIYOKU_WATER_RIM_FADE = BUILDER.comment("Reiyoku FX: how much the outermost 1-2 cell rings dim (0..1). ONLY the rim fades -- the pool interior stays uniform, so a 137-cell pool reads as a full pool rather than a bright centre blob")
+                .defineInRange("fxReiyokuWaterRimFade", 0.6D, 0.0D, 1.0D);
+        FX_REIYOKU_WATER_LOD_DISTANCE = BUILDER.comment("Reiyoku FX: distance in blocks beyond which the water drops to low LOD")
+                .defineInRange("fxReiyokuWaterLodDistance", 64.0D, 8.0D, 512.0D);
+        FX_REIYOKU_WATER_LOD_RATIO = BUILDER.comment("Reiyoku FX: fraction of water cells kept beyond the LOD distance (0 = skip water entirely). The footprint holds up to 433 cells, so far LOD matters")
+                .defineInRange("fxReiyokuWaterLodRatio", 0.35D, 0.0D, 1.0D);
+        FX_REIYOKU_QI_WIDTH_RATIO = BUILDER.comment("Reiyoku FX: qi cross-section radius as a multiple of REIYOKU_BATH_RADIUS (1.0 = exactly the charge zone). Deliberately derived rather than an absolute value so the haze column cannot drift narrower than the bath it rises from -- an absolute 1.0 (2 blocks wide) reads as a chimney inside the 6-block-wide pavilion")
+                .defineInRange("fxReiyokuQiWidthRatio", 1.0D, 0.1D, 4.0D);
+        FX_REIYOKU_QI_TALL = BUILDER.comment("Reiyoku FX: vertical stretch of each haze sprite (1.0 = square). Stretches height only, never width -- this is what decouples 'smooth vertical overlap' from the fixed cross-section radius")
+                .defineInRange("fxReiyokuQiTall", 1.8D, 0.5D, 6.0D);
+        FX_REIYOKU_QI_SPACING_RATIO = BUILDER.comment("Reiyoku FX: vertical spacing between haze sprites as a fraction of the sprite's own height (must be below 1 to overlap; 0.25 stacks about 4 sprites at every point). A ratio, not an absolute block count, so the smoke stays equally smooth when the sprite size changes")
+                .defineInRange("fxReiyokuQiSpacingRatio", 0.25D, 0.05D, 1.0D);
+        FX_REIYOKU_QI_R = BUILDER.comment("Reiyoku FX: haze tint red 0..255").defineInRange("fxReiyokuQiR", 140, 0, 255);
+        FX_REIYOKU_QI_G = BUILDER.comment("Reiyoku FX: haze tint green 0..255").defineInRange("fxReiyokuQiG", 255, 0, 255);
+        FX_REIYOKU_QI_B = BUILDER.comment("Reiyoku FX: haze tint blue 0..255").defineInRange("fxReiyokuQiB", 170, 0, 255);
+        FX_REIYOKU_QI_MAX_SPRITES = BUILDER.comment("Reiyoku FX: hard cap on the derived haze sprite count (cost gate). A column reaching the world top is ~256 blocks tall, which derives ~95-190 sprites at the default spacing ratio -- the same order as the existing forge ember field")
+                .defineInRange("fxReiyokuQiMaxSprites", 192, 1, 512);
+        FX_REIYOKU_QI_DRIFT = BUILDER.comment("Reiyoku FX: loop drift speed in blocks per tick (0 = static column). Sprites flow upward and wrap at the top; both ends are cross-faded so the wrap does not pop. 0.6 was felt as too fast (12 blocks/sec past a 256-block column) and was cut by 66% to 0.2 -- 4 blocks/sec reads as a slow seep rather than a draught")
+                .defineInRange("fxReiyokuQiDrift", 0.2D, 0.0D, 8.0D);
+        FX_REIYOKU_QI_SPREAD = BUILDER.comment("Reiyoku FX: height distribution exponent in y = base + height * u^k. ABOVE 1 packs sprites toward the bottom (denser in the pavilion); BELOW 1 pushes them upward, which is the opposite of what it looks like it does. 1.0 = uniform along the column")
+                .defineInRange("fxReiyokuQiSpread", 1.0D, 0.05D, 8.0D);
+        FX_REIYOKU_QI_GROW = BUILDER.comment("Reiyoku FX: cross-section radius growth with height (0 = constant; 1 = twice the base radius at the top) -- steam spreads as it rises")
+                .defineInRange("fxReiyokuQiGrow", 0.8D, 0.0D, 8.0D);
+        FX_REIYOKU_QI_ALPHA = BUILDER.comment("Reiyoku FX: opacity of a SINGLE haze sprite (0..1; multiplied by 255 for the vertex alpha). Kept very low on purpose: the sprite count is derived from the column height and adjacent sprites overlap, so the look is built by accumulation, not by any one sprite being opaque")
+                .defineInRange("fxReiyokuQiAlpha", 0.14D, 0.0D, 1.0D);
+        FX_REIYOKU_QI_TOP_ALPHA = BUILDER.comment("Reiyoku FX: haze opacity at the top as a fraction of the base (0..1). Haze thins as it rises, so this stays well below 1")
+                .defineInRange("fxReiyokuQiTopAlpha", 0.25D, 0.0D, 1.0D);
+        FX_REIYOKU_QI_HEIGHT_RATIO = BUILDER.comment("Reiyoku FX: column height as a fraction of the span from the water surface to the world's build height limit (1.0 = rises all the way to the world top). The top is read from the client level's getMaxBuildHeight, never hardcoded, so taller worlds are not clipped")
+                .defineInRange("fxReiyokuQiHeightRatio", 1.0D, 0.05D, 3.0D);
         BUILDER.pop();
 
         BUILDER.push("summon").comment("Hyakki Yagyo: offering-driven summon rite. NO entry fee -- a recipe's spCost is the session CAPACITY, charged by routing/socket over ~inRateDivisor seconds");

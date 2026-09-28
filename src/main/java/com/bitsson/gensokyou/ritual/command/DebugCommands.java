@@ -106,6 +106,15 @@ public final class DebugCommands {
                                                     .getLoadedBlockPos(context, "core");
                                     return probeBafang(context.getSource(), pos);
                                 })))
+                .then(Commands.literal("reiyoku")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> {
+                                    net.minecraft.core.BlockPos pos =
+                                            net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                    .getLoadedBlockPos(context, "core");
+                                    return probeReiyoku(context.getSource(), pos);
+                                })))
                 .then(Commands.literal("seii")
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
@@ -871,6 +880,28 @@ public final class DebugCommands {
                     + " hit=true";
         } else {
             msg = "[GS-AUTO] SAIR NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
+    /** 灵浴探针：机读单行（hit/level/stored/capacity/inRate/chargePerSecond/cachePerSecond）。 */
+    private static int probeReiyoku(net.minecraft.commands.CommandSourceStack source,
+                                    net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null
+                && com.bitsson.gensokyou.ritual.RitualBehaviors.REIYOKU
+                        .equals(core.activeMatch().patternId())) {
+            msg = "[GS-AUTO] " + com.bitsson.gensokyou.ritual.behavior.ReiyokuBehavior
+                    .debugSummary(serverLevel, pos, core.activeMatch(), core);
+        } else {
+            msg = "[GS-AUTO] REIYOKU NO-MATCH";
         }
         Gensokyou.LOGGER.info(msg);
         source.sendSystemMessage(Component.literal(msg));

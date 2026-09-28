@@ -184,6 +184,21 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private CompoundTag wujinzangVault;
     /** 无尽藏：电池核心→缓存的定点进位累加器（与产能方向的 fillCarry 分道）。 */
     private long cacheFillCarry;
+    /**
+     * 灵浴的两个进位累加器（<b>MUST 分道</b>，单位不同）：
+     * ① {@code reiyokuRateCarry}：每 tick 缓存消耗的定点余数（×1000 口径），
+     *    把分数份额累积成整数缓存点数；
+     * ② {@code reiyokuSplitCarry}：整数点数在 N 名浴者间的均分余数（&lt; N）。
+     * 混用会静默丢量（见 {@code ReiyokuBehavior#splitShare}）。
+     */
+    private long reiyokuRateCarry;
+    private long reiyokuSplitCarry;
+    /**
+     * 灵浴：在浴人数与名单文本（<b>瞬态</b>，不持久化——每 tick 由行为侧按主循环同一判据
+     * 重算，写档只会存下一份早已过期的快照）。供 GUI「谁在充灵」行零重扫读取。
+     */
+    private int reiyokuBatherCount;
+    private String reiyokuRoster = "";
     private final KanayamahikoSmeltSession kanayamahikoSession = new KanayamahikoSmeltSession();
 
     public RitualCoreBlockEntity(BlockPos pos, BlockState state) {
@@ -256,6 +271,41 @@ public class RitualCoreBlockEntity extends BlockEntity {
         this.cacheFillCarry = value;
     }
 
+    /** 灵浴：速率定点余数（×1000 口径）与整数点数均分余（见字段注释，二者 MUST 分道）。 */
+    public long reiyokuRateCarry() {
+        return reiyokuRateCarry;
+    }
+
+    public void setReiyokuRateCarry(long value) {
+        this.reiyokuRateCarry = value;
+    }
+
+    public long reiyokuSplitCarry() {
+        return reiyokuSplitCarry;
+    }
+
+    public void setReiyokuSplitCarry(long value) {
+        this.reiyokuSplitCarry = value;
+    }
+
+    /** 灵浴：在浴人数（瞬态，由行为侧每 tick 重算）。 */
+    public int reiyokuBatherCount() {
+        return reiyokuBatherCount;
+    }
+
+    public void setReiyokuBatherCount(int value) {
+        this.reiyokuBatherCount = value;
+    }
+
+    /** 灵浴：在浴名单文本（瞬态，供 GUI tooltip 零重扫读取）。 */
+    public String reiyokuRosterText() {
+        return reiyokuRoster;
+    }
+
+    public void setReiyokuRosterText(String value) {
+        this.reiyokuRoster = value == null ? "" : value;
+    }
+
     public KanayamahikoSmeltSession kanayamahikoSession() {
         return kanayamahikoSession;
     }
@@ -320,6 +370,12 @@ public class RitualCoreBlockEntity extends BlockEntity {
             }
             if (activeMatch.patternId().equals(RitualBehaviors.SAIR_ENERGY)) {
                 return GensokyouConfig.SAIR_ENERGY_BASE_CAPACITY.get();
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.REIYOKU)) {
+                // 必须在此显式分派：DEFAULT_CORE_CAPACITY 恰好等于灵浴 1 阶目标值，
+                // 缺此分支时 1 阶表现正确、2~5 阶静默偏差最高 12^4 倍。
+                return com.bitsson.gensokyou.ritual.behavior.ReiyokuBehavior
+                        .capacity(activeMatch.level());
             }
             if (activeMatch.patternId().equals(RitualBehaviors.BARRIER_BREAK)) {
                 return barrierCapacity();
@@ -1556,6 +1612,14 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (id.equals(RitualBehaviors.HYAKKI_YAGYO)) {
             return buildSummonRenderState();
         }
+        if (id.equals(RitualBehaviors.REIYOKU)) {
+            // 辅助字段：tier=结构等级（客户端据此取该阶 pattern 切片推导水面占地）；
+            // minY/maxY=结构**绝对世界** Y 范围（客户端须减 coreY 才是偏移；minY 供水面基准面，
+            // maxY 供灵力柱高度）。占地不进本通道：5 阶底层 433 格远超 long[] 通道上限 64。
+            return new RitualRenderState(RitualRenderState.KIND_REIYOKU, enabled,
+                    activeMatch.level(), boundsMinY, boundsMaxY, 0,
+                    new long[0], 0, 0L);
+        }
         if (id.equals(RitualBehaviors.KANAYAMAHIKO)) {
             // maxY 语义 = 结构水平半径（格）：客户端据此铺满密集火星场
             // 锚点与燃烧掩码共用同一份规范序台位，保证 bit(i+1) 与锚点 i 严格对齐
@@ -2324,6 +2388,12 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (cacheFillCarry != 0L) {
             tag.putLong("WujinzangCacheCarry", cacheFillCarry);
         }
+        if (reiyokuRateCarry != 0L) {
+            tag.putLong("ReiyokuRateCarry", reiyokuRateCarry);
+        }
+        if (reiyokuSplitCarry != 0L) {
+            tag.putLong("ReiyokuSplitCarry", reiyokuSplitCarry);
+        }
         kanayamahikoSession.save(tag, registries);
     }
 
@@ -2373,6 +2443,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
         wujinzangVault = tag.contains(TAG_WUJINZANG_VAULT)
                 ? tag.getCompound(TAG_WUJINZANG_VAULT).copy() : null;
         cacheFillCarry = tag.getLong("WujinzangCacheCarry");
+        reiyokuRateCarry = tag.getLong("ReiyokuRateCarry");
+        reiyokuSplitCarry = tag.getLong("ReiyokuSplitCarry");
         kanayamahikoSession.load(tag, registries);
         if (tag.contains(TAG_RENDER_STATE)) {
             renderState = RitualRenderState.fromTag(tag.getCompound(TAG_RENDER_STATE));

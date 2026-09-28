@@ -12,6 +12,7 @@ import com.bitsson.gensokyou.ritual.behavior.HoujounoTeihouBehavior;
 import com.bitsson.gensokyou.ritual.behavior.HyakkiYagyoBehavior;
 import com.bitsson.gensokyou.ritual.behavior.NichirinBehavior;
 import com.bitsson.gensokyou.ritual.behavior.OyamatsumiBehavior;
+import com.bitsson.gensokyou.ritual.behavior.ReiyokuBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ResonanceRelayBehavior;
 import com.bitsson.gensokyou.ritual.behavior.SairEnergyBehavior;
 import com.bitsson.gensokyou.ritual.behavior.SeiiBehavior;
@@ -57,6 +58,11 @@ public final class RitualBehaviors {
      * （无门票，故 MUST NOT 走会预扣 {@code spCost} 的通用 {@code start()}）。
      */
     public static final ResourceLocation HYAKKI_YAGYO = Gensokyou.id("hyakki_yagyo_circle");
+    /**
+     * 灵浴：浴亭内的玩家注灵仪式。启停门控、非会话型（不绑定启动者），
+     * 充灵速率按<b>结构等级</b>对应的玩家阶级标准池取值（不按玩家自身阶级）。
+     */
+    public static final ResourceLocation REIYOKU = Gensokyou.id("reiyoku_circle");
 
     static {
         register(RESONANCE, new ResonanceRelayBehavior());
@@ -80,6 +86,7 @@ public final class RitualBehaviors {
         register(HOUJOUNO_TEIHOU, new HoujounoTeihouBehavior());
         register(SAIR_ENERGY, new SairEnergyBehavior());
         register(HYAKKI_YAGYO, new HyakkiYagyoBehavior());
+        register(REIYOKU, new ReiyokuBehavior());
     }
 
     private RitualBehaviors() {

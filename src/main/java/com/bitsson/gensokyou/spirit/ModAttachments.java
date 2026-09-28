@@ -92,6 +92,17 @@ public final class ModAttachments {
         sync(player);
     }
 
+    /**
+     * 写入灵力池但<b>不</b>下发同步包。
+     *
+     * <p>供逐 tick 写手使用（如灵浴注灵）：池值必须每 tick 变（精度等同 {@code regenBuffer}），
+     * 但每次 {@link #set} 都跟一个 {@code SpiritPowerSyncPayload}，逐 tick 调用即 20 包/秒/人。
+     * 调用方 MUST 自行保证同步最终发生（既有 1Hz 快照心跳已覆盖，见 ritual-gui-info-lines）。
+     */
+    public static void setQuiet(ServerPlayer player, SpiritPowerData data) {
+        player.setData(SPIRIT_POWER.get(), data);
+    }
+
     public static void sync(ServerPlayer player) {
         com.bitsson.gensokyou.spirit.grace.GraceFlight.syncGraceState(player);
     }

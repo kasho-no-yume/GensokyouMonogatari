@@ -42,8 +42,36 @@ BOLT_GLOW = [
     "aabbccffffccbbaa", "aabcccffffffccba",
 ] * 8
 
+# 灵浴水面：对角涟漪带（周期 8，x+y 相位），带一道锐亮波峰（w）读作水面高光。
+# U/V 均无缝平铺——渲染端按世界坐标取 uv，相邻格连续，故平铺接缝不可见；V 方向滚动即"流动"。
+# 加法混合下暗处≈透明，故谷底抬到 (10,26,52) 而非纯黑：水面读作连续的一片浅蓝，
+# 而非一堆分离的亮带。零散白点是碎光（caustic），落在相位 0/7 上，不破坏平铺结构。
+PAL_fx_bath_water = {
+    'a': (10, 26, 52), 'b': (18, 44, 84), 'c': (28, 64, 112), 'd': (42, 90, 146),
+    'e': (60, 120, 178), 'f': (86, 152, 206), 'w': (170, 214, 246),
+}
+BATH_WATER = [
+    "abcdewfdabcdewfd",
+    "bcdewfdabcdefdew",
+    "cdewfdabcdewfwab",
+    "dewfdabwdewfdabc",
+    "ewfdabcdewfdabcd",
+    "wfdabcdewfdabcde",
+    "fdabcdewfdabcdew",
+    "dabcdewfdabcwdef",
+    "abcdewfdabcdewfd",
+    "bcdewfdabcdefdew",
+    "cdewfdabcdewfwab",
+    "wdewfdabcdewfdab",
+    "dewfdabcdewfdabc",
+    "ewfdabcdewfdabcd",
+    "wfdabcdewfdabcde",
+    "fdabcdewfdabcdew",
+]
+
 TEXES = {
     "fx/spirit_mist": MIST,
     "fx/bolt_core": BOLT_CORE,
     "fx/bolt_glow": BOLT_GLOW,
+    "fx/bath_water": BATH_WATER,
 }

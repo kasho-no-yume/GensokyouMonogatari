@@ -5,6 +5,10 @@
   "sortnum": 16,
   "pages": [
     {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.ritual.kanayamahiko_circle.text"
+    },
+    {
       "type": "patchouli:multiblock",
       "name": "gensokyou.book.ritual.structure.0",
       "multiblock": {

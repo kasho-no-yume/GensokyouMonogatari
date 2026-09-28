@@ -154,6 +154,20 @@ public final class FxGeometry {
                                        float halfWidth, float height,
                                        float v0, float v1,
                                        int r, int g, int b, int baseAlpha) {
+        emitCrossPlanes(pose, c, planes, halfWidth, height, v0, v1, r, g, b, baseAlpha, 0);
+    }
+
+    /**
+     * {@link #emitCrossPlanes} 的<b>可调顶缘 alpha</b>重载。
+     *
+     * <p>顶缘 alpha = 0（默认）时柱身向上收束成尖端；给一个非 0 值则柱身沿全长保持存在感，
+     * 只在顶端轻微减光。用于"结构内被屋顶截断、只露出下段"的柱体——顶端淡出到 0 会让
+     * 可见段进一步缩成一小截，读起来像"高度只有一点点"。
+     */
+    public static void emitCrossPlanes(PoseStack pose, VertexConsumer c, int planes,
+                                       float halfWidth, float height,
+                                       float v0, float v1,
+                                       int r, int g, int b, int baseAlpha, int topAlpha) {
         float step = 180.0F / planes;
         for (int i = 0; i < planes; i++) {
             pose.pushPose();
@@ -161,8 +175,8 @@ public final class FxGeometry {
             PoseStack.Pose p = pose.last();
             vertex(c, p, -halfWidth, 0.0F, 0.0F, 0.0F, v1, r, g, b, baseAlpha);
             vertex(c, p, halfWidth, 0.0F, 0.0F, 1.0F, v1, r, g, b, baseAlpha);
-            vertex(c, p, halfWidth, height, 0.0F, 1.0F, v0, r, g, b, 0);
-            vertex(c, p, -halfWidth, height, 0.0F, 0.0F, v0, r, g, b, 0);
+            vertex(c, p, halfWidth, height, 0.0F, 1.0F, v0, r, g, b, topAlpha);
+            vertex(c, p, -halfWidth, height, 0.0F, 0.0F, v0, r, g, b, topAlpha);
             pose.popPose();
         }
     }

@@ -58,6 +58,18 @@ public record RitualRenderState(int kind, boolean enabled, int tier, int minY, i
      * {@link #linkPos} 不使用（无逐台通道）。
      */
     public static final int KIND_SUMMON = 8;
+    /**
+     * 灵浴：<b>运行时</b>表现只取 {@code enabled}（停机即无特效；运行中即有特效，
+     * 与缓存有无、玩家在场与否<b>无关</b>）；{@code tier} = 结构等级，客户端据此取该阶
+     * pattern 切片本地推导水面占地；{@code minY}/{@code maxY} = 结构的<b>绝对世界 Y</b>范围
+     * （同 {@code RitualCoreBlockEntity.structureMinY/MaxY}，<b>不是</b>相对核心的偏移——
+     * 客户端 MUST 先减去 coreY 再当偏移用）；{@code linkPos}/{@code inCount}/
+     * {@code movingMask} <b>不使用</b>（无逐台通道）。
+     *
+     * <p>占地 MUST NOT 由本通道承载：灵浴 5 阶底层有 433 格，long[] 通道上限 64。
+     * 改为 kind 唯一定位 patternId 后经客户端数据通道读<b>同一份</b> pattern JSON 推导。
+     */
+    public static final int KIND_REIYOKU = 9;
 
     /** 位掩码通道上限（当前 L5 配额合计 40 < 64）。 */
     public static final int MAX_CHANNELS = 64;

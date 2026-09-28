@@ -68,6 +68,9 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
     /** 百鬼夜行：降临光柱的竖向渐变（UV 随 gameTime 上滚）。 */
     private static final ResourceLocation SUMMON_PILLAR_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/summon_pillar.png");
+    /** 灵浴：水面涟漪（U/V 无缝平铺，UV 取世界坐标使相邻格连续，V 方向滚动即"流动"）。 */
+    private static final ResourceLocation BATH_WATER_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/bath_water.png");
 
     // ---- 百鬼夜行配色（黑红充能 → 黑红爆散 → 淡金降临）----
     // 刻意不复用 CORE_R/G/B 与 BEAM_R/G/B：那两组是蓝白（结界破碎的调子），语义不同。
@@ -157,6 +160,14 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
      * 用 ConcurrentHashMap 而非 WeakHashMap：key 是小整数 boxed，无需也不应回收。
      */
     private static final Map<Integer, List<BlockPos>> BAFANG_PEDESTALS = new ConcurrentHashMap<>();
+    /**
+     * 灵浴水面布局缓存：结构等级 → 该阶底层格位（相对核心）。与 {@link #BAFANG_PEDESTALS} 同理，
+     * 是 {@code (patternId, level)} 的纯函数（pattern JSON 加载期已完成四重展开与规范排序）。
+     *
+     * <p>key 是小整数 boxed，用 ConcurrentHashMap 而非 WeakHashMap：无需也不应回收。
+     */
+    private static final Map<Integer, RitualFxLayout.BathSurface> REIYOKU_SURFACE =
+            new ConcurrentHashMap<>();
 
     public RitualCoreRenderer(BlockEntityRendererProvider.Context context) {
         this.dispatcher = context.getBlockEntityRenderDispatcher();
@@ -171,6 +182,11 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         }
         RitualRenderState state = blockEntity.renderState();
         double now = level.getGameTime() + partialTick;
+        // ⚠️ camRot MUST 在**分发之前**每帧设一次。camera-facing billboard（灵浴灵气、
+        // 召唤降柱、召唤烟圈）要靠它把面片转向相机；早前它只在 renderOrb / renderSummon
+        // **内部**设，于是本 kind 拿到的是上一帧残留值或单位四元数 —— billboard 恒朝 +Z，
+        // 斜看时读作"特效没了"，且现象随 BER 渲染顺序变化，极难定位。
+        this.camRot.set(dispatcher.camera.rotation());
         switch (state.kind()) {
             case RitualRenderState.KIND_RELAY -> {
                 renderMist(blockEntity, state, now, poseStack, bufferSource);
@@ -190,6 +206,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                     renderSeii(blockEntity, state, now, poseStack, bufferSource);
             case RitualRenderState.KIND_SUMMON ->
                     renderSummon(blockEntity, state, now, poseStack, bufferSource);
+            case RitualRenderState.KIND_REIYOKU ->
+                    renderReiyoku(blockEntity, state, now, poseStack, bufferSource);
             default -> {
             }
         }
@@ -239,6 +257,32 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                     ? 320 : blockEntity.getLevel().getMaxBuildHeight();
             r = Math.max(24.0D, Math.max(pillar, burst) + 4.0D);
             up = Math.max(64.0D, worldTop - p.getY() + 1.0D);
+        }
+        if (kind == RitualRenderState.KIND_REIYOKU) {
+            // 水面占地：主池 + 外圈院子（4 阶起 ±11 格，共 332 格），走道不铺水。
+            // 水平范围取水面半径与灵气雾团张开半径的较大者再加余量。
+            //
+            // ⚠️ 垂直方向 MUST 到**世界建筑上限**：灵气升到天上，而渲染态的 maxY 只是结构
+            //    最高点（偏移 ≤16）。只按 maxOffset 收盒子的话柱顶远在盒外，视锥剔除会把
+            //    整个 BER 连同整柱灵气一起剔掉——现象与"灵气完全不显示"无法区分。
+            //    （KIND_SUMMON 的高柱同理，两者都曾因此踩坑。）
+            //
+            // ⚠️ 渲染态的 minY/maxY 是**绝对世界 Y**（见 RitualCoreBlockEntity.structureMinY），
+            //    BER 局部系原点在核心方块，故一律先减去 coreY 换成偏移再用。
+            int level1 = blockEntity.renderState().tier();
+            // 灵气横截半径已绑到充灵半径（见 renderBathQi），此处按张开后的最大值留余量
+            double qi = GensokyouConfig.REIYOKU_BATH_RADIUS.get()
+                    * GensokyouConfig.FX_REIYOKU_QI_WIDTH_RATIO.get()
+                    * (1.0F + GensokyouConfig.FX_REIYOKU_QI_GROW.get());
+            double reach = Math.max(r, Math.max(bathSurface(level1).radiusXZ() + 2.0D, qi + 2.0D));
+            double minOffset = blockEntity.renderState().minY() - p.getY();
+            double worldTop = blockEntity.getLevel() == null
+                    ? 320.0D : blockEntity.getLevel().getMaxBuildHeight();
+            double qiTop = worldTop - p.getY();
+            double drop = Math.max(16.0D, -minOffset + 2.0D);
+            return new AABB(p.getX() - reach, p.getY() - drop, p.getZ() - reach,
+                    p.getX() + reach, p.getY() + Math.max(8.0D, qiTop),
+                    p.getZ() + reach);
         }
         return new AABB(p.getX() - radius, p.getY() - 16.0D, p.getZ() - radius,
                 p.getX() + radius, p.getY() + up, p.getZ() + radius);
@@ -858,6 +902,24 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                 .orElse(List.of()));
     }
 
+    /**
+     * 灵浴该阶的水面布局，纯客户端推导。
+     *
+     * <p>数据源与 {@link #bafangPedestalOffsets} 同源：已全量下发的 pattern JSON
+     * （{@code RitualDataSyncPayload} → {@code ClientRitualData}）。kind 唯一定位 patternId，
+     * 故读的是<b>同一份</b> pattern 切片——不是第二套几何语义，也无需任何新增 payload。
+     * 占地 = 主池（浴区半径内的未声明格）+ 外圈院子（最低层被结构包围的空块，见
+     * {@link RitualFxLayout#bathSurface}），<b>走道不铺水</b>。空布局表示"该阶无水面格位"，
+     * 调用方 MUST 视为不绘制。
+     */
+    private static RitualFxLayout.BathSurface bathSurface(int level) {
+        return REIYOKU_SURFACE.computeIfAbsent(level, lv -> ClientRitualData
+                .pattern(RitualBehaviors.REIYOKU)
+                .map(pattern -> RitualFxLayout.bathSurface(pattern, lv,
+                        GensokyouConfig.REIYOKU_BATH_RADIUS.get()))
+                .orElseGet(() -> new RitualFxLayout.BathSurface(List.of(), 0)));
+    }
+
     private static float[] bafangBeamEnvelopes(BlockPos core, int channels) {
         float[] envs = BAFANG_BEAM_ENVELOPES.get(core);
         if (envs == null || envs.length != channels) {
@@ -1168,16 +1230,257 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                 > limit * limit;
     }
 
+    // ============================================================ 灵浴
+
+    /**
+     * 灵浴运行态：①铺满结构底层的流动蓝色灵力水面 + ②自水面上方升腾至建筑高度上限的浅绿灵气。
+     *
+     * <p><b>门控只有 {@code enabled}</b>：停机即无特效，运行中即有特效，与缓存有无、
+     * 玩家在场与否<b>无关</b>（用户明确要求不引入子状态）。
+     *
+     * <p>水面基准面 = 底层的<b>顶面</b>（相对核心 Y = {@code (minY - coreY) + 1}，灵浴恒为 0，
+     * 即室内地板面）。刻意不是"底面放在 minY 层"——那一层全是实心台基，按字面读法水体
+     * 完全埋在方块内、渲染上不可见。自基准面向上取 {@code waterHeight}（默认 0.8 格）作水面，
+     * 读作浅水。
+     *
+     * <p>UV 取<b>世界坐标</b>（未经取模，交给 GL_REPEAT）：相邻格的边界 UV 严格相等，
+     * 涟漪跨格连续、平铺接缝不可见；V 方向随 gameTime 滚动即"流动"。
+     */
+    private void renderReiyoku(RitualCoreBlockEntity be, RitualRenderState state, double now,
+                               PoseStack poseStack, MultiBufferSource buffers) {
+        float env = advanceEnvelope(be.getBlockPos(), 6, state.enabled() ? 1F : 0F, now);
+        if (env <= 0F) {
+            return;
+        }
+        BlockPos core = be.getBlockPos();
+        RitualFxLayout.BathSurface surface = bathSurface(state.tier());
+        // ⚠️ 渲染态的 minY/maxY 是**绝对世界 Y**，BER 局部系原点在核心方块 → 必须先减 coreY。
+        //    （漏这一步会把水面与柱底画到核心上方几十格处，看上去就是"完全没有特效"。）
+        //    maxY 此处不再用于灵气（顶面改取世界建筑上限），保留读取以便调试对照。
+        float minOffset = state.minY() - core.getY();
+
+        // 呼吸：整片水面同步起伏，幅度极小（读作"水面在动"而非"整块在缩放"）。
+        float period = Math.max(1, GensokyouConfig.FX_REIYOKU_WATER_BREATH_PERIOD_TICKS.get());
+        float breath = 1.0F + GensokyouConfig.FX_REIYOKU_WATER_BREATH_AMP.get().floatValue()
+                * (float) Mth.sin((float) (now * (Math.PI * 2.0D / period)));
+
+        if (!surface.cells().isEmpty()) {
+            float waterH = GensokyouConfig.FX_REIYOKU_WATER_HEIGHT.get().floatValue() * breath;
+            int r = GensokyouConfig.FX_REIYOKU_WATER_R.get();
+            int g = GensokyouConfig.FX_REIYOKU_WATER_G.get();
+            int b = GensokyouConfig.FX_REIYOKU_WATER_B.get();
+            // ⚠️ 配置项是 0..1 不透明度，vertex alpha 要 0..255 —— 必须先乘 255 再截断。
+            //    直接 (int)(0.55f * env) 会截成 0，整片水面全透明（"只有一小块"）。
+            float opacity = GensokyouConfig.FX_REIYOKU_WATER_ALPHA.get().floatValue() * env;
+            float scroll = (float) (now * GensokyouConfig.FX_REIYOKU_WATER_SCROLL_SPEED.get());
+            // 远距降采样：主池 + 4 院子共 328 格，逐帧全画在多人观察时无谓。
+            int stride = waterStride(core, surface.cells().size());
+            // 底面 Y 由 WaterCell 自带：主池 = minY+1，院子低一格（见 RitualFxLayout.bathSurface）
+            emitBathWater(poseStack, buffers, core, surface, stride, waterH,
+                    scroll, r, g, b, opacity);
+            // 池底辉光：紧贴各自底面的一层暗面，给 0.8 格水深以体积感（不滚动）。
+            emitBathWater(poseStack, buffers, core, surface, stride, 0.02F,
+                    0F, r, g, b, opacity * 0.35F);
+        }
+
+        renderBathQi(be, poseStack, buffers, minOffset, env, now);
+    }
+
+    /** 远距 LOD：返回抽样步长（1 = 全画）。 */
+    private static int waterStride(BlockPos core, int cells) {
+        net.minecraft.client.player.LocalPlayer player =
+                net.minecraft.client.Minecraft.getInstance().player;
+        if (player == null) {
+            return 1;
+        }
+        double limit = GensokyouConfig.FX_REIYOKU_WATER_LOD_DISTANCE.get();
+        double distSq = player.distanceToSqr(core.getX() + 0.5D, core.getY() + 0.5D,
+                core.getZ() + 0.5D);
+        if (distSq <= limit * limit) {
+            return 1;
+        }
+        double keep = GensokyouConfig.FX_REIYOKU_WATER_LOD_RATIO.get();
+        if (keep >= 1.0D || cells <= 0) {
+            return 1;
+        }
+        return Math.max(1, (int) Math.round(1.0D / Math.max(0.01D, keep)));
+    }
+
+    /**
+     * 铺一层水面：每格一张水平面片，UV 取世界坐标（跨格连续）。
+     *
+     * <p>底面 Y <b>逐格自带</b>（{@link RitualFxLayout.WaterCell#y()}）：主池坐在最低层顶面，
+     * 院子低一格。{@code yLift} 是对<b>各自底面</b>的额外抬升 —— 传水深得水面，传 0.02
+     * 得紧贴底面的池底辉光。切勿在这里再加整体基准 Y：{@code cell.y()} 已是完整局部偏移，
+     * 叠加 {@code minOffset} 会重复计数，把水面顶到结构上方去。
+     *
+     * @param opacity 0..1 基础不透明度（调用方须已乘包络）；内部换算到 0..255
+     * @param yLift   水面相对各自底面的抬升高度（块）
+     */
+    private void emitBathWater(PoseStack poseStack, MultiBufferSource buffers, BlockPos core,
+                               RitualFxLayout.BathSurface surface, int stride,
+                               float yLift, float scroll,
+                               int r, int g, int b, float opacity) {
+        if (opacity <= 0.001F) {
+            return;
+        }
+        float rim = GensokyouConfig.FX_REIYOKU_WATER_RIM_FADE.get().floatValue();
+        VertexConsumer c = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(BATH_WATER_TEXTURE));
+        PoseStack.Pose pose = poseStack.last();
+        List<RitualFxLayout.WaterCell> cells = surface.cells();
+        for (int i = 0; i < cells.size(); i += stride) {
+            RitualFxLayout.WaterCell cell = cells.get(i);
+            // edge 只标记最外 1~2 圈（见 RitualFxLayout.bathSurface），故这里只在贴边处减光，
+            // 池内保持均匀——渐隐读作"水边薄"，不是"水少"。
+            int cellAlpha = (int) (255.0F * opacity * (1.0F - cell.edge() * rim));
+            if (cellAlpha <= 0) {
+                continue;
+            }
+            // 世界坐标（BER 局部系已平移到核心方块原点）→ UV；GL_REPEAT 负责取模，
+            // 保留未取模值才能让相邻格边界 UV 严格相等（涟漪不断缝）。
+            float cx = (float) cell.x();
+            float cz = (float) cell.z();
+            float wx = (float) core.getX() + cx;
+            float wz = (float) core.getZ() + cz - scroll;
+            float uL = wx - 0.5F, uR = wx + 0.5F;
+            float vN = wz - 0.5F, vF = wz + 0.5F;
+            float y = (float) cell.y() + yLift;
+            FxGeometry.vertex(c, pose, cx - 0.5F, y, cz - 0.5F, uL, vN, r, g, b, cellAlpha);
+            FxGeometry.vertex(c, pose, cx + 0.5F, y, cz - 0.5F, uR, vN, r, g, b, cellAlpha);
+            FxGeometry.vertex(c, pose, cx + 0.5F, y, cz + 0.5F, uR, vF, r, g, b, cellAlpha);
+            FxGeometry.vertex(c, pose, cx - 0.5F, y, cz + 0.5F, uL, vF, r, g, b, cellAlpha);
+        }
+    }
+
+    /**
+     * 浅绿<b>灵气</b>：自浴池水面上方<b>升腾至世界顶部</b>的软雾团柱。
+     *
+     * <p><b>为什么是堆叠 billboard 而不是多面片棱柱</b>：早先用
+     * {@code emitCrossPlanes}（3 面片相交）做柱体，相机斜看时三个面片各自成面，读出来是
+     * <b>八角柱</b>而非雾气——面片是硬的，棱是硬的。改为 N 片 <b>camera-facing</b> billboard
+     * 沿高度堆叠：每片都正对相机，任意视角都只有一个软边轮廓，叠加后自然读作"一柱上升的雾"。
+     * 每片仍走 {@code additiveGlow}（<b>深度测试开启</b>），故屋内主要从屋顶 1×1 烟孔看到，
+     * 屋外看到的是从亭顶穿出、继续升到天上的那段。
+     *
+     * <p><b>片数 MUST 按柱高推导，且间距 MUST 按雾团自身尺寸成比例</b>（这是「一股一股、
+     * 像烟囱」的根因）。顶面取世界建筑上限后，核心在 y≈64 时柱高约 <b>256 格</b>。绝对间距
+     * 会与雾团尺寸脱钩：半宽 1（2 格高）配 4 格间距，横向只有 2 格、垂直却隔 4 格，必然露缝，
+     * 叠起来就是一串独立烟团。故本实现把间距定义为<b>雾团自身高度的比例</b>
+     * （{@code 间距 = 雾团高 × FX_REIYOKU_QI_SPACING_RATIO}，默认 0.25 → 每处约 4 片叠加），
+     * 雾团变大时间距自动同比变大，光滑度恒定。
+     *
+     * <p><b>横截面积 MUST 等于充灵半径</b>：柱身取 {@code REIYOKU_BATH_RADIUS ×
+     * FX_REIYOKU_QI_WIDTH_RATIO}。绝对半径 1.0（2 格宽）在 6 格净空的亭子里正是一根细管 ——
+     * 这才是"烟囱"的另一半成因。
+     *
+     * <p><b>竖向拉伸把两件事解耦</b>：雾团只拉高、不拉宽（{@code FX_REIYOKU_QI_TALL}，默认 1.8）。
+     * 垂直重叠因此显著变密，而横截面仍严格等于充灵半径 —— 否则"要更光滑"只能靠加宽，
+     * 那会破坏用户要求的横截面积。
+     *
+     * <p><b>摆动 MUST 沿高度连续</b>，MUST NOT 按片序号取相位。片数上百时按序号取相
+     * 会让相邻片反向摆动，读作杂乱喷溅而非一根连贯的柱；按 {@code u}（0..1 的高度比例）
+     * 取相则整柱同相位移动，像一股上升的气。
+     *
+     * <p>整柱 SHALL 循环上升（{@code (t + 漂移) mod 1}）并在顶端回绕；回绕处 MUST 两端
+     * 淡入淡出（{@code edgeFade}），否则高 alpha 的片瞬间跳到柱底会读作"闪一下"。
+     *
+     * <p><b>单片 alpha MUST 压得很低</b>：片数上百且相互重叠，观感由<b>累积</b>而成，
+     * 任何一片都不该自己就看得见。
+     *
+     * <p>{@link #camRot} MUST 已由 {@code render()} 在分发前设好 —— 早前只在
+     * {@code renderOrb} / {@code renderSummon} 内部设，本 kind 拿到的是上一帧残留或单位四元数，
+     * billboard 恒朝 +Z，斜看时同样"像消失了一样"。
+     */
+    private void renderBathQi(RitualCoreBlockEntity be, PoseStack poseStack,
+                              MultiBufferSource buffers, float minOffset, float env,
+                              double now) {
+        // 横截半径绑到充灵半径：MUST NOT 单设绝对值，否则两者迟早漂移
+        float radius = (float) (GensokyouConfig.REIYOKU_BATH_RADIUS.get()
+                * GensokyouConfig.FX_REIYOKU_QI_WIDTH_RATIO.get());
+        if (radius <= 0F) {
+            return;
+        }
+        int r = GensokyouConfig.FX_REIYOKU_QI_R.get();
+        int g = GensokyouConfig.FX_REIYOKU_QI_G.get();
+        int b = GensokyouConfig.FX_REIYOKU_QI_B.get();
+        float opacity = GensokyouConfig.FX_REIYOKU_QI_ALPHA.get().floatValue() * env;
+        if (opacity <= 0.001F) {
+            return;
+        }
+
+        BlockPos core = be.getBlockPos();
+        // ⚠️ 底面用水面基准面（最低层顶面），顶面取世界建筑上限。
+        float baseY = minOffset + 1.0F;
+        float worldTop = (float) (be.getLevel() == null
+                ? 320.0D : be.getLevel().getMaxBuildHeight());
+        float ratio = Math.max(0.05F,
+                GensokyouConfig.FX_REIYOKU_QI_HEIGHT_RATIO.get().floatValue());
+        float height = Math.max(1.0F, (worldTop - core.getY() - baseY) * ratio);
+
+        float tall = Mth.clamp(GensokyouConfig.FX_REIYOKU_QI_TALL.get().floatValue(), 0.2F, 8F);
+        float grow = Mth.clamp(GensokyouConfig.FX_REIYOKU_QI_GROW.get().floatValue(), 0F, 8F);
+        float spacingRatio = Mth.clamp(
+                GensokyouConfig.FX_REIYOKU_QI_SPACING_RATIO.get().floatValue(), 0.02F, 1.0F);
+        // 间距按"柱底处雾团的高度"成比例：底处最窄，用它定间距才能保证全程重叠不露缝
+        float baseSprite = 2.0F * radius * tall;
+        float spacing = Math.max(0.05F, baseSprite * spacingRatio);
+        int cap = Math.max(1, GensokyouConfig.FX_REIYOKU_QI_MAX_SPRITES.get());
+        int sprites = Mth.clamp((int) Math.ceil(height / spacing), 1, cap);
+        // 封顶会把实际间距拉大于上面的比例（默认参数下不会触发：256 格 ÷ 2.7 ≈ 95 < 192），
+        // 拉大即重叠变少、读作"一股一股"。调小 maxSprites 省帧时要留意这条。
+
+        float topAlphaRatio = Mth.clamp(
+                GensokyouConfig.FX_REIYOKU_QI_TOP_ALPHA.get().floatValue(), 0.0F, 1.0F);
+        float spread = Mth.clamp(GensokyouConfig.FX_REIYOKU_QI_SPREAD.get().floatValue(), 0.05F, 8F);
+        float drift = GensokyouConfig.FX_REIYOKU_QI_DRIFT.get().floatValue();
+        float edgeBand = 1.0F / Math.max(2, sprites);
+        float pulse = 0.9F + 0.1F * (float) Mth.sin((float) (now * 0.18D));
+
+        poseStack.pushPose();
+        poseStack.translate(0.5D, 0.0D, 0.5D);
+        VertexConsumer mist = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(MIST_TEXTURE));
+        PoseStack.Pose pose = poseStack.last();
+        for (int i = 0; i < sprites; i++) {
+            // 确定性基础相位：让各片的初值均匀铺满整柱，而不是全挤在起点
+            float t = (i + 0.5F) / sprites;
+            float u = fract(t + (float) (now * drift / Math.max(1.0F, height)));
+            float y = baseY + height * (float) Math.pow(u, spread);
+            // 两端淡入淡出，消掉回绕跳变
+            float fade = Mth.clamp(u / edgeBand, 0F, 1F)
+                    * Mth.clamp((1.0F - u) / edgeBand, 0F, 1F);
+            float taper = 1.0F - u * (1.0F - topAlphaRatio);
+            int alpha = (int) (255.0F * opacity * pulse * taper * fade);
+            if (alpha <= 0) {
+                continue;
+            }
+            float hw = radius * (1.0F + grow * u);
+            // 摆动按 u（高度）取相 → 整柱同相位移动，读作一股气；按片序号取相则上百片
+            // 各摆各的，读作杂乱喷溅（实机反馈：像烟囱 / 一股一股）
+            float wave = (float) Mth.sin((float) (now * 0.09D + u * 4.0D));
+            float bob = (float) Mth.cos((float) (now * 0.13D + u * 5.5D));
+            float sway = wave * hw * 0.30F;
+            FxGeometry.emitBillboard(mist, pose, this.camRot, sway, y, bob * hw * 0.30F,
+                    hw, hw * tall, r, g, b, alpha);
+        }
+        poseStack.popPose();
+    }
+
+    /** 0..1 循环相位（负值也能正确回绕）。 */
+    private static float fract(float v) {
+        float f = v - (float) Math.floor(v);
+        return f < 0F ? f + 1F : f;
+    }
+
     // ================================================================= 公用
 
     /**
-     * 包络推进：slot 0=雾带 1=火柱 2=灵气场 3=无尽藏雾带；按 ramp ticks 线性淡入淡出（跳帧钳 2 tick 步长）。
-     *
-     * <p>槽位 4 存上次时间、槽位 5 存本帧步长——后者供<b>逐台</b>包络（祭品台激光）复用，
-     * 使两者共用同一条时钟，避免出现两套"上一次时间"导致步长不一致。
+     * 包络推进：slot 0=雾带 1=火柱 2=灵气场 3=无尽藏雾带/煅炉 6=灵浴；按 ramp ticks 线性淡入淡出
+     * （跳帧钳 2 tick 步长）。<b>slot 4/5 固定保留给时钟</b>（上次时间、步长）——后者供
+     * <b>逐台</b>包络（祭品台激光）复用，使两者共用一条时钟，避免出现两套"上一次时间"导致步长不一致。
+     * 新增特效 MUST 取 6 或更大的槽位，MUST NOT 覆盖 4/5。
      */
     private static float advanceEnvelope(BlockPos pos, int slot, float target, double now) {
-        float[] st = ENVELOPES.computeIfAbsent(pos, k -> new float[]{0F, 0F, 0F, 0F, -1F, 0F});
+        float[] st = ENVELOPES.computeIfAbsent(pos, k -> new float[]{0F, 0F, 0F, 0F, -1F, 0F, 0F});
         float last = st[4];
         double elapsed = last < 0F ? 0F : Mth.clamp(now - last, 0F, 2.0D);
         st[4] = (float) now;
@@ -1325,7 +1628,6 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         int cg = tell > 0.0F ? (int) Mth.lerp(tell, SUMMON_G, 235) : SUMMON_G;
         int cb = tell > 0.0F ? (int) Mth.lerp(tell, SUMMON_B, 225) : SUMMON_B;
 
-        this.camRot.set(dispatcher.camera.rotation());
         VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(SUMMON_BLOB_TEXTURE));
         PoseStack.Pose pose = poseStack.last();
         for (int i = 0; i < layers; i++) {
@@ -1536,7 +1838,6 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         if (radius <= 1.0E-3F) {
             return;
         }
-        this.camRot.set(dispatcher.camera.rotation());
 
         // ---- 冲击环：贴核心顶面、加法、一闪即逝 ----
         int puffs = GensokyouConfig.FX_SUMMON_BURST_RING_PUFFS.get();
