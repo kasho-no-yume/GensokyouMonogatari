@@ -35,11 +35,14 @@
 ```
 同阶杂兵：HP = playerDPS(N) × [1.5, 2.5]      弹伤 = playerEHP(N) / [12, 18]
 同阶精英：HP = playerDPS(N) × [4, 6]          弹伤 = playerEHP(N) / [9, 12]
-同阶BOSS：HP = playerDPS(N) × [30, 50]        弹伤 = playerEHP(N) / [7, 10]
+同阶BOSS：HP = playerDPS(N) × bossSeconds[N]   弹伤 = playerEHP(N) / bossHits[N]
 跨阶：    HP 与弹伤各 × 10 /（怪物阶 − 玩家阶）
 ```
 
 - `playerEHP = HP / (2^(−护壁) × (1 − 擦弹))`；`playerDPS`/`playerEHP` 由 grace 表与武器倍率表折算。
+- BOSS 生命用**秒带**而非无量纲倍带：`bossSeconds` 覆盖 **2~15 分钟**（T1~T5 = 160/260/380/520/720s，配置区间 120~900s）。
+- **秒带是弹性目标不是保证**：BOSS 的无敌时间与其移动造成的命中率下降会实打实削减有效 DPS。
+  实测偏长/偏短就改 config 回写实测值，**不要**靠加弹数或加 `damageScale` 补时长。
 - 比率带与跨阶倍率全部在 config `monsterBudget` 段；工具类 `balance/MonsterStatBudget`。
 - **每次 spawn 在该区间内独立 roll（±25%），并随实体 NBT 持久化**（存活期间不重掷）。
 - 跨阶压制由"HP/DPS 竞速 + 弹伤量级"共同保证：越 1 阶必死、越 2 阶无望。

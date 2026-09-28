@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.entity.BigFairyEntity;
 import com.bitsson.gensokyou.entity.CirnoEntity;
 import com.bitsson.gensokyou.entity.DanmakuProjectile;
+import com.bitsson.gensokyou.entity.DanmakuRig;
 import com.bitsson.gensokyou.entity.FairyEntity;
 import com.bitsson.gensokyou.entity.FakeFlandreEntity;
 import com.bitsson.gensokyou.entity.FlandreEntity;
@@ -66,6 +67,24 @@ public final class ModEntityTypes {
                     .updateInterval(1)
                     .fireImmune()
                     .build("laser_danmaku"));
+
+    /**
+     * 编队装置。无渲染、无碰撞、不判伤——存在的唯一理由是「让一批弹共享一份
+     * 轨道参数」。它的位置由 {@code tickCount} 纯函数推导，故
+     * {@code updateInterval} 可以放到最松：位置包只是安全网，不是同步手段。
+     *
+     * <p>追踪距离 MUST NOT 小于弹幕自己的（弹幕是 8 段 = 256 格）：弹要靠网络 id
+     * 找到装置，装置若先被客户端卸载，全批弹会同时脱钩退化成自由飞行——一个
+     * 肉眼可见的「整队突然散架」。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<DanmakuRig>> DANMAKU_RIG =
+            ENTITY_TYPES.register("danmaku_rig", () -> EntityType.Builder
+                    .<DanmakuRig>of(DanmakuRig::new, MobCategory.MISC)
+                    .sized(0.2F, 0.2F)
+                    .clientTrackingRange(12)
+                    .updateInterval(20)
+                    .fireImmune()
+                    .build("danmaku_rig"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<OrbitYinYangOrb>> ORBIT_YIN_YANG_ORB =
             ENTITY_TYPES.register("orbit_yin_yang_orb", () -> EntityType.Builder

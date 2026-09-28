@@ -4,12 +4,14 @@
 TBD - created by archiving change balance-player-monster-stats. Update Purpose after archive.
 ## Requirements
 ### Requirement: 同阶怪物数值预算
-新增东方系怪物的生命与弹幕单发伤害 SHALL 以"同阶玩家"为基准按预算公式取值，击杀耗时按档位：**杂兵约 1.5~2.5 秒、精英约 4~6 秒、BOSS 约 1~5 分钟**：
+新增东方系怪物的生命与弹幕单发伤害 SHALL 以"同阶玩家"为基准按预算公式取值，击杀耗时按档位：**杂兵约 1.5~2.5 秒、精英约 4~6 秒、BOSS 约 2~15 分钟**：
 - 杂兵：`HP = 玩家DPS(N) × [1.5, 2.5]`，`弹伤 = 玩家EHP(N) / [12, 18]`
 - 精英：`HP = 玩家DPS(N) × [4, 6]`，`弹伤 = 玩家EHP(N) / [9, 12]`
 - BOSS：`HP = 玩家DPS(N) × bossSeconds[N]`，`弹伤 = 玩家EHP(N) / bossHits[N]`
 
-BOSS 的生命 SHALL 以**秒带**表达而非无量纲倍带：`bossSeconds` 为按阶的秒数表，覆盖 1~5 分钟（T1 60~90s / T2 110s / T3 180s / T4 240s / T5 300s），且全部从 config 读取。
+BOSS 的生命 SHALL 以**秒带**表达而非无量纲倍带：`bossSeconds` 为按阶的秒数表，覆盖 2~15 分钟（T1 160s / T2 260s / T3 380s / T4 520s / T5 720s），配置区间 SHALL 为 120~900s，且全部从 config 读取。
+
+秒带 SHALL 是**弹性目标而非保证**：BOSS 的无敌时间（换卡演出、蓄力、场地机制）与其自身移动导致玩家命中率下降，都会实打实削减有效 DPS。实测时长偏离秒带时 SHALL 以实测值回写 config，MUST NOT 靠加弹数或加 `damageScale` 补时长——后两者改的是难度与观感，会让下一次实测无法归因。
 
 「玩家约 9~16 下被打死」这一判据 SHALL 由**中弹率分界线**取代：玩家可携带回复消耗品，故同阶战斗的难度判据 SHALL 为「稳过与致死之间的中弹率窗口」，且该窗口 SHALL 收窄至约 15 个百分点以内。
 
@@ -21,7 +23,7 @@ BOSS 的生命 SHALL 以**秒带**表达而非无量纲倍带：`bossSeconds` �
 
 #### Scenario: 同阶BOSS有战斗时长
 - **WHEN** 同阶玩家与同阶 BOSS 交战
-- **THEN** 击杀耗时落在该阶秒带内（前期 1~2 分钟，全阶 1~5 分钟），期间承受 BOSS 弹幕仍可存活
+- **THEN** 击杀耗时落在该阶秒带内（全阶 2~15 分钟），期间承受 BOSS 弹幕仍可存活
 
 #### Scenario: 中弹率窗口收窄
 - **WHEN** 以同阶参照玩家结算一场同阶 BOSS 战斗

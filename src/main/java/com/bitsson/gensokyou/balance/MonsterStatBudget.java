@@ -13,7 +13,7 @@ import java.util.List;
  * <pre>
  *   同阶杂兵：HP = playerDPS(N) x [1.5, 2.5]      弹伤 = playerEHP(N) / [12, 18]
  *   同阶精英：HP = playerDPS(N) x [4, 6]          弹伤 = playerEHP(N) / [9, 12]
- *   同阶BOSS：HP = playerDPS(N) x [30, 50]        弹伤 = playerEHP(N) / [7, 10]
+ *   同阶BOSS：HP = playerDPS(N) x bossSeconds[N]   弹伤 = playerEHP(N) / bossHits[N]
  *   跨阶：    HP 与弹伤各 x tierScale^（怪物阶 - 玩家阶）
  * </pre>
  *

@@ -9,9 +9,13 @@ import java.util.List;
 /**
  * 形状 → 发射指令的几何翻译。
  *
- * <p>每条指令 = （发射原点偏移, 方向, 平面内旋转轴或零, 弹种参数覆盖）。
+ * <p>每条指令 = （发射原点偏移, 方向, 平面内旋转轴或零, 几何参数）。
  * 全部以 BOSS 的局部基向量（forward = 指向主目标，right = 水平右，up = 竖直上）表达，
  * 故任何形状都与 BOSS 的朝向无关。
+ *
+ * <p><b>本类只产几何</b>。弹怎么动、怎么显、怎么死由 {@link Behaviour} 在
+ * {@code DanmakuEmitter} 中施加——本类 MUST NOT 依据形状改写运动（改前
+ * {@code GROUND_BAND} 分支会把竖直分量抹掉，那是行为而非几何）。
  *
  * <p>三维设计要点：
  * <ul>
@@ -132,17 +136,18 @@ public final class Geometry {
                 yield List.copyOf(out);
             }
 
-            case GROUND_BAND, DOME -> {
+            case SHELL -> {
+                // 球面壳。riseFactor 决定竖直分量：0.15 贴地外推，1.0 会闭合的穹顶。
                 int n = Math.max(3, params.count());
                 double r = Math.max(0.5D, params.radius());
                 List<Shot> out = new ArrayList<>(n);
                 for (int i = 0; i < n; i++) {
                     double rad = Math.PI * 2.0D * i / n + phase;
                     Vec3 dir = right.scale(Math.cos(rad))
-                            .add(worldUp.scale(Math.sin(rad) * (shape == Shape.DOME ? 1.0D : 0.15D)))
+                            .add(worldUp.scale(Math.sin(rad) * params.riseFactor()))
                             .add(forward.scale(Math.sin(rad) * 0.6D));
                     out.add(new Shot(origin, dir.normalize(),
-                            worldUp, params.radius(r, params.radiusPerTick())));
+                            worldUp, params.withRadiusPerTick(params.radiusPerTick())));
                 }
                 yield List.copyOf(out);
             }
@@ -165,15 +170,15 @@ public final class Geometry {
                 yield List.copyOf(out);
             }
 
-            case CURVE_RING -> {
+            case RING -> {
+                // 纯等角环，无任何行为含义。曲射与否由 Behaviour 决定。
                 int n = Math.max(3, params.count());
                 double step = 360.0D / n;
-                Vec3 axis = axisFrom(params.curveYawDeg(), params.curvePitchDeg());
                 List<Shot> out = new ArrayList<>(n);
                 for (int i = 0; i < n; i++) {
                     double rad = Math.toRadians(i * step + phase);
                     Vec3 dir = right.scale(Math.cos(rad)).add(up.scale(Math.sin(rad)));
-                    out.add(new Shot(origin, dir, axis, params));
+                    out.add(new Shot(origin, dir, forward, params));
                 }
                 yield List.copyOf(out);
             }
@@ -188,7 +193,8 @@ public final class Geometry {
                 yield List.copyOf(out);
             }
 
-            case HOVER_BURST -> {
+            case RADIAL_BURST -> {
+                // 一圈等角径向方向。悬停与否由 Behaviour 决定。
                 int n = Math.max(1, params.count());
                 List<Shot> out = new ArrayList<>(n);
                 for (int i = 0; i < n; i++) {
@@ -199,7 +205,8 @@ public final class Geometry {
                 yield List.copyOf(out);
             }
 
-            case MINE_RING -> {
+            case SCATTER_STATIC -> {
+                // 环带上的静止弹。溜め与否由 Behaviour 决定——几何只负责「放在哪」。
                 int n = Math.max(1, params.count());
                 double r = Math.max(1.0D, params.radius());
                 List<Shot> out = new ArrayList<>(n);
@@ -213,7 +220,8 @@ public final class Geometry {
                 yield List.copyOf(out);
             }
 
-            case GAP_SPLIT -> {
+            case GAP_FAN -> {
+                // 补位：沿缺口扇形内等分排布。名字里的「补位」指几何排布，与行为无关。
                 int n = Math.max(1, params.count());
                 double gapCenter = Mth.wrapDegrees(gapPhase + phase);
                 List<Shot> out = new ArrayList<>(n);
@@ -260,7 +268,13 @@ public final class Geometry {
                 .normalize();
     }
 
-    /** 确定性伪随机（0..1）。用纯函数而非 RandomSource，使形状可离线复现与断言。 */
+    /**
+     * 确定性伪随机（0..1）。用纯函数而非 RandomSource，使形状可离线复现与断言。
+     *
+     * <p>注意本函数的精度随 {@code seed} 的量级单调退化（{@code sin} 内部��双重精度
+     * 有效位有限）。符卡表的 {@code phase} 随运行时间线性增长，实践中几十分钟内
+     * 仍够用；MUST NOT 用于需要长期高精度复现的场景。
+     */
     private static double pseudo(double seed) {
         double v = Math.sin(seed * 12.9898D + 78.233D) * 43758.5453D;
         return v - Math.floor(v);

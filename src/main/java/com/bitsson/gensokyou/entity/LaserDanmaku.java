@@ -133,14 +133,15 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         Vec3 end = start.add(this.getLaserDirection().scale(this.getActualLength()));
 
         AABB scanBox = new AABB(start, end).inflate(this.getRadius() + 1.0D);
-        List<Entity> candidates = this.level().getEntities(this, scanBox);
+        // 带类型过滤的查询：激光所在的实体类型子表被整体跳过（见 DanmakuHitScan 的说明）。
+        // canBeHitByProjectile 排除掉落物 / 经验球等，isWhitelisted 排除友方；getEntitiesOfClass
+        // 自带 NO_SPECTATORS，故观测者不再单列。
+        List<LivingEntity> candidates = this.level().getEntitiesOfClass(
+                LivingEntity.class, scanBox, e -> !this.isWhitelisted(e)
+                        && e.isAlive() && e.canBeHitByProjectile());
 
         double radius = this.getRadius();
-        for (Entity entity : candidates) {
-            // 只对可被投射物命中的实体判伤，避免误伤掉落物/经验球等
-            if (!entity.canBeHitByProjectile() || this.isWhitelisted(entity) || !entity.isAlive()) {
-                continue;
-            }
+        for (LivingEntity entity : candidates) {
             // 用实体碰撞箱做距离判定，比用中心点公平
             AABB box = entity.getBoundingBox().inflate(radius);
             if (box.clip(start, end).isPresent()) {

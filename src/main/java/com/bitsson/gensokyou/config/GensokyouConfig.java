@@ -647,7 +647,9 @@ public class GensokyouConfig {
         PROTECT_REDUCTION_NUMERATOR = BUILDER.comment("Damage taken multiplier = (numerator - level) / denominator").defineInRange("protectNumerator", 9D, 0D, 100D);
         PROTECT_REDUCTION_DENOMINATOR = BUILDER.defineInRange("protectDenominator", 10D, 1D, 100D);
         TALISMAN_TARGET_LOSS_ANGLE_DEG = BUILDER.comment("Talisman danmaku: if the angle between its velocity and the direction to its target exceeds this many degrees, it permanently loses the target and flies straight (default 120)").defineInRange("talismanTargetLossAngleDeg", 120D, 90D, 180D);
-        DANMAKU_ENTITY_CAP = BUILDER.comment("add-remnant-touhou-bosses: hard cap on simultaneously live danmaku entities. At the cap the emitter STOPS spawning (existing bullets are never deleted, so the board reads as 'this round is over' rather than 'the boss went quiet').").defineInRange("danmakuEntityCap", 500, 16, 20000);
+        DANMAKU_ENTITY_CAP = BUILDER.comment("add-remnant-touhou-bosses: hard cap on simultaneously live danmaku entities. At the cap the emitter STOPS spawning (existing bullets are never deleted, so the board reads as 'this round is over' rather than 'the boss went quiet').",
+                "This is a CAPACITY guard rail, not a design budget: the value should be set from the measured danmaku-tick cost vs. density curve (see /gs_boss danmaku), not picked by taste.",
+                "Scope: BOSS danmaku only. Player-fired danmaku, fairy AI danmaku, spell-card effects, debug commands and summon products are deliberately NOT counted or limited by it.").defineInRange("danmakuEntityCap", 800, 16, 20000);
         BUILDER.pop();
 
         BUILDER.push("boss").comment("add-remnant-touhou-bosses: summoned BOSS movement / targeting / numbers. "
@@ -661,15 +663,15 @@ public class GensokyouConfig {
         BOSS_WANDER_REPICK_MIN = BUILDER.comment("Wander target re-pick interval, lower bound (ticks)").defineInRange("bossWanderRepickMin", 60, 10, 1200);
         BOSS_WANDER_REPICK_MAX = BUILDER.comment("Wander target re-pick interval, upper bound (ticks)").defineInRange("bossWanderRepickMax", 120, 10, 2400);
         BOSS_WANDER_AVOID_PLAYER = BUILDER.comment("Wander points closer than this to any player are rejected (blocks)").defineInRange("bossWanderAvoidPlayer", 6D, 0D, 32D);
-        BOSS_WANDER_AVOID_ANCHOR = BUILDER.comment("Wander points closer than this to the summon anchor are rejected (blocks)").defineInRange("bossWanderAvoidAnchor", 8D, 0D, 64D);
-        BOSS_SECONDS_T1 = BUILDER.comment("monster-stat-budget seconds band, tier 1").defineInRange("bossSecondsT1", 60D, 5D, 3600D);
-        BOSS_SECONDS_T2 = BUILDER.defineInRange("bossSecondsT2", 110D, 5D, 3600D);
-        BOSS_SECONDS_T3 = BUILDER.defineInRange("bossSecondsT3", 180D, 5D, 3600D);
-        BOSS_SECONDS_T4 = BUILDER.defineInRange("bossSecondsT4", 240D, 5D, 3600D);
-        BOSS_SECONDS_T5 = BUILDER.defineInRange("bossSecondsT5", 300D, 5D, 3600D);
-        BIG_FAIRY_BOSS_SECONDS = BUILDER.comment("大妖精 spell-card fight length target").defineInRange("bigFairyBossSeconds", 60D, 5D, 3600D);
+        BOSS_WANDER_AVOID_ANCHOR = BUILDER.comment("Wander points closer than this to the summon anchor are rejected (blocks). For wild summoned bosses the anchor is the ritual core; for chamber bosses it is the chamber spawn marker. Raise this in narrow chambers").defineInRange("bossWanderAvoidAnchor", 8D, 0D, 64D);
+        BOSS_SECONDS_T1 = BUILDER.comment("monster-stat-budget seconds band, tier 1. Band is 2~15 min; spawn roll is +/-25%, so a default of 160 lands in [120, 200]").defineInRange("bossSecondsT1", 160D, 120D, 900D);
+        BOSS_SECONDS_T2 = BUILDER.defineInRange("bossSecondsT2", 260D, 120D, 900D);
+        BOSS_SECONDS_T3 = BUILDER.defineInRange("bossSecondsT3", 380D, 120D, 900D);
+        BOSS_SECONDS_T4 = BUILDER.defineInRange("bossSecondsT4", 520D, 120D, 900D);
+        BOSS_SECONDS_T5 = BUILDER.defineInRange("bossSecondsT5", 720D, 120D, 900D);
+        BIG_FAIRY_BOSS_SECONDS = BUILDER.comment("大妖精 spell-card fight length target (3 cards, T1 reference)").defineInRange("bigFairyBossSeconds", 160D, 120D, 900D);
         BIG_FAIRY_BOSS_HITS = BUILDER.comment("大妖精 hits-to-kill target (damage = referencePlayerEhp / this)").defineInRange("bigFairyBossHits", 10, 1, 200);
-        KUZUMONO_BOSS_SECONDS = BUILDER.defineInRange("kuzumonoBossSeconds", 75D, 5D, 3600D);
+        KUZUMONO_BOSS_SECONDS = BUILDER.comment("鬼蛛 spell-card fight length target (3 cards, no aimed tracks)").defineInRange("kuzumonoBossSeconds", 190D, 120D, 900D);
         KUZUMONO_BOSS_HITS = BUILDER.defineInRange("kuzumonoBossHits", 8, 1, 200);
         BOSS_STAR_DROP_MIN = BUILDER.comment("碎符卡星 drop count, lower bound").defineInRange("bossStarDropMin", 1, 0, 64);
         BOSS_STAR_DROP_MAX = BUILDER.defineInRange("bossStarDropMax", 2, 0, 64);

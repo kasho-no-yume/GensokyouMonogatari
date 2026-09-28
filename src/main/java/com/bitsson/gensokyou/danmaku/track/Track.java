@@ -25,19 +25,49 @@ public record Track(
         int phaseStepDeg,
         double damageScale,
         List<Beat> beats,
+        /**
+         * 本轨的编队装置声明（需求②③④）。
+         *
+         * <p><b>rig 是轨级而非拍级</b>：装置要「一批弹共享一份轨道参数」，而一批弹来自
+         * 同一轨的多次发射。若把 rig 挂到每一拍，同一条轨的 20 次重复发射就会各建一个
+         * 装置——批次被切碎，队形在两次发射之间就断了。
+         *
+         * <p>默认 {@link Behaviour.Rig#NONE}：绝大多数轨道不需要编队。
+         */
+        Behaviour.Rig rig,
         /** 视觉独占标识：四项各一个量化档位，供 lint 断言。 */
         VisualIdentity identity) {
 
-    /** 标识量化档位：colorStep / speedStep / sizeStep / shapeIndex。 */
-    public record VisualIdentity(int colorStep, int speedStep, int sizeStep, int shapeIndex) {
+    /**
+     * 视觉独占标识：五项各一个量化档位，供 lint 断言。
+     *
+     * <p>spec 列的四轴是「色相 / 速度 / 尺寸 / <b>行为</b>」，而改前的实现只有
+     * {@code colorStep / speedStep / sizeStep / shapeIndex}——<b>行为维度从未参与断言</b>，
+     * 且「形状」不在 spec 的四轴里。行为解耦后这层错位一并修正：形状与行为各自成轴，
+     * 「悬停的环」与「静止的环」因此能被 lint 区分开。
+     */
+    public record VisualIdentity(int colorStep, int speedStep, int sizeStep,
+                                 int shapeIndex, int behaviourIndex) {
     }
 
     /**
-     * 一拍：{@code tick} 时刻发一次 {@code shape}。
+     * 一拍：{@code tick} 时刻发一次 {@code shape}，并施加 {@code behaviour}。
+     *
+     * <p><b>几何 × 行为</b>：{@code shape} 决定「发哪些弹、在什么方位」，
+     * {@code behaviour} 决定「这些弹怎么动、怎么显、怎么死」。二者正交，
+     * 任何行为可与任何几何组合。
      *
      * <p>{@code phaseStepDeg} 让同轨的重复拍之间错开角度（环自转、扇推进）。
      */
-    public record Beat(int tick, Shape shape, Shape.Params params, TargetMode targetMode) {
+    public record Beat(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
+                       TargetMode targetMode) {
+
+        /** 行为维度标识档位，供 {@link VisualIdentity} 断言「同符卡内两轨行为不重复」。 */
+        public int behaviourIndex() {
+            return behaviour.motion().kind().ordinal() * 100
+                    + (behaviour.split().active() ? 10 : 0)
+                    + (behaviour.visibility().periodicallyHarmless() ? 1 : 0);
+        }
     }
 
     public static Builder of(String name, int color) {
@@ -76,6 +106,7 @@ public record Track(
         private int colorStep = 0;
         private int speedStep = 0;
         private int sizeStep = 0;
+        private Behaviour.Rig rig = Behaviour.Rig.NONE;
         private final List<Beat> beats = new ArrayList<>();
 
         private Builder(String name, int color) {
@@ -126,20 +157,42 @@ public record Track(
             return this;
         }
 
-        public Builder at(int tick, Shape shape, Shape.Params params, TargetMode mode) {
-            this.beats.add(new Beat(tick, shape, params, mode));
+        /**
+         * 给本轨挂一个编队装置。本轨所有拍的弹都会挂上它。
+         *
+         * <p>每条轨<b>至多一个</b>装置，故重复调用是「覆盖」而非「追加」——
+         * 装置数与轨道数同阶，这正是需求「装置数不超过 1~3」的字面含义。
+         */
+        public Builder rig(Behaviour.Rig rig) {
+            this.rig = rig == null ? Behaviour.Rig.NONE : rig;
             return this;
         }
 
+        public Builder at(int tick, Shape shape, Shape.Params params, TargetMode mode) {
+            return at(tick, shape, params, Behaviour.NONE, mode);
+        }
+
+        /** 完整形式：几何参数 + 行为 + 目标模式。 */
+        public Builder at(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
+                          TargetMode mode) {
+            this.beats.add(new Beat(tick, shape, params, behaviour, mode));
+            return this;
+        }
+
+        /** 无行为、无几何参数的简写。 */
         public Builder at(int tick, Shape shape, TargetMode mode) {
-            return at(tick, shape, Shape.Params.defaults(), mode);
+            return at(tick, shape, Shape.Params.defaults(), Behaviour.NONE, mode);
         }
 
         public Track build() {
+            // 形状轴与行为轴由首个拍自动导出：符卡作者只需声明色相/速度/尺寸三档，
+            // 「用哪个几何、带什么行为」是派生的，不该手写重复。
             int shapeIndex = beats.isEmpty() ? 0 : beats.get(0).shape().ordinal();
+            int behaviourIndex = beats.isEmpty() ? 0 : beats.get(0).behaviourIndex();
             return new Track(name, color, terminates, repeatEvery, phaseStepDeg, damageScale,
                     beats.stream().sorted(Comparator.comparingInt(Beat::tick)).toList(),
-                    new VisualIdentity(colorStep, speedStep, sizeStep, shapeIndex));
+                    rig,
+                    new VisualIdentity(colorStep, speedStep, sizeStep, shapeIndex, behaviourIndex));
         }
     }
 }

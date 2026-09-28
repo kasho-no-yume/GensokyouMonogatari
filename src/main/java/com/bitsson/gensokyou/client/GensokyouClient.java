@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.renderer.BillboardRenderer;
 import com.bitsson.gensokyou.client.renderer.CrystalRenderer;
 import com.bitsson.gensokyou.client.renderer.FairyGeoRenderer;
+import com.bitsson.gensokyou.client.renderer.InvisibleEntityRenderer;
 import com.bitsson.gensokyou.client.renderer.BigFairyGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.RemnantBossRenderer;
 import com.bitsson.gensokyou.client.renderer.SkinMobRenderer;
@@ -54,6 +55,8 @@ public final class GensokyouClient {
                 TalismanDanmakuRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.LASER_DANMAKU.get(),
                 LaserDanmakuRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.DANMAKU_RIG.get(),
+                InvisibleEntityRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.ORBIT_YIN_YANG_ORB.get(),
                 context -> new BillboardRenderer<>(context, 0.7F, GensokyouTextures.ORBIT_ORB));
         event.registerEntityRenderer(ModEntityTypes.ZAOHUA_FLIGHT_ITEM.get(),

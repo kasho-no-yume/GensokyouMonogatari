@@ -108,6 +108,8 @@ public final class BossDebugCommands {
     private static int danmakuStats(CommandSourceStack source) {
         source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
                 + com.bitsson.gensokyou.danmaku.DanmakuBudget.stats(source.getLevel())), false);
+        source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
+                + com.bitsson.gensokyou.danmaku.DanmakuBudget.timingStats()), false);
         return 1;
     }
 

@@ -67,3 +67,5 @@ tools/textures/_preview/
 __pycache__/
 .cocoindex_code/
 .codex
+# CocoIndex Code (ccc)
+/.cocoindex_code/

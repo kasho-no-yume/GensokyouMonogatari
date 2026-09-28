@@ -9,6 +9,10 @@ import java.util.List;
  *
  * <p>集中在一处而非散进实体类，因为符卡表是<b>内容</b>：改它不该碰实体代码。
  *
+ * <p>每拍写成 {@code 几何 × 行为} 两段：{@code .at(tick, Shape.X, 几何参数, 行为, 目标模式)}。
+ * 行为一律经 {@link Behaviour} 的工厂显式给出，MUST NOT 靠形状名隐含——改前
+ * {@code HOVER_BURST} 这类名字把行为编码进了几何，导致「悬停的环」无法表达。
+ *
  * <p>「缺段」是对轨道构成的硬约束，由 {@link TrackLint} 的
  * {@link TrackLint#hasNoAimedTrack} / {@link TrackLint#allTracksEndless} 断言：
  * <ul>
@@ -39,7 +43,7 @@ public final class BossCards {
                                 .phaseStep(4)
                                 .at(0, Shape.FAN, Shape.Params.defaults()
                                         .count(5).spread(60.0D).speed(0.30D).size(0.95D),
-                                        TargetMode.SELF_AXIS)
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build())),
                 new SpellCard("旋風", 0.66D, List.of(
                         of("旋風環", BIG_FAIRY_PALETTE.at(1))
@@ -49,7 +53,7 @@ public final class BossCards {
                                 .phaseStep(14)
                                 .at(0, Shape.RING_FACING, Shape.Params.defaults()
                                         .count(12).gap(70.0D).speed(0.28D).size(0.85D),
-                                        TargetMode.SELF_AXIS)
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build())),
                 new SpellCard("落華", 0.33D, List.of(
                         of("落下", BIG_FAIRY_PALETTE.at(2))
@@ -58,7 +62,7 @@ public final class BossCards {
                                 .repeatEvery(70)
                                 .at(0, Shape.FALL_FROM_ABOVE, Shape.Params.defaults()
                                         .count(9).radius(7.0D).speed(0.22D).size(1.05D),
-                                        TargetMode.SELF_AXIS)
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build())));
     }
 
@@ -77,8 +81,10 @@ public final class BossCards {
                         of("地滑帯", KUZUMONO_PALETTE.at(0))
                                 .identity(0, 0, 0)
                                 .repeatEvery(60)
-                                .at(0, Shape.GROUND_BAND, Shape.Params.defaults()
-                                        .count(14).radius(4.0D, 0.08D).speed(0.34D).size(0.7D),
+                                .at(0, Shape.SHELL, Shape.Params.defaults()
+                                                .count(14).radius(4.0D, 0.08D).rise(0.15D)
+                                                .speed(0.34D).size(0.7D),
+                                        Behaviour.NONE.withMotion(Behaviour.Motion.groundHug()),
                                         TargetMode.ARENA)
                                 .build(),
                         of("定幕", KUZUMONO_PALETTE.at(1))
@@ -86,8 +92,9 @@ public final class BossCards {
                                 .identity(1, 1, 0)
                                 .repeatEvery(90)
                                 .phaseStep(20)
-                                .at(0, Shape.HOVER_BURST, Shape.Params.defaults()
-                                        .count(8).speed(0.26D).size(0.6D).hover(26),
+                                .at(0, Shape.RADIAL_BURST, Shape.Params.defaults()
+                                        .count(8).speed(0.26D).size(0.6D),
+                                        Behaviour.NONE.withMotion(Behaviour.Motion.hover(26)),
                                         TargetMode.SELF_AXIS)
                                 .build())),
                 // 結界：包囲 ‖ 潜溜。包囲会闭合，逼迫玩家在合拢前找到出口。
@@ -96,18 +103,19 @@ public final class BossCards {
                                 .damageScale(1.15D)
                                 .identity(2, 2, 0)
                                 .repeatEvery(50)
-                                .at(0, Shape.DOME, Shape.Params.defaults()
-                                        .count(16).radius(11.0D, -0.06D).speed(0.24D).size(0.75D),
-                                        TargetMode.SELF_AXIS)
+                                .at(0, Shape.SHELL, Shape.Params.defaults()
+                                                .count(16).radius(11.0D, -0.06D).rise(1.0D)
+                                                .speed(0.24D).size(0.75D),
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build(),
                         of("潜溜", KUZUMONO_PALETTE.at(3))
                                 .damageScale(1.15D)
                                 .identity(3, 0, 1)
                                 .repeatEvery(120)
                                 .phaseStep(30)
-                                .at(0, Shape.MINE_RING, Shape.Params.defaults()
-                                        .count(6).radius(5.0D).speed(0.0D).size(0.55D)
-                                        .mine(1.6D),
+                                .at(0, Shape.SCATTER_STATIC, Shape.Params.defaults()
+                                                .count(6).radius(5.0D).speed(0.0D).size(0.55D),
+                                        Behaviour.NONE.withMotion(Behaviour.Motion.mine(1.6D)),
                                         TargetMode.ARENA)
                                 .build())),
                 // 硬化：三正交面交差 ‖ 从缺口方位补发的分裂弹。必须自己找空格。
@@ -119,15 +127,15 @@ public final class BossCards {
                                 .phaseStep(11)
                                 .at(0, Shape.CAGE, Shape.Params.defaults()
                                         .count(8).gap(45.0D).speed(0.30D).size(0.65D),
-                                        TargetMode.SELF_AXIS)
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build(),
                         of("補発", KUZUMONO_PALETTE.at(1))
                                 .damageScale(1.3D)
                                 .identity(1, 2, 1)
                                 .repeatEvery(140)
-                                .at(0, Shape.GAP_SPLIT, Shape.Params.defaults()
-                                        .count(3).gap(45.0D).speed(0.28D).size(0.55D)
-                                        .split(18, 4),
+                                .at(0, Shape.GAP_FAN, Shape.Params.defaults()
+                                                .count(3).gap(45.0D).speed(0.28D).size(0.55D),
+                                        Behaviour.NONE.withSplit(Behaviour.Split.at(18, 4)),
                                         TargetMode.SELF_AXIS)
                                 .build())));
     }
@@ -145,21 +153,22 @@ public final class BossCards {
     public static List<SpellCard> kitsuneBi() {
         return List.of(
                 // 乱焔：绕竖轴与绕横轴两路反向曲射，交叉处密度峰值。
+                // 注意几何是同一个 RING——两轨的差别全在曲射轴与角速度，属行为层。
                 new SpellCard("乱焔", 1.00D, List.of(
                         of("縦曲", KITSUNEBI_PALETTE.at(0))
                                 .identity(0, 0, 0)
                                 .repeatEvery(40)
-                                .at(0, Shape.CURVE_RING, Shape.Params.defaults()
-                                        .count(10).speed(0.26D).size(0.6D)
-                                        .curve(0.0D, 90.0D, 95.0D),
+                                .at(0, Shape.RING, Shape.Params.defaults()
+                                                .count(10).speed(0.26D).size(0.6D),
+                                        Behaviour.NONE.withMotion(Behaviour.Motion.curve(0.0D, 90.0D, 95.0D)),
                                         TargetMode.SELF_AXIS)
                                 .build(),
                         of("横曲", KITSUNEBI_PALETTE.at(1))
                                 .identity(1, 1, 0)
                                 .repeatEvery(40)
-                                .at(0, Shape.CURVE_RING, Shape.Params.defaults()
-                                        .count(10).speed(0.26D).size(0.6D)
-                                        .curve(90.0D, 0.0D, -80.0D),
+                                .at(0, Shape.RING, Shape.Params.defaults()
+                                                .count(10).speed(0.26D).size(0.6D),
+                                        Behaviour.NONE.withMotion(Behaviour.Motion.curve(90.0D, 0.0D, -80.0D)),
                                         TargetMode.SELF_AXIS)
                                 .build())),
                 // 泡：悬停泡缓慢逼近 ‖ 泡破裂时的分裂环。没有预备拍 = 逼近即峰值。
@@ -167,8 +176,9 @@ public final class BossCards {
                         of("浮泡", KITSUNEBI_PALETTE.at(2))
                                 .identity(2, 2, 0)
                                 .repeatEvery(55)
-                                .at(0, Shape.HOVER_BURST, Shape.Params.defaults()
-                                        .count(9).speed(0.20D).size(0.8D).hover(34),
+                                .at(0, Shape.RADIAL_BURST, Shape.Params.defaults()
+                                                .count(9).speed(0.20D).size(0.8D),
+                                        Behaviour.NONE.withMotion(Behaviour.Motion.hover(34)),
                                         TargetMode.SELF_AXIS)
                                 .build(),
                         of("破裂環", KITSUNEBI_PALETTE.at(3))
@@ -176,8 +186,8 @@ public final class BossCards {
                                 .identity(3, 0, 1)
                                 .repeatEvery(110)
                                 .at(0, Shape.RING_FACING, Shape.Params.defaults()
-                                        .count(10).gap(60.0D).speed(0.22D).size(0.6D)
-                                        .split(24, 3),
+                                                .count(10).gap(60.0D).speed(0.22D).size(0.6D),
+                                        Behaviour.NONE.withSplit(Behaviour.Split.at(24, 3)),
                                         TargetMode.SELF_AXIS)
                                 .build())),
                 // 散：随机，但锁在一个随 BOSS 旋转的锥里。三轨并发。
@@ -186,15 +196,16 @@ public final class BossCards {
                                 .identity(0, 0, 0)
                                 .repeatEvery(30)
                                 .at(0, Shape.CONE_RANDOM, Shape.Params.defaults()
-                                        .count(4).spread(110.0D).speed(0.30D).size(0.55D),
-                                        TargetMode.SELF_AXIS)
+                                                .count(4).spread(110.0D).speed(0.30D).size(0.55D),
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build(),
                         of("泡散", KITSUNEBI_PALETTE.at(2))
                                 .damageScale(1.2D)
                                 .identity(1, 1, 0)
                                 .repeatEvery(75)
                                 .at(0, Shape.CONE_RANDOM, Shape.Params.defaults()
-                                        .count(3).spread(70.0D).speed(0.18D).size(0.9D).hover(30),
+                                                .count(3).spread(70.0D).speed(0.18D).size(0.9D),
+                                        Behaviour.NONE.withMotion(Behaviour.Motion.hover(30)),
                                         TargetMode.SELF_AXIS)
                                 .build(),
                         of("斜散", KITSUNEBI_PALETTE.at(0))
@@ -202,8 +213,8 @@ public final class BossCards {
                                 .identity(2, 2, 1)
                                 .repeatEvery(45)
                                 .at(0, Shape.AXIAL_STAR, Shape.Params.defaults()
-                                        .count(1).speed(0.24D).size(0.6D),
-                                        TargetMode.SELF_AXIS)
+                                                .count(1).speed(0.24D).size(0.6D),
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build())));
     }
 
@@ -225,7 +236,7 @@ public final class BossCards {
                                 .phaseStep(9)
                                 .at(0, Shape.RING_FACING, Shape.Params.defaults()
                                         .count(10).gap(60.0D).speed(0.30D).size(0.7D),
-                                        TargetMode.SELF_AXIS)
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build())),
                 new SpellCard("連拍", 0.80D, List.of(
                         of("連射", NOMEN_PALETTE.at(0))
@@ -236,15 +247,17 @@ public final class BossCards {
                                 .phaseStep(13)
                                 .at(0, Shape.RING_FACING, Shape.Params.defaults()
                                         .count(10).gap(60.0D).speed(0.30D).size(0.7D),
-                                        TargetMode.SELF_AXIS)
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build(),
                         of("地連", NOMEN_PALETTE.at(1))
                                 .damageScale(1.15D)
                                 .endless()
                                 .identity(1, 0, 1)
                                 .repeatEvery(60)
-                                .at(0, Shape.GROUND_BAND, Shape.Params.defaults()
-                                        .count(12).radius(5.0D, 0.06D).speed(0.32D).size(0.6D),
+                                .at(0, Shape.SHELL, Shape.Params.defaults()
+                                                .count(12).radius(5.0D, 0.06D).rise(0.15D)
+                                                .speed(0.32D).size(0.6D),
+                                        Behaviour.NONE.withMotion(Behaviour.Motion.groundHug()),
                                         TargetMode.ARENA)
                                 .build())),
                 new SpellCard("乱拍", 0.60D, List.of(
@@ -256,7 +269,7 @@ public final class BossCards {
                                 .phaseStep(-13)
                                 .at(0, Shape.RING_FACING, Shape.Params.defaults()
                                         .count(10).gap(60.0D).speed(0.30D).size(0.7D),
-                                        TargetMode.SELF_AXIS)
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build(),
                         of("天蓋", NOMEN_PALETTE.at(2))
                                 .damageScale(1.3D)
@@ -265,7 +278,7 @@ public final class BossCards {
                                 .repeatEvery(48)
                                 .at(0, Shape.FALL_FROM_ABOVE, Shape.Params.defaults()
                                         .count(9).radius(7.0D).speed(0.26D).size(0.7D),
-                                        TargetMode.SELF_AXIS)
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build())),
                 new SpellCard("急拍", 0.40D, List.of(
                         of("急連", NOMEN_PALETTE.at(0))
@@ -276,15 +289,16 @@ public final class BossCards {
                                 .phaseStep(18)
                                 .at(0, Shape.RING_FACING, Shape.Params.defaults()
                                         .count(10).gap(54.0D).speed(0.34D).size(0.6D),
-                                        TargetMode.SELF_AXIS)
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build(),
                         of("地溜", NOMEN_PALETTE.at(4))
                                 .damageScale(1.45D)
                                 .endless()
                                 .identity(1, 0, 1)
                                 .repeatEvery(36)
-                                .at(0, Shape.MINE_RING, Shape.Params.defaults()
-                                        .count(5).radius(4.5D).speed(0.0D).size(0.55D).mine(1.4D),
+                                .at(0, Shape.SCATTER_STATIC, Shape.Params.defaults()
+                                                .count(5).radius(4.5D).speed(0.0D).size(0.55D),
+                                        Behaviour.NONE.withMotion(Behaviour.Motion.mine(1.4D)),
                                         TargetMode.ARENA)
                                 .build())),
                 // 无終：三轨同时重复但节拍互不同步——玩家找不到共同节奏。
@@ -297,7 +311,7 @@ public final class BossCards {
                                 .phaseStep(16)
                                 .at(0, Shape.RING_FACING, Shape.Params.defaults()
                                         .count(10).gap(54.0D).speed(0.34D).size(0.6D),
-                                        TargetMode.SELF_AXIS)
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build(),
                         of("終連乙", NOMEN_PALETTE.at(1))
                                 .damageScale(1.6D)
@@ -307,15 +321,16 @@ public final class BossCards {
                                 .phaseStep(-16)
                                 .at(0, Shape.CAGE, Shape.Params.defaults()
                                         .count(7).gap(50.0D).speed(0.30D).size(0.6D),
-                                        TargetMode.SELF_AXIS)
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build(),
                         of("定幕", NOMEN_PALETTE.at(4))
                                 .damageScale(1.6D)
                                 .endless()
                                 .identity(2, 2, 1)
                                 .repeatEvery(41)
-                                .at(0, Shape.HOVER_BURST, Shape.Params.defaults()
-                                        .count(7).speed(0.28D).size(0.55D).hover(22),
+                                .at(0, Shape.RADIAL_BURST, Shape.Params.defaults()
+                                                .count(7).speed(0.28D).size(0.55D),
+                                        Behaviour.NONE.withMotion(Behaviour.Motion.hover(22)),
                                         TargetMode.SELF_AXIS)
                                 .build())));
     }

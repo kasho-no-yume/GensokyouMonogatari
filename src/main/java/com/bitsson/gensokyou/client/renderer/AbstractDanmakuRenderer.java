@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client.renderer;
 
+import com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile;
 import com.bitsson.gensokyou.entity.AbstractDanmakuProjectile;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -19,8 +20,18 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
     /** 自发光层使用满亮度，不受环境光影响。 */
     protected static final int FULL_BRIGHT = 0xF000F0;
 
-    /** 外发光放大倍率。 */
-    protected static final float GLOW_SCALE = 1.35F;
+    /**
+     * 外发光放大倍率的<b>历史默认值</b>（1.35）。
+     *
+     * <p>保留仅为文档参照：实际值由 {@code DanmakuVisualProfile} 的 {@code glowScale}
+     * 逐档案给出。改前它是本类的 {@code static final}，全模组唯一。
+     */
+    protected static final float LEGACY_GLOW_SCALE = 1.35F;
+
+    /**
+     * 外发光透明度的<b>历史默认值</b>（110）。同上，实际值由档案的 {@code glowAlpha} 给出。
+     */
+    protected static final int LEGACY_GLOW_ALPHA = 110;
 
     /**
      * 外发光层沿本体所在平面的外法向的推离量（格）。
@@ -35,8 +46,13 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
      */
     protected static final float GLOW_OFFSET = 0.004F;
 
-    /** 外发光透明度。 */
-    protected static final int GLOW_ALPHA = 110;
+    /**
+     * 外发光透明度。实际值由档案的 {@code glowAlpha} 给出，见 {@link #LEGACY_GLOW_ALPHA}。
+     *
+     * @deprecated 保留仅为文档参照，勿用于渲染。
+     */
+    @Deprecated
+    protected static final int GLOW_ALPHA = LEGACY_GLOW_ALPHA;
 
     protected final ResourceLocation texture;
 
@@ -122,22 +138,61 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
     /**
      * 渲染外发光层：在当前变换基础上先沿外法向推离、再放大并以半透明自发光重绘一遍几何。
      * 调用方需保证 poseStack 已处于本体的局部坐标系。
+     *
+     * <p>放大倍率与 alpha 由<b>视觉档案</b>给出，MUST NOT 回到本类的常量——改前
+     * {@code GLOW_SCALE} / {@code GLOW_ALPHA} 是全模组唯一的 {@code static final}，
+     * 致使「按弹调整发光半径」在架构上不可能。
+     *
+     * <p>隐藏态由 {@code dim < 1.0} 表达。本层是<b>加法混合</b>，故 MUST
+     * <b>同时压暗 alpha 与 RGB</b>——只降 alpha 几乎看不出变化：
+     * <pre>
+     *   加法贡献 = rgb × alpha
+     *   辉光是软渐变的【外圈】，其贴图自身 alpha 在峰值外缘已掉到 ~0.2，
+     *   故层 alpha 110 → 55 换算到实际贡献只是 22 → 11（差 11/255，肉眼不可见）。
+     *   同时把 RGB 也按 dim 压暗，贡献按 dim² 下降，辉光才真的暗下去。
+     * </pre>
+     * 实机反馈证实了这一点：先只压暗 alpha 时，辉光那一圈「完全没有变暗的效果」。
+     *
+     * <p>渲染类型 MUST 不变：辉光若不写深度，墙内每一层都参与叠加，反而更亮。
+     * 理由见 {@code SphereDanmakuRenderer#baseRenderType}。
+     *
+     * @param dim 暗态系数（1.0 = 常态）
      */
-    protected void renderGlow(T entity, PoseStack poseStack, MultiBufferSource bufferSource) {
+    protected void renderGlow(T entity, PoseStack poseStack, DanmakuVisualProfile.Profile profile,
+                              int color, float dim, MultiBufferSource bufferSource) {
         if (!entity.hasGlowEffect()) {
             return;
         }
+        int alpha = (int) Math.round(profile.glowAlpha() * dim);
+        int dimmed = dimColor(color, dim);
 
         poseStack.pushPose();
         this.offsetGlow(poseStack);
-        poseStack.scale(GLOW_SCALE, GLOW_SCALE, GLOW_SCALE);
+        float scale = profile.glowScale();
+        poseStack.scale(scale, scale, scale);
 
         VertexConsumer consumer = bufferSource.getBuffer(this.glowRenderType());
-        int color = entity.getColor();
         this.renderShape(entity, poseStack, consumer,
-                red(color), green(color), blue(color), GLOW_ALPHA, FULL_BRIGHT);
+                red(dimmed), green(dimmed), blue(dimmed), alpha, FULL_BRIGHT);
 
         poseStack.popPose();
+    }
+
+    /**
+     * 按 {@code dim} 压暗一个 0xRRGGBB 颜色。
+     *
+     * <p>供<b>加法混合</b>层使用：加法的贡献是 {@code rgb × alpha}，故要让加法层
+     * 真的暗下去，MUST 同时压 alpha 与 rgb。alpha 混合层（本体）用不到这个方法——
+     * 对它而言降低 alpha 就等于降低亮度。
+     */
+    protected static int dimColor(int color, float dim) {
+        if (dim >= 1.0F) {
+            return color;
+        }
+        int r = (int) Math.round(red(color) * dim);
+        int g = (int) Math.round(green(color) * dim);
+        int b = (int) Math.round(blue(color) * dim);
+        return (r << 16) | (g << 8) | b;
     }
 
     /**

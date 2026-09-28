@@ -1,5 +1,9 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.danmaku.DanmakuBudget;
+import com.bitsson.gensokyou.danmaku.SplitSpread;
+import com.bitsson.gensokyou.danmaku.visual.DanmakuPhase;
+import com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -29,6 +33,24 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
     private static final EntityDataAccessor<Float> DATA_SIZE =
             SynchedEntityData.defineId(SphereDanmaku.class, EntityDataSerializers.FLOAT);
 
+    /**
+     * 视觉档案 id。贴图、几何、各层缩放与 alpha 全由档案决定，故此处只同步一个 int。
+     * 越界时 {@code DanmakuVisualProfile#byId} 回落到默认档，绝不抛。
+     */
+    private static final EntityDataAccessor<Integer> DATA_VISUAL =
+            SynchedEntityData.defineId(SphereDanmaku.class, EntityDataSerializers.INT);
+
+    // ---- 相位隐藏（全部由 tickCount 推导，零额外同步包）----
+    /** 隐藏态周期（tick）。0 = 不做相位隐藏。 */
+    private static final EntityDataAccessor<Integer> DATA_PHASE_PERIOD =
+            SynchedEntityData.defineId(SphereDanmaku.class, EntityDataSerializers.INT);
+    /** 可见期占空比（0~1 的百分数，避免同步浮点）。1.0 = 恒可见。 */
+    private static final EntityDataAccessor<Integer> DATA_PHASE_DUTY =
+            SynchedEntityData.defineId(SphereDanmaku.class, EntityDataSerializers.INT);
+    /** 相位偏移（tick），用于逐弹错峰。 */
+    private static final EntityDataAccessor<Integer> DATA_PHASE_OFFSET =
+            SynchedEntityData.defineId(SphereDanmaku.class, EntityDataSerializers.INT);
+
     public SphereDanmaku(EntityType<? extends SphereDanmaku> type, Level level) {
         super(type, level);
     }
@@ -50,6 +72,10 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(DATA_SIZE, 0.4F);
+        builder.define(DATA_VISUAL, DanmakuVisualProfile.defaultId());
+        builder.define(DATA_PHASE_PERIOD, 0);
+        builder.define(DATA_PHASE_DUTY, 100);
+        builder.define(DATA_PHASE_OFFSET, 0);
     }
 
     /** 随机取一个明亮饱和的颜色，避免出现接近黑色的弹幕。 */
@@ -105,31 +131,36 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
         if (!(this.level() instanceof ServerLevel server)) {
             return;
         }
-        Vec3 base = this.getDeltaMovement();
+        Vec3 velocity = this.getDeltaMovement();
         double speed = this.getSpeed();
-        if (speed < 1.0E-4D) {
-            // 母弹已定住（悬停弹分裂）：以自轴均匀取一圈，速度沿用定住前的设定值。
-            base = new Vec3(0, -1, 0);
-            speed = 0.25D;
-        }
-        Vec3 normal = base.normalize();
-        Vec3 ref = Math.abs(normal.y) < 0.9D ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0);
-        Vec3 right = normal.cross(ref).normalize();
-        Vec3 up = normal.cross(right).normalize();
+        // 分布方式按<b>母弹是否在动</b>选，不是按「速度为零时的任意方向近似」：
+        //   在动 → 环状：垂直于飞行方向的圆（子弹幕的常规读法）
+        //   静止 → 球面：四面八方（需求⑤「停住后炸开」）
+        // 此前母弹静止时被强行取 (0,-1,0) 当作「方向」，结果子代均分于一个
+        // 水平圆上——那是「环状炸开」而非「四面八方」，且玩家可以站进环心的安全区。
+        int emitted = 0;
         for (int i = 0; i < count; i++) {
-            double angle = Math.PI * 2.0D * i / count;
-            Vec3 dir = right.scale(Math.cos(angle)).add(up.scale(Math.sin(angle)));
+            // 分裂子代 MUST 同样受弹幕上限约束：否则多重分裂可把上限直接顶穿。
+            // 达上限即停止生成剩余子代。
+            if (!DanmakuBudget.canEmit(server)) {
+                break;
+            }
             SphereDanmaku child = new SphereDanmaku(server, this.getOwner() instanceof LivingEntity owner
                     ? owner : null, this.damage, this.getColor(), this.getSize(), Set.of());
             child.setFromWeapon(this.isFromWeapon());
             child.setCritMult(this.getCritMult());
+            child.setLifetimeTicks(this.getLifetimeTicks());
             child.moveTo(this.getX(), this.getY(), this.getZ(), 0F, 0F);
-            child.setDirection(dir, speed);
+            child.setDirection(
+                    SplitSpread.forMotion(velocity, speed, i, count, this.getSize()),
+                    SplitSpread.childSpeed(speed, this.getSize()));
             server.addFreshEntity(child);
+            DanmakuBudget.recordEmit();
+            emitted++;
         }
+        DanmakuBudget.recordSplit(emitted, count);
     }
 
-    @Override
     public boolean hasGlowEffect() {
         return true;
     }
@@ -149,18 +180,111 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
     }
 
     /**
-     * 碰撞箱 = 视觉直径。此覆写让判定与观感一致，也是「看着打中了却不掉血」的根因修复。
+     * 碰撞箱 = 视觉直径 × 档案的 {@code hitboxScale}。
+     *
+     * <p>档案把<b>视觉缩放</b>与<b>碰撞缩放</b>拆成两个字段，是为了让「换模型」不必
+     * 连带改动判定——模型的视觉尺寸与四边形无关，若继续共用一个 {@code size}，
+     * 换模型就会破坏这条刚修好的不变量。默认档案两者皆 1.0，故行为与改前完全一致。
      */
     @Override
     public EntityDimensions getDimensions(Pose pose) {
-        float size = Math.max(0.05F, getSize());
+        float size = Math.max(0.05F, getSize() * visualProfile().hitboxScale());
         return EntityDimensions.scalable(size, size);
+    }
+
+    // ------------------------------------------------------------------
+    // 视觉档案
+    // ------------------------------------------------------------------
+
+    /** 当前视觉档案。越界自动回落到默认档。 */
+    public DanmakuVisualProfile.Profile visualProfile() {
+        return DanmakuVisualProfile.byId(this.entityData.get(DATA_VISUAL));
+    }
+
+    /** 设定视觉档案。传入档案本身（自动解析为 id），避免手写 id 出错。 */
+    public void setVisualProfile(DanmakuVisualProfile.Profile profile) {
+        for (int i = 0; i < DanmakuVisualProfile.size(); i++) {
+            if (DanmakuVisualProfile.byId(i) == profile) {
+                this.entityData.set(DATA_VISUAL, i);
+                return;
+            }
+        }
+        throw new IllegalArgumentException("档案不在注册表内: " + profile);
+    }
+
+    /** 当前档案 id。 */
+    public int getVisualId() {
+        return this.entityData.get(DATA_VISUAL);
+    }
+
+    // ------------------------------------------------------------------
+    // 相位隐藏态
+    // ------------------------------------------------------------------
+
+    /**
+     * 设定相位隐藏。
+     *
+     * @param periodTicks 周期（tick）。≤ 0 关闭
+     * @param duty        可见期占空比，(0,1]。1 = 恒可见
+     * @param phaseOffset 相位偏移（tick），逐弹错峰用
+     */
+    public void configurePhaseHide(int periodTicks, double duty, int phaseOffset) {
+        this.entityData.set(DATA_PHASE_PERIOD, Math.max(0, periodTicks));
+        this.entityData.set(DATA_PHASE_DUTY, (int) Math.round(Math.min(1.0D, Math.max(0.0D, duty)) * 100.0D));
+        this.entityData.set(DATA_PHASE_OFFSET, phaseOffset);
+    }
+
+    /**
+     * 本 tick 是否处于隐藏态。
+     *
+     * <p>隐藏态下渲染 alpha 降至档案的 {@code hiddenAlpha}，且
+     * {@link #canHitEntity} 对本弹返回 false——即
+     * {@link DanmakuHitScan} 找不到任何命中，弹<b>既不判伤也不销毁</b>，
+     * 且玩家可从其上直接穿过。
+     *
+     * <p><b>方块碰撞不受影响</b>：隐藏态只关掉实体判定，方块判定仍照常进行，
+     * 故弹撞上方块仍会消失。
+     */
+    public boolean isHidden() {
+        return DanmakuPhase.isHidden(this.tickCount, phasePeriodTicks(), phaseDuty(), phaseOffset());
+    }
+
+    /**
+     * 隐藏态时跳过实体命中判定。
+     *
+     * <p>这是「隐藏态不判伤且不销毁」的全部实现——{@code canHitEntity} 返回 false 后，
+     * {@code DanmakuHitScan} 找不到实体命中，而方块分支独立于本谓词，故弹照常撞墙消失。
+     */
+    @Override
+    protected boolean canHitEntity(Entity target) {
+        if (this.isHidden()) {
+            return false;
+        }
+        return super.canHitEntity(target);
+    }
+
+    private int phasePeriodTicks() {
+        return this.entityData.get(DATA_PHASE_PERIOD);
+    }
+
+    private double phaseDuty() {
+        return this.entityData.get(DATA_PHASE_DUTY) / 100.0D;
+    }
+
+    private int phaseOffset() {
+        return this.entityData.get(DATA_PHASE_OFFSET);
     }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putFloat("Size", this.getSize());
+        tag.putInt("Visual", this.getVisualId());
+        if (phasePeriodTicks() > 0) {
+            tag.putInt("PhasePeriod", phasePeriodTicks());
+            tag.putInt("PhaseDuty", this.entityData.get(DATA_PHASE_DUTY));
+            tag.putInt("PhaseOffset", phaseOffset());
+        }
     }
 
     @Override
@@ -168,6 +292,14 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
         super.readAdditionalSaveData(tag);
         if (tag.contains("Size")) {
             this.setSize(tag.getFloat("Size"));
+        }
+        if (tag.contains("Visual")) {
+            this.entityData.set(DATA_VISUAL, tag.getInt("Visual"));
+        }
+        if (tag.contains("PhasePeriod")) {
+            this.entityData.set(DATA_PHASE_PERIOD, tag.getInt("PhasePeriod"));
+            this.entityData.set(DATA_PHASE_DUTY, tag.getInt("PhaseDuty"));
+            this.entityData.set(DATA_PHASE_OFFSET, tag.getInt("PhaseOffset"));
         }
     }
 }

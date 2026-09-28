@@ -1,5 +1,10 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.danmaku.DanmakuBudget;
+import com.bitsson.gensokyou.danmaku.DanmakuHitScan;
+import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
+import com.bitsson.gensokyou.danmaku.motion.RigOrbit;
+import com.bitsson.gensokyou.danmaku.motion.Rotation;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
@@ -10,7 +15,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -91,8 +95,75 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     /** 悬停/溜め弹的接触判定外扩（格）。定住后 moveVector 追踪失效，改用 AABB 相交。 */
     private static final double STATIONARY_HIT_INFLATE = 0.35D;
 
-    /** 存活时间，发射方可按核覆写（散弹等短射程行为）。 */
-    private int lifetimeTicks = MAX_LIFETIME_TICKS;
+    /**
+     * 存活时长（tick）。发射方可按核覆写（散弹等短射程行为）。
+     *
+     * <p><b>必须是同步字段</b>，不得退回普通字段：它由发射方给定、<b>不可由
+     * {@code tickCount} 派生</b>，因此不满足下方 {@link #splitFired} 那条注释所确立的
+     * 「普通字段可用」的前提。曾经是普通字段，后果有二：短寿命弹（散弹）重载后回落成
+     * 60s 弹，且客户端永远不知道覆写值。
+     */
+    private static final EntityDataAccessor<Integer> DATA_LIFETIME =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+
+    // ---- 速率曲线（两段：v0→v1 用 p0 tick，v1→v2 用 p1 tick，之后保持 v2）----
+    // 只用四则运算，不用 Math.sin/cos：双端各自推进同一颗弹，超越函数不保证跨平台一致。
+    private static final EntityDataAccessor<Integer> DATA_PROFILE_V0 =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PROFILE_P0 =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PROFILE_V1 =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PROFILE_P1 =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PROFILE_V2 =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PROFILE_P2 =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PROFILE_V3 =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /** 是否有速率曲线（false = 恒速，走旧路径）。 */
+    private static final EntityDataAccessor<Boolean> DATA_HAS_PROFILE =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.BOOLEAN);
+
+    /**
+     * 运动方向轴（单位向量）。
+     *
+     * <p><b>为什么必须单独存</b>——速率曲线会把速度降到 0，而零速时
+     * {@code deltaMovement} 退化为零向量、<b>方向不可恢复</b>。等速率回升到负值
+     * （「停住后反向」）时若没有这份轴，就无从知道该往哪反。
+     *
+     * <p>只在挂曲线时维护；无曲线时方向隐含于 {@code deltaMovement}，不额外占带宽。
+     */
+    private static final EntityDataAccessor<Float> DATA_AXIS_X =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DATA_AXIS_Y =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<Float> DATA_AXIS_Z =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.FLOAT);
+
+    /** 曲线标量的定点缩放：存成 int，避免逐弹同步浮点。 */
+    private static final double PROFILE_SCALE = 1000.0D;
+
+    // ---- 编队装置引用 ----
+    /**
+     * 所属装置的<b>网络 id</b>；0 = 不挂装置（自由飞行）。
+     *
+     * <p><b>为什么是网络 id 而不是装置序号</b>：一个符卡可有 1~3 条并发轨道、
+     * 各自持有装置。序号在「多装置并存」时需要额外一张序号→实体的映射表，而那张表
+     * 本身又得同步；网络 id 由实体的生成包直接带过来，归属天然无歧义、零额外带宽。
+     *
+     * <p><b>为什么只同步这一个 int 加一个相位角</b>（需求「带宽不随队形规模增长」）：
+     * 装置的轨道参数只存在装置上那一份。48 颗弹各自复制一份参数就是 48 份带宽，
+     * 队形一大需求就作废了。
+     */
+    private static final EntityDataAccessor<Integer> DATA_RIG_ID =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /** 自身相位角，弧度，定标为 1/1000 弧度。 */
+    private static final EntityDataAccessor<Integer> DATA_RIG_PHASE =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /** 相位角定标。 */
+    private static final double PHASE_SCALE = 1000.0D;
 
     /**
      * 位置纠偏阈值（平方）。双端运动学一致时误差极小，
@@ -147,6 +218,10 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     /**
      * 一次性触发守卫。刻意用<b>普通字段</b>而非同步字段：两端 tick 次数相同，
      * 故由 {@code tickCount} 派生的守卫值天然一致。分裂/悬停的幂等性由此保证。
+     *
+     * <p><b>此模式仅适用于「可由 {@code tickCount} 派生」的状态。</b>不可派生的状态
+     * （如 {@code DATA_LIFETIME}，由发射方给定）MUST 走 {@link SynchedEntityData}
+     * 并纳入存档。
      */
     private boolean splitFired = false;
 
@@ -187,19 +262,56 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         builder.define(DATA_CURVE_AXIS, 0);
         builder.define(DATA_CURVE_RATE, 0.0F);
         builder.define(DATA_MINE_RADIUS, 0.0F);
+        builder.define(DATA_LIFETIME, MAX_LIFETIME_TICKS);
+        builder.define(DATA_PROFILE_V0, 0);
+        builder.define(DATA_PROFILE_P0, 0);
+        builder.define(DATA_PROFILE_V1, 0);
+        builder.define(DATA_PROFILE_P1, 0);
+        builder.define(DATA_PROFILE_V2, 0);
+        builder.define(DATA_PROFILE_P2, 0);
+        builder.define(DATA_PROFILE_V3, 0);
+        builder.define(DATA_RIG_ID, 0);
+        builder.define(DATA_RIG_PHASE, 0);
+        builder.define(DATA_HAS_PROFILE, false);
+        builder.define(DATA_AXIS_X, 0.0F);
+        builder.define(DATA_AXIS_Y, 0.0F);
+        builder.define(DATA_AXIS_Z, 1.0F);
     }
 
     @Override
     public void tick() {
+        long started = System.nanoTime();
+        try {
+            tickDanmaku();
+        } finally {
+            DanmakuBudget.recordTickNanos(System.nanoTime() - started);
+        }
+    }
+
+    private void tickDanmaku() {
+        // 挂装置的弹：先把速度设成「解析终点 − 当前坐标」，再让 super.tick() 的位移
+        // 把它推到终点。
+        //
+        // <p>这个顺序是 rig 存在的意义所在：位移后位置<b>逐位等于</b>解析值，
+        // 于是不累积误差、lerpTo 永远看不到误差（也就不需要纠偏包），
+        // 而原版的碰撞/扫掠管线一行都不用改。
+        //
+        // <p>MUST 在 super.tick() 之前：之后位置已经是终点了，再设速度会变成下一 tick 的。
+        if (this.entityData.get(DATA_RIG_ID) != 0) {
+            applyRigMotion();
+        }
         super.tick();
 
-        if (this.tickCount > this.lifetimeTicks) {
+        if (this.tickCount > getLifetimeTicks()) {
             this.discard();
             return;
         }
 
         // 溜め：完全静止。它<b>不</b>做接触判伤（那是溜め弹的语义：埋着，等人踩），
         // 故直接早退，两端的位移均为零，行为天然一致。
+        //
+        // <p>MINE 与挂装置互斥（静态判据见 {@code Behaviour} 的 {@code Rig}）：溜め弹
+        // 的语义是「原地埋着等人踩」，而装置弹的位置由装置决定，两者无法同时成立。
         if (isMine()) {
             this.setDeltaMovement(Vec3.ZERO);
             this.updateRotationFromVelocity();
@@ -230,50 +342,63 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             this.setDeltaMovement(velocity);
         }
 
+        // 速率曲线：只改速率、不改方向，故曲线内含「回头」时位移会变成负的，
+        // 弹沿原路飞回发射点。回到即销毁。
+        if (this.hasSpeedProfile()) {
+            DanmakuSpeedProfile profile = speedProfile();
+            velocity = alongAxis(velocity, profile.speedAt(this.tickCount));
+            this.setDeltaMovement(velocity);
+            if (profile.returnedToOrigin(this.tickCount)) {
+                this.discard();
+                return;
+            }
+        }
+
         if (stationary) {
             this.checkStationaryEntityHit();
             return;
         }
 
-        HitResult hitResult = ProjectileUtil.getHitResultOnMoveVector(this, this::canHitEntity);
-        if (hitResult.getType() != HitResult.Type.MISS) {
+        HitResult hitResult = DanmakuHitScan.sweep(this, LivingEntity.class, this::canHitEntity);
+        if (hitResult != null) {
             this.onHit(hitResult);
             if (this.isRemoved()) {
                 return;
             }
         }
 
-        // 匀速前进，不施加任何阻力
+        // 位移手工推进：弹幕的碰撞判定已在上面的扫掠里做完，原版 move() 的
+        // 实体推挤/台阶处理对「按脚本编排的弹幕」只会造成位置漂移。
         this.setPos(this.getX() + velocity.x, this.getY() + velocity.y, this.getZ() + velocity.z);
         this.updateRotationFromVelocity();
     }
 
-    // ------------------------------------------------------------------
-    // 扩展行为实现
-    // ------------------------------------------------------------------
+    // ---------------------------------------------------------------
+    // 行为标志位
+    // ---------------------------------------------------------------
 
     private int flags() {
         return this.entityData.get(DATA_FLAGS) & 0xFF;
     }
 
     private void addFlag(int flag) {
-        this.entityData.set(DATA_FLAGS, (byte) (flags() | flag));
+        this.entityData.set(DATA_FLAGS, (byte) (this.flags() | flag));
     }
 
     public boolean isCurving() {
-        return (flags() & FLAG_CURVE) != 0 && Math.abs(curveRate()) > 1.0E-4F;
+        return (this.flags() & FLAG_CURVE) != 0 && Math.abs(this.curveRate()) > 1.0E-4F;
     }
 
     public boolean isSplitting() {
-        return (flags() & FLAG_SPLIT) != 0 && splitCount() > 0;
+        return (this.flags() & FLAG_SPLIT) != 0 && this.splitCount() > 0;
     }
 
     public boolean isHovering() {
-        return (flags() & FLAG_HOVER) != 0 && hoverTick() > 0;
+        return (this.flags() & FLAG_HOVER) != 0 && this.hoverTick() > 0;
     }
 
     public boolean isMine() {
-        return (flags() & FLAG_MINE) != 0 && mineRadius() > 0.0F;
+        return (this.flags() & FLAG_MINE) != 0 && this.mineRadius() > 0.0F;
     }
 
     public int hoverTick() {
@@ -296,21 +421,20 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         return this.entityData.get(DATA_MINE_RADIUS);
     }
 
-    /** 曲射轴。打包为 (yaw, pitch) 两个角度，转出单位向量。 */
+    /**
+     * 曲射轴。
+     *
+     * <p>存的是<b>打包的两个角度</b>（高 16 位 = 下转，低 16 位 = 俯仰）而非三轴向量：
+     * 角度取值有界、量级一致，不会出现「某个客户端算出 1e-17 分量的轴导致整条
+     * 曲射塌成一条直线」。
+     */
     public Vec3 curveAxis() {
         int packed = this.entityData.get(DATA_CURVE_AXIS);
         float yawDeg = (packed >>> 16) & 0xFFFF;
         float pitchDeg = packed & 0xFFFF;
-        double yaw = Math.toRadians(yawDeg);
-        double pitch = Math.toRadians(pitchDeg);
-        double cp = Math.cos(pitch);
-        return new Vec3(-Math.sin(yaw) * cp, -Math.sin(pitch), Math.cos(yaw) * cp);
+        return Rotation.axisFromAngles(yawDeg, pitchDeg);
     }
 
-    /**
-     * 曲射配置。{@code axis} 会被归一化为 (yaw, pitch) 打包下发，
-     * {@code rateDegPerSec} 的符号决定旋向。
-     */
     public void configureCurve(Vec3 axis, double rateDegPerSec) {
         if (axis.lengthSqr() < 1.0E-9D || Math.abs(rateDegPerSec) < 1.0E-4D) {
             return;
@@ -318,44 +442,175 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         Vec3 unit = axis.normalize();
         double yawDeg = Mth.wrapDegrees(Math.toDegrees(Math.atan2(-unit.x, unit.z)));
         double pitchDeg = Mth.wrapDegrees(Math.toDegrees(Math.asin(Mth.clamp(-unit.y, -1.0D, 1.0D))));
-        int yawPart = (Mth.clamp((int) Math.round(yawDeg), 0, 0xFFFF)) & 0xFFFF;
-        int pitchPart = (Mth.clamp((int) Math.round(pitchDeg), 0, 0xFFFF)) & 0xFFFF;
+        int yawPart = Mth.clamp((int) Math.round(yawDeg), 0, 0xFFFF) & 0xFFFF;
+        int pitchPart = Mth.clamp((int) Math.round(pitchDeg), 0, 0xFFFF) & 0xFFFF;
         this.entityData.set(DATA_CURVE_AXIS, (yawPart << 16) | pitchPart);
         this.entityData.set(DATA_CURVE_RATE, (float) rateDegPerSec);
         this.addFlag(FLAG_CURVE);
     }
 
-    /**
-     * 悬停配置：到达 {@code tick} 后速度归零并定住。
-     *
-     * <p>定住后仍会做 AABB 接触判伤（见 {@link #checkStationaryEntityHit}），
-     * 故悬停弹是「网的静止节点」而不是打不到人的装饰。
-     */
     public void configureHover(int tick) {
-        if (tick <= 0) {
-            return;
+        if (tick > 0) {
+            this.entityData.set(DATA_HOVER_TICK, tick);
+            this.addFlag(FLAG_HOVER);
         }
-        this.entityData.set(DATA_HOVER_TICK, tick);
-        this.addFlag(FLAG_HOVER);
     }
 
-    /** 分裂配置：到达 {@code tick} 散成 {@code count} 发。{@code count <= 1} 时不生效。 */
     public void configureSplit(int tick, int count) {
-        if (tick < 0 || count <= 1) {
-            return;
+        if (tick >= 0 && count > 1) {
+            this.entityData.set(DATA_SPLIT_TICK, tick);
+            this.entityData.set(DATA_SPLIT_COUNT, count);
+            this.addFlag(FLAG_SPLIT);
         }
-        this.entityData.set(DATA_SPLIT_TICK, tick);
-        this.entityData.set(DATA_SPLIT_COUNT, count);
-        this.addFlag(FLAG_SPLIT);
     }
 
-    /** 溜め配置：完全静止，玩家进入 {@code radius} 格内触发。 */
     public void configureMine(double radius) {
         if (radius <= 0.0D) {
             return;
         }
         this.entityData.set(DATA_MINE_RADIUS, (float) radius);
         this.addFlag(FLAG_MINE);
+    }
+
+    public void configureSpeedProfile(DanmakuSpeedProfile profile) {
+        if (profile == null || !profile.varies()) {
+            return;
+        }
+        this.entityData.set(DATA_PROFILE_V0, scale(profile.v0()));
+        this.entityData.set(DATA_PROFILE_P0, scale(profile.p0()));
+        this.entityData.set(DATA_PROFILE_V1, scale(profile.v1()));
+        this.entityData.set(DATA_PROFILE_P1, scale(profile.p1()));
+        this.entityData.set(DATA_PROFILE_V2, scale(profile.v2()));
+        this.entityData.set(DATA_PROFILE_P2, scale(profile.p2()));
+        this.entityData.set(DATA_PROFILE_V3, scale(profile.v3()));
+        // 趁速度非零时记下方向轴：曲线会把速率降到 0，零速时方向不可恢复。
+        Vec3 velocity = this.getDeltaMovement();
+        if (velocity.lengthSqr() > 1.0E-9D) {
+            this.setAxis(velocity.normalize());
+        }
+        this.entityData.set(DATA_HAS_PROFILE, true);
+    }
+
+    public boolean hasSpeedProfile() {
+        return this.entityData.get(DATA_HAS_PROFILE);
+    }
+
+    public DanmakuSpeedProfile speedProfile() {
+        return new DanmakuSpeedProfile(
+                unscale(this.entityData.get(DATA_PROFILE_V0)),
+                unscale(this.entityData.get(DATA_PROFILE_P0)),
+                unscale(this.entityData.get(DATA_PROFILE_V1)),
+                unscale(this.entityData.get(DATA_PROFILE_P1)),
+                unscale(this.entityData.get(DATA_PROFILE_V2)),
+                unscale(this.entityData.get(DATA_PROFILE_P2)),
+                unscale(this.entityData.get(DATA_PROFILE_V3)));
+    }
+
+    private void setAxis(Vec3 axis) {
+        this.entityData.set(DATA_AXIS_X, (float) axis.x);
+        this.entityData.set(DATA_AXIS_Y, (float) axis.y);
+        this.entityData.set(DATA_AXIS_Z, (float) axis.z);
+    }
+
+    private Vec3 axis() {
+        return new Vec3(this.entityData.get(DATA_AXIS_X), this.entityData.get(DATA_AXIS_Y),
+                this.entityData.get(DATA_AXIS_Z));
+    }
+
+    /**
+     * 把速度矢量重定向到该弹的轴、速率改为 {@code speed}（可负 = 回头）。
+     *
+     * <p>速度矢量非零时以它为准（曲射已在本 tick 改过方向），否则回落到记录的轴。
+     */
+    private Vec3 alongAxis(Vec3 velocity, double speed) {
+        Vec3 dir = velocity.lengthSqr() > 1.0E-9D ? velocity.normalize() : axis();
+        if (dir.lengthSqr() < 1.0E-9D) {
+            return Vec3.ZERO;
+        }
+        return dir.normalize().scale(speed);
+    }
+
+    // ---------------------------------------------------------------
+    // 编队装置（rig）
+    // ---------------------------------------------------------------
+
+    /**
+     * 挂到装置上。此后本弹的位置不再由自身速度决定，而由
+     * 「装置的 tick + 本弹的相位角」唯一确定。
+     *
+     * <p>MUST 在 {@code setDirection} <b>之后</b>调用：装置会接管位置，
+     * 几何给的初速随即失效，留着它只会让人以为速度仍然算数。
+     *
+     * @param rig      装置实体
+     * @param phaseRad 自身相位角（弧度）
+     */
+    public void bindToRig(DanmakuRig rig, double phaseRad) {
+        this.entityData.set(DATA_RIG_ID, rig.getId());
+        this.entityData.set(DATA_RIG_PHASE, (int) Math.round(phaseRad * PHASE_SCALE));
+    }
+
+    /** 本弹是否挂在装置上。 */
+    public boolean isRigBound() {
+        return this.entityData.get(DATA_RIG_ID) != 0;
+    }
+
+    /** 自身相位角（弧度）。 */
+    public double rigPhase() {
+        return this.entityData.get(DATA_RIG_PHASE) / PHASE_SCALE;
+    }
+
+    /**
+     * 解析出所属装置。
+     *
+     * <p><b>装置没了就脱钩</b>（需求「不残留引用失效装置的子弹」）：把 rig id 清零，
+     * 本弹保留当前速度继续自由飞行。
+     *
+     * <p>之所以选「自由飞行」而不是「一并销毁」：装置随符卡阶段结束而销毁，
+     * 此时场上还有半屏弹在飞，全部突然消失读作「BOSS 放空了」；
+     * 让它们沿当前动量飞完则是「这一轮到此为止」。
+     */
+    private DanmakuRig resolveRig() {
+        int id = this.entityData.get(DATA_RIG_ID);
+        if (id == 0) {
+            return null;
+        }
+        if (!(this.level().getEntity(id) instanceof DanmakuRig rig) || rig.isRemoved()) {
+            this.entityData.set(DATA_RIG_ID, 0);
+            return null;
+        }
+        return rig;
+    }
+
+    /**
+     * 把本 tick 的位置改由装置决定。
+     *
+     * <p>速度取「解析终点 − 当前坐标」，随后 {@code super.tick()} 的位移正好落在终点。
+     * 于是位置每 tick 被<b>重置</b>成解析值，误差不累积；扫掠、朝向、纠偏阈值
+     * 全部沿用既有管线，无需为 rig 写第二套运动。
+     */
+    private void applyRigMotion() {
+        DanmakuRig rig = resolveRig();
+        if (rig == null) {
+            return;
+        }
+        if (rig.expired()) {
+            this.entityData.set(DATA_RIG_ID, 0);
+            return;
+        }
+        RigOrbit orbit = rig.orbit();
+        // 用装置的 tick 而非本弹的 age：后者会让不同时刻加入的弹各转各的，
+        // 队形在加入那一瞬就散了。
+        int t = rig.tickCount + 1;
+        Vec3 next = orbit.bulletPositionAt(t, this.rigPhase());
+        this.setDeltaMovement(next.subtract(this.position()));
+    }
+
+    private static int scale(double value) {
+        return (int) Math.round(value * PROFILE_SCALE);
+    }
+
+    private static double unscale(int value) {
+        return value / PROFILE_SCALE;
     }
 
     /** 触发分裂。仅服务端有意义（子弹是服务端新建实体），两端都会执行以保持时序一致。 */
@@ -365,88 +620,66 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         this.discard();
     }
 
-    /**
-     * 生成子弹幕。默认不生成——各弹种的外形参数（尺寸、颜色）子类才知道，
-     * 故由 {@link SphereDanmaku} / {@link KnifeDanmaku} 各自覆写。
-     */
     protected void spawnSplitChildren(int count) {
     }
 
-    /** 溜め触发判定。仅服务端结算。 */
     private void tickMine() {
-        if (!(this.level() instanceof ServerLevel server)) {
+        if (!(this.level() instanceof ServerLevel server) || this.tickCount < 20) {
             return;
         }
-        if (this.tickCount < MINE_ARM_TICKS) {
-            return;
-        }
-        double radiusSq = this.mineRadius() * this.mineRadius();
+        double radiusSqr = this.mineRadius() * this.mineRadius();
         AABB box = this.getBoundingBox().inflate(this.mineRadius());
-        List<Entity> candidates = server.getEntities(this, box, this::canHitEntity);
-        for (Entity candidate : candidates) {
-            if (candidate.distanceToSqr(this) <= radiusSq) {
+        for (LivingEntity candidate : server.getEntitiesOfClass(LivingEntity.class, box, this::canHitEntity)) {
+            if (candidate.distanceToSqr(this) <= radiusSqr) {
                 this.onMineTriggered(candidate);
                 return;
             }
         }
     }
 
-    /**
-     * 溜め被踩时的结算。默认：若本弹声明了分裂则炸成一圈子弹，否则只消失。
-     * 子类可覆写为范围判伤等。
-     */
     protected void onMineTriggered(Entity trigger) {
-        if (isSplitting()) {
-            this.spawnSplitChildren(Math.max(2, splitCount()));
+        if (this.isSplitting()) {
+            this.spawnSplitChildren(Math.max(2, this.splitCount()));
         }
         this.discard();
     }
 
-    /**
-     * 定住弹的接触判伤。零速度下 {@code getHitResultOnMoveVector} 恒为 MISS，
-     * 故改用外扩 AABB 取最近命中者，与运动弹的判伤入口保持一致。
-     */
+    /** 静止弹的命中判定：零位移下扫掠必然返回 MISS，故改用 AABB 相交。 */
     private void checkStationaryEntityHit() {
-        List<Entity> candidates = this.level().getEntities(
-                this, this.getBoundingBox().inflate(STATIONARY_HIT_INFLATE), this::canHitEntity);
-        Entity nearest = null;
+        List<LivingEntity> candidates = this.level().getEntitiesOfClass(LivingEntity.class,
+                this.getBoundingBox().inflate(0.35D), this::canHitEntity);
+        LivingEntity nearest = null;
         double best = Double.MAX_VALUE;
-        for (Entity candidate : candidates) {
-            double dist = candidate.distanceToSqr(this.position());
-            if (dist < best) {
-                best = dist;
+        for (LivingEntity candidate : candidates) {
+            double distance = candidate.distanceToSqr(this.position());
+            if (distance < best) {
+                best = distance;
                 nearest = candidate;
             }
         }
         if (nearest != null) {
-            this.onHitEntity(new EntityHitResult(nearest, nearest.position().subtract(
-                    this.position().add(0.0D, this.getBbHeight() * 0.5D, 0.0D))));
+            this.onHitEntity(new EntityHitResult(nearest,
+                    nearest.position().subtract(this.position().add(0.0D, this.getBbHeight() * 0.5D, 0.0D))));
         }
     }
 
-    /** 绕任意轴旋转向量（罗德里格公式）。轴须为单位向量。 */
+    /**
+     * 绕指定轴旋转。
+     *
+     * <p>委托给 {@link Rotation}：曲射轴与 rig 的公转/自转共用同一条 Rodrigues 实现，
+     * 「曲射的手感」与「装置公转的手感」才是同一条曲线族，而不是两处各写一遍的近似。
+     */
     private static Vec3 rotateAbout(Vec3 vec, Vec3 axis, double angleRad) {
-        double dot = axis.dot(vec);
-        Vec3 cross = axis.cross(vec);
-        return vec.scale(Math.cos(angleRad))
-                .add(cross.scale(Math.sin(angleRad)))
-                .add(axis.scale(dot * (1.0D - Math.cos(angleRad))));
+        return Rotation.about(vec, axis, angleRad);
     }
 
-    /**
-     * 让朝向跟随速度方向，飞刀渲染依赖这个。
-     *
-     * <p>注意：不要在这里覆写 xRotO/yRotO。原版每 tick 前会调用 setOldPosAndRot()
-     * 维护上一 tick 的值，渲染时靠它做插值；手动覆写会让插值失效并产生阶梯感。
-     */
     protected void updateRotationFromVelocity() {
         Vec3 velocity = this.getDeltaMovement();
         if (velocity.lengthSqr() < 1.0E-7D) {
             return;
         }
-        double horizontal = velocity.horizontalDistance();
-        this.setYRot((float) (Mth.atan2(velocity.x, velocity.z) * (180D / Math.PI)));
-        this.setXRot((float) (Mth.atan2(velocity.y, horizontal) * (180D / Math.PI)));
+        this.setYRot((float) (Mth.atan2(velocity.x, velocity.z) * (180.0D / Math.PI)));
+        this.setXRot((float) (Mth.atan2(velocity.y, velocity.horizontalDistance()) * (180.0D / Math.PI)));
     }
 
     /**
@@ -457,11 +690,20 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
      */
     @Override
     public void lerpTo(double x, double y, double z, float yaw, float pitch, int steps) {
-        double errorSqr = this.position().distanceToSqr(x, y, z);
-        if (errorSqr > POSITION_CORRECTION_THRESHOLD_SQR) {
+        // 误差 MUST 在 setPos 之前取，否则清零。
+        Vec3 error = new Vec3(x, y, z).subtract(this.position());
+        Vec3 velocity = this.getDeltaMovement();
+        if (error.lengthSqr() > POSITION_CORRECTION_THRESHOLD_SQR) {
+            DanmakuBudget.recordHardCorrection(velocity.length());
             this.setPos(x, y, z);
             this.setYRot(yaw);
             this.setXRot(pitch);
+        }
+        // 滞后诊断：把误差投影到速度方向，即得该弹的滞后 tick 数。
+        // 静止弹（速度过低）投影无定义，不计入——它们本就无滞后可言。
+        double speedSqr = velocity.lengthSqr();
+        if (speedSqr > 1.0E-9D) {
+            DanmakuBudget.recordLag(error.dot(velocity) / speedSqr);
         }
     }
 
@@ -499,7 +741,7 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
      * 直到位置误差超阈值被硬拽——表现为「先错后跳」。
      * 设置 hurtMarked 让原版在下个 tick 下发运动包，客户端立刻对齐。
      *
-     * <p>注意：实体内部每 tick 的转向（如灵符追踪、曲射）应直接调 setDeltaMovement，
+     * <p>注意：实体内部每 tick 的转向（如曲射）应直接调 setDeltaMovement，
      * 不要走本接口，否则会每 tick 发一次运动包。
      */
     public void setVelocity(Vec3 velocity) {
@@ -513,38 +755,21 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         this.setVelocity(direction.normalize().scale(speed));
     }
 
-    /** 叠加一个速度增量。 */
     public void addVelocity(Vec3 deltaVelocity) {
         this.setVelocity(this.getDeltaMovement().add(deltaVelocity));
     }
 
-    /** 当前速率。 */
     public double getSpeed() {
         return this.getDeltaMovement().length();
     }
 
-    // ---------------------------------------------------------------
-    // 白名单
-    // ---------------------------------------------------------------
-
-    /** 发射者与白名单内的实体类型不受伤害，也不阻挡弹幕。 */
     protected boolean isWhitelisted(Entity entity) {
-        if (entity == null) {
-            return false;
-        }
-        if (entity == this.getOwner()) {
-            return true;
-        }
-        return this.whitelist.contains(entity.getType());
+        return entity != null && (entity == this.getOwner() || this.whitelist.contains(entity.getType()));
     }
 
     public void setWhitelist(Set<EntityType<?>> whitelist) {
-        this.whitelist = (whitelist == null) ? new HashSet<>() : new HashSet<>(whitelist);
+        this.whitelist = whitelist == null ? new HashSet<>() : new HashSet<>(whitelist);
     }
-
-    // ---------------------------------------------------------------
-    // 访问器
-    // ---------------------------------------------------------------
 
     public float getDamage() {
         return this.damage;
@@ -554,7 +779,6 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         this.damage = damage;
     }
 
-    /** 发射时 roll 出的暴击系数（1=未暴击），仅服务端使用。 */
     public float getCritMult() {
         return this.critMult;
     }
@@ -563,7 +787,6 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         this.critMult = critMult;
     }
 
-    /** 是否主武器发射。灵力汲取仅对武器弹生效。 */
     public boolean isFromWeapon() {
         return this.fromWeapon;
     }
@@ -572,9 +795,12 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         this.fromWeapon = fromWeapon;
     }
 
-    /** 覆写存活时间（tick），用于短射程发射行为。 */
     public void setLifetimeTicks(int ticks) {
-        this.lifetimeTicks = Math.max(1, ticks);
+        this.entityData.set(DATA_LIFETIME, Math.max(1, ticks));
+    }
+
+    public int getLifetimeTicks() {
+        return this.entityData.get(DATA_LIFETIME);
     }
 
     public int getColor() {
@@ -585,12 +811,10 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         this.entityData.set(DATA_COLOR, color);
     }
 
-    /** 阵营标记（预留，见 {@link #DATA_FACTION}）；当前无任何消费方。 */
     public int getFaction() {
         return this.entityData.get(DATA_FACTION);
     }
 
-    /** 阵营标记（预留）；当前无任何写入方。 */
     public void setFaction(int faction) {
         this.entityData.set(DATA_FACTION, faction);
     }
@@ -613,6 +837,29 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         tag.putInt("CurveAxis", this.entityData.get(DATA_CURVE_AXIS));
         tag.putFloat("CurveRate", curveRate());
         tag.putFloat("MineRadius", mineRadius());
+        tag.putInt("Lifetime", getLifetimeTicks());
+        if (this.hasSpeedProfile()) {
+            // 速率曲线与其轴：7 个 double + 3 个轴分量。
+            // 缺了它们，重载后的弹会沿原速直飞——返程弹变成永动机，
+            // 而这种故障只在存档重进时显形，没人能把两者联系起来。
+            DanmakuSpeedProfile profile = this.speedProfile();
+            tag.putDouble("SpV0", profile.v0());
+            tag.putDouble("SpP0", profile.p0());
+            tag.putDouble("SpV1", profile.v1());
+            tag.putDouble("SpP1", profile.p1());
+            tag.putDouble("SpV2", profile.v2());
+            tag.putDouble("SpP2", profile.p2());
+            tag.putDouble("SpV3", profile.v3());
+            tag.putFloat("SpAxisX", this.entityData.get(DATA_AXIS_X));
+            tag.putFloat("SpAxisY", this.entityData.get(DATA_AXIS_Y));
+            tag.putFloat("SpAxisZ", this.entityData.get(DATA_AXIS_Z));
+        }
+        if (this.isRigBound()) {
+            // rig 引用与相位角：缺了它们，重载后的编队弹会各自为政地直飞，
+            // 表现为「一整队弹在读档瞬间散架」。
+            tag.putInt("RigId", this.entityData.get(DATA_RIG_ID));
+            tag.putInt("RigPhase", this.entityData.get(DATA_RIG_PHASE));
+        }
     }
 
     @Override
@@ -646,6 +893,27 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         }
         if (tag.contains("MineRadius")) {
             this.entityData.set(DATA_MINE_RADIUS, tag.getFloat("MineRadius"));
+        }
+        if (tag.contains("Lifetime")) {
+            this.entityData.set(DATA_LIFETIME, Math.max(1, tag.getInt("Lifetime")));
+        }
+        if (tag.contains("SpV3")) {
+            // 逐项用 putDouble 写原值：定标整数量化误差不该被存档再吃一次。
+            this.entityData.set(DATA_PROFILE_V0, scale(tag.getDouble("SpV0")));
+            this.entityData.set(DATA_PROFILE_P0, scale(tag.getDouble("SpP0")));
+            this.entityData.set(DATA_PROFILE_V1, scale(tag.getDouble("SpV1")));
+            this.entityData.set(DATA_PROFILE_P1, scale(tag.getDouble("SpP1")));
+            this.entityData.set(DATA_PROFILE_V2, scale(tag.getDouble("SpV2")));
+            this.entityData.set(DATA_PROFILE_P2, scale(tag.getDouble("SpP2")));
+            this.entityData.set(DATA_PROFILE_V3, scale(tag.getDouble("SpV3")));
+            this.entityData.set(DATA_AXIS_X, tag.getFloat("SpAxisX"));
+            this.entityData.set(DATA_AXIS_Y, tag.getFloat("SpAxisY"));
+            this.entityData.set(DATA_AXIS_Z, tag.getFloat("SpAxisZ"));
+            this.entityData.set(DATA_HAS_PROFILE, true);
+        }
+        if (tag.contains("RigId")) {
+            this.entityData.set(DATA_RIG_ID, tag.getInt("RigId"));
+            this.entityData.set(DATA_RIG_PHASE, tag.getInt("RigPhase"));
         }
     }
 }
