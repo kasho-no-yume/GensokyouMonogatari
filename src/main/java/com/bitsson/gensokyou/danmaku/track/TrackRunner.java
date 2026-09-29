@@ -3,7 +3,6 @@ package com.bitsson.gensokyou.danmaku.track;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.DanmakuEmitter;
-import com.bitsson.gensokyou.entity.DanmakuRig;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -37,7 +36,6 @@ public final class TrackRunner {
      * <p>「按轨道下标」而非按 rig id 列表：归属关系是静态的（轨 k 的弹挂 rig k），
      * 存一张按下标对齐的表就够了，不必为每条轨再维护一个列表。
      */
-    private final List<DanmakuRig> rigs = new ArrayList<>();
 
     public TrackRunner(List<SpellCard> cards, SignaturePalette palette) {
         this.cards = List.copyOf(cards);
@@ -86,7 +84,6 @@ public final class TrackRunner {
         tick = 0;
         // 换阶段先收装置：上一阶段的 rig 若留着，它的新弹会挂到「上一阶段的编队」上，
         // 表现为切卡瞬间队形突变。残留的旧弹则自行脱钩自由飞行（见 AbstractDanmakuProjectile）。
-        discardRigs();
         return true;
     }
 
@@ -111,48 +108,22 @@ public final class TrackRunner {
                 continue;
             }
             emitTrack(boss, targets, track, tick, palette.at(i),
-                    (float) (baseDamage * track.damageScale()), rigFor(boss, track, i));
+                    (float) (baseDamage * track.damageScale()), formationOf(track));
         }
         tick++;
     }
 
     /**
-     * 取出（或按需创建）本轨的装置。
+     * 取出本轨的编队声明（可能未启用）。
      *
-     * <p><b>惰性创建</b>：装置只在真的发弹时才生成。轨道没配 rig 就一个实体都不产生；
-     * 配了 rig 的轨道则整个阶段共用<b>同一个</b>装置实例——这正是「一批弹共享一份
-     * 轨道参数」与「每弹只同步相位角」两条需求的地基。
+     * <p><b>一轨一份</b>：同一轨的多次重复发射共享同一份声明，故 20 次重复不会得到
+     * 20 个互不相干的编队——队形在两次发射之间就断了。
+     *
+     * <p>本方法<b>不创建任何实体</b>。编队在发射那一刻被烘进每颗弹自己的同步数据，
+     * 之后不存在「需要被维持的编队」，也就不存在换阶段时的销毁时序与孤儿弹处置。
      */
-    private DanmakuRig rigFor(LivingEntity boss, Track track, int trackIndex) {
-        Behaviour.Rig declaration = track.rig();
-        if (!declaration.active() || !(boss.level() instanceof ServerLevel server)) {
-            return null;
-        }
-        while (this.rigs.size() <= trackIndex) {
-            this.rigs.add(null);
-        }
-        DanmakuRig existing = this.rigs.get(trackIndex);
-        if (existing != null && !existing.isRemoved()) {
-            return existing;
-        }
-        // 外层中心取 BOSS 当前位置的标量快照。刻意<b>不</b>存 BOSS 实体引用：
-        // 装置要活得比「BOSS 朝向变化」更稳定，且 BOSS 传送/死亡不该牵连编队。
-        Vec3 center = boss.position();
-        DanmakuRig rig = new DanmakuRig(server, declaration.orbit().withCenter(center),
-                trackIndex, declaration.lifetimeTicks());
-        server.addFreshEntity(rig);
-        this.rigs.set(trackIndex, rig);
-        return rig;
-    }
-
-    /** 销毁本阶段所有装置。弹会在下一次 tick 自行脱钩。 */
-    private void discardRigs() {
-        for (DanmakuRig rig : this.rigs) {
-            if (rig != null && !rig.isRemoved()) {
-                rig.discard();
-            }
-        }
-        this.rigs.clear();
+    private static Behaviour.Formation formationOf(Track track) {
+        return track.formation();
     }
 
     /** 本轨在当前 tick 是否该发射。 */
@@ -168,7 +139,6 @@ public final class TrackRunner {
         current = null;
         currentResolved = false;
         tick = 0;
-        discardRigs();
     }
 
     /** 当前符卡的名义时长（tick）：由最慢的一拍决定，供 HUD/调试用。 */
@@ -188,7 +158,7 @@ public final class TrackRunner {
     }
 
     private void emitTrack(LivingEntity boss, List<Player> targets, Track track, int tickIndex,
-                           int color, float baseDamage, DanmakuRig rig) {
+                           int color, float baseDamage, Behaviour.Formation formation) {
         List<Player> aimTargets = targets;
         boolean perTarget = track.beats().stream().anyMatch(b -> b.targetMode().copiesPerTarget());
         int copies = perTarget ? Math.max(1, aimTargets.size()) : 1;
@@ -215,18 +185,18 @@ public final class TrackRunner {
                 if (!isDue(beat, track, tickIndex)) {
                     continue;
                 }
+                // 把<b>目标位置</b>一并传入：AROUND_TARGET 的发射点采样自目标周围，
+                // 方向由每一发自己的「原点 → 目标」决定。它是唯一需要它的形状。
                 List<Geometry.Shot> shots = Geometry.build(
-                        beat.shape(), boss.getEyePosition(), forward, worldUp,
-                        beat.params(), gapPhase, phase);
-                for (int s = 0; s < shots.size(); s++) {
-                    // 相位按<b>同一拍内的序号</b>等分，而非按轨道相位：编队要的是
-                    // 「这一发里的各弹均匀铺开成队形」，两者的相位是不同的东西。
-                    Geometry.Shot shot = shots.get(s);
-                    double shotPhase = rig == null || shots.size() <= 1
-                            ? 0.0D
-                            : Math.PI * 2.0D * s / shots.size();
+                        beat.shape(), boss.getEyePosition(), forward, anchor, worldUp,
+                        beat.params(), gapPhase, phase, boss.level().getRandom());
+                for (Geometry.Shot shot : shots) {
+                    // 编队参考点在<b>发射这一刻</b>对 BOSS 位置取快照，随后写进每颗弹。
+                    // 刻意<b>不</b>存 BOSS 实体引用：编队不是反应式的，此后弹的世界里
+                    // 再没有外部输入，双端也就不再有「任何需要收敛的量」。
                     DanmakuEmitter.emit(boss, shot, beat.behaviour(), color, baseDamage,
-                            rig, shotPhase);
+                            formation, formation.active() ? boss.position() : null,
+                            beat.projectile());
                 }
             }
         }

@@ -3,7 +3,8 @@ package com.bitsson.gensokyou.entity;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.DanmakuHitScan;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
-import com.bitsson.gensokyou.danmaku.motion.RigOrbit;
+import com.bitsson.gensokyou.danmaku.visual.DanmakuPhase;
+import com.bitsson.gensokyou.danmaku.motion.FormationFrame;
 import com.bitsson.gensokyou.danmaku.motion.Rotation;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -122,6 +123,21 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_PROFILE_V3 =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /**
+     * 是否声明了「越过发射点即销毁」这一终止条件。
+     *
+     * <p>默认 <b>false</b>：反向加速是纯运动，弹退回去继续飞完全合法，
+     * 不该一到原点就消失。销毁是一条独立规则，不是速率曲线的固有属性。
+     */
+    // ---- 相位隐藏（显隐是 Behaviour 的一轴，与弹种正交，故住在基类上）----
+    private static final EntityDataAccessor<Integer> DATA_PHASE_PERIOD =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PHASE_DUTY =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_PHASE_OFFSET =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> DATA_DIES_AT_ORIGIN =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.BOOLEAN);
     /** 是否有速率曲线（false = 恒速，走旧路径）。 */
     private static final EntityDataAccessor<Boolean> DATA_HAS_PROFILE =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.BOOLEAN);
@@ -157,13 +173,50 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
      * 装置的轨道参数只存在装置上那一份。48 颗弹各自复制一份参数就是 48 份带宽，
      * 队形一大需求就作废了。
      */
-    private static final EntityDataAccessor<Integer> DATA_RIG_ID =
+    private static final EntityDataAccessor<Boolean> DATA_HAS_FRAME =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.BOOLEAN);
+    // 编队帧 12 个分量。注意 1.21.1 的 defineId 只有 2 参重载（无名字参数）。
+    private static final EntityDataAccessor<Integer> DATA_FRAME_CX =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
-    /** 自身相位角，弧度，定标为 1/1000 弧度。 */
-    private static final EntityDataAccessor<Integer> DATA_RIG_PHASE =
+    private static final EntityDataAccessor<Integer> DATA_FRAME_CY =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
-    /** 相位角定标。 */
-    private static final double PHASE_SCALE = 1000.0D;
+    private static final EntityDataAccessor<Integer> DATA_FRAME_CZ =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_OX =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_OY =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_OZ =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_AXIS_YAW =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_AXIS_PITCH =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_ROT_RATE =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_SCALE_BASE =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_SCALE_AMP =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_SCALE_PERIOD =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_ORBIT_YAW =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_ORBIT_PITCH =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_ORBIT_RADIUS =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> DATA_FRAME_ORBIT_RATE =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /**
+     * 挂编队帧但**没挂速率曲线**时的推进速率（格/tick）。
+     *
+     * <p>为什么必须单独存：编队帧每 tick 用解析位置覆写 {@code deltaMovement}，
+     * 下一 tick 就再也取不回初速了。而「匀速沿法线行进」是编队弹最常见的用法，
+     * 没有它那些弹会在原地钉死。
+     */
+    private static final EntityDataAccessor<Integer> DATA_FRAME_ADVANCE_SPEED =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
 
     /**
      * 位置纠偏阈值（平方）。双端运动学一致时误差极小，
@@ -270,9 +323,29 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         builder.define(DATA_PROFILE_V2, 0);
         builder.define(DATA_PROFILE_P2, 0);
         builder.define(DATA_PROFILE_V3, 0);
-        builder.define(DATA_RIG_ID, 0);
-        builder.define(DATA_RIG_PHASE, 0);
+        builder.define(DATA_HAS_FRAME, false);
+        builder.define(DATA_FRAME_CX, 0);
+        builder.define(DATA_FRAME_CY, 0);
+        builder.define(DATA_FRAME_CZ, 0);
+        builder.define(DATA_FRAME_OX, 0);
+        builder.define(DATA_FRAME_OY, 0);
+        builder.define(DATA_FRAME_OZ, 0);
+        builder.define(DATA_FRAME_AXIS_YAW, 0);
+        builder.define(DATA_FRAME_AXIS_PITCH, 0);
+        builder.define(DATA_FRAME_ROT_RATE, 0);
+        builder.define(DATA_FRAME_SCALE_BASE, 1000);
+        builder.define(DATA_FRAME_SCALE_AMP, 0);
+        builder.define(DATA_FRAME_SCALE_PERIOD, 0);
+        builder.define(DATA_FRAME_ORBIT_YAW, 0);
+        builder.define(DATA_FRAME_ORBIT_PITCH, 0);
+        builder.define(DATA_FRAME_ORBIT_RADIUS, 0);
+        builder.define(DATA_FRAME_ORBIT_RATE, 0);
+        builder.define(DATA_FRAME_ADVANCE_SPEED, 0);
         builder.define(DATA_HAS_PROFILE, false);
+        builder.define(DATA_PHASE_PERIOD, 0);
+        builder.define(DATA_PHASE_DUTY, 100);
+        builder.define(DATA_PHASE_OFFSET, 0);
+        builder.define(DATA_DIES_AT_ORIGIN, false);
         builder.define(DATA_AXIS_X, 0.0F);
         builder.define(DATA_AXIS_Y, 0.0F);
         builder.define(DATA_AXIS_Z, 1.0F);
@@ -297,9 +370,6 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         // 而原版的碰撞/扫掠管线一行都不用改。
         //
         // <p>MUST 在 super.tick() 之前：之后位置已经是终点了，再设速度会变成下一 tick 的。
-        if (this.entityData.get(DATA_RIG_ID) != 0) {
-            applyRigMotion();
-        }
         super.tick();
 
         if (this.tickCount > getLifetimeTicks()) {
@@ -348,10 +418,32 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             DanmakuSpeedProfile profile = speedProfile();
             velocity = alongAxis(velocity, profile.speedAt(this.tickCount));
             this.setDeltaMovement(velocity);
-            if (profile.returnedToOrigin(this.tickCount)) {
+            if (this.entityData.get(DATA_DIES_AT_ORIGIN)
+                    && profile.returnedToOrigin(this.tickCount)) {
                 this.discard();
                 return;
             }
+        }
+
+        // 编队帧接管位置：把速度换成「解析终点 − 当前坐标」，末尾那句 setPos 正好落在终点。
+        //
+        // <p>MUST 在扫掠<b>之前</b>改 velocity：扫掠读的是 getDeltaMovement()，
+        // 若先扫后改，本 tick 的位移段与被检测的段就不是同一段，会漏判一次命中。
+        //
+        // <p>推进项沿用记录的初始轴而非当前速度——当前速度此刻已被编队帧覆写，
+        // 拿它算推进等于自我反馈。
+        if (this.hasFormationFrame()) {
+            // 推进项的行程。**没有速率曲线时 MUST 回落到发射速度**，不能取 0：
+            // 编队帧每 tick 都会用解析位置覆写 deltaMovement，于是「初速」在这一刻就失效了。
+            // 取 0 的话，挂编队但用普通匀速行进的弹会在原地钉死——现象是「花完全不动、
+            // 环只在平面里转」，而日志干净、无任何报错。
+            int tick = this.tickCount + 1;
+            double advance = this.hasSpeedProfile()
+                    ? this.speedProfile().travelAt(tick)
+                    : unscale(this.entityData.get(DATA_FRAME_ADVANCE_SPEED)) * tick;
+            Vec3 next = this.framePositionThisTick().add(this.axis().scale(advance));
+            velocity = next.subtract(this.position());
+            this.setDeltaMovement(velocity);
         }
 
         if (stationary) {
@@ -473,6 +565,16 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     }
 
     public void configureSpeedProfile(DanmakuSpeedProfile profile) {
+        configureSpeedProfile(profile, false);
+    }
+
+    /**
+     * 挂速率曲线，并可声明「越过发射点即销毁」。
+     *
+     * @param diesAtOrigin 勾上后弹在越过发射点时销毁。默认不勾——反向加速本身
+     *                     不蕴含销毁（编队花后撤就需要它继续飞）
+     */
+    public void configureSpeedProfile(DanmakuSpeedProfile profile, boolean diesAtOrigin) {
         if (profile == null || !profile.varies()) {
             return;
         }
@@ -535,74 +637,145 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     // ---------------------------------------------------------------
 
     /**
-     * 挂到装置上。此后本弹的位置不再由自身速度决定，而由
-     * 「装置的 tick + 本弹的相位角」唯一确定。
+        this.entityData.set(DATA_DIES_AT_ORIGIN, diesAtOrigin);
+     * 挂上编队帧。此后本弹的位置不再只由「初速 × tick」决定，而由
+     * {@link FormationFrame} 的纯函数唯一确定。
      *
-     * <p>MUST 在 {@code setDirection} <b>之后</b>调用：装置会接管位置，
+     * <p>MUST 在 {@code setDirection} <b>之后</b>调用：编队帧会接管位置，
      * 几何给的初速随即失效，留着它只会让人以为速度仍然算数。
      *
-     * @param rig      装置实体
-     * @param phaseRad 自身相位角（弧度）
+     * @param frame 编队帧（已烘入本弹的出生偏移与编队参考点）
      */
-    public void bindToRig(DanmakuRig rig, double phaseRad) {
-        this.entityData.set(DATA_RIG_ID, rig.getId());
-        this.entityData.set(DATA_RIG_PHASE, (int) Math.round(phaseRad * PHASE_SCALE));
-    }
+    // ---------------------------------------------------------------
+    // 相位隐藏态（显隐轴）
+    // ---------------------------------------------------------------
 
-    /** 本弹是否挂在装置上。 */
-    public boolean isRigBound() {
-        return this.entityData.get(DATA_RIG_ID) != 0;
-    }
-
-    /** 自身相位角（弧度）。 */
-    public double rigPhase() {
-        return this.entityData.get(DATA_RIG_PHASE) / PHASE_SCALE;
+    /**
+     * 设定相位隐藏。
+     *
+     * @param periodTicks 周期（tick）。≤ 0 关闭
+     * @param duty        可见期占空比，(0,1]。1 = 恒可见
+     * @param phaseOffset 相位偏移（tick），逐弹错峰用
+     */
+    public void configurePhaseHide(int periodTicks, double duty, int phaseOffset) {
+        this.entityData.set(DATA_PHASE_PERIOD, Math.max(0, periodTicks));
+        this.entityData.set(DATA_PHASE_DUTY,
+                (int) Math.round(Math.min(1.0D, Math.max(0.0D, duty)) * 100.0D));
+        this.entityData.set(DATA_PHASE_OFFSET, phaseOffset);
     }
 
     /**
-     * 解析出所属装置。
+     * 本 tick 是否处于隐藏态。
      *
-     * <p><b>装置没了就脱钩</b>（需求「不残留引用失效装置的子弹」）：把 rig id 清零，
-     * 本弹保留当前速度继续自由飞行。
+     * <p>隐藏态下渲染 alpha 降至档案的 {@code hiddenAlpha}，且
+     * {@link #canHitEntity} 对本弹返回 false——即
+     * {@link DanmakuHitScan} 找不到任何命中，弹<b>既不判伤也不销毁</b>，
+     * 且玩家可从其上直接穿过。
      *
-     * <p>之所以选「自由飞行」而不是「一并销毁」：装置随符卡阶段结束而销毁，
-     * 此时场上还有半屏弹在飞，全部突然消失读作「BOSS 放空了」；
-     * 让它们沿当前动量飞完则是「这一轮到此为止」。
+     * <p><b>方块碰撞不受影响</b>：隐藏态只关掉实体判定，方块判定仍照常进行，
+     * 故弹撞上方块仍会消失。
      */
-    private DanmakuRig resolveRig() {
-        int id = this.entityData.get(DATA_RIG_ID);
-        if (id == 0) {
-            return null;
-        }
-        if (!(this.level().getEntity(id) instanceof DanmakuRig rig) || rig.isRemoved()) {
-            this.entityData.set(DATA_RIG_ID, 0);
-            return null;
-        }
-        return rig;
+    public boolean isHidden() {
+        return DanmakuPhase.isHidden(this.tickCount, phasePeriodTicks(), phaseDuty(), phaseOffset());
     }
 
     /**
-     * 把本 tick 的位置改由装置决定。
+     * 命中判定的总闸：白名单 + 隐藏态。
      *
-     * <p>速度取「解析终点 − 当前坐标」，随后 {@code super.tick()} 的位移正好落在终点。
-     * 于是位置每 tick 被<b>重置</b>成解析值，误差不累积；扫掠、朝向、纠偏阈值
-     * 全部沿用既有管线，无需为 rig 写第二套运动。
+     * <p>「隐藏态不判伤且不销毁」的全部实现就在这里——本方法返回 false 后，
+     * {@link DanmakuHitScan} 找不到实体命中，而<b>方块分支独立于本谓词</b>，
+     * 故弹照常撞墙消失。这正是需求要的语义：隐藏 ≠ 无碰撞，只是不伤人。
+     *
+     * <p>放在基类而非球弹上：显隐是 {@code Behaviour} 的一轴，与弹种正交。
+     * 留在球弹上会让「激光配相位隐藏」静默失效——行为被无声丢弃，
+     * 现象是「激光一直亮着、完全没有闪烁」，且日志干净、没有任何报错。
      */
-    private void applyRigMotion() {
-        DanmakuRig rig = resolveRig();
-        if (rig == null) {
+    @Override
+    protected boolean canHitEntity(Entity target) {
+        return !this.isHidden() && super.canHitEntity(target) && !this.isWhitelisted(target);
+    }
+
+    private int phasePeriodTicks() {
+        return this.entityData.get(DATA_PHASE_PERIOD);
+    }
+
+    private double phaseDuty() {
+        return this.entityData.get(DATA_PHASE_DUTY) / 100.0D;
+    }
+
+    private int phaseOffset() {
+        return this.entityData.get(DATA_PHASE_OFFSET);
+    }
+
+    public void bindToFrame(FormationFrame frame) {
+        if (frame == null || !frame.active()) {
             return;
         }
-        if (rig.expired()) {
-            this.entityData.set(DATA_RIG_ID, 0);
-            return;
+        this.entityData.set(DATA_FRAME_CX, scale(frame.centerX()));
+        this.entityData.set(DATA_FRAME_CY, scale(frame.centerY()));
+        this.entityData.set(DATA_FRAME_CZ, scale(frame.centerZ()));
+        this.entityData.set(DATA_FRAME_OX, scale(frame.offsetX()));
+        this.entityData.set(DATA_FRAME_OY, scale(frame.offsetY()));
+        this.entityData.set(DATA_FRAME_OZ, scale(frame.offsetZ()));
+        this.entityData.set(DATA_FRAME_AXIS_YAW, (int) Math.round(frame.axisYawDeg()));
+        this.entityData.set(DATA_FRAME_AXIS_PITCH, (int) Math.round(frame.axisPitchDeg()));
+        this.entityData.set(DATA_FRAME_ROT_RATE, scale(frame.rotRateDegPerTick()));
+        this.entityData.set(DATA_FRAME_SCALE_BASE, scale(frame.scaleBase()));
+        this.entityData.set(DATA_FRAME_SCALE_AMP, scale(frame.scaleAmp()));
+        this.entityData.set(DATA_FRAME_SCALE_PERIOD,
+                (int) Math.round(frame.scalePeriodTicks()));
+        this.entityData.set(DATA_FRAME_ORBIT_YAW, (int) Math.round(frame.orbitAxisYawDeg()));
+        this.entityData.set(DATA_FRAME_ORBIT_PITCH, (int) Math.round(frame.orbitAxisPitchDeg()));
+        this.entityData.set(DATA_FRAME_ORBIT_RADIUS, scale(frame.orbitRadius()));
+        this.entityData.set(DATA_FRAME_ORBIT_RATE, scale(frame.orbitRateDegPerTick()));
+        this.entityData.set(DATA_HAS_FRAME, true);
+        // 记下发射速度：它是「没有速率曲线时」的推进速率来源。
+        // 编队弹的 deltaMovement 下一 tick 就被解析位置覆写，届时已无从取回初速。
+        this.entityData.set(DATA_FRAME_ADVANCE_SPEED, scale(this.getSpeed()));
+        // 编队弹的「沿弹道推进」项要用**初始**方向，而速度每 tick 都会被编队帧覆写，
+        // 故必须趁现在记下。若本弹同时挂了速率曲线，两者共用这一份轴。
+        Vec3 velocity = this.getDeltaMovement();
+        if (velocity.lengthSqr() > 1.0E-9D) {
+            this.setAxis(velocity.normalize());
         }
-        RigOrbit orbit = rig.orbit();
-        // 用装置的 tick 而非本弹的 age：后者会让不同时刻加入的弹各转各的，
-        // 队形在加入那一瞬就散了。
-        int t = rig.tickCount + 1;
-        Vec3 next = orbit.bulletPositionAt(t, this.rigPhase());
-        this.setDeltaMovement(next.subtract(this.position()));
+    }
+
+    /** 本弹是否挂了编队帧。 */
+    public boolean hasFormationFrame() {
+        return this.entityData.get(DATA_HAS_FRAME);
+    }
+
+    /** 读回当前编队帧。 */
+    public FormationFrame formationFrame() {
+        return new FormationFrame(
+                unscale(this.entityData.get(DATA_FRAME_CX)),
+                unscale(this.entityData.get(DATA_FRAME_CY)),
+                unscale(this.entityData.get(DATA_FRAME_CZ)),
+                unscale(this.entityData.get(DATA_FRAME_OX)),
+                unscale(this.entityData.get(DATA_FRAME_OY)),
+                unscale(this.entityData.get(DATA_FRAME_OZ)),
+                this.entityData.get(DATA_FRAME_AXIS_YAW),
+                this.entityData.get(DATA_FRAME_AXIS_PITCH),
+                unscale(this.entityData.get(DATA_FRAME_ROT_RATE)),
+                unscale(this.entityData.get(DATA_FRAME_SCALE_BASE)),
+                unscale(this.entityData.get(DATA_FRAME_SCALE_AMP)),
+                this.entityData.get(DATA_FRAME_SCALE_PERIOD),
+                this.entityData.get(DATA_FRAME_ORBIT_YAW),
+                this.entityData.get(DATA_FRAME_ORBIT_PITCH),
+                unscale(this.entityData.get(DATA_FRAME_ORBIT_RADIUS)),
+                unscale(this.entityData.get(DATA_FRAME_ORBIT_RATE)));
+    }
+
+    /**
+     * 编队帧在本 tick 贡献的<b>位置</b>（不含沿弹道推进那一项）。
+     *
+     * <p>用 {@code tickCount + 1}：本方法在 {@code super.tick()} 之前调用，而
+     * {@code super.tick()} 还没把 {@code tickCount} 加一，故本 tick 的编号是
+     * {@code tickCount + 1}。用 {@code tickCount} 会让整队慢一 tick 且左右两端
+     * 在「刚生成」的那一帧上分叉。
+     */
+    private Vec3 framePositionThisTick() {
+        return this.formationFrame().framePositionAt(this.tickCount + 1);
     }
 
     private static int scale(double value) {
@@ -705,11 +878,6 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         if (speedSqr > 1.0E-9D) {
             DanmakuBudget.recordLag(error.dot(velocity) / speedSqr);
         }
-    }
-
-    @Override
-    protected boolean canHitEntity(Entity target) {
-        return super.canHitEntity(target) && !this.isWhitelisted(target);
     }
 
     @Override
@@ -843,6 +1011,7 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             // 缺了它们，重载后的弹会沿原速直飞——返程弹变成永动机，
             // 而这种故障只在存档重进时显形，没人能把两者联系起来。
             DanmakuSpeedProfile profile = this.speedProfile();
+            tag.putBoolean("DiesAtOrigin", this.entityData.get(DATA_DIES_AT_ORIGIN));
             tag.putDouble("SpV0", profile.v0());
             tag.putDouble("SpP0", profile.p0());
             tag.putDouble("SpV1", profile.v1());
@@ -854,11 +1023,31 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             tag.putFloat("SpAxisY", this.entityData.get(DATA_AXIS_Y));
             tag.putFloat("SpAxisZ", this.entityData.get(DATA_AXIS_Z));
         }
-        if (this.isRigBound()) {
-            // rig 引用与相位角：缺了它们，重载后的编队弹会各自为政地直飞，
-            // 表现为「一整队弹在读档瞬间散架」。
-            tag.putInt("RigId", this.entityData.get(DATA_RIG_ID));
-            tag.putInt("RigPhase", this.entityData.get(DATA_RIG_PHASE));
+        if (phasePeriodTicks() > 0) {
+            tag.putInt("PhasePeriod", phasePeriodTicks());
+            tag.putInt("PhaseDuty", this.entityData.get(DATA_PHASE_DUTY));
+            tag.putInt("PhaseOffset", phaseOffset());
+        }
+        if (this.hasFormationFrame()) {
+            // 12 个定标整数。缺了它们，重载后的编队弹会退回「各自直飞」，
+            // 表现为「一整队弹在读档瞬间散架」——而那只在读档时显形，没人能联想到。
+            tag.putInt("FrameCx", this.entityData.get(DATA_FRAME_CX));
+            tag.putInt("FrameCy", this.entityData.get(DATA_FRAME_CY));
+            tag.putInt("FrameCz", this.entityData.get(DATA_FRAME_CZ));
+            tag.putInt("FrameOx", this.entityData.get(DATA_FRAME_OX));
+            tag.putInt("FrameOy", this.entityData.get(DATA_FRAME_OY));
+            tag.putInt("FrameOz", this.entityData.get(DATA_FRAME_OZ));
+            tag.putInt("FrameAyaw", this.entityData.get(DATA_FRAME_AXIS_YAW));
+            tag.putInt("FrameApitch", this.entityData.get(DATA_FRAME_AXIS_PITCH));
+            tag.putInt("FrameRot", this.entityData.get(DATA_FRAME_ROT_RATE));
+            tag.putInt("FrameSb", this.entityData.get(DATA_FRAME_SCALE_BASE));
+            tag.putInt("FrameSa", this.entityData.get(DATA_FRAME_SCALE_AMP));
+            tag.putInt("FrameSp", this.entityData.get(DATA_FRAME_SCALE_PERIOD));
+            tag.putInt("FrameOyaw", this.entityData.get(DATA_FRAME_ORBIT_YAW));
+            tag.putInt("FrameOpitch", this.entityData.get(DATA_FRAME_ORBIT_PITCH));
+            tag.putInt("FrameOr", this.entityData.get(DATA_FRAME_ORBIT_RADIUS));
+            tag.putInt("FrameOrate", this.entityData.get(DATA_FRAME_ORBIT_RATE));
+            tag.putInt("FrameAdv", this.entityData.get(DATA_FRAME_ADVANCE_SPEED));
         }
     }
 
@@ -897,6 +1086,12 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         if (tag.contains("Lifetime")) {
             this.entityData.set(DATA_LIFETIME, Math.max(1, tag.getInt("Lifetime")));
         }
+        this.entityData.set(DATA_DIES_AT_ORIGIN, tag.getBoolean("DiesAtOrigin"));
+        if (tag.contains("PhasePeriod")) {
+            this.entityData.set(DATA_PHASE_PERIOD, tag.getInt("PhasePeriod"));
+            this.entityData.set(DATA_PHASE_DUTY, tag.getInt("PhaseDuty"));
+            this.entityData.set(DATA_PHASE_OFFSET, tag.getInt("PhaseOffset"));
+        }
         if (tag.contains("SpV3")) {
             // 逐项用 putDouble 写原值：定标整数量化误差不该被存档再吃一次。
             this.entityData.set(DATA_PROFILE_V0, scale(tag.getDouble("SpV0")));
@@ -911,9 +1106,25 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             this.entityData.set(DATA_AXIS_Z, tag.getFloat("SpAxisZ"));
             this.entityData.set(DATA_HAS_PROFILE, true);
         }
-        if (tag.contains("RigId")) {
-            this.entityData.set(DATA_RIG_ID, tag.getInt("RigId"));
-            this.entityData.set(DATA_RIG_PHASE, tag.getInt("RigPhase"));
+        if (tag.contains("FrameSp")) {
+            this.entityData.set(DATA_FRAME_CX, tag.getInt("FrameCx"));
+            this.entityData.set(DATA_FRAME_CY, tag.getInt("FrameCy"));
+            this.entityData.set(DATA_FRAME_CZ, tag.getInt("FrameCz"));
+            this.entityData.set(DATA_FRAME_OX, tag.getInt("FrameOx"));
+            this.entityData.set(DATA_FRAME_OY, tag.getInt("FrameOy"));
+            this.entityData.set(DATA_FRAME_OZ, tag.getInt("FrameOz"));
+            this.entityData.set(DATA_FRAME_AXIS_YAW, tag.getInt("FrameAyaw"));
+            this.entityData.set(DATA_FRAME_AXIS_PITCH, tag.getInt("FrameApitch"));
+            this.entityData.set(DATA_FRAME_ROT_RATE, tag.getInt("FrameRot"));
+            this.entityData.set(DATA_FRAME_SCALE_BASE, tag.getInt("FrameSb"));
+            this.entityData.set(DATA_FRAME_SCALE_AMP, tag.getInt("FrameSa"));
+            this.entityData.set(DATA_FRAME_SCALE_PERIOD, tag.getInt("FrameSp"));
+            this.entityData.set(DATA_FRAME_ORBIT_YAW, tag.getInt("FrameOyaw"));
+            this.entityData.set(DATA_FRAME_ORBIT_PITCH, tag.getInt("FrameOpitch"));
+            this.entityData.set(DATA_FRAME_ORBIT_RADIUS, tag.getInt("FrameOr"));
+            this.entityData.set(DATA_FRAME_ORBIT_RATE, tag.getInt("FrameOrate"));
+            this.entityData.set(DATA_FRAME_ADVANCE_SPEED, tag.getInt("FrameAdv"));
+            this.entityData.set(DATA_HAS_FRAME, true);
         }
     }
 }

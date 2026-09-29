@@ -54,6 +54,60 @@ public enum Shape {
      * 环就是环；曲射与否由 {@link Behaviour.Motion#curve} 决定。
      */
     RING,
+    /**
+     * 玫瑰线花形：极坐标 {@code r = radius + radialAmp · cos(petals · θ)} 排布。
+     *
+     * <p><b>纯几何、零时间行为</b>——「张开 / 收拢 / 旋转」一律由编队帧提供，
+     * 本形状自己什么都不做。这条正交性是它能被任意编队驱动的前提：编队帧
+     * 只知道「把这圈出生点整体放大再缩回」，压根不需要知道「花」是什么。
+     *
+     * <p>每颗弹的<b>方向沿它自己的半径向外</b>。于是「沿方向减速、停下、反向加速」
+     * 表现为花瓣朝花心收拢——这正是「花后撤」该有的样子。
+     *
+     * @see Params#petals()
+     * @see Params#radialAmp()
+     */
+    ROSETTE,
+    /**
+     * 目标周围环形发射：发射点采样自<b>目标周围的区域</b>，每一发的方向由
+     * <b>该发自身</b>的「原点 → 目标」连线约束。
+     *
+     * <p>用于「玩家周围一圈激光朝内指」这类效果。关键在于<b>发射者不必移动</b>：
+     * 弹不从 BOSS 位置出发，所以 BOSS 站在哪不影响这批弹的排布。
+     *
+     * <p>参数复用（与其它形状同一套字段，不同形状各有各的含义，这是本项目的既定做法）：
+     * <ul>
+     *   <li>{@code count} —— 弹数</li>
+     *   <li>{@code radius} —— 目标周围的区域半径（格）</li>
+     *   <li>{@code spreadDeg} —— 方向与「原点→目标」连线的<b>夹角上限</b>。
+     *       0 = 全部精确指向目标；越大越散，上限 180°（完全自由，<b>含从背后射</b>）。
+     *       刻意不收紧：激光靠 {@code Phase.DELAY} 预警，公平性来自预警而非方向</li>
+     * </ul>
+     *
+     * <p>本形状只管<b>几何</b>（原点与方向）。弹种（球 / 激光）由 {@code Beat} 的
+     * {@code Projectile} 决定——同一个环既可以是球也可以是激光，那是两条正交的轴。
+     */
+    AROUND_TARGET,
+    /**
+     * 激光网：<b>真随机</b>发射点 + 逐发随机瞄准，目标是「让玩家置身网中、找夹缝」。
+     *
+     * <p>与 {@link #AROUND_TARGET} 的区别就是「凌乱美」与「秩序美」：
+     * <ul>
+     *   <li>{@code AROUND_TARGET} —— 角度等分 + Fibonacci 竖直偏移，<b>均匀</b>。</li>
+     *   <li>{@code LATTICE} —— 方向与<b>距离都真随机</b>，落在目标周围的球体内。</li>
+     * </ul>
+     * 均匀排布看着像「道具生成的阵」，随机排布才像「一张网」。
+     *
+     * <p>瞄准的分布刻意<b>不均匀</b>：{@code aimBias} 比例的激光精确瞄准目标当前所在
+     * （玩家不动就会被击中），其余在 {@code spreadDeg} 的上限内散开。于是玩家面对的是
+     * 「几条必须躲的直射 + 一堆可以穿过的交叉线」，而不是「一堆全都擦边」。
+     *
+     * <p><b>允许从背后射。</b>公平性来自激光的 {@code Phase.DELAY} 预警，不来自方向——
+     * 玩家在射线亮起前就看得见来向与指向。
+     *
+     * @see Shape.Params#aimBias()
+     */
+    LATTICE,
     /** 锥内随机：随机点被限制在一个随 BOSS 旋转的锥里。绝不做全向无约束随机。 */
     CONE_RANDOM,
     /**
@@ -92,29 +146,43 @@ public enum Shape {
             /** 球速（格/tick）。 */
             double speed,
             /** 弹体直径（格）。 */
-            double size) {
+            double size,
+            /** 花瓣数（仅 ROSETTE 用）。{@code <= 1} 退化成普通圆环 */
+            int petals,
+            /** 玫瑰线径向幅度（仅 ROSETTE 用）。与 {@code radius} 相加得到花瓣尖处的半径 */
+            double radialAmp,
+            /**
+             * 直瞄比例，(0,1]（仅 {@link Shape#LATTICE} 用）。
+             *
+             * <p>这个比例的激光精确瞄准目标当前所在，其余在 {@code spreadDeg} 上限内散开。
+             * 它是「网」能玩起来的关键：全是散射的话玩家随便走就能躲，
+             * 全是直瞄的话没有夹缝可找。
+             */
+            double aimBias) {
 
         /** 全零 / 全默认参数。 */
         public static Params defaults() {
-            return new Params(1, 0.0D, 0.0D, 0.0D, 0.0D, 1.0D, 0.5D, 0.4D);
+            return new Params(1, 0.0D, 0.0D, 0.0D, 0.0D, 1.0D, 0.5D, 0.4D, 0, 0.0D, 0.3D);
         }
 
         public Params count(int value) {
             return new Params(value, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, size);
+                    speed, size, petals, radialAmp, aimBias);
         }
 
         public Params spread(double value) {
-            return new Params(count, value, gapDeg, radius, radiusPerTick, riseFactor, speed, size);
+            return new Params(count, value, gapDeg, radius, radiusPerTick, riseFactor,
+                    speed, size, petals, radialAmp, aimBias);
         }
 
         public Params gap(double value) {
             return new Params(count, spreadDeg, value, radius, radiusPerTick, riseFactor,
-                    speed, size);
+                    speed, size, petals, radialAmp, aimBias);
         }
 
         public Params radius(double value, double perTick) {
-            return new Params(count, spreadDeg, gapDeg, value, perTick, riseFactor, speed, size);
+            return new Params(count, spreadDeg, gapDeg, value, perTick, riseFactor,
+                    speed, size, petals, radialAmp, aimBias);
         }
 
         public Params radius(double value) {
@@ -122,17 +190,39 @@ public enum Shape {
         }
 
         public Params rise(double value) {
-            return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, value, speed, size);
+            return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, value,
+                    speed, size, petals, radialAmp, aimBias);
         }
 
         public Params speed(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    value, size);
+                    value, size, petals, radialAmp, aimBias);
         }
 
         public Params size(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, value);
+                    speed, value, petals, radialAmp, aimBias);
+        }
+
+        /**
+         * 直瞄比例（仅 {@link Shape#LATTICE} 使用）。
+         *
+         * <p>0 = 全部散射（没有必须躲的）；1 = 全部精确瞄准（没有夹缝）。
+         * 0.2~0.4 通常最好玩：几条逼你动，其余可以穿。
+         */
+        public Params aimBias(double value) {
+            return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
+                    speed, size, petals, radialAmp, Math.min(1.0D, Math.max(0.0D, value)));
+        }
+        /**
+         * 玫瑰线参数：花瓣数与径向幅度（仅 {@link Shape#ROSETTE} 使用）。
+         *
+         * <p>{@code amplitude = 0} 时半径处处相等，本形状退化成普通圆环，故不额外校验；
+         * 越界值（花瓣数 ≤ 1、幅度为负）由 {@code Geometry} 夹取。
+         */
+        public Params rose(int petalCount, double amplitude) {
+            return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
+                    speed, size, petalCount, amplitude, aimBias);
         }
 
         /** 返回一份把 {@code radiusPerTick} 换掉的副本——SHELL 的逐拍收拢由 Geometry 施加。 */
@@ -153,20 +243,22 @@ public enum Shape {
             // SCATTER_STATIC 是环带散布，弹与弹之间处处是解；缺口方位是靠玩家自己走位找的。
             // FALL_FROM_ABOVE 是【网格】而非帘幕：地面整片是解，威胁是时间性的（会砸下来），
             // 玩家靠横移躲开即可，不需要穿洞——故不算封死。
-            case AXIAL_STAR, SHELL, RING, RADIAL_BURST, SCATTER_STATIC, FALL_FROM_ABOVE -> true;
-            case AIMED_SINGLE, FAN, GAP_FAN, CONE_RANDOM -> false;
+            case AXIAL_STAR, SHELL, RING, ROSETTE, RADIAL_BURST, SCATTER_STATIC, FALL_FROM_ABOVE -> true;
+            // AROUND_TARGET 是「每发各自指向目标」，指向性由该发自己的原点决定，
+            // 全批不共享缺口方位，故不按「必有缺口」论。
+            case AIMED_SINGLE, FAN, GAP_FAN, CONE_RANDOM, AROUND_TARGET, LATTICE -> false;
         };
     }
 
     /** 该形状是否含随机成分（R1 要求随机必须被包络约束，故 lint 需知道）。 */
     public boolean isRandom() {
-        return this == CONE_RANDOM;
+        return this == CONE_RANDOM || this == AROUND_TARGET || this == LATTICE;
     }
 
     /** 本形状是否需要 BOSS 转向目标（用于「发射前转向」预警）。 */
     public boolean needsFacing() {
         return this == AIMED_SINGLE || this == FAN || this == RING_FACING
-                || this == FALL_FROM_ABOVE || this == RING;
+                || this == FALL_FROM_ABOVE || this == RING || this == ROSETTE;
     }
 
     /** 本形状是否发出零方向的弹（静止待发，靠行为决定其语义）。 */

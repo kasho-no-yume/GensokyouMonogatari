@@ -40,4 +40,12 @@ public final class Rotation {
         double cosPitch = Math.cos(pitch);
         return new Vec3(-Math.sin(yaw) * cosPitch, -Math.sin(pitch), Math.cos(yaw) * cosPitch);
     }
+
+    /** {@code axisFromAngles} 的逆变换：单位向量 → (下转角, 俯仰角)（度）。 */
+    public static double[] anglesFromAxis(Vec3 axis) {
+        Vec3 unit = axis.lengthSqr() < 1.0E-9D ? new Vec3(0, 0, 1) : axis.normalize();
+        double yaw = Math.toDegrees(Math.atan2(-unit.x, unit.z));
+        double pitch = Math.toDegrees(Math.asin(Math.max(-1.0D, Math.min(1.0D, -unit.y))));
+        return new double[]{yaw, pitch};
+    }
 }

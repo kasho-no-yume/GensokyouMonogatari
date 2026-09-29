@@ -2,9 +2,10 @@ package com.bitsson.gensokyou.danmaku;
 
 import com.bitsson.gensokyou.danmaku.track.Behaviour;
 import com.bitsson.gensokyou.danmaku.track.Geometry;
+import com.bitsson.gensokyou.danmaku.track.Projectile;
 import com.bitsson.gensokyou.entity.AbstractDanmakuProjectile;
-import com.bitsson.gensokyou.entity.DanmakuRig;
 import com.bitsson.gensokyou.entity.DanmakuWhitelists;
+import com.bitsson.gensokyou.entity.LaserDanmaku;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
@@ -48,33 +49,76 @@ public final class DanmakuEmitter {
 
     public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behaviour,
                             int color, float damage) {
-        emit(boss, shot, behaviour, color, damage, null, 0);
+        emit(boss, shot, behaviour, color, damage, null, null, Projectile.SPHERE);
     }
 
     /**
-     * 发射一枚弹，可选地挂到编队装置上。
+     * 发射一枚弹，可选地挂上编队帧。
      *
-     * @param rig   本轨的装置；为 {@code null} 表示该轨不编队（绝大多数情况）
-     * @param phase 本弹在该编队中的相位角（弧度）。<b>只在 rig 非 null 时有意义</b>
+     * @param formation 本轨的编队声明；未启用时传 {@code null}
+     * @param center    编队参考点的世界坐标快照。声明未启用时忽略
      */
     public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behaviour,
-                            int color, float damage, DanmakuRig rig, double phase) {
+                            int color, float damage, Behaviour.Formation formation, Vec3 center) {
+        emit(boss, shot, behaviour, color, damage, formation, center, Projectile.SPHERE);
+    }
+
+    /**
+     * 发射一枚弹：几何 + 行为 + <b>弹种</b>，可选地挂上编队帧。
+     *
+     * <p><b>弹种 MUST 由入参决定，MUST NOT 写死球弹。</b>早先这里硬编
+     * {@code new SphereDanmaku}，于是「用激光发一个环」写不出来——只能去改翻译层，
+     * 而改翻译层会一次性动到所有形状的路径。
+     */
+    public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behaviour,
+                            int color, float damage, Behaviour.Formation formation, Vec3 center,
+                            Projectile projectile) {
         if (!(boss.level() instanceof ServerLevel server)) {
             return;
         }
         double speed = shot.params().speed();
-        SphereDanmaku bullet = new SphereDanmaku(
-                server, boss, damage, color, (float) speed, NO_WHITELIST);
-        bullet.moveTo(shot.origin().x, shot.origin().y, shot.origin().z, 0F, 0F);
+        AbstractDanmakuProjectile bullet = create(server, boss, shot, color, damage, speed,
+                projectile);
+        if (bullet == null) {
+            return;
+        }
         applyMotion(bullet, shot, behaviour.motion(), speed);
         applySplit(bullet, behaviour.split());
         applyVisibility(bullet, behaviour.visibility());
-        // MUST 在 setDirection 之后：装置会接管位置，几何给的初速随即失效。
-        if (rig != null) {
-            bullet.bindToRig(rig, phase);
+        // MUST 在 setDirection 之后：编队帧会接管位置，几何给的初速随即失效。
+        // 形状（「花瓣长短」）编码在 shot.origin 与 center 的差里，故两者都传进去。
+        if (formation != null && formation.active() && center != null) {
+            bullet.bindToFrame(formation.frameFor(center, shot.origin()));
         }
         server.addFreshEntity(bullet);
         DanmakuBudget.recordEmit();
+    }
+
+    /**
+     * 按弹种造出实体。
+     *
+     * <p>两种弹种都是 {@link AbstractDanmakuProjectile} 的子类，故「弹种」与
+     * 「行为」能正交组合——激光同样可以挂曲射与相位隐藏。
+     *
+     * <p><b>行为在此一律不施加</b>：激光的延迟与持续时间是它自己的生命周期
+     * （{@code Phase{DELAY, ACTIVE, DONE}}），与 {@code Behaviour} 的显隐是两套东西，
+     * 在这里混起来会让「延迟期间算不算隐藏态」这种问题没有答案。
+     */
+    private static AbstractDanmakuProjectile create(ServerLevel server, LivingEntity boss,
+                                                     Geometry.Shot shot, int color, float damage,
+                                                     double speed, Projectile projectile) {
+        if (projectile != null && projectile.isLaser()) {
+            LaserDanmaku laser = new LaserDanmaku(server, shot.origin(), shot.direction(),
+                    damage, color,
+                    projectile.laserLength(), projectile.laserRadius(),
+                    projectile.laserDelaySeconds(), projectile.laserDurationSeconds(),
+                    boss, NO_WHITELIST);
+            return laser;
+        }
+        SphereDanmaku sphere = new SphereDanmaku(
+                server, boss, damage, color, (float) speed, NO_WHITELIST);
+        sphere.moveTo(shot.origin().x, shot.origin().y, shot.origin().z, 0F, 0F);
+        return sphere;
     }
 
     /**
@@ -83,7 +127,7 @@ public final class DanmakuEmitter {
      * <p>顺序有意义：行为在几何<b>之后</b>施加，故「贴地」这类运动能把几何给的
      * 竖直分量抹掉，而几何不必知道自己被改写了。
      */
-    private static void applyMotion(SphereDanmaku bullet, Geometry.Shot shot,
+    private static void applyMotion(AbstractDanmakuProjectile bullet, Geometry.Shot shot,
                                     Behaviour.Motion motion, double speed) {
         Behaviour.Motion.Kind kind = motion.kind();
         if (kind == Behaviour.Motion.Kind.GROUND_HUG) {
@@ -107,7 +151,8 @@ public final class DanmakuEmitter {
                     motion.curveRateDegPerSec());
             // 速率曲线 MUST 在 setDirection 之后挂：它要趁速度非零时记下方向轴
             // （曲线会把速率降到 0，零速时方向不可恢复）。
-            case SPEED_PROFILE -> bullet.configureSpeedProfile(motion.speedProfile());
+            case SPEED_PROFILE -> bullet.configureSpeedProfile(motion.speedProfile(),
+                    motion.diesAtOrigin());
             case HOVER -> bullet.configureHover(motion.hoverTick());
             case MINE -> bullet.configureMine(motion.mineRadius());
             case NONE, GROUND_HUG -> {
@@ -116,13 +161,13 @@ public final class DanmakuEmitter {
         }
     }
 
-    private static void applySplit(SphereDanmaku bullet, Behaviour.Split split) {
+    private static void applySplit(AbstractDanmakuProjectile bullet, Behaviour.Split split) {
         if (split.active()) {
             bullet.configureSplit(split.tick(), split.count());
         }
     }
 
-    private static void applyVisibility(SphereDanmaku bullet, Behaviour.Visibility visibility) {
+    private static void applyVisibility(AbstractDanmakuProjectile bullet, Behaviour.Visibility visibility) {
         if (visibility.active()) {
             bullet.configurePhaseHide(
                     visibility.periodTicks(), visibility.duty(), visibility.phaseOffset());

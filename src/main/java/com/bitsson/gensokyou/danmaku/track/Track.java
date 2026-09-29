@@ -26,15 +26,15 @@ public record Track(
         double damageScale,
         List<Beat> beats,
         /**
-         * 本轨的编队装置声明（需求②③④）。
+         * 本轨的编队帧声明（需求②③④）。
          *
-         * <p><b>rig 是轨级而非拍级</b>：装置要「一批弹共享一份轨道参数」，而一批弹来自
-         * 同一轨的多次发射。若把 rig 挂到每一拍，同一条轨的 20 次重复发射就会各建一个
-         * 装置——批次被切碎，队形在两次发射之间就断了。
+         * <p><b>编队是轨级而非拍级</b>：一批弹来自同一轨的多次发射，它们必须共享同一份
+         * 编队帧。若挂到每一拍，同一条轨的 20 次重复发射就各算一次出生偏移，
+         * 队形在两次发射之间就断了。
          *
-         * <p>默认 {@link Behaviour.Rig#NONE}：绝大多数轨道不需要编队。
+         * <p>默认 {@link Behaviour.Formation#NONE}：绝大多数轨道不需要编队。
          */
-        Behaviour.Rig rig,
+        Behaviour.Formation formation,
         /** 视觉独占标识：四项各一个量化档位，供 lint 断言。 */
         VisualIdentity identity) {
 
@@ -60,7 +60,14 @@ public record Track(
      * <p>{@code phaseStepDeg} 让同轨的重复拍之间错开角度（环自转、扇推进）。
      */
     public record Beat(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
-                       TargetMode targetMode) {
+                       TargetMode targetMode, Projectile projectile) {
+
+        /** 球弹的简写构造（绝大多数拍）。 */
+        public Beat(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
+                    TargetMode targetMode) {
+            this(tick, shape, params, behaviour, targetMode, Projectile.SPHERE);
+        }
+
 
         /** 行为维度标识档位，供 {@link VisualIdentity} 断言「同符卡内两轨行为不重复」。 */
         public int behaviourIndex() {
@@ -106,7 +113,7 @@ public record Track(
         private int colorStep = 0;
         private int speedStep = 0;
         private int sizeStep = 0;
-        private Behaviour.Rig rig = Behaviour.Rig.NONE;
+        private Behaviour.Formation formation = Behaviour.Formation.NONE;
         private final List<Beat> beats = new ArrayList<>();
 
         private Builder(String name, int color) {
@@ -163,8 +170,8 @@ public record Track(
          * <p>每条轨<b>至多一个</b>装置，故重复调用是「覆盖」而非「追加」——
          * 装置数与轨道数同阶，这正是需求「装置数不超过 1~3」的字面含义。
          */
-        public Builder rig(Behaviour.Rig rig) {
-            this.rig = rig == null ? Behaviour.Rig.NONE : rig;
+        public Builder formation(Behaviour.Formation formation) {
+            this.formation = formation == null ? Behaviour.Formation.NONE : formation;
             return this;
         }
 
@@ -175,8 +182,21 @@ public record Track(
         /** 完整形式：几何参数 + 行为 + 目标模式。 */
         public Builder at(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
                           TargetMode mode) {
-            this.beats.add(new Beat(tick, shape, params, behaviour, mode));
+            return at(tick, shape, params, behaviour, mode, Projectile.SPHERE);
+        }
+
+        /** 完整形式：几何参数 + 行为 + 目标模式 + 弹种。 */
+        public Builder at(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
+                          TargetMode mode, Projectile projectile) {
+            this.beats.add(new Beat(tick, shape, params, behaviour, mode,
+                    projectile == null ? Projectile.SPHERE : projectile));
             return this;
+        }
+
+        /** 激光版简写：几何 + 弹种，不带行为。 */
+        public Builder laserAt(int tick, Shape shape, Shape.Params params, Projectile laser,
+                              TargetMode mode) {
+            return at(tick, shape, params, Behaviour.NONE, mode, laser);
         }
 
         /** 无行为、无几何参数的简写。 */
@@ -191,7 +211,7 @@ public record Track(
             int behaviourIndex = beats.isEmpty() ? 0 : beats.get(0).behaviourIndex();
             return new Track(name, color, terminates, repeatEvery, phaseStepDeg, damageScale,
                     beats.stream().sorted(Comparator.comparingInt(Beat::tick)).toList(),
-                    rig,
+                    formation,
                     new VisualIdentity(colorStep, speedStep, sizeStep, shapeIndex, behaviourIndex));
         }
     }

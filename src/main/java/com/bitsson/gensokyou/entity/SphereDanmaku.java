@@ -2,7 +2,6 @@ package com.bitsson.gensokyou.entity;
 
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.SplitSpread;
-import com.bitsson.gensokyou.danmaku.visual.DanmakuPhase;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
@@ -40,17 +39,6 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
     private static final EntityDataAccessor<Integer> DATA_VISUAL =
             SynchedEntityData.defineId(SphereDanmaku.class, EntityDataSerializers.INT);
 
-    // ---- 相位隐藏（全部由 tickCount 推导，零额外同步包）----
-    /** 隐藏态周期（tick）。0 = 不做相位隐藏。 */
-    private static final EntityDataAccessor<Integer> DATA_PHASE_PERIOD =
-            SynchedEntityData.defineId(SphereDanmaku.class, EntityDataSerializers.INT);
-    /** 可见期占空比（0~1 的百分数，避免同步浮点）。1.0 = 恒可见。 */
-    private static final EntityDataAccessor<Integer> DATA_PHASE_DUTY =
-            SynchedEntityData.defineId(SphereDanmaku.class, EntityDataSerializers.INT);
-    /** 相位偏移（tick），用于逐弹错峰。 */
-    private static final EntityDataAccessor<Integer> DATA_PHASE_OFFSET =
-            SynchedEntityData.defineId(SphereDanmaku.class, EntityDataSerializers.INT);
-
     public SphereDanmaku(EntityType<? extends SphereDanmaku> type, Level level) {
         super(type, level);
     }
@@ -73,9 +61,6 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
         super.defineSynchedData(builder);
         builder.define(DATA_SIZE, 0.4F);
         builder.define(DATA_VISUAL, DanmakuVisualProfile.defaultId());
-        builder.define(DATA_PHASE_PERIOD, 0);
-        builder.define(DATA_PHASE_DUTY, 100);
-        builder.define(DATA_PHASE_OFFSET, 0);
     }
 
     /** 随机取一个明亮饱和的颜色，避免出现接近黑色的弹幕。 */
@@ -219,72 +204,17 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
 
     // ------------------------------------------------------------------
     // 相位隐藏态
+    //
+    // 已上提到 AbstractDanmakuProjectile：显隐是 Behaviour 的一轴，与弹种正交。
+    // 留在球弹上会让「激光配相位隐藏」静默失效——行为被无声丢弃，
+    // 现象是「激光一直亮着，完全没有闪烁」，且日志干净。
     // ------------------------------------------------------------------
-
-    /**
-     * 设定相位隐藏。
-     *
-     * @param periodTicks 周期（tick）。≤ 0 关闭
-     * @param duty        可见期占空比，(0,1]。1 = 恒可见
-     * @param phaseOffset 相位偏移（tick），逐弹错峰用
-     */
-    public void configurePhaseHide(int periodTicks, double duty, int phaseOffset) {
-        this.entityData.set(DATA_PHASE_PERIOD, Math.max(0, periodTicks));
-        this.entityData.set(DATA_PHASE_DUTY, (int) Math.round(Math.min(1.0D, Math.max(0.0D, duty)) * 100.0D));
-        this.entityData.set(DATA_PHASE_OFFSET, phaseOffset);
-    }
-
-    /**
-     * 本 tick 是否处于隐藏态。
-     *
-     * <p>隐藏态下渲染 alpha 降至档案的 {@code hiddenAlpha}，且
-     * {@link #canHitEntity} 对本弹返回 false——即
-     * {@link DanmakuHitScan} 找不到任何命中，弹<b>既不判伤也不销毁</b>，
-     * 且玩家可从其上直接穿过。
-     *
-     * <p><b>方块碰撞不受影响</b>：隐藏态只关掉实体判定，方块判定仍照常进行，
-     * 故弹撞上方块仍会消失。
-     */
-    public boolean isHidden() {
-        return DanmakuPhase.isHidden(this.tickCount, phasePeriodTicks(), phaseDuty(), phaseOffset());
-    }
-
-    /**
-     * 隐藏态时跳过实体命中判定。
-     *
-     * <p>这是「隐藏态不判伤且不销毁」的全部实现——{@code canHitEntity} 返回 false 后，
-     * {@code DanmakuHitScan} 找不到实体命中，而方块分支独立于本谓词，故弹照常撞墙消失。
-     */
-    @Override
-    protected boolean canHitEntity(Entity target) {
-        if (this.isHidden()) {
-            return false;
-        }
-        return super.canHitEntity(target);
-    }
-
-    private int phasePeriodTicks() {
-        return this.entityData.get(DATA_PHASE_PERIOD);
-    }
-
-    private double phaseDuty() {
-        return this.entityData.get(DATA_PHASE_DUTY) / 100.0D;
-    }
-
-    private int phaseOffset() {
-        return this.entityData.get(DATA_PHASE_OFFSET);
-    }
 
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putFloat("Size", this.getSize());
         tag.putInt("Visual", this.getVisualId());
-        if (phasePeriodTicks() > 0) {
-            tag.putInt("PhasePeriod", phasePeriodTicks());
-            tag.putInt("PhaseDuty", this.entityData.get(DATA_PHASE_DUTY));
-            tag.putInt("PhaseOffset", phaseOffset());
-        }
     }
 
     @Override
@@ -295,11 +225,6 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
         }
         if (tag.contains("Visual")) {
             this.entityData.set(DATA_VISUAL, tag.getInt("Visual"));
-        }
-        if (tag.contains("PhasePeriod")) {
-            this.entityData.set(DATA_PHASE_PERIOD, tag.getInt("PhasePeriod"));
-            this.entityData.set(DATA_PHASE_DUTY, tag.getInt("PhaseDuty"));
-            this.entityData.set(DATA_PHASE_OFFSET, tag.getInt("PhaseOffset"));
         }
     }
 }

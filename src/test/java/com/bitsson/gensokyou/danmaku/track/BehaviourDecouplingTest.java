@@ -46,8 +46,9 @@ class BehaviourDecouplingTest {
                         "Shape.Params 是纯几何，MUST NOT 含行为字段 —— 发现: " + component.getName());
             }
         }
-        assertEquals(8, Shape.Params.class.getRecordComponents().length,
-                "几何参数应为 8 个字段（改前是 14，因混入了 7 个行为参数）");
+        assertEquals(11, Shape.Params.class.getRecordComponents().length,
+                "几何参数应为 11 个字段（改前是 14，因混入了 7 个行为参数；"
+                        + "现为 8 基础 + ROSETTE 的花瓣数与径向幅度 + LATTICE 的直瞄比例）");
     }
 
     // ------------------------------------------------------------------

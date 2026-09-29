@@ -23,14 +23,13 @@ TBD - created by archiving change add-remnant-touhou-bosses. Update Purpose afte
 - **THEN** 对应轨道的发射行为改变，无需改动轨道或实体代码
 
 ### Requirement: 四种新增弹幕行为
-弹幕基类 SHALL 在既有「匀速直射 / 追踪 / 激光」之外支持四种行为，且 MUST 以既有弹幕实体的行为开关形态实现，MUST NOT 为每种行为新增独立的弹幕实体类型：
+弹幕基类 SHALL 支持曲射、分裂、悬停、溜め四种行为，且 MUST 以**行为开关形态**落在既有弹幕实体上，MUST NOT 为每种行为新增独立的弹幕实体类型。
 
-- **曲射**——弹绕指定轴以给定角速度偏转
-- **分裂**——弹在给定时刻或命中时散成 N 发
-- **悬停**——弹在给定 tick 后速度归零并定住，保持命中判定
-- **溜め**——弹完全静止，在玩家进入给定半径时触发
+四种行为所需参数（曲射轴与角速度、悬停 tick、分裂数、溜め半径）SHALL 经 `SynchedEntityData` 下发。
 
-四种行为所需的全部参数（曲射轴与角速度、悬停 tick、分裂数、溜め半径）SHALL 经 `SynchedEntityData` 下发，使客户端与服务端按同一规则推进运动学。
+追踪与激光两种能力已以独立弹幕实体类型实现（追踪弹、激光弹），现网 spec 已将其排除在行为开关条款之外。二者与四种行为开关的**可判定边界**此前仅靠约定，本条予以明确：**任何改变「弹能命中什么」或「弹如何判定命中」的能力 MUST 以独立弹种实现；任何只改变「弹怎么动、怎么显、怎么死」的能力 MUST 以行为开关实现。**
+
+判定依据为：若该能力需要新的命中判定形式（射线、重叠集合、限速转向等），则属弹种；若仅需在既有命中判定下改变位置、显隐、存亡，则属行为。
 
 #### Scenario: 悬停保持命中
 - **WHEN** 一枚悬停弹到达其悬停 tick
@@ -52,14 +51,18 @@ TBD - created by archiving change add-remnant-touhou-bosses. Update Purpose afte
 - **WHEN** 客户端与服务端各自按同步数据推进曲射 / 分裂 / 悬停 / 溜め弹的运动
 - **THEN** 两端在任意 tick 上得到相同的位置，MUST NOT 出现一端悬停而另一端仍在飞行
 
+#### Scenario: 能力归属边界可判定
+- **WHEN** 设计一种新的弹幕能力
+- **THEN** 可依「是否改变命中语义」判定它属于独立弹种还是行为开关
+
 ### Requirement: 三维可读性契约
 所有 BOSS 弹幕 SHALL 满足三条可判定约束：
 
 - **前向威胁**——生成点位于玩家视野锥内，或该发有预警
 - **解法全向**——横向被堵死时，上下或前后存在解
-- **层限**——任一时刻，**每名玩家** 6 格内的弹幕数不超过配置预算
+- **层限**——任一时刻，**每名玩家** 6 格内的**稳态并发弹幕数**不超过配置预算
 
-「层限」SHALL 按每名玩家分别判定，MUST NOT 按全场弹幕总数判定。存在随机成分的轨道 MUST 将随机范围限制在可读的包络内（随 BOSS 旋转的锥或区域），MUST NOT 使用全向无约束随机。
+「层限」SHALL 按每名玩家分别判定，MUST NOT 按全场弹幕总数判定。密度判据 SHALL 以**稳态并发数**度量（图案持续存在期间同时在场的弹数），MUST NOT 以「每拍发数」度量——后者对持续型图案（每拍发数少而稳态并发高）会低估一个数量级。存在随机成分的轨道 MUST 将随机范围限制在可读的包络内（随 BOSS 旋转的锥或区域），MUST NOT 使用全向无约束随机。
 
 #### Scenario: 背向不生成
 - **WHEN** 读取任一 BOSS 轨道的全部生成点定义
@@ -68,6 +71,10 @@ TBD - created by archiving change add-remnant-touhou-bosses. Update Purpose afte
 #### Scenario: 层限按人判定
 - **WHEN** 5 名玩家同时在场且全场弹幕总数超过单人层限预算
 - **THEN** 只要任一玩家 6 格内的弹幕数未超预算，该状态即为合规
+
+#### Scenario: 持续型图案按稳态并发判定
+- **WHEN** 一条轨道每拍发数低于层限预算，但图案持续存在导致稳态并发数超预算
+- **THEN** 该轨道 SHALL 被判为不合规
 
 #### Scenario: 随机被约束
 - **WHEN** 某轨道使用随机生成
@@ -91,7 +98,7 @@ TBD - created by archiving change add-remnant-touhou-bosses. Update Purpose afte
 - **THEN** 可断言轨道数不超过色盘容量，且无两轨共用同一标识
 
 ### Requirement: 弹幕实体数硬上限
-模组 SHALL 设有全局同时存在的弹幕实体数上限，默认 500，从配置读取。达上限时 SHALL 停止生成新弹幕，MUST NOT 删除既有弹幕。
+模组 SHALL 设有全局同时存在的弹幕实体数上限，默认 800，从配置读取。达上限时 SHALL 停止生成新弹幕，MUST NOT 删除既有弹幕。该上限 SHALL 覆盖 BOSS 弹幕的全部分生成路径（含分裂子代）。该上限 SHALL 被视作**容量护栏**而非设计预算：其取值 SHALL 由「弹幕密度 vs 弹幕 tick 耗时」的实测曲线决定，MUST NOT 凭口味设定。
 
 #### Scenario: 达上限停发
 - **WHEN** 同时存在的弹幕实体数已达上限且某节拍触发
@@ -100,4 +107,8 @@ TBD - created by archiving change add-remnant-touhou-bosses. Update Purpose afte
 #### Scenario: 回落后恢复
 - **WHEN** 弹幕数因生命周期到期回落到上限以下
 - **THEN** 轨道恢复正常发射
+
+#### Scenario: 分裂亦受上限约束
+- **WHEN** 场内存活弹幕已达上限且一枚分裂弹到达分裂时刻
+- **THEN** 分裂不生成任何子代，MUST NOT 因分裂路径绕过上限而顶穿
 

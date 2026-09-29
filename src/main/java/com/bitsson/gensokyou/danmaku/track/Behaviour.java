@@ -1,7 +1,9 @@
 package com.bitsson.gensokyou.danmaku.track;
 
 import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
-import com.bitsson.gensokyou.danmaku.motion.RigOrbit;
+import com.bitsson.gensokyou.danmaku.motion.FormationFrame;
+import com.bitsson.gensokyou.danmaku.motion.Rotation;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * 一拍的行为——<b>与几何正交</b>的那一半。
@@ -77,7 +79,9 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
                          double profileV0, double profileP0,
                          double profileV1, double profileP1,
                          double profileV2, double profileP2,
-                         double profileV3) {
+                         double profileV3,
+                         boolean diesAtOrigin) {
+
 
         /** 运动种类。 */
         public enum Kind {
@@ -107,7 +111,7 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
         }
 
         public static Motion none() {
-            return new Motion(Kind.NONE, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0);
+            return new Motion(Kind.NONE, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false);
         }
 
         /**
@@ -117,34 +121,50 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
          * 既有的曲射轴打包约定，两端各自按同一规则反解出单位向量，故双端解析一致。
          */
         public static Motion curve(double yawDeg, double pitchDeg, double rateDegPerSec) {
-            return new Motion(Kind.CURVE, yawDeg, pitchDeg, rateDegPerSec, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0);
+            return new Motion(Kind.CURVE, yawDeg, pitchDeg, rateDegPerSec, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false);
         }
 
         /** 悬停。{@code hoverTick <= 0} 不生效。 */
         public static Motion hover(int hoverTick) {
-            return new Motion(Kind.HOVER, 0.0D, 0.0D, 0.0D, hoverTick, 0.0D, 0, 0, 0, 0, 0, 0, 0);
+            return new Motion(Kind.HOVER, 0.0D, 0.0D, 0.0D, hoverTick, 0.0D, 0, 0, 0, 0, 0, 0, 0, false);
         }
 
         /** 溜め。{@code mineRadius <= 0} 不生效。 */
         public static Motion mine(double triggerRadius) {
-            return new Motion(Kind.MINE, 0.0D, 0.0D, 0.0D, 0, triggerRadius, 0, 0, 0, 0, 0, 0, 0);
+            return new Motion(Kind.MINE, 0.0D, 0.0D, 0.0D, 0, triggerRadius, 0, 0, 0, 0, 0, 0, 0, false);
         }
 
         /** 贴地。 */
         public static Motion groundHug() {
-            return new Motion(Kind.GROUND_HUG, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0);
+            return new Motion(Kind.GROUND_HUG, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false);
         }
 
         /**
-         * 挂一条速率曲线。
+         * 挂一条速率曲线，<b>不</b>在回到发射点时销毁。
+         *
+         * <p>这是默认行为，也是绝大多数情况：反向加速是纯运动，弹可以退回去继续飞
+         * （编队花后撤、「拉开距离后缩回」都是这种），没必要一到原点就消失。
          *
          * @param profile 曲线。{@code v0}（初速）由发射方按弹速填，故本方法
          *                MUST 在几何的初速设定<b>之后</b>调用
          */
         public static Motion speedProfile(DanmakuSpeedProfile profile) {
+            return speedProfile(profile, false);
+        }
+
+        /**
+         * 挂一条速率曲线，并声明「越过发射点即销毁」这一<b>终止条件</b>。
+         *
+         * <p>销毁是一条独立于运动的规则，不是反向加速的固有属性。早期实现把它
+         * 焊在曲线上（任何回头曲线到点自毁），后果是：编队花后撤时整朵花在推进项
+         * 穿过零点的那一 tick 集体消失——判据问的是推进项，弹的实际位置却在两格外。
+         *
+         * @param diesAtOrigin 勾上后弹在越过发射点时销毁。默认不勾
+         */
+        public static Motion speedProfile(DanmakuSpeedProfile profile, boolean diesAtOrigin) {
             return new Motion(Kind.SPEED_PROFILE, 0.0D, 0.0D, 0.0D, 0, 0.0D,
                     profile.v0(), profile.p0(), profile.v1(), profile.p1(),
-                    profile.v2(), profile.p2(), profile.v3());
+                    profile.v2(), profile.p2(), profile.v3(), diesAtOrigin);
         }
 
         /** 还原成曲线对象。 */
@@ -253,83 +273,162 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
     // ------------------------------------------------------------------
 
     /**
-     * 编队装置：一批弹共享的环绕中心与运动参数（需求②③④）。
+     * 编队帧声明：一批弹共享的那份编排参数（需求②③④）。
      *
-     * <p>挂上装置后，弹位不再由「初速 × tick」决定，而由
-     * <b>「装置的 tick + 本弹的相位角」</b>唯一确定。轨迹同时含两层：
-     * 装置绕外层中心公转，弹再绕装置自转——即需求所说的「双层环绕」。
+     * <p><b>这里只有声明，没有装置，也没有引用。</b>发射时 {@code TrackRunner} 把声明
+     * 连同本弹的出生点一起烘成一枚 {@link FormationFrame}，写进该弹自己的同步数据。
+     * 之后编队不再是一个「需要被维护的东西」，只是每颗弹各自携带的 12 个定标整数。
      *
-     * <p><b>本行为只声明「要一个什么样的装置」，不持有装置</b>。装置是<b>按轨道</b>
-     * 创建的实体（一个符卡 1~3 条轨道 ⇒ 至多 1~3 个装置），由 {@code TrackRunner} 在
-     * 换阶段时统一销毁。行为里存实体引用会把「数据」与「运行时」耦在一起，
-     * 符卡表就无法离线 lint 与单测了。
+     * <p><b>为什么声明留在这里而不在 {@code FormationFrame} 里</b>：本类保持纯数据、
+     * 不引用实体，故符卡表可离线 lint 与单测。编队中心是「发射时才确定的世界坐标」，
+     * 属于运行时；把它写死在声明里会让符卡表没法复用（同一张卡换个出生点就得重写）。
      *
-     * <p><b>与哪些行为互斥</b>：{@link Motion.Kind#MINE}（溜め弹的语义是原地埋着等人踩，
-     * 而位置由装置决定）与 {@link Motion.Kind#CURVE} / {@link Motion.Kind#SPEED_PROFILE}
-     * （装置已经把位置写死，再叠一层「改速度」只会互相打架）。lint 会静态拒绝这些组合。
+     * <p><b>与哪些运动互斥</b>——注意这里与「速率曲线」<b>不</b>互斥：
+     * <ul>
+     *   <li>{@code MINE}（溜め）与 {@code HOVER}：两者都靠「把速度清零」表达语义，
+     *       而编队帧每 tick 都会重新给出一个非零位移，语义直接被覆盖；</li>
+     *   <li>{@code CURVE}：曲射每 tick 改写速度向量，而编队帧已经把位置写死，
+     *       两者同时开会「看起来在动但其实没动」——比直接报错更难查。</li>
+     * </ul>
+     * 而 {@code SPEED_PROFILE} 是编队弹<b>推进项</b>的来源，与编队帧是相加关系，不冲突。
      */
-    public record Rig(boolean active,
-                      double centerX, double centerY, double centerZ,
-                      double planeYawDeg, double planePitchDeg,
-                      double orbitRadius, double orbitHeight, double orbitRateDegPerTick,
-                      double spinRateDegPerTick,
-                      double formationRadius, double formationHeight,
-                      double formationYawDeg, double formationPitchDeg,
-                      int lifetimeTicks) {
+    public record Formation(boolean active,
+                            double axisYawDeg, double axisPitchDeg,
+                            double rotRateDegPerTick,
+                            double scaleBase, double scaleAmp, double scalePeriodTicks,
+                            double orbitAxisYawDeg, double orbitAxisPitchDeg,
+                            double orbitRadius, double orbitRateDegPerTick) {
 
-        /** 不挂装置。绝大多数拍用这个。 */
-        public static final Rig NONE = new Rig(false,
-                0, 0, 0, 0, RigOrbit.HORIZONTAL_PITCH_DEG,
-                0, 0, 0, 0, 0, 0, 0, RigOrbit.HORIZONTAL_PITCH_DEG, 0);
+        /** 不编队。绝大多数轨道用这个。 */
+        public static final Formation NONE = new Formation(false,
+                0, FormationFrame.HORIZONTAL_PITCH_DEG, 0, 1, 0, 0,
+                0, FormationFrame.HORIZONTAL_PITCH_DEG, 0, 0);
 
-        public static Rig none() {
+        public static Formation none() {
             return NONE;
         }
 
         /**
-         * 挂一个装置。
+         * 只自转的编队（无呼吸）。
          *
-         * @param center             外层中心（<b>标量</b>，不是实体）
-         * @param planeYawDeg        公转平面下转角。水平环绕用 {@code 0}
-         * @param planePitchDeg      公转平面俯仰角。水平环绕用
-         *                           {@link RigOrbit#HORIZONTAL_PITCH_DEG}
-         * @param orbitRadius        装置绕外层中心的公转半径
-         * @param orbitHeight        装置相对外层中心的高度
-         * @param orbitRateDegPerTick 公转角速度（度/tick）
-         * @param spinRateDegPerTick 弹绕装置的自转角速度（度/tick）
-         * @param formationRadius    弹到装置的距离
-         * @param formationHeight    弹相对装置平面的高度
-         * @param lifetimeTicks      装置寿命；到期自毁，弹随之脱钩自由飞行
+         * @param axisYawDeg   环绕平面下转角。水平环绕用 {@code 0}
+         * @param axisPitchDeg 环绕平面俯仰角。水平环绕用
+         *                      {@link FormationFrame#HORIZONTAL_PITCH_DEG}
+         * @param rotRateDegPerTick 每 tick 转多少度
          */
-        public static Rig around(RigOrbit orbit, int lifetimeTicks) {
-            return new Rig(true,
-                    orbit.centerX(), orbit.centerY(), orbit.centerZ(),
-                    orbit.planeYawDeg(), orbit.planePitchDeg(),
-                    orbit.orbitRadius(), orbit.orbitHeight(), orbit.orbitRateDegPerTick(),
-                    orbit.spinRateDegPerTick(),
-                    orbit.formationRadius(), orbit.formationHeight(),
-                    orbit.formationYawDeg(), orbit.formationPitchDeg(),
-                    Math.max(1, lifetimeTicks));
+        public static Formation spin(double axisYawDeg, double axisPitchDeg,
+                                     double rotRateDegPerTick) {
+            return new Formation(true, axisYawDeg, axisPitchDeg, rotRateDegPerTick, 1, 0, 0,
+                    0, FormationFrame.HORIZONTAL_PITCH_DEG, 0, 0);
         }
 
-        /** 还原成轨道对象。 */
-        public RigOrbit orbit() {
-            return new RigOrbit(centerX, centerY, centerZ,
-                    planeYawDeg, planePitchDeg,
-                    orbitRadius, orbitHeight, orbitRateDegPerTick,
-                    spinRateDegPerTick,
-                    formationRadius, formationHeight,
-                    formationYawDeg, formationPitchDeg);
+        /** 改设内层自转轴（直接给单位向量，角度由 {@link Rotation#anglesFromAxis} 换算）。 */
+        public Formation withSpin(Vec3 axis, double rateDegPerTick) {
+            double[] angles = Rotation.anglesFromAxis(axis);
+            return new Formation(active, angles[0], angles[1], rateDegPerTick,
+                    scaleBase, scaleAmp, scalePeriodTicks,
+                    orbitAxisYawDeg, orbitAxisPitchDeg, orbitRadius, orbitRateDegPerTick);
         }
 
-        /** 本行为与给定运动是否冲突。lint 据此静态拒绝非法组合。 */
+        /**
+         * 叠加一层「整队绕外部中心公转」——「两重公转」的第一重。
+         *
+         * <p><b>内层轴与外层轴务必取不同方向</b>：同轴的两个旋转会直接相加，
+         * 得到的只是「转得更快」，压根没有两层——那种情况下应该干脆只调内层角速度。
+         * 水平公转（法线 = 竖直）配竖直自转（法线 = 水平）即得 Lissajous 那类图形。
+         *
+         * @param outerAxisYawDeg   外层公转平面的法线下转角
+         * @param outerAxisPitchDeg 外层公转平面的法线俯仰角
+         * @param outerRadius       公转半径，{@code <= 0} 退化成单层
+         * @param outerRateDegPerTick 公转角速度
+         */
+        public Formation withOrbit(double outerAxisYawDeg, double outerAxisPitchDeg,
+                                   double outerRadius, double outerRateDegPerTick) {
+            return new Formation(active, axisYawDeg, axisPitchDeg, rotRateDegPerTick,
+                    scaleBase, scaleAmp, scalePeriodTicks,
+                    outerAxisYawDeg, outerAxisPitchDeg,
+                    Math.max(0.0D, outerRadius), outerRateDegPerTick);
+        }
+
+        /**
+         * 改设外层公转轴（直接给单位向量）。
+         *
+         * <p>「螺旋」那种平面内的两层旋转，两层轴<b>相同</b>，此时得到平面玫瑰线；
+         * 沿法线再叠一个推进项即成螺纹线。把轴给成向量而不是两个角度，
+         * 是为了让调用方能直接写「用视线方向当轴」，而不必手算 yaw/pitch——
+         * 那个换算错了不报错，只是旋转莫名其妙地跑到了另一个平面上。
+         */
+        public Formation withOrbit(Vec3 axis, double radius, double rateDegPerTick) {
+            double[] angles = Rotation.anglesFromAxis(axis);
+            return new Formation(active, axisYawDeg, axisPitchDeg, rotRateDegPerTick,
+                    scaleBase, scaleAmp, scalePeriodTicks,
+                    angles[0], angles[1], Math.max(0.0D, radius), rateDegPerTick);
+        }
+
+        /**
+         * 叠加呼吸缩放，保留已有的自转与公转。
+         *
+         * <p>「张开 / 收拢」只是整体等比缩放，形状不变，故与自转、公转三者正交、可随意叠加。
+         *
+         * @param base        缩放基准（1 = 保持出生时的形状）
+         * @param amp         缩放幅度。缩放在 {@code [base − |amp|, base + |amp|]} 间往返
+         * @param periodTicks 呼吸周期，{@code <= 0} 退化为常量缩放
+         */
+        public Formation withBreathing(double base, double amp, double periodTicks) {
+            return new Formation(active, axisYawDeg, axisPitchDeg, rotRateDegPerTick,
+                    base, amp, Math.max(0.0D, periodTicks),
+                    orbitAxisYawDeg, orbitAxisPitchDeg, orbitRadius, orbitRateDegPerTick);
+        }
+
+        /**
+         * 会呼吸的编队：整体按 {@code base ± amp} 等比缩放，周期 {@code periodTicks}。
+         *
+         * <p>「花瓣张开 / 收拢」就是它——花瓣的长短编码在出生点里，编队帧只负责把
+         * 那圈 {@code p₀} 一起放大再缩回，故运动层不需要知道「花」是什么。
+         *
+         * @param rotRateDegPerTick 每 tick 转多少度（0 = 只呼吸不转）
+         * @param base              缩放基准（1 = 保持出生时的形状）
+         * @param amp               缩放幅度。取负即「出生即收拢」
+         * @param periodTicks       呼吸周期。≤ 0 退化为常量缩放
+         */
+        public static Formation breathing(double axisYawDeg, double axisPitchDeg,
+                                         double rotRateDegPerTick,
+                                         double base, double amp, double periodTicks) {
+            return new Formation(true, axisYawDeg, axisPitchDeg, rotRateDegPerTick,
+                    base, amp, Math.max(0.0D, periodTicks),
+                    0, FormationFrame.HORIZONTAL_PITCH_DEG, 0, 0);
+        }
+
+        /**
+         * 烘成某枚弹的编队帧。
+         *
+         * @param center 编队参考点——发射时对世界坐标取一次<b>快照</b>，非实体引用
+         * @param origin 该弹的出生点；形状（「花瓣长短」）就编码在它与 center 的差里
+         */
+        public FormationFrame frameFor(Vec3 center, Vec3 origin) {
+            return new FormationFrame(center.x, center.y, center.z,
+                    origin.x - center.x, origin.y - center.y, origin.z - center.z,
+                    axisYawDeg, axisPitchDeg, rotRateDegPerTick,
+                    scaleBase, scaleAmp, scalePeriodTicks,
+                    orbitAxisYawDeg, orbitAxisPitchDeg, orbitRadius, orbitRateDegPerTick);
+        }
+
+        /**
+         * 本声明与给定运动是否冲突。lint 据此静态拒绝非法组合。
+         *
+         * <p>{@code SPEED_PROFILE} 一般<b>不</b>冲突——它是编队弹「沿弹道推进」那一项的
+         * 来源，与编队帧相加。但带 {@code diesAtOrigin} 时冲突：那条判据问的是
+         * 「推进项回到零点」，而挂了编队帧后弹的实际位置由帧项主导，两者不是同一件事，
+         * 会让整朵花在错误的时刻集体消失。
+         */
         public boolean conflictsWith(Motion motion) {
             if (!active) {
                 return false;
             }
             return switch (motion.kind()) {
-                case MINE, CURVE, SPEED_PROFILE -> true;
-                case NONE, HOVER, GROUND_HUG -> false;
+                case MINE, HOVER, CURVE -> true;
+                case SPEED_PROFILE -> motion.diesAtOrigin();
+                case NONE, GROUND_HUG -> false;
             };
         }
     }

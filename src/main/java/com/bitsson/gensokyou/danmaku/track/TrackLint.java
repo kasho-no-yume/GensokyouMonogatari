@@ -113,7 +113,7 @@ public final class TrackLint {
             if (track.beats().isEmpty()) {
                 violations.add(String.format("%s: 轨「%s」没有任何节拍", tag, track.name()));
             }
-            violations.addAll(lintRig(tag, track));
+            violations.addAll(lintFormation(tag, track));
             for (Track.Beat beat : track.beats()) {
                 violations.addAll(lintBeat(tag, track, beat));
             }
@@ -131,32 +131,32 @@ public final class TrackLint {
     }
 
     /**
-     * 编队装置的静态判据（需求②③④⑤）。
+     * 编队帧的静态判据（需求②③④）。
      *
-     * <p>装置会把弹位「写死」成 {@code (装置 tick, 自身相位)} 的函数，因此与三类
-     * 既有行为语义互斥，MUST 在静态期就拒掉，而不是等到实机里看到「弹不动」或
-     * 「弹突然消失」：
+     * <p>编队帧把弹位「写死」成一个 {@code (t, p₀)} 的函数，因此与三类既有运动
+     * 语义互斥，MUST 在静态期就拒掉，而不是等到实机里看到「弹莫名停住」或
+     * 「弹一卡一卡地抽搐」：
      * <ul>
-     *   <li>{@code MINE}——溜め弹的语义是「原地埋着等人踩」，而位置由装置决定；</li>
-     *   <li>{@code CURVE} / {@code SPEED_PROFILE}——两者都在改速度，而装置已经
-     *       用「解析终点 − 当前坐标」把速度占满了；叠上去等于两个权威同时写位置，
-     *       表现为弹一卡一卡地抽搐。</li>
+     *   <li>{@code MINE} / {@code HOVER}——两者都靠「把速度清零」表达语义，而编队帧
+     *       每 tick 都会重新给出一个非零位移，语义被直接覆盖；</li>
+     *   <li>{@code CURVE}——曲射每 tick 改写速度向量，而编队帧已经把位置写死。
+     *       两者同时开时曲射<b>静默失效</b>：弹看起来在动但轨迹没变，
+     *       这种「配了等于没配」的故障比直接报错难查得多。</li>
      * </ul>
+     *
+     * <p>注意 {@code SPEED_PROFILE} <b>不</b>在互斥之列：它是编队弹「沿弹道推进」
+     * 那一项的来源，与编队帧是<b>相加</b>关系。
      */
-    private static List<String> lintRig(String tag, Track track) {
+    private static List<String> lintFormation(String tag, Track track) {
         List<String> violations = new ArrayList<>();
-        Behaviour.Rig rig = track.rig();
-        if (!rig.active()) {
+        Behaviour.Formation formation = track.formation();
+        if (!formation.active()) {
             return violations;
         }
-        if (rig.lifetimeTicks() <= 0) {
-            violations.add(String.format("%s: 轨「%s」的装置寿命为 %d tick，弹将永远挂在它身上",
-                    tag, track.name(), rig.lifetimeTicks()));
-        }
         for (Track.Beat beat : track.beats()) {
-            if (rig.conflictsWith(beat.behaviour().motion())) {
-                violations.add(String.format("%s: 轨「%s」t=%d 同时用了编队与运动「%s」"
-                                + "——装置已接管弹位，该运动会与之争夺位置权威",
+            if (formation.conflictsWith(beat.behaviour().motion())) {
+                violations.add(String.format("%s: 轨「%s」t=%d 同时用了编队帧与运动「%s」"
+                                + "——编队帧已接管弹位，该运动会与之争夺位置权威",
                         tag, track.name(), beat.tick(),
                         beat.behaviour().motion().kind()));
             }
@@ -214,6 +214,7 @@ public final class TrackLint {
         Shape shape = beat.shape();
         Shape.Params params = beat.params();
         String where = String.format("%s 轨「%s」t=%d %s", tag, track.name(), beat.tick(), shape);
+        // 显影/可见性：激光有自己的生命周期，隐藏态对它另有语义时由下面单独判。
 
         // R1：绕玩家铺满 360° 的形状必须留缺口，否则等于有一半弹在背后。
         boolean fullCircle = shape == Shape.RING_FACING || shape == Shape.RING_HORIZONTAL
@@ -226,10 +227,50 @@ public final class TrackLint {
         }
 
         // R1：随机必须被包络约束。
-        if (shape.isRandom()
+        //
+        // 两种「随机」的上限语义不同，故分开判：CONE_RANDOM 的 spreadDeg 是锥张角（半角 = 一半），
+        // AROUND_TARGET 的是「方向与原点→目标连线的夹角上限」。
+        //
+        // AROUND_TARGET 的上限是 180°（完全自由），**刻意不收紧**：激光靠
+        // `Phase.DELAY` 预警，公平性来自预警而非方向。收紧只会让「背后交叉火网」
+        // 这类设计写不出来，换来的好处是零。
+        if (shape == Shape.CONE_RANDOM
                 && (params.spreadDeg() <= 0.0D || params.spreadDeg() > CONE_RANDOM_MAX_SPREAD)) {
             violations.add(where + ": 违反 R1——随机锥张角必须在 (0, "
                     + CONE_RANDOM_MAX_SPREAD + "] 度内");
+        }
+        if (shape == Shape.AROUND_TARGET
+                && (params.spreadDeg() < 0.0D
+                    || params.spreadDeg() > Geometry.AROUND_TARGET_MAX_AIM_DEG)) {
+            violations.add(where + ": 违反 R1——目标周围发射的瞄准夹角须在 [0, "
+                    + Geometry.AROUND_TARGET_MAX_AIM_DEG + "] 度内，实际 "
+                    + params.spreadDeg());
+        }
+        // LATTICE：瞄准夹角上限 90°（网的语义是「从四周朝内收拢」，允许射线指向背离目标的
+        // 方向就成了一团没有方向的线），且直瞄比例须在 (0,1] —— 全散射没有必须躲的，
+        // 全直瞄没有夹缝可找。
+        if (shape == Shape.LATTICE) {
+            if (params.radius() <= 0.0D) {
+                violations.add(where + ": LATTICE 的区域外半径须为正，实际 " + params.radius());
+            }
+            if (params.spreadDeg() < 0.0D || params.spreadDeg() > Geometry.LATTICE_MAX_AIM_DEG) {
+                violations.add(where + ": 违反 R1——激光网的瞄准夹角须在 [0, "
+                        + Geometry.LATTICE_MAX_AIM_DEG + "] 度内，实际 " + params.spreadDeg());
+            }
+            if (params.aimBias() <= 0.0D || params.aimBias() > 1.0D) {
+                violations.add(where + ": 激光网的直瞄比例须在 (0, 1] 内，实际 "
+                        + params.aimBias() + "（0 = 没有必须躲的；1 = 没有夹缝）");
+            }
+        }
+        if (shape == Shape.AROUND_TARGET && params.radius() <= 0.0D) {
+            violations.add(where + ": AROUND_TARGET 的目标周围区域半径须为正，实际 "
+                    + params.radius());
+        }
+        // 激光 + 速度语义：激光是静止的射线，速率曲线对它是空转。
+        // 不静默忽略——「配了却没反应」正是本项目反复踩的那类故障。
+        if (beat.projectile().isLaser()
+                && beat.behaviour().motion().kind() == Behaviour.Motion.Kind.SPEED_PROFILE) {
+            violations.add(where + ": 激光是静止射线，配速率曲线无效（位置由激光自身生命周期决定）");
         }
 
         // R2：自轴型 MUST 留有可穿过的解。

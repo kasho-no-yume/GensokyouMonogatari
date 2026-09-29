@@ -1,7 +1,14 @@
 package com.bitsson.gensokyou.command;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.danmaku.DanmakuEmitter;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
+import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
+import com.bitsson.gensokyou.danmaku.motion.FormationFrame;
+import com.bitsson.gensokyou.danmaku.track.Behaviour;
+import com.bitsson.gensokyou.danmaku.track.Geometry;
+import com.bitsson.gensokyou.danmaku.track.Projectile;
+import com.bitsson.gensokyou.danmaku.track.Shape;
 import com.bitsson.gensokyou.danmaku.track.SpellCard;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile;
 import com.bitsson.gensokyou.entity.KnifeDanmaku;
@@ -107,33 +114,16 @@ public final class DanmakuTestCommands {
                 .then(Commands.literal("barrage")
                         .executes(context -> spawnBarrage(context.getSource().getPlayerOrException())))
 
-                // /danmaku stress <N> [存活秒] - 密度阶梯测试台
-                .then(Commands.literal("stress")
-                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 8000))
-                                .executes(context -> spawnStress(
-                                        context.getSource().getPlayerOrException(),
-                                        IntegerArgumentType.getInteger(context, "count"), 600))
-                                .then(Commands.argument("lifetimeSeconds",
-                                                IntegerArgumentType.integer(1, 1200))
-                                        .executes(context -> spawnStress(
-                                                context.getSource().getPlayerOrException(),
-                                                IntegerArgumentType.getInteger(context, "count"),
-                                                IntegerArgumentType.getInteger(context, "lifetimeSeconds"))))))
+                .then(spiralNode())
+                .then(flowerNode())
 
-                // /danmaku prism [数量] - 生成五角星柱（视觉档案的可换几何验证件）
-                .then(Commands.literal("prism")
-                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 200))
-                                .executes(context -> spawnPrism(
-                                        context.getSource().getPlayerOrException(),
-                                        IntegerArgumentType.getInteger(context, "count")))))
+                // /danmaku laser-ring [N] [区域半径] [瞄准夹角] [长度] [粗细] [延迟秒] [持续秒]
+                // 目标周围一圈激光朝内指：发射点在目标周围，不在 BOSS 身上。
+                .then(laserRingNode())
 
-                // /danmaku list - 列出全部可预览的符卡
-                .then(Commands.literal("list")
-                        .executes(context -> listCards(context.getSource())))
-
-                // /danmaku stop - 停止预览
-                .then(Commands.literal("stop")
-                        .executes(context -> stopPreview(context.getSource())))
+                // /danmaku web [N] [球半径] [散射夹角] [直瞄比例] [长度] [粗细] [延迟秒] [持续秒]
+                // 凌乱激光网：发射点真随机，瞄准逐发独立，玩家置身网中找夹缝
+                .then(webNode())
 
                 // /danmaku card <BOSS> [卡序] [秒数] [伤害] - 只跑弹幕，不跑 BOSS
                 .then(Commands.literal("card")
@@ -499,6 +489,502 @@ public final class DanmakuTestCommands {
         player.sendSystemMessage(Component.literal("§a生成环形弹幕 §7(" + count + "发)"));
         return 1;
     }
+
+    /**
+     * 两重公转螺旋：弹绕自己的编队中心自转，整队同时绕外部中心公转，并沿初始方向螺旋前进。
+     *
+     * <p><b>两层轴刻意取不同方向</b>——外层公转的法线是竖直（编队在水平面里绕大圈），
+     * 内层自转的法线是水平（弹在竖直面里绕编队中心转）。同轴会直接叠加成「转得更快」，
+     * 那样就只剩一层，看不到「两重」。
+     *
+     * <p>叠上呼吸缩放后，螺旋的圈会一松一紧——这是「螺旋」最像 spirals 的读法。
+     */
+    /**
+     * {@code /danmaku spiral} 的参数树。
+     *
+     * <p>七个可选参数逐级追加。每加一个就把前面已解析的值原样传下去，
+     * 于是「默认值」只出现在最内层那一处，参数表与调用点不会各写一份。
+     */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> spiralNode() {
+        return Commands.literal("spiral")
+                .executes(context -> spawnSpiral(context.getSource().getPlayerOrException(),
+                        24, 4.0D, 6.0D, 1.5D, 0.35D, 60, 0.25D))
+                .then(Commands.argument("count", IntegerArgumentType.integer(3, 256))
+                        .executes(context -> spawnSpiral(context.getSource().getPlayerOrException(),
+                                IntegerArgumentType.getInteger(context, "count"),
+                                4.0D, 6.0D, 1.5D, 0.35D, 60, 0.25D))
+                        .then(Commands.argument("innerRate", DoubleArgumentType.doubleArg(-20.0D, 20.0D))
+                                .executes(context -> spawnSpiral(context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "count"),
+                                        DoubleArgumentType.getDouble(context, "innerRate"),
+                                        6.0D, 1.5D, 0.35D, 60, 0.25D))
+                                .then(Commands.argument("outerRadius", DoubleArgumentType.doubleArg(0.0D, 40.0D))
+                                        .executes(context -> spawnSpiral(context.getSource().getPlayerOrException(),
+                                                IntegerArgumentType.getInteger(context, "count"),
+                                                DoubleArgumentType.getDouble(context, "innerRate"),
+                                                DoubleArgumentType.getDouble(context, "outerRadius"),
+                                                1.5D, 0.35D, 60, 0.25D))
+                                        .then(Commands.argument("outerRate", DoubleArgumentType.doubleArg(-20.0D, 20.0D))
+                                                .executes(context -> spawnSpiral(context.getSource().getPlayerOrException(),
+                                                        IntegerArgumentType.getInteger(context, "count"),
+                                                        DoubleArgumentType.getDouble(context, "innerRate"),
+                                                        DoubleArgumentType.getDouble(context, "outerRadius"),
+                                                        DoubleArgumentType.getDouble(context, "outerRate"),
+                                                        0.35D, 60, 0.25D))
+                                                .then(Commands.argument("breathAmp", DoubleArgumentType.doubleArg(0.0D, 3.0D))
+                                                        .executes(context -> spawnSpiral(context.getSource().getPlayerOrException(),
+                                                                IntegerArgumentType.getInteger(context, "count"),
+                                                                DoubleArgumentType.getDouble(context, "innerRate"),
+                                                                DoubleArgumentType.getDouble(context, "outerRadius"),
+                                                                DoubleArgumentType.getDouble(context, "outerRate"),
+                                                                DoubleArgumentType.getDouble(context, "breathAmp"),
+                                                                60, 0.25D))
+                                                        .then(Commands.argument("breathPeriod", IntegerArgumentType.integer(10, 600))
+                                                                .executes(context -> spawnSpiral(context.getSource().getPlayerOrException(),
+                                                                        IntegerArgumentType.getInteger(context, "count"),
+                                                                        DoubleArgumentType.getDouble(context, "innerRate"),
+                                                                        DoubleArgumentType.getDouble(context, "outerRadius"),
+                                                                        DoubleArgumentType.getDouble(context, "outerRate"),
+                                                                        DoubleArgumentType.getDouble(context, "breathAmp"),
+                                                                        IntegerArgumentType.getInteger(context, "breathPeriod"),
+                                                                        0.25D))
+                                                                .then(Commands.argument("speed", DoubleArgumentType.doubleArg(0.0D, 2.0D))
+                                                                        .executes(context -> spawnSpiral(context.getSource().getPlayerOrException(),
+                                                                                IntegerArgumentType.getInteger(context, "count"),
+                                                                                DoubleArgumentType.getDouble(context, "innerRate"),
+                                                                                DoubleArgumentType.getDouble(context, "outerRadius"),
+                                                                                DoubleArgumentType.getDouble(context, "outerRate"),
+                                                                                DoubleArgumentType.getDouble(context, "breathAmp"),
+                                                                                IntegerArgumentType.getInteger(context, "breathPeriod"),
+                    DoubleArgumentType.getDouble(context, "speed"))))))))));
+    }
+
+    /**
+     * {@code /danmaku flower} 的参数树。最后可选的 {@code retreat} 字面量给花瓣挂上
+     * 「减速-悬停-后退」的推进项。
+     */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> flowerNode() {
+        return Commands.literal("flower")
+                .executes(context -> spawnFlower(context.getSource().getPlayerOrException(),
+                        5, 12, 3.0D, 1.8D, 2.0D, 0.4D, 60, 1.2D, false))
+                .then(Commands.argument("petals", IntegerArgumentType.integer(3, 12))
+                        .executes(context -> spawnFlower(context.getSource().getPlayerOrException(),
+                                IntegerArgumentType.getInteger(context, "petals"),
+                                12, 3.0D, 1.8D, 2.0D, 0.4D, 60, 1.2D, false))
+                        .then(Commands.argument("perPetal", IntegerArgumentType.integer(1, 40))
+                                .executes(context -> spawnFlower(context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "petals"),
+                                        IntegerArgumentType.getInteger(context, "perPetal"),
+                                        3.0D, 1.8D, 2.0D, 0.4D, 60, 1.2D, false))
+                                .then(Commands.argument("baseRadius", DoubleArgumentType.doubleArg(0.5D, 20.0D))
+                                        .executes(context -> spawnFlower(context.getSource().getPlayerOrException(),
+                                                IntegerArgumentType.getInteger(context, "petals"),
+                                                IntegerArgumentType.getInteger(context, "perPetal"),
+                                                DoubleArgumentType.getDouble(context, "baseRadius"),
+                                                1.8D, 2.0D, 0.4D, 60, 1.2D, false))
+                                        .then(Commands.argument("amp", DoubleArgumentType.doubleArg(0.0D, 20.0D))
+                                                .executes(context -> spawnFlower(context.getSource().getPlayerOrException(),
+                                                        IntegerArgumentType.getInteger(context, "petals"),
+                                                        IntegerArgumentType.getInteger(context, "perPetal"),
+                                                        DoubleArgumentType.getDouble(context, "baseRadius"),
+                                                        DoubleArgumentType.getDouble(context, "amp"),
+                                                        2.0D, 0.4D, 60, 1.2D, false))
+                                                .then(Commands.argument("spinRate", DoubleArgumentType.doubleArg(-20.0D, 20.0D))
+                                                        .executes(context -> spawnFlower(context.getSource().getPlayerOrException(),
+                                                                IntegerArgumentType.getInteger(context, "petals"),
+                                                                IntegerArgumentType.getInteger(context, "perPetal"),
+                                                                DoubleArgumentType.getDouble(context, "baseRadius"),
+                                                                DoubleArgumentType.getDouble(context, "amp"),
+                                                                DoubleArgumentType.getDouble(context, "spinRate"),
+                                                                0.4D, 60, 1.2D, false))
+                                                        .then(Commands.argument("breathAmp", DoubleArgumentType.doubleArg(0.0D, 3.0D))
+                                                                .executes(context -> spawnFlower(context.getSource().getPlayerOrException(),
+                                                                        IntegerArgumentType.getInteger(context, "petals"),
+                                                                        IntegerArgumentType.getInteger(context, "perPetal"),
+                                                                        DoubleArgumentType.getDouble(context, "baseRadius"),
+                                                                        DoubleArgumentType.getDouble(context, "amp"),
+                                                                        DoubleArgumentType.getDouble(context, "spinRate"),
+                                                                        DoubleArgumentType.getDouble(context, "breathAmp"),
+                                                                        60, 1.2D, false))
+                                                                .then(Commands.argument("breathPeriod", IntegerArgumentType.integer(10, 600))
+                                                                        .executes(context -> spawnFlower(context.getSource().getPlayerOrException(),
+                                                                                IntegerArgumentType.getInteger(context, "petals"),
+                                                                                IntegerArgumentType.getInteger(context, "perPetal"),
+                                                                                DoubleArgumentType.getDouble(context, "baseRadius"),
+                                                                                DoubleArgumentType.getDouble(context, "amp"),
+                                                                                DoubleArgumentType.getDouble(context, "spinRate"),
+                                                                                DoubleArgumentType.getDouble(context, "breathAmp"),
+                                                                                IntegerArgumentType.getInteger(context, "breathPeriod"),
+                                                                                1.2D, false))
+                                                                        .then(Commands.argument("stamenSize", DoubleArgumentType.doubleArg(0.0D, 4.0D))
+                                                                                .executes(context -> spawnFlower(context.getSource().getPlayerOrException(),
+                                                                                        IntegerArgumentType.getInteger(context, "petals"),
+                                                                                        IntegerArgumentType.getInteger(context, "perPetal"),
+                                                                                        DoubleArgumentType.getDouble(context, "baseRadius"),
+                                                                                        DoubleArgumentType.getDouble(context, "amp"),
+                                                                                        DoubleArgumentType.getDouble(context, "spinRate"),
+                                                                                        DoubleArgumentType.getDouble(context, "breathAmp"),
+                                                                                        IntegerArgumentType.getInteger(context, "breathPeriod"),
+                                                                                        DoubleArgumentType.getDouble(context, "stamenSize"),
+                                                                                        false))
+                                                                                .then(Commands.literal("retreat")
+                                                                                        .executes(context -> spawnFlower(context.getSource().getPlayerOrException(),
+                                                                                                IntegerArgumentType.getInteger(context, "petals"),
+                                                                                                IntegerArgumentType.getInteger(context, "perPetal"),
+                                                                                                DoubleArgumentType.getDouble(context, "baseRadius"),
+                                                                                                DoubleArgumentType.getDouble(context, "amp"),
+                                                                                                DoubleArgumentType.getDouble(context, "spinRate"),
+                                                                                                DoubleArgumentType.getDouble(context, "breathAmp"),
+                                                                                                IntegerArgumentType.getInteger(context, "breathPeriod"),
+                                                                                                DoubleArgumentType.getDouble(context, "stamenSize"),
+                                                                                true)))))))))));
+    }
+
+    /**
+     * 两重公转螺旋（需求图一）。
+     *
+     * <p>三个分量，各司其职：
+     * <ul>
+     *   <li><b>平面内</b>：环绕自己的中心自转（内层），环心绕另一个中心转（外层）。
+     *       两层同轴，于是都发生在「面向玩家」的那个平面里。</li>
+     *   <li><b>沿法线</b>：整组朝玩家推进。平面内转 + 法线平移 = 螺纹线，
+     *       这才是「螺旋」的来源。</li>
+     *   <li><b>呼吸</b>：环的半径周期性胀缩，螺距因此一松一紧。</li>
+     * </ul>
+     *
+     * <p><b>初速方向 MUST 是法线（视线方向），不是环内每颗弹的半径方向。</b>
+     * 早先的实现把初速设成了半径方向，于是整组在平面里向外扩散、沿法线毫无分量——
+     * 看着是「一个转着的环」，而不是「一个朝你压过来的螺旋」。
+     */
+    private static int spawnSpiral(ServerPlayer player, int count, double innerRate,
+                                   double outerRadius, double outerRate, double breathAmp,
+                                   double breathPeriod, double speed) {
+        Vec3 normal = player.getLookAngle().normalize();
+        Vec3 center = player.getEyePosition().add(normal.scale(SPAWN_AHEAD));
+        Vec3 up = Math.abs(normal.y) > 0.98D ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
+        Vec3 right = up.cross(normal).normalize();
+        up = normal.cross(right).normalize();
+
+        Behaviour.Formation formation = Behaviour.Formation.spin(0, 0, innerRate)
+                .withSpin(normal, innerRate)
+                .withOrbit(normal, outerRadius, outerRate)
+                .withBreathing(1.0D, breathAmp, breathPeriod);
+
+        for (int i = 0; i < count; i++) {
+            double a = Math.PI * 2.0D * i / count;
+            Vec3 offset = right.scale(Math.cos(a)).add(up.scale(Math.sin(a)))
+                    .scale(SPIRAL_INNER_RADIUS);
+            Vec3 origin = center.add(offset);
+
+            SphereDanmaku bullet = new SphereDanmaku(
+                    player.level(), player, 4.0F, 0, 0.4F, new HashSet<>());
+            bullet.setPos(origin.x, origin.y, origin.z);
+            bullet.setDirection(normal, speed);
+            bullet.bindToFrame(formation.frameFor(center, origin));
+            bullet.setLifetimeTicks(SPIRAL_LIFETIME);
+            player.level().addFreshEntity(bullet);
+        }
+        DanmakuBudget.recordEmit();
+        player.sendSystemMessage(Component.literal(String.format(
+                "§a两重公转螺旋 §7(%d 发 · 平面内自转 %.2f°/tick + 环心公转 R%.1f @ %.2f°/tick"
+                        + " · 沿法线 %.2f 格/tick · 呼吸 ±%.2f / %d tick)",
+                count, innerRate, outerRadius, outerRate, speed, breathAmp,
+                (int) breathPeriod)));
+        return 1;
+    }
+
+    private static final double SPIRAL_INNER_RADIUS = 2.5D;
+    private static final int SPIRAL_LIFETIME = 200;
+    /**
+     * 生成点距眼睛的距离。
+     *
+     * <p>沿法线（视线方向）推进时，若直接在眼睛处生成，整组会从玩家体内穿过——
+     * 一秒内就到身后，演示变成「一帧闪过」。先推出去一段距离，才看得到「迎面压过来」。
+     */
+    private static final double SPAWN_AHEAD = 8.0D;
+
+    /**
+     * 玫瑰线花形阵列（需求图二）。
+     *
+     * <p>两个正交的分量：
+     * <ul>
+     *   <li><b>平面内</b>：每颗弹沿<b>自己到中心的连线</b>远离→靠近往复，
+     *       也就是编队帧的整体等比缩放。形状（花瓣长短）编码在出生点上，
+     *       所以「花瓣开合」与「行进」完全无关，可以各自独立调。</li>
+     *   <li><b>沿法线</b>：整组朝玩家推进。{@code retreat} 让这一项变成
+     *       「减速→停 3 秒→反向加速」，于是整朵花先压过来、顿住、再退回去。</li>
+     * </ul>
+     *
+     * <p>花蕊是<b>单独一颗大弹</b>，出生点就在编队中心 ⇒ 偏移为 0 ⇒ 钉在中心不跟着花瓣飘。
+     * 这正是「固定花蕊、花瓣开合」的形态；让花蕊一起缩放的话，整朵花就只是「推拉镜头」。
+     */
+    private static int spawnFlower(ServerPlayer player, int petals, int perPetal, double baseRadius,
+                                  double amp, double spinRate, double breathAmp,
+                                  double breathPeriod, double stamenSize, boolean retreat) {
+        int n = Math.max(3, petals) * Math.max(1, perPetal);
+        Vec3 normal = player.getLookAngle().normalize();
+        Vec3 center = player.getEyePosition().add(normal.scale(SPAWN_AHEAD));
+        Vec3 up = Math.abs(normal.y) > 0.98D ? new Vec3(1, 0, 0) : new Vec3(0, 1, 0);
+        Vec3 right = up.cross(normal).normalize();
+        up = normal.cross(right).normalize();
+
+        Behaviour.Formation formation = Behaviour.Formation.spin(0, 0, spinRate)
+                .withSpin(normal, spinRate)
+                .withBreathing(1.0D, breathAmp, breathPeriod);
+
+        double speed = retreat ? FLOWER_RETREAT_SPEED : FLOWER_ADVANCE_SPEED;
+        for (int i = 0; i < n; i++) {
+            // 先按花瓣分组，再在花瓣内均分——「每瓣十几颗」而不是「整圈均分」。
+            int petal = i / Math.max(1, perPetal);
+            int within = i % Math.max(1, perPetal);
+            double theta = Math.PI * 2.0D * petal / Math.max(3, petals)
+                    + Math.PI * 2.0D * within / Math.max(1, perPetal) * 0.08D;
+            double r = baseRadius + amp * Math.cos(Math.max(1, petals) * theta);
+            Vec3 origin = center.add(right.scale(Math.cos(theta)).add(up.scale(Math.sin(theta)))
+                    .scale(r));
+
+            SphereDanmaku bullet = new SphereDanmaku(
+                    player.level(), player, 4.0F, 0, 0.4F, new HashSet<>());
+            bullet.setPos(origin.x, origin.y, origin.z);
+            bullet.setDirection(normal, speed);
+            if (retreat) {
+                bullet.configureSpeedProfile(DanmakuSpeedProfile.decelerateAndReturn(
+                        speed, 20.0D, 60.0D, 40.0D, 0.15D), false);
+            }
+            bullet.bindToFrame(formation.frameFor(center, origin));
+            bullet.setLifetimeTicks(FLOWER_LIFETIME);
+            player.level().addFreshEntity(bullet);
+        }
+
+        if (stamenSize > 0.0D) {
+            SphereDanmaku stamen = new SphereDanmaku(
+                    player.level(), player, 4.0F, 0, (float) stamenSize, new HashSet<>());
+            stamen.setPos(center.x, center.y, center.z);
+            stamen.setDirection(normal, speed);
+            if (retreat) {
+                stamen.configureSpeedProfile(DanmakuSpeedProfile.decelerateAndReturn(
+                        speed, 20.0D, 60.0D, 40.0D, 0.15D), false);
+            }
+            // 偏移为 0 ⇒ 无论编队帧怎么旋转缩放，花蕊都钉在花心
+            stamen.bindToFrame(formation.frameFor(center, center));
+            stamen.setLifetimeTicks(FLOWER_LIFETIME);
+            player.level().addFreshEntity(stamen);
+        }
+        DanmakuBudget.recordEmit();
+
+        player.sendSystemMessage(Component.literal(String.format(
+                "§a玫瑰线花形 §7(%d 瓣 × %d = %d 发 + 花蕊 · R%.1f±%.1f · 自转 %.2f°/tick"
+                        + " · 呼吸 ±%.2f / %d tick · 沿法线 %.2f 格/tick%s)",
+                petals, perPetal, n, baseRadius, amp, spinRate, breathAmp,
+                (int) breathPeriod, speed, retreat ? " · 减速3秒后退" : "")));
+        return 1;
+    }
+
+    /**
+     * {@code /danmaku laser-ring} 的参数树。
+     *
+     * <p>八个可选参数逐级追加，默认值只出现在最内层一处。
+     */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> laserRingNode() {
+        return Commands.literal("laser-ring")
+                .executes(context -> spawnLaserRing(context.getSource().getPlayerOrException(),
+                        12, 5.0D, 0.0D, 14.0D, 0.35D, 0.6D, 1.5D))
+                .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
+                        .executes(context -> spawnLaserRing(context.getSource().getPlayerOrException(),
+                                IntegerArgumentType.getInteger(context, "count"),
+                                5.0D, 0.0D, 14.0D, 0.35D, 0.6D, 1.5D))
+                        .then(Commands.argument("radius", DoubleArgumentType.doubleArg(1.0D, 24.0D))
+                                .executes(context -> spawnLaserRing(context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "count"),
+                                        DoubleArgumentType.getDouble(context, "radius"),
+                                        0.0D, 14.0D, 0.35D, 0.6D, 1.5D))
+                                .then(Commands.argument("aimDeg", DoubleArgumentType.doubleArg(0.0D, 180.0D))
+                                        .executes(context -> spawnLaserRing(context.getSource().getPlayerOrException(),
+                                                IntegerArgumentType.getInteger(context, "count"),
+                                                DoubleArgumentType.getDouble(context, "radius"),
+                                                DoubleArgumentType.getDouble(context, "aimDeg"),
+                                                14.0D, 0.35D, 0.6D, 1.5D))
+                                        .then(Commands.argument("length", DoubleArgumentType.doubleArg(2.0D, 40.0D))
+                                                .executes(context -> spawnLaserRing(context.getSource().getPlayerOrException(),
+                                                        IntegerArgumentType.getInteger(context, "count"),
+                                                        DoubleArgumentType.getDouble(context, "radius"),
+                                                        DoubleArgumentType.getDouble(context, "aimDeg"),
+                                                        DoubleArgumentType.getDouble(context, "length"),
+                                                        0.35D, 0.6D, 1.5D))
+                                                .then(Commands.argument("thickness", DoubleArgumentType.doubleArg(0.05D, 2.0D))
+                                                        .executes(context -> spawnLaserRing(context.getSource().getPlayerOrException(),
+                                                                IntegerArgumentType.getInteger(context, "count"),
+                                                                DoubleArgumentType.getDouble(context, "radius"),
+                                                                DoubleArgumentType.getDouble(context, "aimDeg"),
+                                                                DoubleArgumentType.getDouble(context, "length"),
+                                                                DoubleArgumentType.getDouble(context, "thickness"),
+                                                                0.6D, 1.5D))
+                                                        .then(Commands.argument("delaySec", DoubleArgumentType.doubleArg(0.0D, 10.0D))
+                                                                .executes(context -> spawnLaserRing(context.getSource().getPlayerOrException(),
+                                                                        IntegerArgumentType.getInteger(context, "count"),
+                                                                        DoubleArgumentType.getDouble(context, "radius"),
+                                                                        DoubleArgumentType.getDouble(context, "aimDeg"),
+                                                                        DoubleArgumentType.getDouble(context, "length"),
+                                                                        DoubleArgumentType.getDouble(context, "thickness"),
+                                                                        DoubleArgumentType.getDouble(context, "delaySec"),
+                                                                        1.5D))
+                                                                .then(Commands.argument("durationSec", DoubleArgumentType.doubleArg(0.2D, 20.0D))
+                                                                        .executes(context -> spawnLaserRing(context.getSource().getPlayerOrException(),
+                                                                                IntegerArgumentType.getInteger(context, "count"),
+                                                                                DoubleArgumentType.getDouble(context, "radius"),
+                                                                                DoubleArgumentType.getDouble(context, "aimDeg"),
+                                                                                DoubleArgumentType.getDouble(context, "length"),
+                                                                                DoubleArgumentType.getDouble(context, "thickness"),
+                                                                                DoubleArgumentType.getDouble(context, "delaySec"),
+                                                                                DoubleArgumentType.getDouble(context, "durationSec"))))))))));
+    }
+
+    /**
+     * 目标周围一圈激光朝内指。
+     *
+     * <p>走的是与符卡完全相同的路径（{@code Shape.AROUND_TARGET} + {@code Projectile.LASER}），
+     * 所以这个命令同时也是那条通路的一次实机验证——它跑得通，符卡里就写得出来。
+     *
+     * <p>瞄准夹角可到 <b>180°（完全自由，含从背后射）</b>——激光有延迟预警，
+     * 公平性来自预警而非方向。默认 0：全部精确指向玩家。
+     */
+    private static int spawnLaserRing(ServerPlayer player, int count, double radius, double aimDeg,
+                                      double length, double thickness, double delaySec,
+                                      double durationSec) {
+        Vec3 target = player.getEyePosition();
+        Vec3 forward = player.getLookAngle().normalize();
+        Vec3 worldUp = new Vec3(0, 1, 0);
+        if (Math.abs(forward.dot(worldUp)) > 0.98D) {
+            worldUp = new Vec3(1, 0, 0);
+        }
+
+        java.util.List<Geometry.Shot> shots = Geometry.build(Shape.AROUND_TARGET,
+                player.getEyePosition(), forward, target, worldUp,
+                Shape.Params.defaults().count(count).radius(radius).spread(aimDeg),
+                0.0D, 0.0D);
+        Projectile laser = Projectile.laser(length, thickness, delaySec, durationSec);
+        for (Geometry.Shot shot : shots) {
+            DanmakuEmitter.emit(player, shot, Behaviour.NONE, 0xFF3355, 4.0F, null, null, laser);
+        }
+        player.sendSystemMessage(Component.literal(String.format(
+                "§c目标周围激光环 §7(%d 道 · 半径 %.1f 格 · 瞄准夹角 ≤%.0f° · 长 %.1f · 粗 %.2f"
+                        + " · 延迟 %.1fs · 持续 %.1fs)",
+                shots.size(), radius, aimDeg, length, thickness, delaySec, durationSec)));
+        return 1;
+    }
+
+    /**
+     * {@code /danmaku web} 的参数树。
+     *
+     * <p>九个可选参数逐级追加，默认值只出现在最内层一处。
+     */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> webNode() {
+        return Commands.literal("web")
+                .executes(context -> spawnLaserWeb(context.getSource().getPlayerOrException(),
+                        20, 6.0D, 90.0D, 0.3D, 16.0D, 0.35D, 0.6D, 1.5D))
+                .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
+                        .executes(context -> spawnLaserWeb(context.getSource().getPlayerOrException(),
+                                IntegerArgumentType.getInteger(context, "count"),
+                                6.0D, 90.0D, 0.3D, 16.0D, 0.35D, 0.6D, 1.5D))
+                        .then(Commands.argument("radius", DoubleArgumentType.doubleArg(1.0D, 24.0D))
+                                .executes(context -> spawnLaserWeb(context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "count"),
+                                        DoubleArgumentType.getDouble(context, "radius"),
+                                        90.0D, 0.3D, 16.0D, 0.35D, 0.6D, 1.5D))
+                                .then(Commands.argument("aimDeg", DoubleArgumentType.doubleArg(0.0D, 90.0D))
+                                        .executes(context -> spawnLaserWeb(context.getSource().getPlayerOrException(),
+                                                IntegerArgumentType.getInteger(context, "count"),
+                                                DoubleArgumentType.getDouble(context, "radius"),
+                                                DoubleArgumentType.getDouble(context, "aimDeg"),
+                                                0.3D, 16.0D, 0.35D, 0.6D, 1.5D))
+                                        .then(Commands.argument("aimBias", DoubleArgumentType.doubleArg(0.01D, 1.0D))
+                                                .executes(context -> spawnLaserWeb(context.getSource().getPlayerOrException(),
+                                                        IntegerArgumentType.getInteger(context, "count"),
+                                                        DoubleArgumentType.getDouble(context, "radius"),
+                                                        DoubleArgumentType.getDouble(context, "aimDeg"),
+                                                        DoubleArgumentType.getDouble(context, "aimBias"),
+                                                        16.0D, 0.35D, 0.6D, 1.5D))
+                                                .then(Commands.argument("length", DoubleArgumentType.doubleArg(2.0D, 40.0D))
+                                                        .executes(context -> spawnLaserWeb(context.getSource().getPlayerOrException(),
+                                                                IntegerArgumentType.getInteger(context, "count"),
+                                                                DoubleArgumentType.getDouble(context, "radius"),
+                                                                DoubleArgumentType.getDouble(context, "aimDeg"),
+                                                                DoubleArgumentType.getDouble(context, "aimBias"),
+                                                                DoubleArgumentType.getDouble(context, "length"),
+                                                                0.35D, 0.6D, 1.5D))
+                                                        .then(Commands.argument("thickness", DoubleArgumentType.doubleArg(0.05D, 2.0D))
+                                                                .executes(context -> spawnLaserWeb(context.getSource().getPlayerOrException(),
+                                                                        IntegerArgumentType.getInteger(context, "count"),
+                                                                        DoubleArgumentType.getDouble(context, "radius"),
+                                                                        DoubleArgumentType.getDouble(context, "aimDeg"),
+                                                                        DoubleArgumentType.getDouble(context, "aimBias"),
+                                                                        DoubleArgumentType.getDouble(context, "length"),
+                                                                        DoubleArgumentType.getDouble(context, "thickness"),
+                                                                        0.6D, 1.5D))
+                                                                .then(Commands.argument("delaySec", DoubleArgumentType.doubleArg(0.0D, 10.0D))
+                                                                        .executes(context -> spawnLaserWeb(context.getSource().getPlayerOrException(),
+                                                                                IntegerArgumentType.getInteger(context, "count"),
+                                                                                DoubleArgumentType.getDouble(context, "radius"),
+                                                                                DoubleArgumentType.getDouble(context, "aimDeg"),
+                                                                                DoubleArgumentType.getDouble(context, "aimBias"),
+                                                                                DoubleArgumentType.getDouble(context, "length"),
+                                                                                DoubleArgumentType.getDouble(context, "thickness"),
+                                                                                DoubleArgumentType.getDouble(context, "delaySec"),
+                                                                                1.5D))
+                                                                        .then(Commands.argument("durationSec", DoubleArgumentType.doubleArg(0.2D, 20.0D))
+                                                                                .executes(context -> spawnLaserWeb(context.getSource().getPlayerOrException(),
+                                                                                        IntegerArgumentType.getInteger(context, "count"),
+                                                                                        DoubleArgumentType.getDouble(context, "radius"),
+                                                                                        DoubleArgumentType.getDouble(context, "aimDeg"),
+                                                                                        DoubleArgumentType.getDouble(context, "aimBias"),
+                                                                                        DoubleArgumentType.getDouble(context, "length"),
+                                                                                        DoubleArgumentType.getDouble(context, "thickness"),
+                                                                                        DoubleArgumentType.getDouble(context, "delaySec"),
+                                                                                        DoubleArgumentType.getDouble(context, "durationSec")))))))))));
+    }
+
+    /**
+     * 凌乱激光网——「让玩家置身网中、找夹缝」。
+     *
+     * <p>走的是与符卡完全相同的路径（{@code Shape.LATTICE} + {@code Projectile.LASER}），
+     * 所以这个命令同时也是那条通路的一次实机验证。
+     *
+     * <p>与 {@code laser-ring} 的分野是<b>随机</b>：这里的发射点在目标周围的球体内真随机
+     * （位置与距离都随机），瞄准逐发独立，所以整片网没有可读的秩序——那才是「网」，
+     * 而角度等分的那一版读起来像「道具生成的阵」。
+     *
+     * <p>{@code aimBias} 比例精确瞄准，其余在 {@code aimDeg} 内散开：全散射则随便走就能躲，
+     * 全直瞄则没有夹缝。默认 0.3 / 90°。
+     */
+    private static int spawnLaserWeb(ServerPlayer player, int count, double radius, double aimDeg,
+                                     double aimBias, double length, double thickness,
+                                     double delaySec, double durationSec) {
+        Vec3 target = player.getEyePosition();
+        Vec3 forward = player.getLookAngle().normalize();
+        Vec3 worldUp = new Vec3(0, 1, 0);
+        if (Math.abs(forward.dot(worldUp)) > 0.98D) {
+            worldUp = new Vec3(1, 0, 0);
+        }
+
+        java.util.List<Geometry.Shot> shots = Geometry.build(Shape.LATTICE,
+                player.getEyePosition(), forward, target, worldUp,
+                Shape.Params.defaults().count(count).radius(radius).spread(aimDeg).aimBias(aimBias),
+                0.0D, 0.0D, player.level().getRandom());
+        Projectile laser = Projectile.laser(length, thickness, delaySec, durationSec);
+        for (Geometry.Shot shot : shots) {
+            DanmakuEmitter.emit(player, shot, Behaviour.NONE, 0xFF3355, 4.0F, null, null, laser);
+        }
+        player.sendSystemMessage(Component.literal(String.format(
+                "§c凌乱激光网 §7(%d 道 · 球半径 ≤%.1f 格 · 直瞄 %.0f%% · 其余夹角 ≤%.0f°"
+                        + " · 长 %.1f · 粗 %.2f · 延迟 %.1fs · 持续 %.1fs)",
+                shots.size(), radius, aimBias * 100.0D, aimDeg,
+                length, thickness, delaySec, durationSec)));
+        return 1;
+    }
+
+    private static final double FLOWER_ADVANCE_SPEED = 0.18D;
+    private static final double FLOWER_RETREAT_SPEED = 0.25D;
+    private static final int FLOWER_LIFETIME = 200;
 
     /**
      * 弹幕狂潮测试（性能测试）
