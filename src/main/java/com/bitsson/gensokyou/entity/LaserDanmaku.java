@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.danmaku.render.DanmakuMotionState;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -52,9 +53,13 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
     private static final EntityDataAccessor<Integer> DATA_DURATION_TICKS =
             SynchedEntityData.defineId(LaserDanmaku.class, EntityDataSerializers.INT);
 
-    /** 客户端渲染用的长度缓存，避免每帧做一次 clip。 */
+    /** 客户端渲染用的长度缓存，避免每帧做一次 clip。键为年龄而非 tickCount。 */
     private double cachedLength = -1.0D;
     private int cachedLengthTick = -1;
+    /** 视觉裁剪缓存。与上面的权威缓存分开，因为起点与生命周期都不同。 */
+    private double renderCacheLength = -1.0D;
+    private int renderCacheTick = -1;
+    private Vec3 renderCacheOrigin = Vec3.ZERO;
 
     public enum Phase {
         /** 延迟期：只显示指示线，不判伤。 */
@@ -118,11 +123,11 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
 
         if (this.getPhase() == Phase.ACTIVE
                 && this.level() instanceof ServerLevel
-                && (this.tickCount - this.getDelayTicks()) % DAMAGE_INTERVAL_TICKS == 0) {
+                && (this.age() - this.getDelayTicks()) % DAMAGE_INTERVAL_TICKS == 0) {
             this.damageEntitiesInBeam();
         }
 
-        if (this.tickCount >= this.getDelayTicks() + this.getDurationTicks()) {
+        if (this.age() >= this.getDelayTicks() + this.getDurationTicks()) {
             this.discard();
         }
     }
@@ -150,14 +155,14 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         }
     }
 
-    /** 当前阶段，由 tickCount 与同步过来的时长推算，双端一致。 */
+    /** 当前阶段，由年龄与同步过来的时长推算，双端一致。 */
     public Phase getPhase() {
         int delay = this.getDelayTicks();
         int duration = this.getDurationTicks();
-        if (this.tickCount < delay) {
+        if (this.age() < delay) {
             return Phase.DELAY;
         }
-        if (this.tickCount < delay + duration) {
+        if (this.age() < delay + duration) {
             return Phase.ACTIVE;
         }
         return Phase.DONE;
@@ -165,35 +170,68 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
 
     /**
      * 实际长度 = min(最大长度, 到第一个方块的距离)。
-     * 结果按 tick 缓存，渲染每帧调用也不会重复 clip。
+     *
+     * <p><b>这是权威输入</b>：服务端判伤用它，客户端也用它算同一段光束。
+     * 客户端的<b>视觉</b>裁剪必须走 {@link #getRenderLength(float)}，不能用这个——
+     * 改成一个方法会同时把渲染状态喂进玩法判定。
+     *
+     * <p>结果按 tick 缓存，渲染每帧调用也不会重复 clip。
      */
     public double getActualLength() {
-        if (this.cachedLengthTick == this.tickCount && this.cachedLength >= 0.0D) {
+        if (this.cachedLengthTick == this.age() && this.cachedLength >= 0.0D) {
             return this.cachedLength;
         }
+        double length = clipLength(this.position());
+        this.cachedLength = length;
+        this.cachedLengthTick = this.age();
+        return length;
+    }
 
-        Vec3 start = this.position();
+    /**
+     * 客户端<b>视觉</b>裁剪长度：从渲染起点算起。
+     *
+     * <p>起点带纠偏量，而上一行的起点不带——两者可以相差一个偏移的上限。起点不同，
+     * 裁到的方块就不同：光束末端会与地面/墙角错开一截，看起来像「光穿进了墙里」
+     * 或「光够不到墙角」。视觉与权威因此 MUST 是两次裁剪。
+     */
+    public double getRenderLength(float partialTick) {
+        Vec3 origin = this.position().add(this.renderOffset(partialTick));
+        if (this.renderCacheTick == this.age() && this.renderCacheOrigin.distanceToSqr(origin) < 1.0E-6D) {
+            return this.renderCacheLength;
+        }
+        double length = clipLength(origin);
+        this.renderCacheLength = length;
+        this.renderCacheOrigin = origin;
+        // 键为年龄而非 tickCount：重建后年龄连续，缓存不会因错位而每 tick 重算。
+        this.renderCacheTick = this.age();
+        return length;
+    }
+
+    private double clipLength(Vec3 start) {
         double maxLength = this.getMaxLength();
         Vec3 end = start.add(this.getLaserDirection().scale(maxLength));
 
         BlockHitResult hit = this.level().clip(new ClipContext(
                 start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
 
-        double length = (hit.getType() == HitResult.Type.BLOCK)
+        return (hit.getType() == HitResult.Type.BLOCK)
                 ? start.distanceTo(hit.getLocation())
                 : maxLength;
-
-        this.cachedLength = length;
-        this.cachedLengthTick = this.tickCount;
-        return length;
     }
 
     /**
      * 渲染用的包围盒必须覆盖整条光束，否则实体在视锥外时整条激光会被剔除。
+     *
+     * <p><b>视觉包围盒与逻辑碰撞箱是分开的两件事</b>：本方法只参与视锥剔除与
+     * {@code shouldRenderAtSqrDistance}，不参与任何判定。这里额外并入渲染起点，
+     * 是因为起点带纠偏量——不并的话，纠偏生效时光束末端可能在视锥外被整条裁掉。
+     *
+     * <p>纠偏量有上限（见 {@code DanmakuCorrectionBudget}），故并入的是一个有界偏移，
+     * 不会把包围盒撑成大到失去剔除意义。
      */
     @Override
     protected AABB makeBoundingBox() {
-        Vec3 pos = this.position();
+        Vec3 pos = this.position().add(this.renderOffset(0.0F));
         Vec3 dir = this.getLaserDirection();
         double length = this.getMaxLength();
         double radius = Math.max(this.getRadius(), 0.25D);
@@ -239,6 +277,51 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
     }
 
     // ---------------------------------------------------------------
+    // 运动输入块（快照修复口径）
+    // ---------------------------------------------------------------
+
+    /**
+     * 激光专属的运动输入：方向、长度、粗细、延迟与持续。
+     *
+     * <p>这五项<b>决定整段光束</b>，缺一项就无法从「位置对了」推出「画面对了」——
+     * 起点对、方向错的光束比整体错位更难被玩家读出。
+     */
+    @Override
+    public int[] motionParams() {
+        int[] params = super.motionParams();
+        Vec3 dir = this.getLaserDirection();
+        int b = DanmakuMotionState.P_LASER_BASE;
+        params[b] = Float.floatToRawIntBits((float) dir.x);
+        params[b + 1] = Float.floatToRawIntBits((float) dir.y);
+        params[b + 2] = Float.floatToRawIntBits((float) dir.z);
+        params[b + 3] = Float.floatToRawIntBits((float) this.getMaxLength());
+        params[b + 4] = Float.floatToRawIntBits((float) this.getRadius());
+        params[b + 5] = this.getDelayTicks();
+        params[b + 6] = this.getDurationTicks();
+        return params;
+    }
+
+    @Override
+    protected void onMotionParamsApplied() {
+        int b = DanmakuMotionState.P_LASER_BASE;
+        int[] params = this.lastAppliedParams();
+        if (params == null || params.length <= b + DanmakuMotionState.P_LASER_COUNT) {
+            return;
+        }
+        this.setLaserDirection(new Vec3(
+                Float.intBitsToFloat(params[b]),
+                Float.intBitsToFloat(params[b + 1]),
+                Float.intBitsToFloat(params[b + 2])));
+        this.entityData.set(DATA_MAX_LENGTH, Float.intBitsToFloat(params[b + 3]));
+        this.entityData.set(DATA_RADIUS, Math.max(0.05F, Float.intBitsToFloat(params[b + 4])));
+        this.entityData.set(DATA_DELAY_TICKS, Math.max(0, params[b + 5]));
+        this.entityData.set(DATA_DURATION_TICKS, Math.max(1, params[b + 6]));
+        // 两套长度缓存的键都含年龄，参数一变必须失效，否则沿用旧方向的裁剪结果。
+        this.cachedLengthTick = -1;
+        this.renderCacheTick = -1;
+    }
+
+    // ---------------------------------------------------------------
     // 访问器
     // ---------------------------------------------------------------
 
@@ -278,7 +361,7 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         if (delay <= 0) {
             return 1.0F;
         }
-        return Math.min(1.0F, (float) this.tickCount / delay);
+        return Math.min(1.0F, (float) this.age() / delay);
     }
 
     @Override

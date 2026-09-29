@@ -66,6 +66,8 @@ p(t) = center(t) + S(t) · Rodrigues(innerAxis, R(t), p₀ − c₀) + d · s(t)
 SHALL NOT 取弹在平面内的径向方向。于是「在平面里自转 / 公转 / 呼吸」与「朝玩家推进」
 是两个互不干扰的分量——法线坐标随推进项单调增长，平面内坐标只被编队帧改变。
 
+自变量 `t` SHALL 是**弹的年龄**，MUST NOT 是本进程内的 tick 计数：后者在存档 / 读档后不与另一端相等（它既不入存档、也不同步给客户端），以其为自变量会使「双端逐位一致」在读档后失效。
+
 #### Scenario: 平面内编排与沿法线行进正交
 - **WHEN** 编队帧开启平面内自转与呼吸，弹的推进方向取该平面的法线
 - **THEN** 推进项 MUST 全部落在法线上，MUST NOT 污染平面内的两个坐标
@@ -92,7 +94,8 @@ SHALL NOT 取弹在平面内的径向方向。于是「在平面里自转 / 公�
 
 #### Scenario: 双端一致
 - **WHEN** 客户端与服务端各自推进一枚编队弹
-- **THEN** 两端在任意 tick 上得到逐位相同的弹位，无需位置纠正包
+- **THEN** 两端在**同一年龄**上得到逐位相同的弹位，无需位置纠正包
+- **AND** 该一致性 MUST NOT 以「两端从生成起就同步了年龄」为前提：弹在飞行途中被存档并重载后，两端 MUST 仍在同一年龄上得到逐位相同的弹位
 
 #### Scenario: 无编队实体
 - **WHEN** 一批弹使用编队
@@ -266,4 +269,17 @@ MUST NOT 收紧上限。激光具备发射前延迟（`Phase.DELAY`）作为预�
 #### Scenario: 运动母弹仍为环状
 - **WHEN** 一枚仍在运动的母弹触发分裂
 - **THEN** 子代仍排布于垂直于其速度的圆上
+
+### Requirement: 解析求值所用 tick 编号的权威来源
+编队帧与速率曲线求值时所用的 tick 编号 SHALL 是「本 tick 的年龄」，MUST NOT 由本进程内 tick 计数再做加减换算得出。
+
+原版 `Entity.tick()` 与 `baseTick()` 均不自增 tick 计数；自增发生在 `Level.tickNonPassenger` 调用 `entity.tick()` **之前**（服务端与客户端皆如此）。故弹体自身 tick 体内的 tick 计数**已是本 tick 编号**，任何再加一即为整条轨迹偏一 tick。
+
+#### Scenario: 出生当 tick 取 t=0
+- **WHEN** 编队弹在年龄 0 的那一 tick 推进
+- **THEN** 解析位置取自 `framePositionAt(0)`，MUST NOT 取自 `framePositionAt(1)`
+
+#### Scenario: 双端不因换算分叉
+- **WHEN** 双端各自推进同一枚编队弹
+- **THEN** 两端在同一年龄上求值到同一个 tick 编号，弹位逐位相同
 

@@ -5,9 +5,12 @@ import java.awt.Color;
 /**
  * 弹幕的变色模式。
  *
- * <p>除 {@link #FIXED} 外的模式一律由 {@code tickCount} 推导，<b>零同步</b>。
+ * <p>除 {@link #FIXED} 外的模式一律由<b>年龄</b>推导，<b>零同步</b>。
  * 依据是<b>纯视觉状态不需要双端一致</b>——只有服务端能造成伤害，客户端只负责画，
  * 故客户端自行推导颜色不会影响任何玩法判定。
+ *
+ * <p>但推导仍 MUST 用年龄而非 {@code tickCount}：客户端丢掉又重新拿到该实体时
+ * tickCount 归零，变色相位会当场跳一下。调用方传 {@code entity.age()}。
  *
  * <p>饱和度与亮度沿用 {@code SphereDanmaku.randomColor()} 的 0.85 / 1.0，
  * 与既有弹幕保持同一套色彩语言。

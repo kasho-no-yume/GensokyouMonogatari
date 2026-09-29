@@ -236,7 +236,7 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
      * 相位隐藏：按固定周期在可见与隐藏之间切换，隐藏期不判伤也不销毁。
      *
      * <p>周期、占空比、相位三项对全批相同，故只需同步这三项标量，与弹数无关。
-     * 隐藏态本身由 {@code tickCount} 推导，<b>零额外同步包</b>。
+     * 隐藏态本身由年龄推导，<b>零额外同步包</b>（前提：双端年龄相等）。
      */
     public record Visibility(int periodTicks, double duty, int phaseOffset) {
 

@@ -76,9 +76,11 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
                        PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
         DanmakuVisualProfile.Profile profile = entity.visualProfile();
         boolean hidden = entity.isHidden();
-        // 档案的变色模式由 tickCount 推导，零同步；隐藏态则整体压暗至档案的 hiddenAlpha。
+        // 档案的变色模式由年龄推导，零同步；隐藏态则整体压暗至档案的 hiddenAlpha。
+        // MUST 用 age() 而非 tickCount：客户端丢掉又重新拿到该实体时 tickCount 归零，
+        // 变色相位与翻滚相位会当场跳一下。
         int color = profile.colorMode().resolve(
-                entity.getColor(), entity.tickCount, profile.colorCycleTicks());
+                entity.getColor(), entity.age(), profile.colorCycleTicks());
 
         poseStack.pushPose();
 
@@ -90,7 +92,7 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
             poseStack.mulPose(this.entityRenderDispatcher.cameraOrientation());
             poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
             poseStack.mulPose(Axis.XP.rotationDegrees(
-                    tumblePitch(entity.tickCount, profile)));
+                    tumblePitch(entity.age(), profile)));
         } else {
             poseStack.mulPose(this.entityRenderDispatcher.cameraOrientation());
             poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
@@ -139,7 +141,11 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
      * 俯仰摆动角（度）。摆动式（硬币旋转）而非整周翻滚：转到 90° 时五角星投影
      * 退化成一条线，玩家会读作「弹消失」。
      *
-     * <p>纯客户端表现，由 {@code tickCount} 推导，故零同步。
+     * <p>纯客户端表现，由<b>年龄</b>推导，故零同步。
+     *
+     * <p>参数名保留 {@code tickCount} 是因为本方法与年龄无关地通用；调用方 MUST 传
+     * {@code entity.age()}——传 {@code entity.tickCount} 会让客户端在重新拿到该实体时
+     * 翻滚相位归零跳变。
      */
     private static float tumblePitch(int tickCount, DanmakuVisualProfile.Profile profile) {
         if (!profile.hasTumble()) {

@@ -219,30 +219,261 @@ public final class DanmakuBudget {
      * {@code lerpTo} 的阈值是绝对值 1.0 格²，稳态误差约 {@code 延迟tick × 弹速}，
      * 故存在一个 {@code v = 1/L} 的分界——低于它永久滞后，高于它每包硬拽。总量看不出这个结构。
      */
-    private static final java.util.concurrent.atomic.AtomicLong[] HARD_CORRECT =
-            new java.util.concurrent.atomic.AtomicLong[]{ // 下界：0, 0.15, 0.3, 0.5, 1.0 格/tick
-                    new java.util.concurrent.atomic.AtomicLong(),
-                    new java.util.concurrent.atomic.AtomicLong(),
-                    new java.util.concurrent.atomic.AtomicLong(),
-                    new java.util.concurrent.atomic.AtomicLong(),
-                    new java.util.concurrent.atomic.AtomicLong()};
+    /**
+     * 滞后样本的抑制计数。
+     *
+     * <p>硬纠偏会把 {@code position} 改成服务端坐标，而本弹的 {@code deltaMovement} 每 tick
+     * 覆写为「解析终点 − 当前坐标」⇒ <b>下一个 tick 的速度是一条从「被拽回的点」指向
+     * 「解析点」的巨大向量</b>。滞后读数正是用这个速度做投影，于是误差方向被带偏。
+     *
+     * <p>这是正反馈：纠偏 ⇒ 速度失真 ⇒ 投影失真 ⇒ 看起来更大 ⇒ 更该纠偏。实测表现为
+     * rebuilt 弹的偏移在 {@code -4} 与 {@code +8} 之间<b>双峰翻转</b>，而恒定偏移不可能
+     * 产生符号翻转。
+     *
+     * <p>故纠偏后的 2 tick 不计入滞后统计，其数量记在本计数器里，使
+     * 「干净样本 + 被抑制样本」可与历史总数对齐。
+     */
+    private static final java.util.concurrent.atomic.AtomicLong LAG_SAMPLE_SUPPRESSED =
+            new java.util.concurrent.atomic.AtomicLong();
+
+    /** 被抑制的滞后样本数。 */
+    public static void recordLagSampleSuppressed() {
+        LAG_SAMPLE_SUPPRESSED.incrementAndGet();
+    }
+
+    // ------------------------------------------------------------------
+    // 重复配对（客户端超前机制的候选解释）
+    //
+    // <p>服务端侧与客户端侧各记一个。二者同时非零，才说明「同一对实体被配对了两次」，
+    // 而服务端年龄基准会在第二次被改写、客户端本地 tickCount 继续累加
+    // ⇒ 客户端年龄凭空前跳。
+    // ------------------------------------------------------------------
+
+    private static final java.util.concurrent.atomic.AtomicLong REPEAT_PAIRING =
+            new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.concurrent.atomic.AtomicLong REPEAT_PAIRING_FRAME =
+            new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.concurrent.atomic.AtomicLong REPEAT_SEED =
+            new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.concurrent.atomic.AtomicLong REPEAT_SEED_FRAME =
+            new java.util.concurrent.atomic.AtomicLong();
+
+    /** 服务端：同一实体对象被二次配对。 */
+    public static void recordRepeatPairing(boolean formationBullet) {
+        REPEAT_PAIRING.incrementAndGet();
+        if (formationBullet) {
+            REPEAT_PAIRING_FRAME.incrementAndGet();
+        }
+    }
+
+    /** 客户端：同一客户端实体收到了第二个年龄包。 */
+    public static void recordRepeatSeed(boolean formationBullet) {
+        REPEAT_SEED.incrementAndGet();
+        if (formationBullet) {
+            REPEAT_SEED_FRAME.incrementAndGet();
+        }
+    }
+
+    /**
+     * 重复配对与样本抑制的合并诊断。
+     *
+     * <p>健康状态下四个计数 MUST 全为 0。
+     */
+    public static String syncIntegrityStats() {
+        return String.format("integrity[pairing=%d(pair#frame %d) seed=%d(frame %d) lagSuppressed=%d]",
+                REPEAT_PAIRING.get(), REPEAT_PAIRING_FRAME.get(),
+                REPEAT_SEED.get(), REPEAT_SEED_FRAME.get(),
+                LAG_SAMPLE_SUPPRESSED.get());
+    }
+
     private static final double[] HARD_CORRECT_EDGES = {0.0D, 0.15D, 0.3D, 0.5D, 1.0D};
+    private static final java.util.concurrent.atomic.AtomicLong[] HARD_CORRECT =
+            newCounters(HARD_CORRECT_EDGES.length);
 
     /**
      * 滞后分布（tick）的直方图。桶固定，故不需存样本即可给出分位数。
      *
-     * <p>桶沿用「一个 tick 的位移 vs 一个屏幕像素」这一实际判据的量级：
-     * 5 格距离、1080p 下 1px ≈ 0.0065 格，故 1~4 tick 仍是亚像素级，≥8 tick 才肉眼可见。
+     * <p><b>量级判据（实测换算，1080p / FOV 70 / 5 格观察距离）</b>：1 格 ≈ 154 px，
+     * 故 1 px ≈ 0.0065 格。弹幕速度 0.15~0.5 格/tick 时：
+     *
+     * <pre>
+     *   滞后 1 tick → 0.15~0.5 格 →  23 ~  77 px   肉眼明显
+     *   滞后 4 tick → 0.6 ~2.0 格 →  92 ~ 308 px   明显偏移
+     *   滞后 8 tick → 1.2 ~4.0 格 → 185 ~ 616 px   大幅错位
+     * </pre>
+     *
+     * <p>⚠️ 早先这里写着「1~4 tick 仍是亚像素级，≥8 tick 才肉眼可见」——<b>那是把「1 tick」
+     * 当成了「1 px」</b>。1 tick 乘以弹速就已经是几十像素。任何以「亚像素级」为由判定
+     * 「现存方案足够」的结论都建立在这个错算上，故在此写明实测换算。
      */
     private static final java.util.concurrent.atomic.AtomicLong[] LAG_BUCKETS =
-            new java.util.concurrent.atomic.AtomicLong[]{ // 0-1, 1-2, 2-4, 4-8, 8-16, 16+
-                    new java.util.concurrent.atomic.AtomicLong(),
-                    new java.util.concurrent.atomic.AtomicLong(),
-                    new java.util.concurrent.atomic.AtomicLong(),
-                    new java.util.concurrent.atomic.AtomicLong(),
-                    new java.util.concurrent.atomic.AtomicLong(),
-                    new java.util.concurrent.atomic.AtomicLong()};
+            newCounters(6);
     private static final double[] LAG_EDGES = {1.0D, 2.0D, 4.0D, 8.0D, 16.0D};
+
+    /**
+     * 造一组**非空**计数器。
+     *
+     * <p><b>不要写成 {@code new AtomicLong[n]}</b>：引用类型数组的元素默认初始化是
+     * {@code null}，不是「默认实例」。那样声明出来的数组编译期无警告、单测也不碰它，
+     * 直到第一个位置包到来才在客户端渲染线程上 NPE——表现为「一放弹幕就网络错误」。
+     * 三分类扩容时踩过一次，故留此方法并在此写明缘由。
+     */
+    private static java.util.concurrent.atomic.AtomicLong[] newCounters(int size) {
+        java.util.concurrent.atomic.AtomicLong[] counters =
+                new java.util.concurrent.atomic.AtomicLong[size];
+        for (int i = 0; i < size; i++) {
+            counters[i] = new java.util.concurrent.atomic.AtomicLong();
+        }
+        return counters;
+    }
+
+    // ------------------------------------------------------------------
+    // 年龄同步诊断（danmaku-age-continuity）
+    //
+    // <p>本段的用途是回答一个更靠前的问题：<b>双端自变量是否相等</b>。它成立与否决定
+    // 上面两项硬纠正 / 滞后读数有没有意义。
+    // ------------------------------------------------------------------
+
+    private static final double[] AGE_EDGES = {1.0D, 2.0D, 4.0D, 8.0D, 16.0D, 64.0D};
+    private static final int AGE_BUCKETS_PER_SOURCE = AGE_EDGES.length + 1;
+
+    /**
+     * 分类名按「来源 × 符号」交织：索引 = {@code source * 2 + (超前 ? 1 : 0)}。
+     *
+     * <p><b>为什么 MUST 保留符号</b>：本项要判断的是「双端自变量是否相等」。相等时两端
+     * 只差一个管线延迟，客户端通常<b>落后</b>；客户端<b>超前</b>意味着自变量对不上——那是
+     * 失步，不是延迟。早期实现对 {@code lagTicks < 0} 直接丢弃，于是「超前」那一族整个从
+     * 读数里消失：实测 10677 个样本里只有 91 个被计入，而被丢弃的 10586 个恰恰是更糟的
+     * 那一半。<b>只报绝对值会把「失步」读成「健康」。</b>
+     *
+     * <p>分档按绝对值，符号进分类名。
+     */
+    private static final String[] AGE_SOURCE_NAMES = {
+            "fresh-behind", "fresh-ahead", "rebuilt-behind", "rebuilt-ahead",
+            "unseeded-behind", "unseeded-ahead", "snapshot-behind", "snapshot-ahead"};
+
+    private static final java.util.concurrent.atomic.AtomicLong[] AGE_BUCKETS =
+            newCounters(AGE_BUCKETS_PER_SOURCE * AGE_SOURCE_NAMES.length);
+
+    /**
+     * 记录一次年龄偏移与其来源。
+     *
+     * @param signedLagTicks 权威位置与本地模拟位置之差投影到速度方向的结果。
+     *                       <b>正 = 本端落后，负 = 本端超前</b>；两者都计入。
+     *                       <b>它是空间误差的投影，不是两端年龄的直接差值</b>——
+     *                       真年龄差要看 {@code sync[]} 里的同刻比较读数。
+     * @param source         {@code AbstractDanmakuProjectile} 的 {@code SOURCE_*} 之一（0~3）
+     */
+    public static void recordAgeOffset(double signedLagTicks, int source) {
+        if (!Double.isFinite(signedLagTicks) || source < 0 || source >= AGE_SOURCE_NAMES.length / 2) {
+            return;
+        }
+        int bucket = 0;
+        double magnitude = Math.abs(signedLagTicks);
+        while (bucket < AGE_EDGES.length && magnitude >= AGE_EDGES[bucket]) {
+            bucket++;
+        }
+        int sign = signedLagTicks < 0.0D ? 1 : 0;
+        // (source * 2 + sign) 段之间 MUST 整段错开，否则三类来源会互相覆盖。
+        AGE_BUCKETS[(source * 2 + sign) * AGE_BUCKETS_PER_SOURCE + bucket].incrementAndGet();
+    }
+
+    /**
+     * 年龄偏移按「来源 × 符号」的 min / 中位数 / p95（tick）。
+     *
+     * <p>{@code unseeded-*} 段在健康状态下 MUST 恒为 {@code n=0}——非零即意味着客户端实体
+     * 存在却从未收到配对包。{@code snapshot-*} 段是本变更新增的第四类来源：客户端年龄
+     * 由完整快照锚定，时间对应关系已知，那一段的投影读数才有解释价值。
+     */
+    public static String ageOffsetStats() {
+        StringBuilder sb = new StringBuilder("age[");
+        for (int source = 0; source < AGE_SOURCE_NAMES.length; source++) {
+            if (source > 0) {
+                sb.append(' ');
+            }
+            sb.append(AGE_SOURCE_NAMES[source]).append(':')
+                    .append(ageSummary(source * AGE_BUCKETS_PER_SOURCE));
+        }
+        return sb.append(']').toString();
+    }
+
+    /**
+     * 桶内用该桶的<b>下界</b>代表 min、用<b>上界</b>代表中位数与 p95。
+     *
+     * <p>不对称是刻意的：分位数报上界偏保守（宁可说「至少这么大」），而 min 报下界
+     * 偏乐观——读数是准入闸门的依据，两端都往「读出来更糟」的方向偏。
+     */
+    private static String ageSummary(int base) {
+        long total = 0L;
+        int firstNonEmpty = -1;
+        for (int i = 0; i < AGE_BUCKETS_PER_SOURCE; i++) {
+            long n = AGE_BUCKETS[base + i].get();
+            total += n;
+            if (firstNonEmpty < 0 && n > 0L) {
+                firstNonEmpty = i;
+            }
+        }
+        if (total == 0L) {
+            return "n=0";
+        }
+        double min = firstNonEmpty == 0 ? 0.0D : AGE_EDGES[firstNonEmpty - 1];
+        // 段内用逗号而非空格：段与段之间才用空格分隔，否则「哪几个数字属于哪一段」要靠约定。
+        return String.format("n=%d,min=%.0f,p50=%.0f,p95=%.0f",
+                total, min, ageQuantile(base, 0.50D), ageQuantile(base, 0.95D));
+    }
+
+    private static double ageQuantile(int base, double q) {
+        long total = 0L;
+        for (int i = 0; i < AGE_BUCKETS_PER_SOURCE; i++) {
+            total += AGE_BUCKETS[base + i].get();
+        }
+        long target = (long) Math.ceil(total * q);
+        long seen = 0L;
+        for (int i = 0; i < AGE_BUCKETS_PER_SOURCE; i++) {
+            seen += AGE_BUCKETS[base + i].get();
+            if (seen >= target) {
+                return i < AGE_EDGES.length ? AGE_EDGES[i] : AGE_EDGES[AGE_EDGES.length - 1] * 2.0D;
+            }
+        }
+        return AGE_EDGES[AGE_EDGES.length - 1] * 2.0D;
+    }
+
+    // ------------------------------------------------------------------
+    // 年龄绝对量级
+    //
+    // <p>与偏移量分开记：偏移说「差多少」，量级说「自己多老」。两者症状相同（每包硬拽）
+    // 但修法毫不相干——量级落在 0~10 说明配对包没把年龄送对；落在 100+ 说明客户端知道
+    // 自己多老、弹位仍对不上，即运动模型本身失步。
+    // ------------------------------------------------------------------
+
+    private static final double[] AGE_VALUE_EDGES = {1.0D, 11.0D, 101.0D, 501.0D};
+    private static final String[] AGE_VALUE_NAMES = {"0", "1-10", "11-100", "101-500", "500+"};
+    private static final java.util.concurrent.atomic.AtomicLong[] AGE_VALUE_BUCKETS =
+            newCounters(AGE_VALUE_NAMES.length);
+
+    /** 记录本端年龄的绝对量级。 */
+    public static void recordAgeValue(int age) {
+        if (age < 0) {
+            return;
+        }
+        int bucket = 0;
+        while (bucket < AGE_VALUE_EDGES.length && age >= AGE_VALUE_EDGES[bucket]) {
+            bucket++;
+        }
+        AGE_VALUE_BUCKETS[bucket].incrementAndGet();
+    }
+
+    /** 年龄绝对量级分布。 */
+    public static String ageValueStats() {
+        StringBuilder sb = new StringBuilder("ageValue[");
+        for (int i = 0; i < AGE_VALUE_BUCKETS.length; i++) {
+            if (i > 0) {
+                sb.append(' ');
+            }
+            sb.append(AGE_VALUE_NAMES[i]).append(':').append(AGE_VALUE_BUCKETS[i].get());
+        }
+        return sb.append(']').toString();
+    }
 
     /** 记录一次位置包触发的硬纠正。 */
     public static void recordHardCorrection(double speedBlocksPerTick) {
@@ -332,7 +563,8 @@ public final class DanmakuBudget {
 
     /** 时间与同步维度的完整诊断。 */
     public static String timingStats() {
-        return tickStats() + " " + hardCorrectionStats() + " " + lagStats();
+        return tickStats() + " " + hardCorrectionStats() + " " + lagStats()
+                + " " + ageOffsetStats() + " " + ageValueStats() + " " + syncIntegrityStats();
     }
 
     /** 清空统计（含时间与同步维度）。 */
@@ -345,6 +577,17 @@ public final class DanmakuBudget {
         for (java.util.concurrent.atomic.AtomicLong bucket : LAG_BUCKETS) {
             bucket.set(0L);
         }
+        for (java.util.concurrent.atomic.AtomicLong bucket : AGE_BUCKETS) {
+            bucket.set(0L);
+        }
+        for (java.util.concurrent.atomic.AtomicLong bucket : AGE_VALUE_BUCKETS) {
+            bucket.set(0L);
+        }
+        LAG_SAMPLE_SUPPRESSED.set(0L);
+        REPEAT_PAIRING.set(0L);
+        REPEAT_PAIRING_FRAME.set(0L);
+        REPEAT_SEED.set(0L);
+        REPEAT_SEED_FRAME.set(0L);
     }
 
     /** 记录一次分裂结算，供诊断分辨「达上限停发」与「正常全量」。 */

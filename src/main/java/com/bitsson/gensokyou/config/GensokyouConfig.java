@@ -70,6 +70,14 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue TALISMAN_TARGET_LOSS_ANGLE_DEG;
     /** 同时存在的弹幕实体数硬上限；达上限时停发而非删旧弹。 */
     public static final ModConfigSpec.IntValue DANMAKU_ENTITY_CAP;
+    /** 位置纠偏：可被「弹自身在滞后窗口内的位移」解释的 tick 数（danmaku-lag-smoothing）。 */
+    public static final ModConfigSpec.IntValue DANMAKU_MAX_LAG_TICKS;
+    /** 位置纠偏：静止弹的容差下限（格）。 */
+    public static final ModConfigSpec.DoubleValue DANMAKU_CORRECTION_FLOOR;
+    /** danmaku-render-state：批量校准样本的发送间隔（tick）。0 = 关闭。 */
+    public static final ModConfigSpec.IntValue DANMAKU_CALIBRATION_INTERVAL_TICKS;
+    /** danmaku-render-state：单批校准覆盖的弹数上限。 */
+    public static final ModConfigSpec.IntValue DANMAKU_CALIBRATION_BATCH_CAP;
 
     /** BOSS 同时锁定的玩家数上限。 */
     public static final ModConfigSpec.IntValue BOSS_MAX_TARGETS;
@@ -761,6 +769,17 @@ public class GensokyouConfig {
         DANMAKU_ENTITY_CAP = BUILDER.comment("add-remnant-touhou-bosses: hard cap on simultaneously live danmaku entities. At the cap the emitter STOPS spawning (existing bullets are never deleted, so the board reads as 'this round is over' rather than 'the boss went quiet').",
                 "This is a CAPACITY guard rail, not a design budget: the value should be set from the measured danmaku-tick cost vs. density curve (see /gs_boss danmaku), not picked by taste.",
                 "Scope: BOSS danmaku only. Player-fired danmaku, fairy AI danmaku, spell-card effects, debug commands and summon products are deliberately NOT counted or limited by it.").defineInRange("danmakuEntityCap", 800, 16, 20000);
+        DANMAKU_MAX_LAG_TICKS = BUILDER.comment("danmaku-lag-smoothing: how many ticks of a bullet's own travel may explain a position-packet discrepancy before we treat it as a real desync.",
+                "A position packet describes the server's state from ~updateInterval + pipeline ticks ago, so a healthy client is always that far behind. The old fixed threshold (1 block) made the decision depend on bullet SPEED: slow bullets never exceeded it (permanently lagging, reads as a sawtooth on the arc) while fast ones exceeded it every packet (hard-pulled every 2 ticks, reads as jitter).",
+                "With this, the tolerance is speed * this value: no speed has permanent lag, and a genuine desync (a missed velocity change diverges far beyond any lag window) is still hard-corrected.",
+                "0 restores the old fixed 1-block threshold. 4 (~200ms) is the default; raise it if fast bullets still jitter, lower it if you see wrong positions being accepted.").defineInRange("danmakuMaxLagTicks", 4, 0, 40);
+        DANMAKU_CORRECTION_FLOOR = BUILDER.comment("danmaku-lag-smoothing: minimum position-correction tolerance in blocks, used when a bullet is stationary (hover / mine / laser).",
+                "At zero speed the speed-relative tolerance is zero, so any error - including the 1/4096 quantisation noise every vanilla position packet carries - would trigger a hard pull. This floor absorbs that noise while still catching a genuinely wrong position.").defineInRange("danmakuCorrectionFloor", 0.25D, 0.0D, 2.0D);
+        DANMAKU_CALIBRATION_INTERVAL_TICKS = BUILDER.comment("danmaku-render-state: ticks between batched authoritative calibration samples per tracked bullet (0 = disabled).",
+                "A calibration sample carries the SERVER tick it was taken at. Without it a position packet cannot be compared with the client's own state at the same moment, so a drifted age basis is indistinguishable from ordinary pipeline delay - which is exactly why the reloaded-bullet jitter could not be attributed.",
+                "This is BANDWIDTH, not a quality dial: each sample costs roughly 20 bytes. At 400 on-screen bullets, 40 ticks (~2s) is about 4 KB/s per player. 0 falls back to the legacy path: vanilla position packets still arrive, but only as diagnostics - they no longer correct anything.",
+                "Also see danmakuCalibrationBatchCap.").defineInRange("danmakuCalibrationIntervalTicks", 40, 0, 1200);
+        DANMAKU_CALIBRATION_BATCH_CAP = BUILDER.comment("danmaku-render-state: max danmaku entities covered by ONE calibration batch per player. Bullets beyond the cap go unsampled for that round and are covered by the next one, so a very dense screen is sampled in rotation rather than all at once.").defineInRange("danmakuCalibrationBatchCap", 512, 1, 2048);
         BUILDER.pop();
 
         BUILDER.push("boss").comment("add-remnant-touhou-bosses: summoned BOSS movement / targeting / numbers. "

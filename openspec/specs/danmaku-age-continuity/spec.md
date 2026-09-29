@@ -1,19 +1,26 @@
-## ADDED Requirements
+# danmaku-age-continuity Specification
 
+## Purpose
+TBD - created by archiving change danmaku-age-continuity. Update Purpose after archive.
+## Requirements
 ### Requirement: 弹体年龄在存档 / 读档后双端连续
 
 弹体的运动学与终止判据 SHALL 由「年龄」而非「本进程内的 tick 计数」驱动。年龄 SHALL 覆盖以下全部判据，且**每一处** MUST 使用同一个年龄取值：存活时长、悬停、速率曲线、越过发射点销毁、编队帧解析位置、分裂时刻、相位隐藏态、溜め待命期。
 
 年龄 MUST NOT 直接取自原版实体的 tick 计数——该计数**既不进存档、也不同步给客户端**（`Entity.addAdditionalSaveData` 不写它；`Entity.recreateFromPacket` 不设它；两端仅由 `Level.tickNonPassenger` 各自自增）。故「按 tick 计数推导」这一既有准入判据的前提不成立。
 
-实现 SHALL 以「年龄基准 + 本地 tick 计数」得出年龄，其中年龄基准：
+实现 SHALL 以「年龄基准 + 本地 tick 计数」得出年龄。年龄基准分两侧，**互不共享**：
 
-- MUST 经 `SynchedEntityData` 下发，MUST NOT 使用普通字段（普通字段不会随生成包到达客户端）
-- MUST 纳入存档的读与写
-- 在**正常发射**时 MUST 取 0，使年龄与本进程内 tick 计数逐位相等
-- 在**读档还原**时 MUST 取存档中的年龄基准
+- **服务端**：由存档恢复的只读权威值。正常发射时为 0；重新获取（NBT 往返）时为存档中的年龄。此后 MUST NOT 被任何客户端数据改写
+- **客户端**：该客户端**本次配对**时由服务端下发的年龄。收到后 MUST NOT 再次变更
 
-由此，服务端读档后年龄自 `T` 起逐 tick 递增，客户端收到生成包时年龄基准同为 `T`、本地计数自 0 起，两端在**任意年龄**上得到逐位相同的弹位。
+年龄基准 MUST **每客户端一份**，MUST NOT 使用跨客户端共享的单一同步值。两个客户端配对于不同时刻时，共享值无法同时满足——改一次就弄坏另一个。
+
+客户端年龄基准 MUST 经**每客户端配对包**下发，MUST NOT 走 `SynchedEntityData`。理由：配对 bundle 携带的 entityData 是 `ServerEntity` 构造时的**快照**（`this.trackedDataValues = entity.getEntityData().getNonDefaultValues()`），不是配对时刻的值；在配对时刻 `set` 的字段要等下一次脏更新才到达客户端，滞后可达 `updateInterval` 个 tick。客户端首个 tick 就会以错误年龄调用 `setPos(解析位置)`，产生可见闪跳。
+
+同时 MUST NOT 使用 `ClientboundAddEntityPacket` 的 `data` 字段承载年龄：`Projectile.getAddEntityPacket` 以它下发 owner 实体 id，客户端用 `getEntity(packet.getData())` 反查。
+
+由此，服务端在年龄 `T` 时配对的客户端从 `T` 起逐 tick 递增，两端在**任意年龄**上得到逐位相同的弹位。
 
 **「客户端重新获取实体」是本要求的适用范围，而非仅限「世界读档」。** 客户端实体的年龄归零，触发条件是客户端丢掉该实体、之后又重新拿到。下列路径 MUST 全部落在本要求内：
 
@@ -39,6 +46,12 @@ MUST NOT 采用「重新获取时销毁该弹」作为替代方案：它把「�
 - **THEN** 客户端重新获得的该弹，其年龄与服务端一致，MUST NOT 从 0 起算
 - **AND** 该弹 MUST NOT 被销毁
 
+#### Scenario: 两名客户端配对于不同时刻
+
+- **WHEN** 客户端 A 于服务端年龄 50 时开始跟踪某弹，客户端 B 于年龄 120 时才开始跟踪
+- **THEN** A 的年龄为 50 起算、B 的年龄为 120 起算，两端各自与服务端逐 tick 相等
+- **AND** B 开始跟踪 MUST NOT 使 A 的年龄发生跳变
+
 #### Scenario: 客户端卸载区块后重新加载
 
 - **WHEN** 服务端仍在加载某区块、而客户端因模拟距离卸载了它，随后客户端重新加载该区块
@@ -48,6 +61,11 @@ MUST NOT 采用「重新获取时销毁该弹」作为替代方案：它把「�
 
 - **WHEN** 一场 BOSS 战持续到弹所在的区块被卸载后重新加载
 - **THEN** 重载后的弹幕 MUST 按其真实年龄继续飞行，MUST NOT 出现位置反复被拽的往复
+
+#### Scenario: 配对包必须在客户端首个 tick 之前到达
+
+- **WHEN** 客户端收到生成包后构造该弹幕实体
+- **THEN** 其年龄基准 MUST 在该实体的首次 tick 之前已就位，MUST NOT 出现首个 tick 以错误年龄调用 `setPos(解析位置)`
 
 #### Scenario: 读档后速率曲线弹双端同速
 
@@ -87,7 +105,7 @@ MUST NOT 采用「重新获取时销毁该弹」作为替代方案：它把「�
 测量 SHALL 至少覆盖：
 
 - **年龄偏移量**——弹的解析自变量在本端与在权威端之差，单位 tick；SHALL 给出最小值、中位数与 p95
-- **来源分类**——SHALL 区分「本次会话新发射」与「由存档 / 重新获取而重建」两类弹，因为这是本缺陷唯一的判别特征。重建的判据是年龄基准非 0
+- **来源分类**——SHALL 区分「本次会话新发射」与「由存档 / 重新获取而重建」两类弹，因为这是本缺陷唯一的判别特征。判据 SHALL 为年龄基准是否非 0，且**两侧判据同构**（服务端读其存档恢复值，客户端读其配对包值），故两侧读数可直接对比
 
 测量 SHALL 随既有弹幕诊断一并输出。该读数 MUST NOT 与「网络滞后」混为一谈：年龄偏移恒为非零即说明双端自变量不一致，与延迟无关。
 
@@ -144,3 +162,4 @@ MUST NOT 采用「重新获取时销毁该弹」作为替代方案：它把「�
 
 - **WHEN** 读取一个不含方向轴键的旧存档中「有帧无曲线」的弹
 - **THEN** 方向轴取缺省值，读档后的行为与本变更之前相同，MUST NOT 报错
+

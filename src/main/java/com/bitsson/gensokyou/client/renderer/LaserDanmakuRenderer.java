@@ -105,7 +105,13 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
             return;
         }
 
-        double length = entity.getActualLength();
+        // MUST 用视觉长度而不是 getActualLength()：后者的裁剪起点是模拟位置，
+        // 而世界平移已经带着纠偏量把整条光束挪走了——起点不同，裁到的方块就不同。
+        // 症状是「光束末端穿进墙里一截」或「光束够不到墙角」，且不报任何错。
+        //
+        // 方向与阶段仍取自模拟状态：纠偏是<b>平移</b>，不改朝向；阶段由年龄推导，
+        // 与位置同源，二者 MUST 来自同一份状态，否则会出现「位置在旧时刻、阶段在新时刻」。
+        double length = entity.getRenderLength(partialTick);
         if (length < 1.0E-3D) {
             return;
         }
@@ -135,7 +141,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         // 越接近开火，闪烁越快越亮
         float urgency = entity.getDelayProgress();
         float speed = INDICATOR_PULSE_SPEED * (1.0F + urgency * 2.0F);
-        float pulse = (Mth.sin(entity.tickCount * speed) + 1.0F) * 0.5F;
+        float pulse = (Mth.sin(entity.age() * speed) + 1.0F) * 0.5F;
         int alpha = (int) Mth.lerp(pulse * (0.4F + 0.6F * urgency),
                 INDICATOR_ALPHA_MIN, INDICATOR_ALPHA_MAX);
 
@@ -206,7 +212,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
             return;
         }
         float radius = beamRadius * MAGIC_CIRCLE_RADIUS_RATIO;
-        float angle = (entity.tickCount + partialTick) * MAGIC_CIRCLE_SPIN_DEG_PER_TICK;
+        float angle = (entity.age() + partialTick) * MAGIC_CIRCLE_SPIN_DEG_PER_TICK;
 
         poseStack.pushPose();
         poseStack.mulPose(Axis.ZP.rotationDegrees(angle));
@@ -225,7 +231,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
      * 开火瞬间与收束瞬间的粗细包络，各占 3 tick。
      */
     private float computeEnvelope(LaserDanmaku entity, float partialTick) {
-        float age = (entity.tickCount - entity.getDelayTicks()) + partialTick;
+        float age = (entity.age() - entity.getDelayTicks()) + partialTick;
         float duration = entity.getDurationTicks();
         if (age < 0.0F || age > duration) {
             return 0.0F;

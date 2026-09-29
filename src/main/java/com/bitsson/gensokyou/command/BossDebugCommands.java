@@ -110,11 +110,17 @@ public final class BossDebugCommands {
                 + com.bitsson.gensokyou.danmaku.DanmakuBudget.stats(source.getLevel())), false);
         source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
                 + com.bitsson.gensokyou.danmaku.DanmakuBudget.timingStats()), false);
+        // 状态同步读数单列一行：上面那行的 lag/age 是「空间误差在速度方向上的投影」，
+        // 这里 cmp/oot 是「与同一采样时刻的本地状态比出来的真误差」。两者不同源，
+        // 混在一行里读会把投影当年龄差。
+        source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
+                + com.bitsson.gensokyou.danmaku.render.DanmakuSyncStats.summary()), false);
         return 1;
     }
 
     private static int danmakuReset(CommandSourceStack source) {
         com.bitsson.gensokyou.danmaku.DanmakuBudget.resetStats();
+        com.bitsson.gensokyou.danmaku.render.DanmakuSyncStats.reset();
         source.sendSuccess(() -> Component.literal("[GS-DANMAKU] 统计已清零"), false);
         return 1;
     }

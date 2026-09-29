@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.client.ClientPayloadHandler;
 import com.bitsson.gensokyou.dialogue.DialogueManager;
+import com.bitsson.gensokyou.entity.AbstractDanmakuProjectile;
 import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
 import com.bitsson.gensokyou.registry.ModDataComponents;
@@ -77,6 +78,40 @@ public final class ModNetworking {
         registrar.playToServer(WujinzangRecipeFillPayload.TYPE,
                 WujinzangRecipeFillPayload.STREAM_CODEC,
                 ModNetworking::handleRecipeFill);
+        registrar.playToClient(DanmakuAgePayload.TYPE, DanmakuAgePayload.STREAM_CODEC,
+                ClientPayloadHandler::handleDanmakuAge);
+        registrar.playToClient(DanmakuSnapshotPayload.TYPE, DanmakuSnapshotPayload.STREAM_CODEC,
+                ClientPayloadHandler::handleDanmakuSnapshot);
+        registrar.playToClient(DanmakuCalibrationPayload.TYPE,
+                DanmakuCalibrationPayload.STREAM_CODEC,
+                ClientPayloadHandler::handleDanmakuCalibration);
+        registrar.playToServer(DanmakuResyncRequestPayload.TYPE,
+                DanmakuResyncRequestPayload.STREAM_CODEC,
+                com.bitsson.gensokyou.danmaku.render.DanmakuSyncServer::handleResyncRequest);
+    }
+
+    /**
+     * 弹体年龄种子：客户端开始跟踪某枚弹幕时下发其当前年龄。
+     *
+     * <p>NeoForge 在 {@code ServerEntity.addPairing} 内、生成包发出<b>之后</b>才触发本事件，
+     * 故本包必定排在生成包之后到达，客户端实体的首次 tick 时基准已就位。
+     * 每个客户端各收一份——两名玩家在不同时刻开始跟踪同一枚弹，年龄本就不同。
+     *
+     * <p><b>与完整快照的关系</b>：本包是 5 字节的轻量兜底，只带年龄；同一次事件里
+     * {@code DanmakuSyncServer} 还会发一份带时间锚点与运动状态的完整快照。两者到达
+     * 顺序不保证，但<b>不构成冲突</b>：快照写入的是独立的锚点字段，而
+     * {@code age()} 在锚点存在时只读锚点。因此「谁先到」不影响最终求值。
+     */
+    @SubscribeEvent
+    public static void onStartTracking(net.neoforged.neoforge.event.entity.player.PlayerEvent.StartTracking event) {
+        // getTarget() = 刚开始跟踪的实体；getEntity() 继承自 PlayerEvent，指的是玩家自己
+        // （声明类型是 Player，发起端在服务端，故窄化成 ServerPlayer）。
+        if (event.getTarget() instanceof AbstractDanmakuProjectile bullet
+                && event.getEntity() instanceof ServerPlayer player) {
+            PacketDistributor.sendToPlayer(player,
+                    new DanmakuAgePayload(bullet.getId(), bullet.age()));
+            bullet.noteTracking();
+        }
     }
 
     /** C2S 无尽藏终端配方填充：按 containerId 定位菜单并服务端权威取料。 */

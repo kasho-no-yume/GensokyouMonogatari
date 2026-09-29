@@ -21,8 +21,88 @@ public final class ClientPayloadHandler {
                 payload.current(), payload.max(), payload.temper(), payload.flightInertia()));
     }
 
-    public static void handleSkillSync(SkillSyncPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> ClientSkillState.update(
+    /**
+     * 弹体年龄种子。
+     *
+     * <p>实体查不到时 MUST 静默忽略——生成包已到但实体已被移除是正常竞态，不是错误，
+     * 也无处可报。二次配对（同一客户端实体收到第二个年龄包）由
+     * {@code seedPeerAge} 内部计数并在此留一行日志。
+     */
+    public static void handleDanmakuAge(com.bitsson.gensokyou.network.DanmakuAgePayload payload,
+                                        IPayloadContext context) {
+        context.enqueueWork(() -> {
+            var level = net.minecraft.client.Minecraft.getInstance().level;
+            if (level == null) {
+                return;
+            }
+            if (level.getEntity(payload.entityId())
+                    instanceof com.bitsson.gensokyou.entity.AbstractDanmakuProjectile bullet) {
+                boolean reseed = bullet.isPeerAgeSeeded();
+                bullet.seedPeerAge(payload.age());
+                if (reseed) {
+                    com.bitsson.gensokyou.Gensokyou.LOGGER.info(
+                            "[danmaku-seed] RESEED id={} age={} localTick={} frame={}",
+                            payload.entityId(), payload.age(), bullet.tickCount,
+                            bullet.hasFormationFrame());
+                }
+            }
+        });
+    }
+
+    /**
+     * 完整初始化／恢复快照。
+     *
+     * <p>实体查不到时 MUST 静默忽略：生成包已到但实体已被移除是正常竞态，不是错误，
+     * 也无处可报。快照的原子性由 {@code applyDanmakuSnapshot} 内部保证——位置、速度、
+     * 年龄锚点与（按需）运动输入在同一次调用里落定，不存在「改了一半」的中间态。
+     */
+    public static void handleDanmakuSnapshot(
+            com.bitsson.gensokyou.network.DanmakuSnapshotPayload payload,
+            IPayloadContext context) {
+        context.enqueueWork(() -> {
+            var level = net.minecraft.client.Minecraft.getInstance().level;
+            if (level == null) {
+                return;
+            }
+            if (level.getEntity(payload.entityId())
+                    instanceof com.bitsson.gensokyou.entity.AbstractDanmakuProjectile bullet) {
+                bullet.applyDanmakuSnapshot(payload.uuid(), payload.trackingToken(),
+                        payload.serverGameTime(), payload.age(), payload.motionRevision(),
+                        payload.paramFingerprint(), payload.position(), payload.velocity(),
+                        payload.motionParams());
+            }
+        });
+    }
+
+    /**
+     * 批量校准样本。
+     *
+     * <p>逐条就地处理：任何一条升级到失步都<b>不在这里</b>发恢复请求——请求由实体的
+     * 每 tick 路径按退避节奏提交，处理器只负责记录事实。
+     */
+    public static void handleDanmakuCalibration(
+            com.bitsson.gensokyou.network.DanmakuCalibrationPayload payload,
+            IPayloadContext context) {
+        context.enqueueWork(() -> {
+            var level = net.minecraft.client.Minecraft.getInstance().level;
+            if (level == null) {
+                return;
+            }
+            for (com.bitsson.gensokyou.network.DanmakuCalibrationPayload.Sample sample
+                    : payload.samples()) {
+                if (level.getEntity(sample.entityId())
+                        instanceof com.bitsson.gensokyou.entity.AbstractDanmakuProjectile bullet) {
+                    bullet.applyCalibrationSample(payload.serverGameTime(), sample.age(),
+                            sample.sequence(),
+                            com.bitsson.gensokyou.danmaku.render.DanmakuMotionState
+                                    .revisionFor(sample.age()),
+                            sample.position());
+                }
+            }
+        });
+    }
+
+    public static void handleSkillSync(SkillSyncPayload payload, IPayloadContext context) {        context.enqueueWork(() -> ClientSkillState.update(
                 payload.learned(), payload.remainingTicks(), payload.equipped()));
     }
 

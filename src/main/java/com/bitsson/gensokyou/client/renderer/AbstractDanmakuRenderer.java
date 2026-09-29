@@ -10,6 +10,8 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * 弹幕渲染器基类。
@@ -103,6 +105,45 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
 
     protected static int blue(int color) {
         return color & 0xFF;
+    }
+
+    /**
+     * 渲染世界坐标偏移（格）。
+     *
+     * <p>原版 {@code EntityRenderDispatcher.render} 在调用 {@link #render} 之前把
+     * {@code this.getRenderOffset(entity, partialTicks)} 加到已插值的世界位置上，
+     * 画完再减回去。这正是「视觉位置与模拟位置分离」在原版里留好的唯一接缝——把纠偏
+     * 写在各 renderer 的 {@code render()} 里做局部平移也可以，但那样每个子类都要记得
+     * 调一次，漏掉一个就是「某一种弹照旧抖」。
+     *
+     * <p><b>与 {@code partialTick} 的关系（design 决策 3 / 任务 3.3）</b>：
+     * <ul>
+     *   <li>世界位置由原版按 {@code Mth.lerp(partialTick, xOld, x)} 插值——<b>一层</b>，
+     *       插的是<b>模拟位置</b>；</li>
+     *   <li>偏移量由本状态容器按 {@code lerp(previousOffset, offset)} 插值——也是
+     *       <b>一层</b>，插的是<b>纠偏量</b>。</li>
+     * </ul>
+     * 两者作用于不同的量，不构成双重平滑。若把纠偏写进模拟位置，那才会得到两层
+     * 作用在同一坐标上的平滑——那正是要避免的。
+     */
+    @Override
+    public Vec3 getRenderOffset(T entity, float partialTicks) {
+        return entity.renderOffset(partialTicks);
+    }
+
+    /**
+     * 本帧的视觉位置（格）。供需要<b>绝对坐标</b>的几何使用——激光的方块裁剪起点
+     * 就是这种：它要在世界里做一次 raycast，起点错一格，光束与实体中心就错位。
+     *
+     * <p>用 {@code xOld → x} 手工插值而不是 {@code position().lerp(xOld, partialTick)}：
+     * 后者会重新分配一个向量，而它在每帧每弹都会被调用。
+     */
+    protected Vec3 renderPosition(T entity, float partialTicks) {
+        return new Vec3(
+                Mth.lerp(partialTicks, entity.xOld, entity.getX()),
+                Mth.lerp(partialTicks, entity.yOld, entity.getY()),
+                Mth.lerp(partialTicks, entity.zOld, entity.getZ()))
+                .add(entity.renderOffset(partialTicks));
     }
 
     /**

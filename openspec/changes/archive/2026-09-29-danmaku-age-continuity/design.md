@@ -42,7 +42,7 @@ ClientLevel:298          p_entity.setOldPosAndRot(); p_entity.tickCount++; p_ent
 **Goals:**
 
 - 读档后双端在**同一年龄**上推进，读档前已在飞的弹不再抽搐
-- 修法只增一个同步 int（且只在生成包与存档中出现，不逐 tick 发送）
+- 修法只增**每客户端一次**的小包（`entityId` + `age`，约 5 字节），**持续带宽为零**
 - 正常发射路径**逐位不变**——新代码对未存档的弹给出与今日相同的结果
 - 读档后弹的寿命 / 分裂 / 相位隐藏 / 悬停 / 越过发射点销毁按真实年龄继续扣减
 - 修正编队帧的 1 tick 编号偏差与编队方向轴的存档缺失
@@ -57,43 +57,67 @@ ClientLevel:298          p_entity.setOldPosAndRot(); p_entity.tickCount++; p_ent
 
 ## Decisions
 
-### 决策 1：年龄 = 同步的「基准」 + 本地 tick 计数
+### 决策 1：年龄 = 每客户端一份的「基准」 + 本地 tick 计数
 
 ```
-age()  =  entityData.get(DATA_AGE_BASIS)  +  this.tickCount
+服务端  age() = restoredAge + this.tickCount        restoredAge 由存档恢复，恒为只读权威
+客户端  age() = peerAge     + this.tickCount        peerAge 由配对包单发，收到后不再变更
 ```
 
 **为什么不是「把 `tickCount` 整体同步」**：那需要每 tick 发包，或引入一个会与服务端 tick 漂移的估算器。基准 + 本地计数是唯一在两端都**逐 tick 相等**又**零持续带宽**的写法。
 
 **为什么不是「只靠服务端位置包反推年龄」**：位置包只带位置不带年龄，反推需要额外协议，且在弹静止（悬停 / 溜め）时无解。
 
-**为什么基准 MUST 走 `SynchedEntityData`**：客户端实体完全由生成包构造，**从不加载 NBT**。普通字段在客户端恒为默认值。`trackedDataValues` 随生成包在同一个 `ClientboundBundlePacket` 里下发（`ServerEntity.sendPairingData`），故没有「位置已到、年龄未到」的单帧竞态。
+**为什么基准 MUST 每客户端一份**：两个客户端配对于不同时刻 T_A < T_B。单一共享值无法同时满足——改一次就弄坏另一个。这不是优化，是硬需求。
 
-**为什么这样能跨存档**：
+**通道选型：为什么是自定义包，而不是 `SynchedEntityData`**（2026-09-29 实施中核实，推翻了本设计的第一版）：
+
+```java
+// ServerEntity 构造（:71-84）
+this.trackedDataValues = entity.getEntityData().getNonDefaultValues();   // ← 快照
+
+// ServerEntity.sendPairingData（:247-257）
+Packet<?> packet = this.entity.getAddEntityPacket(this);
+sink.accept(packet);
+if (this.trackedDataValues != null) {
+    sink.accept(new ClientboundSetEntityDataPacket(id, this.trackedDataValues));   // ← 用的是那个快照
+}
+```
+
+**配对 bundle 里的 entityData 是 `ServerEntity` 构造时的快照，不是配对时刻的值。** 在 `StartTracking` 时刻 `set` 一个 entityData 字段，客户端要等下一次脏更新才拿到——`updateInterval(2)` 意味着**最多晚 2 tick**。
+
+而这 2 tick 不是小瑕疵：客户端首个 tick 就 `setPos(解析位置)`，算的是 `f(1 + 旧基准)`。一颗 T=200 的编队弹会在客户端闪回花心，两 tick 后再弹回。**重新获取恰是多人游玩中最高频的事件**，比现状的永久抽搐更刺眼。
+
+⇒ 采用 `playToClient(entityId, age)`，由 `PlayerEvent.StartTracking` 单发。包紧跟在生成包之后、经同一连接发送，客户端在同一批 `processPendingPackets` 中处理，故**首个 tick 即正确**。带宽：每「每弹 × 每客户端 × 每次配对」约 5 字节，**持续带宽为零**。
+
+**已排除的第三条路**：`ClientboundAddEntityPacket` 的 `data` int 看似空槽（客户端从无调用点），但 `Projectile.getAddEntityPacket` 把它用作 **owner 实体 id**，客户端用 `getEntity(packet.getData())` 反查。**不能占用。**
+
+**为什么这样能跨重新获取**：
 
 ```
-                 基准            本地 tickCount        age()
-正常发射   server      0                0..n          0..n
-          client      0                0..n-L        0..n-L
-          ⇒ age 恒等，与今日无差别 ✓
+                      基准            本地 tickCount        age()
+正常发射       server      0                0..n          0..n
+              client      0（配对包）       0..n-L        0..n-L
+              ⇒ age 恒等，与今日无差别 ✓
 
-读档后   server      T                0..m          T..T+m
-          client      T（生成包）       0..m-L        T..T+m-L
-          ⇒ 常数差 L = 网络管线延迟，与今日同量级 ✓
+重新获取后   server      T                0..m          T..T+m
+              client      T（配对包）       0..m-L        T..T+m-L
+              ⇒ 常数差 L = 网络管线延迟，与今日同量级 ✓
 ```
 
-关键在于：**常数偏移 L 一直存在、且很小**（今天也是这么平滑的），而现状是**读档后凭空多出 T 的常数差**。本决策把 T 从「凭空出现」变成「随生成包下发」。
+关键在于：**常数偏移 L 一直存在、且很小**（今天也是这么平滑的），而现状是**重新获取后凭空多出 T 的常数差**。本决策把 T 从「凭空出现」变成「随配对下发」。
 
 **替代方案（否决）**：
 - *重新获取时销毁该弹*（`readAdditionalSaveData` 里 `discard()`，或客户端侧不移除）——**已否决（2026-09-29，用户）**。单机读档时消失可接受，但路径 ②（后撤 8 格再回来）会走同一条 NBT 往返，discard 会让玩家每次后撤再贴脸就永久失去那一片弹幕。症状从「弹在抖」变成「弹没了」，触发频率从「读档一次」升到「每场战斗数十次」。
   **根因不是「discard 太狠」，而是服务端无法区分两种丢失原因**——它看到的都是「客户端实体没了，服务端那份还在 tick」。任何以丢失原因为分支的修法都是错的。
 - *用世界时间当自变量*——世界时间也不随生成包下发，且会引入「同一个世界时间下两枚弹年龄相同」的错误耦合。
+- *用 `SynchedEntityData` + 客户端首读钉住*——零新增包，但配对快照滞后 1~2 tick，重新获取时有可见闪跳。见上文「通道选型」。
 
-### 决策 2：基准一旦写入便不再变更
+### 决策 2：基准是一次性钉住量
 
-`DATA_AGE_BASIS` 在**生成时**与**读档时**各写一次，此后永不 `set`。理由：它是常量，任何后续 `set` 都会把 `age()` 猛地跳一下，等于把读档缺陷搬到了运行中途。
+客户端的 `peerAge` 在收到配对包时写入一次，此后永不变更。服务端侧则**从不由客户端驱动**——`restoredAge` 是只读权威，只被 NBT 写。理由：任何后续变更都会把 `age()` 猛地跳一下，等于把「重新获取失步」搬到了运行中途。
 
-代价：分实体类型的 `EntityDataAccessor` 只能定义在基类上（`SynchedEntityData.defineId` 绑定到具体的 `Class`），这与既有全部字段的做法一致。
+分实体类型的 `EntityDataAccessor` 只能定义在基类上（`SynchedEntityData.defineId` 绑定到具体的 `Class`）——本决策**不再需要**任何新的 `EntityDataAccessor`，这是相对第一版的净简化。
 
 ### 决策 3：`splitFired` / `targetLost` 维持普通字段，但判据被改写
 
@@ -119,7 +143,9 @@ age()  =  entityData.get(DATA_AGE_BASIS)  +  this.tickCount
 
 `DanmakuBudget` 现有 `HARD_CORRECT`（按弹速分档）与 `LAG_BUCKETS`（0-1/1-2/2-4/4-8/8-16/16+）两个直方图。新增的年龄偏移**不复用**这两者，理由：它们的分母含未对齐的弹，修复前读数本就被污染；再往里加维度只会让「哪些数字可信」更难分辨。
 
-新的维度需要**按来源分类**（会话内新发射 / 存档还原），且分档要能分辨 0~4 与 4+ ——即本缺陷的实际量级。测量点放在 `lerpTo` 里：那里同时握有权威位置、客户端自推位置、以及弹的年龄基准与年龄。
+新的维度需要**按来源分类**（会话内新发射 / 重新获取而重建），且分档要能分辨 0~4 与 4+ ——即本缺陷的实际量级。测量点放在 `lerpTo` 里：那里同时握有权威位置、客户端自推位置、以及本端年龄。
+
+分类判据在客户端侧即「`peerAge` 是否非 0」；在服务端侧则无判据可用（服务端的 `restoredAge` 对新发射弹恒为 0、对重建弹非 0，恰好可作同一判据）。**两侧判据同构**，故读数可直接对比。
 
 **为什么必须在第 0 步就加**：本缺陷与「网络滞后严重」在既有诊断上表现相似（都是硬纠正暴涨、滞后分布右移）。没有分类统计就会把修法投到错的方向上——而错方向的修法（相位推前）会把硬失败变成静默错渲，比不修更难查。
 
@@ -131,17 +157,22 @@ age()  =  entityData.get(DATA_AGE_BASIS)  +  this.tickCount
 
 **[编队 1 tick 回正改变观感]** → 单列为可独立回滚的一步。若实机判定「回正后反而不好」，可只回滚该步而保留年龄同步——两者无耦合。
 
-**[基准字段用 int 而非更宽的类型]** → `EntityDataSerializers` 提供 `LONG`，用 LONG 可彻底消除溢出面，代价是生成包多 4 字节。选 int 是因为 1200 的寿命使溢出不可达；若将来寿命上限上调，此项需重新评估。
+**[基准字段用 int 而非更宽的类型]** → `EntityDataSerializers` 提供 `LONG`，但本设计已不再使用 `SynchedEntityData` 承载年龄（见决策 1），故此项作废。配对包用 VarInt 编码 `age`，上界 `Integer.MAX_VALUE`。
 
 **[专用服务器上偏移 K 可达数千 tick]** → 修复后这不再是问题（客户端拿到的基准就是 T）。但它意味着**修复前**的诊断在专服上会看到远超 `LAG_EDGES` 上界的读数——分桶上界须在实施前按实测重定。
 
-**[只改服务端不同步是不够的]** → 这是本设计最容易踩空的一点：客户端实体从不加载 NBT。**任何**只加 `addAdditionalSaveData` 而不加 `SynchedEntityData` 的修法都会让客户端继续按年龄 0 推演，缺陷原样保留。因此 spec 把「年龄 MUST 经 SynchedEntityData」写成硬性约束而非实现建议。
+**[配对包与生成包的相对顺序]** → 「包紧跟生成包同批处理、客户端首个 tick 即正确」依赖两点：① `ServerEntity.addPairing` 先 `send(bundle)`、之后才触发 `PlayerEvent.StartTracking`；② 客户端 `processPendingPackets` 排空整队后才进实体 tick。二者均为原版行为，但**属实现细节而非契约**。最坏后果是首个 tick 用旧基准（表现为一帧错位），退化为决策 1「通道选型」里否决的 B 方案——不致命，但 MUST 在实机确认过（tasks 6.2）。
+
+**[新客户端连接旧服务端 / 反之]** → 本变更不引入协议版本协商。若客户端不认识该 payload（`PayloadRegistrar` 对未注册类型会丢弃），`peerAge` 恒为 0 ⇒ 退化为今日行为，**不崩、不卡**。同版本模组内不会出现该组合。
+
+**[只改服务端不同步是不够的]** → 这是本设计最容易踩空的一点：客户端实体从不加载 NBT。**任何**只加 `addAdditionalSaveData` 而不下发配对包的修法都会让客户端继续按年龄 0 推演，缺陷原样保留。因此 spec 把「年龄 MUST 经每客户端配对包下发」写成硬性约束而非实现建议。
 
 ## Migration Plan
 
-- **存档格式**：新增 NBT 键（年龄基准、编队方向轴）。**不做迁移**，且这是更安全的默认——旧存档缺键时按缺省值读入，读档得到的飞行中弹退化为今日的行为，**不比迁移前更差**。迁移反而要求为「一个已知错误的年龄」去推断正确值，而正确值不可知（`tickCount` 根本没被存过）。
-- **回滚**：本变更不含协议变更、不含存档格式的破坏性变更。回滚代码后旧存档里的新键会被忽略，双端回到今日行为。
-- **上线顺序**：第 0 步（诊断）可独立上线并观测；第 1 步（修复）待第 0 步数据确认后实施。**不得跳过第 0 步**——理由见「决策 6」。
+- **存档格式**：新增 NBT 键（`Age`、编队方向轴）。**不做迁移**，且这是更安全的默认——旧存档缺键时按缺省值读入，读档得到的飞行中弹退化为今日的行为，**不比迁移前更差**。迁移反而要求为「一个已知错误的年龄」去推断正确值，而正确值不可知（`tickCount` 根本没被存过）。
+- **协议**：新增一个 `playToClient` payload。与既有 20 个 payload 同处 `registrar("1")` 版本组，**不需要新开版本组**。
+- **回滚**：本变更不含存档格式的破坏性变更。回滚代码后旧存档里的新键会被忽略，双端回到今日行为。
+- **上线顺序**：第 0 步（诊断）与第 2 组（年龄 + 配对包）可合并为一次改动——诊断的分类判据直接用 `peerAge` / `restoredAge` 是否非 0，与修复共用同一个字段，拆开做反而要写两遍。**其余各组（编队编号 / 方向轴）仍可独立回滚。**
 
 ## Open Questions
 

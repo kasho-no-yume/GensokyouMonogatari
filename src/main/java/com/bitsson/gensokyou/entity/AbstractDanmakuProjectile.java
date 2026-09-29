@@ -1,8 +1,17 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.DanmakuHitScan;
+import com.bitsson.gensokyou.danmaku.motion.DanmakuAge;
+import com.bitsson.gensokyou.danmaku.motion.DanmakuCorrection;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
+import com.bitsson.gensokyou.danmaku.render.DanmakuMotionState;
+import com.bitsson.gensokyou.danmaku.render.DanmakuRenderState;
+import com.bitsson.gensokyou.danmaku.render.DanmakuResyncQueue;
+import com.bitsson.gensokyou.danmaku.render.DanmakuSampleCheck;
+import com.bitsson.gensokyou.danmaku.render.DanmakuSyncStats;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuPhase;
 import com.bitsson.gensokyou.danmaku.motion.FormationFrame;
 import com.bitsson.gensokyou.danmaku.motion.Rotation;
@@ -219,8 +228,9 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
 
     /**
-     * 位置纠偏阈值（平方）。双端运动学一致时误差极小，
-     * 只有真正偏离（如客户端漏收 spawn 后的参数）才需要硬纠正。
+     * 位置纠偏阈值（平方）。<b>已不再使用</b>——判据改为速度相对
+     * （见 {@link DanmakuCorrection#accepts} 与 {@link #lerpTo}）。固定阈值与速度无关，
+     * 会把弹幕按 {@code v = 1/δ} 劈成「永久滞后」与「每包硬拽」两种失败。
      */
     private static final double POSITION_CORRECTION_THRESHOLD_SQR = 1.0D;
 
@@ -268,11 +278,158 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     public static final int FLAG_HOVER = 4;
     public static final int FLAG_MINE = 8;
 
+    // ------------------------------------------------------------------
+    // 年龄
+    // ------------------------------------------------------------------
+
     /**
-     * 一次性触发守卫。刻意用<b>普通字段</b>而非同步字段：两端 tick 次数相同，
-     * 故由 {@code tickCount} 派生的守卫值天然一致。分裂/悬停的幂等性由此保证。
+     * 本弹的年龄（tick）——<b>全部运动学与终止判据的唯一自变量</b>。
      *
-     * <p><b>此模式仅适用于「可由 {@code tickCount} 派生」的状态。</b>不可派生的状态
+     * <p>三条求值路径，优先级从高到低：
+     * <ol>
+     *   <li>客户端已接受完整快照 → {@code anchorAge + (tickCount − 接受时的 tickCount)}</li>
+     *   <li>否则按原有基准：服务端读存档恢复值，客户端读配对包值</li>
+     * </ol>
+     *
+     * <p><b>第 ① 条里那个「减」是本次变更的关键</b>。旧写法无条件加满
+     * {@code tickCount}，于是「实体被丢掉又重新拿到」时，客户端已经跑过的那些 tick
+     * 会被<b>再叠加一次</b>到服务端给的年龄上 ⇒ 年龄凭空前跳 ⇒ 解析轨迹整体错位。
+     * 用「接受快照时的本地计数」作参照点，重复包幂等、新包重锚，两者都不再叠加。
+     */
+    public int age() {
+        if (this.level().isClientSide && this.ageAnchored) {
+            return DanmakuAge.at(this.anchorAge, this.tickCount - this.anchorTick);
+        }
+        return DanmakuAge.at(this.ageBasis(), this.tickCount);
+    }
+
+    /**
+     * 本端的年龄基准。0 = 本次会话新发射；非 0 = 由存档或重新获取而来。
+     *
+     * <p>两侧判据同构，故诊断读数可跨端直接对比。
+     */
+    public int ageBasis() {
+        return this.level().isClientSide ? this.peerAge : this.restoredAge;
+    }
+
+    /**
+     * 写入客户端年龄基准。仅由配对包处理器调用；收到后不再变更。
+     *
+     * <p>MUST NOT 走 {@code SynchedEntityData}：配对 bundle 携带的 entityData 是
+     * {@code ServerEntity} 构造时的快照而非配对时刻的值，客户端首个 tick 会以未更新的
+     * 基准调用 {@code setPos(解析位置)}，产生可见闪跳。
+     */
+    public void seedPeerAge(int age) {
+        if (this.level().isClientSide) {
+            if (this.peerAgeSeeded) {
+                // 同一客户端实体被二次配对：本地 tickCount 仍在累加，而基准被改写为服务端
+                // 此刻的年龄 ⇒ 客户端年龄凭空前跳。这是「客户端超前」的候选机制之一，
+                // 故单独计数而不是静默覆盖。
+                DanmakuBudget.recordRepeatSeed(this.hasFormationFrame());
+            }
+            this.peerAgeSeeded = true;
+            if (this.peerAge != age) {
+                this.peerAge = Math.max(0, age);
+            }
+        }
+    }
+
+    /** 弹的年龄来源分类，供诊断用。 */
+    public static final int SOURCE_FRESH = 0;
+    public static final int SOURCE_REBUILT = 1;
+    /** 仅客户端：实体已存在却从未收到配对包——本机制失效的直接证据。 */
+    public static final int SOURCE_UNSEEDED = 2;
+    /** 仅客户端：年龄由完整快照锚定，时间对应关系已知。 */
+    public static final int SOURCE_SNAPSHOT = 3;
+
+    /**
+     * 本弹的年龄来源。
+     *
+     * <p><b>三分类而非两分类</b>：用「基准非 0」判重建，在配对包没送达时会把失效的弹
+     * 误判成「正常新发射」——而那恰恰是最需要被看见的失败。健康状态下
+     * {@link #SOURCE_UNSEEDED} 应恒为 0。
+     */
+    public int ageSource() {
+        if (this.level().isClientSide) {
+            if (this.ageAnchored) {
+                return SOURCE_SNAPSHOT;
+            }
+            if (!this.peerAgeSeeded) {
+                return SOURCE_UNSEEDED;
+            }
+            return this.peerAge != 0 ? SOURCE_REBUILT : SOURCE_FRESH;
+        }
+        return this.restoredAge != 0 ? SOURCE_REBUILT : SOURCE_FRESH;
+    }
+
+    /** 客户端是否已收到过配对包。供诊断与测试断言。 */
+    public boolean isPeerAgeSeeded() {
+        return this.peerAgeSeeded;
+    }
+
+    // ------------------------------------------------------------------
+    // 年龄（age）——全部运动学与终止判据的自变量。规则见 DanmakuAge。
+    // ------------------------------------------------------------------
+
+    /** 服务端：由存档恢复的年龄基准，只读权威。正常发射恒为 0。 */
+    private int restoredAge = 0;
+
+    /** 客户端：本次配对时由服务端下发的年龄基准，收到后不再变更。 */
+    private int peerAge = 0;
+
+    /**
+     * 客户端年龄是否已被写过；配合 {@link #peerAgeSeeds} 用于发现「重复配对」。
+     */
+    private boolean peerAgeSeeded = false;
+
+    // ------------------------------------------------------------------
+    // 客户端年龄锚点（danmaku-render-state）
+    // ------------------------------------------------------------------
+
+    /**
+     * 客户端年龄是否由完整快照锚定。
+     *
+     * <p>与 {@link #peerAgeSeeded} 并存而不取代它：配对包是<b>单发</b>的轻量兜底
+     * （只带年龄），快照才带时间锚点与运动状态。两者同时存在时以快照为准，
+     * 因为只有它能同时解决「年龄」与「相位」两件事。
+     */
+    private boolean ageAnchored = false;
+
+    /** 快照给出的年龄。 */
+    private int anchorAge = 0;
+
+    /** 接受快照时的本地 {@code tickCount}。年龄以它为参照点推进，而不是从 0 起算。 */
+    private int anchorTick = 0;
+
+    /** 本次追踪周期的服务端令牌。同一周期内重复推送 MUST 被幂等丢弃。 */
+    private long trackingToken = Long.MIN_VALUE;
+
+    /**
+     * 服务端：已配对次数，与 {@link #trackingToken} 一起区分「新追踪周期」与「重复包」。
+     */
+    private int trackingPairings = 0;
+
+    /**
+     * 客户端状态容器（模拟历史 / 权威样本 / 视觉偏移 / 失步生命周期）。
+     *
+     * <p><b>刻意用普通字段而不是 {@code SynchedEntityData}</b>：它<b>只</b>在客户端
+     * 存在，且是渲染层的私有状态。放进同步字段会让服务端也持有它，并让每一次
+     * 偏移变化都变成一次网络写——那正是本变更要消灭的东西。
+     */
+    private com.bitsson.gensokyou.danmaku.render.DanmakuRenderState clientRenderState = null;
+
+    /**
+     * 最近一次写回的运动输入块。给子类在 {@link #onMotionParamsApplied()} 里读自己那几格。
+     *
+     * <p>只保存引用、不复制：写回是一趟性的，事后无需再访问。
+     */
+    private int[] lastAppliedParams = null;
+
+    /**
+     * 一次性触发守卫。刻意用<b>普通字段</b>而非同步字段：年龄连续之后双端在同一年龄上
+     * 推进，故由年龄派生的守卫值天然一致。分裂/悬停的幂等性由此保证。
+     *
+     * <p><b>此模式仅适用于「可由年龄派生」的状态。</b>不可派生的状态
      * （如 {@code DATA_LIFETIME}，由发射方给定）MUST 走 {@link SynchedEntityData}
      * 并纳入存档。
      */
@@ -372,7 +529,7 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         // <p>MUST 在 super.tick() 之前：之后位置已经是终点了，再设速度会变成下一 tick 的。
         super.tick();
 
-        if (this.tickCount > getLifetimeTicks()) {
+        if (this.age() > getLifetimeTicks()) {
             this.discard();
             return;
         }
@@ -392,12 +549,12 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         // 悬停：到达 tick 后定住。定住后 moveVector 追踪会失效（零向量 = MISS），
         // 故必须改走 AABB 相交，否则「网」的静止节点会变成打不到人的摆设。
         boolean stationary = false;
-        if (isHovering() && this.tickCount >= hoverTick()) {
+        if (isHovering() && this.age() >= hoverTick()) {
             this.setDeltaMovement(Vec3.ZERO);
             stationary = true;
         }
 
-        if (!this.splitFired && isSplitting() && this.tickCount >= splitTick()) {
+        if (!this.splitFired && isSplitting() && this.age() >= splitTick()) {
             this.splitFired = true;
             this.fireSplit();
             return;
@@ -416,10 +573,10 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         // 弹沿原路飞回发射点。回到即销毁。
         if (this.hasSpeedProfile()) {
             DanmakuSpeedProfile profile = speedProfile();
-            velocity = alongAxis(velocity, profile.speedAt(this.tickCount));
+            velocity = alongAxis(velocity, profile.speedAt(this.age()));
             this.setDeltaMovement(velocity);
             if (this.entityData.get(DATA_DIES_AT_ORIGIN)
-                    && profile.returnedToOrigin(this.tickCount)) {
+                    && profile.returnedToOrigin(this.age())) {
                 this.discard();
                 return;
             }
@@ -437,7 +594,11 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             // 编队帧每 tick 都会用解析位置覆写 deltaMovement，于是「初速」在这一刻就失效了。
             // 取 0 的话，挂编队但用普通匀速行进的弹会在原地钉死——现象是「花完全不动、
             // 环只在平面里转」，而日志干净、无任何报错。
-            int tick = this.tickCount + 1;
+            //
+            // 未修项（danmaku-age-continuity / design 决策 4）：advance 随年龄无界增长，
+            // 本变更刻意不碰——修它要引入「总行程上限」或把推进项并入速率曲线，
+            // 是另一个设计问题。
+            int tick = this.age();
             double advance = this.hasSpeedProfile()
                     ? this.speedProfile().travelAt(tick)
                     : unscale(this.entityData.get(DATA_FRAME_ADVANCE_SPEED)) * tick;
@@ -676,7 +837,7 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
      * 故弹撞上方块仍会消失。
      */
     public boolean isHidden() {
-        return DanmakuPhase.isHidden(this.tickCount, phasePeriodTicks(), phaseDuty(), phaseOffset());
+        return DanmakuPhase.isHidden(this.age(), phasePeriodTicks(), phaseDuty(), phaseOffset());
     }
 
     /**
@@ -769,13 +930,17 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     /**
      * 编队帧在本 tick 贡献的<b>位置</b>（不含沿弹道推进那一项）。
      *
-     * <p>用 {@code tickCount + 1}：本方法在 {@code super.tick()} 之前调用，而
-     * {@code super.tick()} 还没把 {@code tickCount} 加一，故本 tick 的编号是
-     * {@code tickCount + 1}。用 {@code tickCount} 会让整队慢一 tick 且左右两端
-     * 在「刚生成」的那一帧上分叉。
+     * <p>直接用 {@link #age()}，MUST NOT 再对本 tick 编号做加减换算。
+     *
+     * <p><b>为什么是 age() 而不是 tickCount ± 1</b>：原版 {@code Entity.tick()} 与
+     * {@code baseTick()} <b>都不</b>自增 {@code tickCount}——自增发生在
+     * {@code Level.tickNonPassenger} 调用 {@code entity.tick()} <b>之前</b>
+     * （{@code ServerLevel} 与 {@code ClientLevel} 皆如此）。故在本方法所处的 tick 体内，
+     * {@code tickCount} <b>已经是本 tick 的编号</b>，再加一会让整条编队轨迹偏一 tick，
+     * 且 {@code framePositionAt(0)} 永远用不上（「出生即收拢」这个既定语义随之失效）。
      */
     private Vec3 framePositionThisTick() {
-        return this.formationFrame().framePositionAt(this.tickCount + 1);
+        return this.formationFrame().framePositionAt(this.age());
     }
 
     private static int scale(double value) {
@@ -797,7 +962,7 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     }
 
     private void tickMine() {
-        if (!(this.level() instanceof ServerLevel server) || this.tickCount < 20) {
+        if (!(this.level() instanceof ServerLevel server) || this.age() < MINE_ARM_TICKS) {
             return;
         }
         double radiusSqr = this.mineRadius() * this.mineRadius();
@@ -856,28 +1021,337 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     }
 
     /**
-     * 客户端与服务端跑相同的运动学，因此位置包只作为纠偏手段。
+     * 原版位置包入口。<b>本方法 MUST NOT 改写模拟位置。</b>
      *
-     * <p>若无条件接受服务端位置，每个位置包都会把弹幕拽一下，产生可见抖动。
-     * 这里只在误差超过阈值时才硬纠正，其余情况信任本地模拟，从而获得完全平滑的轨迹。
+     * <p>改前的实现是：误差超过「速度 × 滞后窗口」就 {@code setPos} 硬拽。对解析式
+     * 弹（编队帧 / 曲射）这构成一个正反馈：
+     *
+     * <pre>
+     *   硬拽 ⇒ position 被换成服务端坐标
+     *         ⇒ 本弹下一 tick 的速度 = 解析终点 − 被换掉的坐标（一条巨大向量）
+     *         ⇒ 误差投影失真 ⇒ 看起来更大 ⇒ 更该硬拽
+     * </pre>
+     *
+     * <p>实测症状正是这个环：rebuilt 弹的偏移在 {@code −4} 与 {@code +8} 之间双峰翻转，
+     * 而恒定偏移不可能产生符号翻转；现象读作「每几个 tick 被拽一下」。
+     *
+     * <p><b>为什么不能只调阈值</b>：阈值只能判断误差大小，无法阻止「纠偏污染下一 tick
+     * 运动段」这件事本身。位置纠偏与模拟推进 MUST 是两件事。
+     *
+     * <p>本包没有服务器采样时刻，既分不清「正常传输延迟」与「年龄基准错位」，也无法在
+     * 曲射弹上反推唯一相位，所以它<b>只</b>进诊断层。真正的纠偏数据来自带时间的校准样本
+     * （{@link #applyCalibrationSample}），真正能改写模拟坐标的只有完整快照
+     * （{@link #applyDanmakuSnapshot}）。
      */
     @Override
     public void lerpTo(double x, double y, double z, float yaw, float pitch, int steps) {
-        // 误差 MUST 在 setPos 之前取，否则清零。
-        Vec3 error = new Vec3(x, y, z).subtract(this.position());
-        Vec3 velocity = this.getDeltaMovement();
-        if (error.lengthSqr() > POSITION_CORRECTION_THRESHOLD_SQR) {
-            DanmakuBudget.recordHardCorrection(velocity.length());
-            this.setPos(x, y, z);
-            this.setYRot(yaw);
-            this.setXRot(pitch);
+        if (!this.level().isClientSide) {
+            return;
         }
-        // 滞后诊断：把误差投影到速度方向，即得该弹的滞后 tick 数。
-        // 静止弹（速度过低）投影无定义，不计入——它们本就无滞后可言。
+        Vec3 sample = new Vec3(x, y, z);
+        Vec3 error = sample.subtract(this.position());
+        Vec3 velocity = this.getDeltaMovement();
+        this.clientRenderState().recordLegacyPosition(sample, this.position());
+        DanmakuSyncStats.recordLegacySample();
+
+        // 投影滞后仍然记录，但它是「空间误差在速度方向上的读数」，
+        // <b>不是</b>两端年龄的直接差值。取年龄差需要时间锚点，见 DanmakuSampleCheck。
         double speedSqr = velocity.lengthSqr();
         if (speedSqr > 1.0E-9D) {
-            DanmakuBudget.recordLag(error.dot(velocity) / speedSqr);
+            double lagTicks = error.dot(velocity) / speedSqr;
+            DanmakuBudget.recordLag(lagTicks);
+            DanmakuBudget.recordAgeOffset(lagTicks, this.ageSource());
+            DanmakuBudget.recordAgeValue(this.age());
         }
+    }
+
+    // ------------------------------------------------------------------
+    // 客户端状态：模拟 / 权威样本 / 渲染（danmaku-render-state）
+    // ------------------------------------------------------------------
+
+    /**
+     * 本弹的客户端状态容器。首次访问时创建。
+     *
+     * <p>返回 {@code null} 表示服务端侧——服务端<b>没有</b>渲染状态，位置纠偏对它
+     * 没有任何意义。
+     */
+    public DanmakuRenderState clientRenderState() {
+        if (!this.level().isClientSide) {
+            return null;
+        }
+        if (this.clientRenderState == null) {
+            this.clientRenderState = new DanmakuRenderState(this.getUUID());
+        }
+        return this.clientRenderState;
+    }
+
+    /** 本帧的视觉偏移（格）。无状态时为零向量。 */
+    public Vec3 renderOffset(float partialTick) {
+        return this.clientRenderState == null
+                ? Vec3.ZERO : this.clientRenderState.renderOffset(partialTick);
+    }
+
+    /**
+     * 客户端每 tick 的表现更新。
+     *
+     * <p>挂在 {@link #baseTick()} 上而不是 {@code tickDanmaku()} 上：
+     * {@code LaserDanmaku.tick()} 不走基类弹幕 tick，它直接调 {@code baseTick()}——
+     * 挂错位置的表现是「球弹平滑、激光照旧按旧路径走」，且不报任何错。
+     */
+    @Override
+    public void baseTick() {
+        super.baseTick();
+        if (!this.level().isClientSide) {
+            return;
+        }
+        DanmakuRenderState state = this.clientRenderState();
+        int revision = DanmakuMotionState.revisionFor(this.age());
+        state.clientTick(this.tickCount, this.age(), revision,
+                this.position(), this.getDeltaMovement());
+        // 指纹不符 = 客户端手上的运动输入不是权威那一份。无论当前是否已判定失步，
+        // 都要请求一次带参数的快照；否则参数永远修不回来。
+        boolean needsParams = state.needsMotionParamRepair(this.motionFingerprint());
+        if (needsParams) {
+            state.markRepairRequested();
+        }
+        if ((state.resyncNeeded() || needsParams) && state.canRequestAgain(this.tickCount)) {
+            state.noteRequestSent(this.tickCount);
+            DanmakuResyncQueue.submit(this.getId(), needsParams);
+        }
+    }
+
+    /**
+     * 应用一份完整快照：<b>原子</b>替换模拟位置、速度、年龄锚点与（按需）运动输入。
+     *
+     * <p>顺序 MUST 是「先记下旧位置 → 改写 → 再让状态容器重锚」，因为画面连续性
+     * 需要同时知道改前与改后的模拟位置。
+     */
+    public void applyDanmakuSnapshot(java.util.UUID incomingUuid, long token, long serverGameTime,
+                                     int snapshotAge, int revision, int fingerprint,
+                                     Vec3 position, Vec3 velocity, int[] motionParams) {
+        if (!this.level().isClientSide) {
+            return;
+        }
+        DanmakuRenderState state = this.clientRenderState();
+        // 身份先于一切：实体 id 会复用，只有 UUID 能证明「这确实是同一枚弹」。
+        if (!DanmakuMotionState.identityMatches(this.getUUID(), incomingUuid)) {
+            DanmakuSyncStats.recordSnapshotRejected();
+            return;
+        }
+        Vec3 oldPosition = this.position();
+        if (motionParams != null && motionParams.length > 0) {
+            this.applyMotionParams(motionParams);
+        }
+        this.trackingToken = token;
+        this.anchorAge = snapshotAge;
+        this.anchorTick = this.tickCount;
+        this.ageAnchored = true;
+        this.setDeltaMovement(velocity);
+        this.setPos(position.x, position.y, position.z);
+        this.updateRotationFromVelocity();
+        boolean applied = state.acceptSnapshot(token, serverGameTime, snapshotAge, revision,
+                fingerprint, oldPosition, position, this.tickCount);
+        if (applied) {
+            state.noteRequestDelivered();
+            DanmakuSyncStats.recordSnapshotApplied();
+        } else {
+            DanmakuSyncStats.recordSnapshotDuplicate();
+        }
+    }
+
+    /**
+     * 收一条校准样本。返回是否升级到了需要恢复。
+     *
+     * <p>比较与诊断计数都在 {@link DanmakuRenderState#recordCalibration} 内完成，
+     * 这里只负责把「速度相关的容差」算出来传下去——容差必须用弹自身速度，
+     * 用固定阈值会把弹幕按 {@code v = 1/δ} 劈成「永久滞后」与「每包硬拽」两种失败。
+     */
+    public boolean applyCalibrationSample(long serverGameTime, int sampleAge, int sequence,
+                                          int revision, Vec3 position) {
+        if (!this.level().isClientSide) {
+            return false;
+        }
+        double tolerance = DanmakuSampleCheck.toleranceBlocks(
+                this.getDeltaMovement().length(),
+                GensokyouConfig.DANMAKU_MAX_LAG_TICKS.get(),
+                GensokyouConfig.DANMAKU_CORRECTION_FLOOR.get());
+        return this.clientRenderState.recordCalibration(serverGameTime, sampleAge, sequence,
+                revision, position, tolerance);
+    }
+
+    /**
+     * 实体移除时清空客户端状态。
+     *
+     * <p>不清理的后果是下一次重追踪时，新实体会拿到一份属于上一次追踪周期的历史：
+     * 旧 tick 编号被当成新编号、旧锚点被当成新锚点，于是「同刻比较」拿旧状态当新状态，
+     * 得到一个纯属捏造的误差。
+     */
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        if (this.level().isClientSide && this.clientRenderState != null) {
+            this.clientRenderState.clear();
+            this.clientRenderState = null;
+            this.ageAnchored = false;
+            this.anchorAge = 0;
+            this.anchorTick = 0;
+            this.trackingToken = Long.MIN_VALUE;
+        }
+        super.remove(reason);
+    }
+
+    // ------------------------------------------------------------------
+    // 运动输入块（快照的修复口径）
+    // ------------------------------------------------------------------
+
+    /**
+     * 本弹的运动输入块。
+     *
+     * <p>布局见 {@link DanmakuMotionState}。子类的专属参数（激光）在
+     * {@code P_LASER_BASE} 之后补齐，基类写 0——长度固定，编解码两侧不会错位。
+     */
+    public int[] motionParams() {
+        int[] params = new int[DanmakuMotionState.PARAM_COUNT];
+        params[DanmakuMotionState.P_FLAGS] = this.entityData.get(DATA_FLAGS);
+        params[DanmakuMotionState.P_HOVER_TICK] = this.entityData.get(DATA_HOVER_TICK);
+        params[DanmakuMotionState.P_SPLIT_TICK] = this.entityData.get(DATA_SPLIT_TICK);
+        params[DanmakuMotionState.P_SPLIT_COUNT] = this.entityData.get(DATA_SPLIT_COUNT);
+        params[DanmakuMotionState.P_CURVE_AXIS] = this.entityData.get(DATA_CURVE_AXIS);
+        params[DanmakuMotionState.P_CURVE_RATE] =
+                Float.floatToRawIntBits(this.entityData.get(DATA_CURVE_RATE));
+        params[DanmakuMotionState.P_MINE_RADIUS] =
+                Float.floatToRawIntBits(this.entityData.get(DATA_MINE_RADIUS));
+        params[DanmakuMotionState.P_LIFETIME] = this.entityData.get(DATA_LIFETIME);
+        params[DanmakuMotionState.P_HAS_PROFILE] = this.hasSpeedProfile() ? 1 : 0;
+        int[] profile = {
+                this.entityData.get(DATA_PROFILE_V0), this.entityData.get(DATA_PROFILE_P0),
+                this.entityData.get(DATA_PROFILE_V1), this.entityData.get(DATA_PROFILE_P1),
+                this.entityData.get(DATA_PROFILE_V2), this.entityData.get(DATA_PROFILE_P2),
+                this.entityData.get(DATA_PROFILE_V3)};
+        System.arraycopy(profile, 0, params, DanmakuMotionState.P_PROFILE_BASE,
+                DanmakuMotionState.P_PROFILE_COUNT);
+        params[DanmakuMotionState.P_DIES_AT_ORIGIN] =
+                this.entityData.get(DATA_DIES_AT_ORIGIN) ? 1 : 0;
+        params[DanmakuMotionState.P_AXIS_X] =
+                Float.floatToRawIntBits(this.entityData.get(DATA_AXIS_X));
+        params[DanmakuMotionState.P_AXIS_Y] =
+                Float.floatToRawIntBits(this.entityData.get(DATA_AXIS_Y));
+        params[DanmakuMotionState.P_AXIS_Z] =
+                Float.floatToRawIntBits(this.entityData.get(DATA_AXIS_Z));
+        params[DanmakuMotionState.P_HAS_FRAME] = this.hasFormationFrame() ? 1 : 0;
+        int[] frame = {
+                this.entityData.get(DATA_FRAME_CX), this.entityData.get(DATA_FRAME_CY),
+                this.entityData.get(DATA_FRAME_CZ), this.entityData.get(DATA_FRAME_OX),
+                this.entityData.get(DATA_FRAME_OY), this.entityData.get(DATA_FRAME_OZ),
+                this.entityData.get(DATA_FRAME_AXIS_YAW), this.entityData.get(DATA_FRAME_AXIS_PITCH),
+                this.entityData.get(DATA_FRAME_ROT_RATE), this.entityData.get(DATA_FRAME_SCALE_BASE),
+                this.entityData.get(DATA_FRAME_SCALE_AMP), this.entityData.get(DATA_FRAME_SCALE_PERIOD),
+                this.entityData.get(DATA_FRAME_ORBIT_YAW), this.entityData.get(DATA_FRAME_ORBIT_PITCH),
+                this.entityData.get(DATA_FRAME_ORBIT_RADIUS), this.entityData.get(DATA_FRAME_ORBIT_RATE)};
+        System.arraycopy(frame, 0, params, DanmakuMotionState.P_FRAME_BASE,
+                DanmakuMotionState.P_FRAME_COUNT);
+        params[DanmakuMotionState.P_FRAME_ADVANCE] =
+                this.entityData.get(DATA_FRAME_ADVANCE_SPEED);
+        params[DanmakuMotionState.P_PHASE_PERIOD] = phasePeriodTicks();
+        params[DanmakuMotionState.P_PHASE_DUTY] = (int) Math.round(phaseDuty() * 100.0D);
+        params[DanmakuMotionState.P_PHASE_OFFSET] = phaseOffset();
+        return params;
+    }
+
+    /** 把快照补发的运动输入块写回同步字段。仅客户端。 */
+    public void applyMotionParams(int[] params) {
+        if (params == null || params.length < DanmakuMotionState.PARAM_COUNT || !this.level().isClientSide) {
+            return;
+        }
+        this.lastAppliedParams = params;
+        this.entityData.set(DATA_FLAGS, (byte) params[DanmakuMotionState.P_FLAGS]);
+        this.entityData.set(DATA_HOVER_TICK, params[DanmakuMotionState.P_HOVER_TICK]);
+        this.entityData.set(DATA_SPLIT_TICK, params[DanmakuMotionState.P_SPLIT_TICK]);
+        this.entityData.set(DATA_SPLIT_COUNT, params[DanmakuMotionState.P_SPLIT_COUNT]);
+        this.entityData.set(DATA_CURVE_AXIS, params[DanmakuMotionState.P_CURVE_AXIS]);
+        this.entityData.set(DATA_CURVE_RATE,
+                Float.intBitsToFloat(params[DanmakuMotionState.P_CURVE_RATE]));
+        this.entityData.set(DATA_MINE_RADIUS,
+                Float.intBitsToFloat(params[DanmakuMotionState.P_MINE_RADIUS]));
+        this.entityData.set(DATA_LIFETIME, Math.max(1, params[DanmakuMotionState.P_LIFETIME]));
+        this.entityData.set(DATA_HAS_PROFILE, params[DanmakuMotionState.P_HAS_PROFILE] != 0);
+        this.entityData.set(DATA_PROFILE_V0, params[DanmakuMotionState.P_PROFILE_BASE]);
+        this.entityData.set(DATA_PROFILE_P0, params[DanmakuMotionState.P_PROFILE_BASE + 1]);
+        this.entityData.set(DATA_PROFILE_V1, params[DanmakuMotionState.P_PROFILE_BASE + 2]);
+        this.entityData.set(DATA_PROFILE_P1, params[DanmakuMotionState.P_PROFILE_BASE + 3]);
+        this.entityData.set(DATA_PROFILE_V2, params[DanmakuMotionState.P_PROFILE_BASE + 4]);
+        this.entityData.set(DATA_PROFILE_P2, params[DanmakuMotionState.P_PROFILE_BASE + 5]);
+        this.entityData.set(DATA_PROFILE_V3, params[DanmakuMotionState.P_PROFILE_BASE + 6]);
+        this.entityData.set(DATA_DIES_AT_ORIGIN, params[DanmakuMotionState.P_DIES_AT_ORIGIN] != 0);
+        this.entityData.set(DATA_AXIS_X, Float.intBitsToFloat(params[DanmakuMotionState.P_AXIS_X]));
+        this.entityData.set(DATA_AXIS_Y, Float.intBitsToFloat(params[DanmakuMotionState.P_AXIS_Y]));
+        this.entityData.set(DATA_AXIS_Z, Float.intBitsToFloat(params[DanmakuMotionState.P_AXIS_Z]));
+        this.entityData.set(DATA_HAS_FRAME, params[DanmakuMotionState.P_HAS_FRAME] != 0);
+        this.setFrameParams(params);
+        this.entityData.set(DATA_FRAME_ADVANCE_SPEED, params[DanmakuMotionState.P_FRAME_ADVANCE]);
+        this.entityData.set(DATA_PHASE_PERIOD, Math.max(0, params[DanmakuMotionState.P_PHASE_PERIOD]));
+        this.entityData.set(DATA_PHASE_DUTY, Mth.clamp(params[DanmakuMotionState.P_PHASE_DUTY], 0, 100));
+        this.entityData.set(DATA_PHASE_OFFSET, params[DanmakuMotionState.P_PHASE_OFFSET]);
+        this.onMotionParamsApplied();
+    }
+
+    /**
+     * 编队帧十六个定标整数的回写。抽成覆写点，便于子类在末尾补自己的专属字段。
+     */
+    protected void setFrameParams(int[] params) {
+        int b = DanmakuMotionState.P_FRAME_BASE;
+        this.entityData.set(DATA_FRAME_CX, params[b]);
+        this.entityData.set(DATA_FRAME_CY, params[b + 1]);
+        this.entityData.set(DATA_FRAME_CZ, params[b + 2]);
+        this.entityData.set(DATA_FRAME_OX, params[b + 3]);
+        this.entityData.set(DATA_FRAME_OY, params[b + 4]);
+        this.entityData.set(DATA_FRAME_OZ, params[b + 5]);
+        this.entityData.set(DATA_FRAME_AXIS_YAW, params[b + 6]);
+        this.entityData.set(DATA_FRAME_AXIS_PITCH, params[b + 7]);
+        this.entityData.set(DATA_FRAME_ROT_RATE, params[b + 8]);
+        this.entityData.set(DATA_FRAME_SCALE_BASE, params[b + 9]);
+        this.entityData.set(DATA_FRAME_SCALE_AMP, params[b + 10]);
+        this.entityData.set(DATA_FRAME_SCALE_PERIOD, params[b + 11]);
+        this.entityData.set(DATA_FRAME_ORBIT_YAW, params[b + 12]);
+        this.entityData.set(DATA_FRAME_ORBIT_PITCH, params[b + 13]);
+        this.entityData.set(DATA_FRAME_ORBIT_RADIUS, params[b + 14]);
+        this.entityData.set(DATA_FRAME_ORBIT_RATE, params[b + 15]);
+    }
+
+    /** 运动输入块写回后的收尾钩子。子类在此补自己的专属字段（激光方向、长度、阶段）。 */
+    protected void onMotionParamsApplied() {
+    }
+
+    /** 最近一次写回的运动输入块。可能为 null。 */
+    protected int[] lastAppliedParams() {
+        return this.lastAppliedParams;
+    }
+
+    /** 运动输入指纹。纯 int 运算，双端逐位一致。 */
+    public int motionFingerprint() {
+        return DanmakuMotionState.fingerprint(this.motionParams());
+    }
+
+    /** 本次追踪周期的令牌（服务端分配，客户端镜像）。 */
+    public long trackingToken() {
+        return this.trackingToken;
+    }
+
+    /** 服务端：记录一次配对并返回本周期的新令牌。 */
+    public long noteTracking() {
+        this.trackingPairings++;
+        if (this.trackingPairings > 1) {
+            DanmakuBudget.recordRepeatPairing(this.hasFormationFrame());
+            Gensokyou.LOGGER.info(
+                    "[danmaku-track] REPEAT id={} pairing#{} age={} restored={} tick={} frame={}",
+                    this.getId(), this.trackingPairings, this.age(),
+                    this.restoredAge, this.tickCount, this.hasFormationFrame());
+        }
+        // 令牌只在配对时前进：同一周期内重复推送保持不变，客户端据此幂等丢弃。
+        this.trackingToken++;
+        if (this.trackingToken == Long.MIN_VALUE) {
+            this.trackingToken = 0L;
+        }
+        return this.trackingToken;
     }
 
     @Override
@@ -1006,19 +1480,29 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         tag.putFloat("CurveRate", curveRate());
         tag.putFloat("MineRadius", mineRadius());
         tag.putInt("Lifetime", getLifetimeTicks());
-        if (this.hasSpeedProfile()) {
+        // 年龄：存的是「保存那一刻的真实年龄」，不是基准。读档时 tickCount 归零，
+        // 基准必须补上这个差，否则双端自变量从此不等（位置存了、年龄没存）。
+        // 缺键时读入 0，即退化为本变更之前的行为——不比迁移前更差。
+        tag.putInt("Age", this.age());
+        if (DanmakuAge.axisNeedsPersistence(this.hasSpeedProfile(), this.hasFormationFrame())) {
             // 速率曲线与其轴：7 个 double + 3 个轴分量。
             // 缺了它们，重载后的弹会沿原速直飞——返程弹变成永动机，
             // 而这种故障只在存档重进时显形，没人能把两者联系起来。
-            DanmakuSpeedProfile profile = this.speedProfile();
-            tag.putBoolean("DiesAtOrigin", this.entityData.get(DATA_DIES_AT_ORIGIN));
-            tag.putDouble("SpV0", profile.v0());
-            tag.putDouble("SpP0", profile.p0());
-            tag.putDouble("SpV1", profile.v1());
-            tag.putDouble("SpP1", profile.p1());
-            tag.putDouble("SpV2", profile.v2());
-            tag.putDouble("SpP2", profile.p2());
-            tag.putDouble("SpV3", profile.v3());
+            //
+            // 条件是「挂曲线 **或** 挂编队」而非「挂曲线」：bindToFrame 同样写方向轴，
+            // 写盘条件若窄于写轴条件，「有帧无曲线」的弹读档后方向轴就回落 (0,0,1)，
+            // 沿弹道推进项指向世界 +Z。单一写入点，避免同一 NBT 键写两遍。
+            if (this.hasSpeedProfile()) {
+                DanmakuSpeedProfile profile = this.speedProfile();
+                tag.putBoolean("DiesAtOrigin", this.entityData.get(DATA_DIES_AT_ORIGIN));
+                tag.putDouble("SpV0", profile.v0());
+                tag.putDouble("SpP0", profile.p0());
+                tag.putDouble("SpV1", profile.v1());
+                tag.putDouble("SpP1", profile.p1());
+                tag.putDouble("SpV2", profile.v2());
+                tag.putDouble("SpP2", profile.p2());
+                tag.putDouble("SpV3", profile.v3());
+            }
             tag.putFloat("SpAxisX", this.entityData.get(DATA_AXIS_X));
             tag.putFloat("SpAxisY", this.entityData.get(DATA_AXIS_Y));
             tag.putFloat("SpAxisZ", this.entityData.get(DATA_AXIS_Z));
@@ -1086,11 +1570,20 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         if (tag.contains("Lifetime")) {
             this.entityData.set(DATA_LIFETIME, Math.max(1, tag.getInt("Lifetime")));
         }
+        // 缺键（旧存档）时保持 0：读档得到的飞行中弹退化为本变更之前的行为。
+        this.restoredAge = Math.max(0, tag.getInt("Age"));
         this.entityData.set(DATA_DIES_AT_ORIGIN, tag.getBoolean("DiesAtOrigin"));
         if (tag.contains("PhasePeriod")) {
             this.entityData.set(DATA_PHASE_PERIOD, tag.getInt("PhasePeriod"));
             this.entityData.set(DATA_PHASE_DUTY, tag.getInt("PhaseDuty"));
             this.entityData.set(DATA_PHASE_OFFSET, tag.getInt("PhaseOffset"));
+        }
+        if (tag.contains("SpAxisX") || tag.contains("SpAxisY") || tag.contains("SpAxisZ")) {
+            // 方向轴：写盘条件是「挂曲线 或 挂编队」，读入必须同宽，
+            // 否则「有帧无曲线」的弹读档后回落 (0,0,1)，推进项指向世界 +Z。
+            this.entityData.set(DATA_AXIS_X, tag.getFloat("SpAxisX"));
+            this.entityData.set(DATA_AXIS_Y, tag.getFloat("SpAxisY"));
+            this.entityData.set(DATA_AXIS_Z, tag.getFloat("SpAxisZ"));
         }
         if (tag.contains("SpV3")) {
             // 逐项用 putDouble 写原值：定标整数量化误差不该被存档再吃一次。
@@ -1101,9 +1594,6 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             this.entityData.set(DATA_PROFILE_V2, scale(tag.getDouble("SpV2")));
             this.entityData.set(DATA_PROFILE_P2, scale(tag.getDouble("SpP2")));
             this.entityData.set(DATA_PROFILE_V3, scale(tag.getDouble("SpV3")));
-            this.entityData.set(DATA_AXIS_X, tag.getFloat("SpAxisX"));
-            this.entityData.set(DATA_AXIS_Y, tag.getFloat("SpAxisY"));
-            this.entityData.set(DATA_AXIS_Z, tag.getFloat("SpAxisZ"));
             this.entityData.set(DATA_HAS_PROFILE, true);
         }
         if (tag.contains("FrameSp")) {
