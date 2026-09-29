@@ -106,6 +106,9 @@ ENTRIES = [
     # 灵浴：浴亭内的玩家注灵仪式。**无任何配方**（充灵靠槽核/路由供灵，不烧材料），
     # 故 no_recipes=True。阶级参数页现算缓存/受灵上限/注灵速率/兑换比。
     ("reiyoku_circle", "minecraft:sea_lantern", True),
+    # 忘川灯坛：全亮门控产灵。**无任何配方**（不烧材料，靠逐根点蜡烛），
+    # 故 no_recipes=True。阶级参数页现算产灵/缓存/供灵上限/蜡烛数/单盏熄灭率。
+    ("bousen_circle", "minecraft:candle", True),
 ]
 
 ITEM_RECIPE_ENTRIES = [

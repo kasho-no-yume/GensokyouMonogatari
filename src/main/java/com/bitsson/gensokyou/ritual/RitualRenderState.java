@@ -70,8 +70,23 @@ public record RitualRenderState(int kind, boolean enabled, int tier, int minY, i
      * 改为 kind 唯一定位 patternId 后经客户端数据通道读<b>同一份</b> pattern JSON 推导。
      */
     public static final int KIND_REIYOKU = 9;
+    /**
+     * 忘川灯坛：{@code enabled} = 仪式启停态；{@code tier} = 结构等级（1/2/3，客户端据此取该阶
+     * pattern 切片本地推导蜡烛坐标）；{@code movingMask} = <b>蜡烛点亮位掩码</b>（bit i = 规范序
+     * 第 i 根蜡烛点亮，1 阶占 4 位 / 2 阶 5 位 / 3 阶 6 位）。
+     *
+     * <p>「全亮」由客户端以掩码比对满掩码自行判定，<b>不另占标志位</b>；满掩码 MUST 特判 64
+     * （{@code 1L << 64 == 1L}，直接 {@code (1L << n) - 1} 在三阶得 0 而非全 1，会让产灵铺光
+     * 与产灵判定同时静默失效）。
+     *
+     * <p>{@code minY}/{@code maxY}/{@code period}/{@code inCount}/{@code linkPos}
+     * <b>均不使用</b>：蜡烛坐标 MUST NOT 经 linkPos 承载——{@link #MAX_CHANNELS} 恰为 64，
+     * 64 根零余量且 bit0 已被 {@link #forgeBurnMask} 一类构造占用。
+     */
+    public static final int KIND_BOUSEN = 10;
 
-    /** 位掩码通道上限（当前 L5 配额合计 40 < 64）。 */
+    /** 位掩码通道上限（当前 L5 配额合计 40 < 64）。注意 {@link #KIND_BOUSEN} 恰好用满 1~6 位，
+     * 但占的是 {@code movingMask} 而非 {@code linkPos}，故不占本上限。 */
     public static final int MAX_CHANNELS = 64;
 
     /** 迦具土燃烧标记（kind=KAGUTSUICHI 时 movingMask 的 bit0）。 */

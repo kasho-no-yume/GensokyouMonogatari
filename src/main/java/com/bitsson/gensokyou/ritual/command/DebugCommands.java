@@ -115,6 +115,17 @@ public final class DebugCommands {
                                                     .getLoadedBlockPos(context, "core");
                                     return probeReiyoku(context.getSource(), pos);
                                 })))
+                .then(Commands.literal("bousen")
+                        .then(Commands.literal("selftest")
+                                .executes(context -> probeBousenSelftest(context.getSource())))
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> {
+                                    net.minecraft.core.BlockPos pos =
+                                            net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                    .getLoadedBlockPos(context, "core");
+                                    return probeBousen(context.getSource(), pos);
+                                })))
                 .then(Commands.literal("seii")
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
@@ -906,6 +917,80 @@ public final class DebugCommands {
         Gensokyou.LOGGER.info(msg);
         source.sendSystemMessage(Component.literal(msg));
         return 1;
+    }
+
+    /**
+     * 忘川灯坛探针：机读单行（供外部 harness 解析）。
+     *
+     * <p>额外打 {@code selftest=} —— 由行为侧的 {@code selftest} 现场跑一遍世界无关内核断言
+     * （满掩码 64 特判、二项采样均值、抽样下标合法性），并把 1/2/3 阶的蜡烛数一并报出。
+     */
+    private static int probeBousen(net.minecraft.commands.CommandSourceStack source,
+                                   net.minecraft.core.BlockPos pos) {
+        String msg;
+        if (source.getLevel().getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null
+                && com.bitsson.gensokyou.ritual.RitualBehaviors.BOUSEN
+                        .equals(core.activeMatch().patternId())) {
+            msg = "[GS-AUTO] " + com.bitsson.gensokyou.ritual.behavior.BousenBehavior
+                    .debugSummary(source.getLevel(), pos, core.activeMatch(), core);
+        } else {
+            msg = "[GS-AUTO] BOUSEN NO-MATCH";
+        }
+        msg = msg + " selftest=" + bousenSelftest(selftestRandom(source.getLevel()))
+                + " candleCounts=" + bousenCandleCounts();
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
+    /** 世界无关内核自检（无世界依赖，可与探针同批跑）。 */
+    private static int probeBousenSelftest(net.minecraft.commands.CommandSourceStack source) {
+        String result = bousenSelftest(selftestRandom(source.getLevel()));
+        String msg = "[GS-AUTO] BOUSEN SELFTEST " + result + " candleCounts=" + bousenCandleCounts();
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return result.startsWith("PASS") ? 1 : 0;
+    }
+
+    private static String bousenSelftest(net.minecraft.util.RandomSource rng) {
+        var failures = com.bitsson.gensokyou.ritual.behavior.BousenBehavior.selftest(rng);
+        return failures.isEmpty() ? "PASS"
+                : "FAIL(" + String.join("; ", failures) + ")";
+    }
+
+    /**
+     * 自检专用 RNG：<b>MUST NOT</b> 用 {@code Level#getRandom()}（固定种子、被共享的遗留流）。
+     * selftest 第 0 项就是查 RNG 退化，用被查对象去查自己等于没查。
+     */
+    private static net.minecraft.util.RandomSource selftestRandom(
+            net.minecraft.server.level.ServerLevel level) {
+        return net.minecraft.util.RandomSource.create(
+                com.bitsson.gensokyou.ritual.behavior.BousenBehavior.class.hashCode()
+                        ^ level.getGameTime() ^ System.nanoTime());
+    }
+
+    /**
+     * 各阶蜡烛数（从已加载的 pattern 切片本地枚举，零世界访问）。
+     * 用于确认四重展开与 16/32/64 的预期一致——位掩码宽度依赖它。
+     */
+    private static String bousenCandleCounts() {
+        var pattern = com.bitsson.gensokyou.ritual.RitualPatternLoader
+                .byId(com.bitsson.gensokyou.ritual.RitualBehaviors.BOUSEN);
+        if (pattern.isEmpty()) {
+            return "pattern-missing";
+        }
+        var p = pattern.get();
+        StringBuilder sb = new StringBuilder();
+        for (var slice : p.levels()) {
+            if (sb.length() > 0) {
+                sb.append(',');
+            }
+            sb.append(slice.level()).append('=')
+                    .append(com.bitsson.gensokyou.ritual.BousenLanterns.offsets(p, slice.level()).size());
+        }
+        return sb.toString();
     }
 
     /** 调试直设阶级：清空全部神恩贡献与台账后按新表逐阶重 roll（0=凡人重置；满池便于测试）。 */

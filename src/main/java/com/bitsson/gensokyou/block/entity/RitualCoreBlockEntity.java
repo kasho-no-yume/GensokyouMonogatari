@@ -199,6 +199,17 @@ public class RitualCoreBlockEntity extends BlockEntity {
      */
     private int reiyokuBatherCount;
     private String reiyokuRoster = "";
+    /**
+     * 忘川灯坛的蜡烛点亮态（<b>瞬态，MUST NOT 持久化</b>）。
+     *
+     * <p>{@code bousenLitMask} 第 i 位 = 该阶蜡烛规范序第 i 根点亮，与客户端
+     * {@code RitualRenderState.movingMask} 位序一一对应（两侧位序不变量见 {@code BousenLanterns}）。
+     * 三者每 1 Hz 由 {@code BousenBehavior} 按世界真值整体重算，故存进 NBT 只会写下一份早已过期的
+     * 快照——与 {@link #reiyokuBatherCount} 同一处置，区块重载后自然收敛。
+     */
+    private long bousenLitMask;
+    private int bousenLitCount;
+    private int bousenLanternTotal;
     private final KanayamahikoSmeltSession kanayamahikoSession = new KanayamahikoSmeltSession();
 
     public RitualCoreBlockEntity(BlockPos pos, BlockState state) {
@@ -295,6 +306,30 @@ public class RitualCoreBlockEntity extends BlockEntity {
 
     public void setReiyokuBatherCount(int value) {
         this.reiyokuBatherCount = value;
+    }
+
+    // ---- 忘川灯坛：蜡烛点亮态（瞬态，不进 NBT）----
+
+    /** 蜡烛点亮位掩码（bit i = 规范序第 i 根点亮）；0 = 尚未重扫或无蜡烛。 */
+    public long bousenLitMask() {
+        return bousenLitMask;
+    }
+
+    /** 当前点亮根数。 */
+    public int bousenLitCount() {
+        return bousenLitCount;
+    }
+
+    /** 该阶蜡烛总数（16 / 32 / 64；0 = 尚未重扫或无蜡烛）。 */
+    public int bousenLanternTotal() {
+        return bousenLanternTotal;
+    }
+
+    /** 一次落定三件瞬态态（行为侧每秒重扫时整体写入）。 */
+    public void setBousenLanterns(long mask, int litCount, int total) {
+        this.bousenLitMask = mask;
+        this.bousenLitCount = Math.max(0, litCount);
+        this.bousenLanternTotal = Math.max(0, total);
     }
 
     /** 灵浴：在浴名单文本（瞬态，供 GUI tooltip 零重扫读取）。 */
@@ -410,8 +445,15 @@ public class RitualCoreBlockEntity extends BlockEntity {
             }
             if (activeMatch.patternId().equals(RitualBehaviors.SEII)) {
                 // 星移刻意不做会话态覆盖：缓存是跨洗练持久的真实蓄水池，
-                // 一次洗练只抽本次花费量，剩余 (阶梯值 - 花费) 结转下一次。
+                // 一次洗练只抽本次花费量，剩余(阶梯值 - 花费) 结转下一次。
                 return com.bitsson.gensokyou.item.weapon.SeiiNumbers.capacity(activeMatch.level());
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.BOUSEN)) {
+                // 忘川：分阶表 50000 / 1000000 / 10000000。必须在此显式分派——三档均非
+                // base × 4^L 几何序列，且 1 阶的 50000 已是 DEFAULT_CORE_CAPACITY 的 5 倍，
+                // 缺此分支时全部三档静默回落 10000（不报错，只是永远攒不满）。
+                return com.bitsson.gensokyou.ritual.behavior.BousenBehavior
+                        .capacityOf(activeMatch.level());
             }
             if (activeMatch.patternId().equals(RitualBehaviors.HYAKKI_YAGYO)) {
                 // 百鬼夜行：空闲零缓存（因而对供灵网络完全隐身），会话期容量 = 锁定配方 spCost。
@@ -1619,6 +1661,16 @@ public class RitualCoreBlockEntity extends BlockEntity {
             return new RitualRenderState(RitualRenderState.KIND_REIYOKU, enabled,
                     activeMatch.level(), boundsMinY, boundsMaxY, 0,
                     new long[0], 0, 0L);
+        }
+        if (id.equals(RitualBehaviors.BOUSEN)) {
+            // 辅助字段：enabled=启停态；tier=结构等级（客户端据此取该阶 pattern 切片推导蜡烛坐标）；
+            // movingMask=蜡烛点亮位掩码（bit i = 规范序第 i 根点亮，1/2/3 阶分别占 4/5/6 位）。
+            // 「全亮」由客户端以掩码比对满掩码自行判定，不另占标志位。
+            //
+            // 坐标 MUST NOT 进 linkPos：MAX_CHANNELS 恰为 64，64 根零余量且 bit0 位惯例已被占用。
+            // 满掩码务必用 BousenBehavior.fullMask()（含 n==64 特判），MUST NOT 在此写 (1L<<n)-1。
+            return new RitualRenderState(RitualRenderState.KIND_BOUSEN, enabled,
+                    activeMatch.level(), 0, 0, 0, new long[0], 0, bousenLitMask);
         }
         if (id.equals(RitualBehaviors.KANAYAMAHIKO)) {
             // maxY 语义 = 结构水平半径（格）：客户端据此铺满密集火星场

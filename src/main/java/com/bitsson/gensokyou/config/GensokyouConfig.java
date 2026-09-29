@@ -204,6 +204,26 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_CYCLE_TICKS;
     public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_FAILURE_RETRY_TICKS;
 
+    // ---- 忘川灯坛（bousen-lantern-ritual）----
+    // 四张分阶表（索引 = 结构等级 - 1）+ 六个标量/周期 + 11 个 FX 参数。
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> BOUSEN_PRODUCE_RATE_PER_SECOND;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> BOUSEN_CAPACITY;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> BOUSEN_OUT_RATE_PER_SECOND;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> BOUSEN_EXTINGUISH_CHANCE;
+    public static final ModConfigSpec.IntValue BOUSEN_EXTINGUISH_PERIOD_TICKS;
+    public static final ModConfigSpec.IntValue BOUSEN_CANDLE_SCAN_PERIOD_TICKS;
+    public static final ModConfigSpec.DoubleValue BOUSEN_FX_HALO_SIZE;
+    public static final ModConfigSpec.DoubleValue BOUSEN_FX_OUT_HALO_SIZE;
+    public static final ModConfigSpec.DoubleValue BOUSEN_FX_HALO_ALPHA;
+    public static final ModConfigSpec.DoubleValue BOUSEN_FX_OUT_HALO_ALPHA;
+    public static final ModConfigSpec.DoubleValue BOUSEN_FX_PULSE_PERIOD;
+    public static final ModConfigSpec.DoubleValue BOUSEN_FX_PULSE_AMOUNT;
+    public static final ModConfigSpec.DoubleValue BOUSEN_FX_BEACON_HEIGHT;
+    public static final ModConfigSpec.DoubleValue BOUSEN_FX_BEACON_ALPHA;
+    public static final ModConfigSpec.DoubleValue BOUSEN_FX_GOLD_ALPHA;
+    public static final ModConfigSpec.DoubleValue BOUSEN_FX_GOLD_RADIUS;
+    public static final ModConfigSpec.DoubleValue BOUSEN_FX_GOLD_LIFT;
+
     // ---- ritual-presentation-polish：迦具土贴地烈火场（原炎柱场重设计）----
     public static final ModConfigSpec.IntValue FX_FIRE_DENSITY_BASE;
     public static final ModConfigSpec.IntValue FX_FIRE_DENSITY_PER_TIER;
@@ -789,7 +809,13 @@ public class GensokyouConfig {
         BOSS_MAX_TARGETS = BUILDER.comment("Max players a BOSS locks at once (nearest N).").defineInRange("bossMaxTargets", 5, 1, 32);
         BOSS_MOVE_MIN = BUILDER.comment("Default inner edge of the distance band; boss retreats inside it (blocks)").defineInRange("bossMoveMin", 10D, 2D, 64D);
         BOSS_MOVE_MAX = BUILDER.comment("Default outer edge of the distance band; boss advances beyond it (blocks)").defineInRange("bossMoveMax", 30D, 4D, 128D);
-        BOSS_MOVE_SPEED = BUILDER.comment("Default wander speed multiplier on the base movement attribute. 0.17 = 实测两次下调：1.0 -> 0.34（-66%）-> 0.17（再 -50%）").defineInRange("bossMoveSpeed", 0.17D, 0.02D, 4D);
+        BOSS_MOVE_SPEED = BUILDER.comment("Boss wander speed MULTIPLIER fed to FairyMoveControl as MoveControl.speedModifier."
+                        + " Semantics: a multiplier, NOT blocks/tick. FairyMoveControl is an acceleration model"
+                        + " (accel = speedModifier * ACCEL_FACTOR per tick; terminal speed is set by FlyingMob.travel's"
+                        + " drag coefficient, not by this value), and it never reads Attributes.MOVEMENT_SPEED /"
+                        + " FLYING_SPEED -- applyStats() still sets those two but they do NOT govern displacement."
+                        + " Default 0.17 => roughly 2 blocks/sec. Override per-boss via AbstractTouhouBoss.moveSpeed().")
+                .defineInRange("bossMoveSpeed", 0.17D, 0.02D, 4D);
         BOSS_WANDER_REPICK_MIN = BUILDER.comment("Wander target re-pick interval, lower bound (ticks)").defineInRange("bossWanderRepickMin", 60, 10, 1200);
         BOSS_WANDER_REPICK_MAX = BUILDER.comment("Wander target re-pick interval, upper bound (ticks)").defineInRange("bossWanderRepickMax", 120, 10, 2400);
         BOSS_WANDER_AVOID_PLAYER = BUILDER.comment("Wander points closer than this to any player are rejected (blocks)").defineInRange("bossWanderAvoidPlayer", 6D, 0D, 32D);
@@ -899,6 +925,48 @@ public class GensokyouConfig {
         HOUJOUNO_TEIHOU_SAMPLE_COUNT_MULTIPLIER = BUILDER.defineInRange("sampleCountMultiplier", 4, 1, 8);
         HOUJOUNO_TEIHOU_CYCLE_TICKS = BUILDER.defineInRange("cycleTicks", 1200, 1, 72000);
         HOUJOUNO_TEIHOU_FAILURE_RETRY_TICKS = BUILDER.defineInRange("failureRetryTicks", 20, 1, 1200);
+        BUILDER.pop();
+
+        BUILDER.push("bousen").comment("Bousen (Altar of the Lethe): candle-gated generator. Production requires EVERY"
+                + " candle lit AND the ritual started; candles go out at random and never cascade (see bousen-lantern-ritual spec)");
+        BOUSEN_PRODUCE_RATE_PER_SECOND = BUILDER.comment("Bousen: spirit produced per second while fully lit, index = structure level-1"
+                + " (default 1e2/5e2/3e3, NOT geometric: the tiers are hand-tuned, so use an explicit list, never a base*4^L formula)")
+                .defineListAllowEmpty("produceRatePerSecond", List.of(100D, 500D, 3000D), o -> o instanceof Double);
+        BOUSEN_CAPACITY = BUILDER.comment("Bousen: spirit buffer capacity, index = structure level-1"
+                + " (default 5e4/1e6/1e7). MUST stay far above DEFAULT_CORE_CAPACITY=10000 or tier 1 silently falls back")
+                .defineListAllowEmpty("capacity", List.of(50000D, 1000000D, 10000000D), o -> o instanceof Double);
+        BOUSEN_OUT_RATE_PER_SECOND = BUILDER.comment("Bousen: routed spirit output (supply) rate per second, index = structure level-1"
+                + " (default 1e3/5e3/2e4). MUST stay STATIC across levels AND across candle flicker -- the routing layer"
+                + " memoises endpoint rates per settlement period and screens sources by >0, so a dynamic rate would make"
+                + " the source flicker in and out of the candidate list")
+                .defineListAllowEmpty("outRatePerSecond", List.of(1000D, 5000D, 20000D), o -> o instanceof Double);
+        BOUSEN_EXTINGUISH_CHANCE = BUILDER.comment("Bousen: per-candle chance of going out on each extinguish roll, index = structure level-1"
+                + " (default 1%/0.5%/0.25%). DELIBERATELY an explicit list, NOT a 'halve per level' formula: the candles"
+                + " double per level (16/32/64), so halving p keeps the TOTAL extinction rate equal (n*p = 0.16 per roll,"
+                + " ~62.5s to the first loss at every tier). Keep the product n*p constant when editing, otherwise higher"
+                + " tiers become mathematically impossible to keep lit")
+                .defineListAllowEmpty("extinguishChance", List.of(0.01D, 0.005D, 0.0025D), o -> o instanceof Double);
+        BOUSEN_EXTINGUISH_PERIOD_TICKS = BUILDER.comment("Bousen: ticks between extinguish rolls (200 = 10s)").defineInRange("extinguishPeriodTicks", 200, 20, 72000);
+        BOUSEN_CANDLE_SCAN_PERIOD_TICKS = BUILDER.comment("Bousen: ticks between full candle rescan passes (20 = 1Hz). The rescan is the only"
+                + " place candles are read; it must NOT be raised above 20 or the GUI/render state goes stale, and it must"
+                + " NOT be lowered (per-tick scanning is a pure waste -- the pattern re-match already costs ~1240 lookups/s)")
+                .defineInRange("candleScanPeriodTicks", 20, 1, 72000);
+        BOUSEN_FX_HALO_SIZE = BUILDER.comment("Bousen FX: lit-candle halo quad size (blocks)").defineInRange("fxHaloSize", 0.5D, 0.1D, 4.0D);
+        BOUSEN_FX_OUT_HALO_SIZE = BUILDER.comment("Bousen FX: extinguished-candle halo quad size (blocks); deliberately larger than the lit one so an"
+                + " out candle reads at a glance across the 20x20 altar").defineInRange("fxOutHaloSize", 0.9D, 0.1D, 4.0D);
+        BOUSEN_FX_HALO_ALPHA = BUILDER.comment("Bousen FX: lit-candle halo opacity").defineInRange("fxHaloAlpha", 0.55D, 0.0D, 1.0D);
+        BOUSEN_FX_OUT_HALO_ALPHA = BUILDER.comment("Bousen FX: extinguished-candle halo opacity (base; the pulse modulates around it)").defineInRange("fxOutHaloAlpha", 0.85D, 0.0D, 1.0D);
+        BOUSEN_FX_PULSE_PERIOD = BUILDER.comment("Bousen FX: extinguished-candle breathing period in ticks (16 = 0.8s)").defineInRange("fxPulsePeriod", 16.0D, 2.0D, 200.0D);
+        BOUSEN_FX_PULSE_AMOUNT = BUILDER.comment("Bousen FX: extinguished-candle breathing depth (fraction of its own size/alpha)").defineInRange("fxPulseAmount", 0.35D, 0.0D, 1.0D);
+        BOUSEN_FX_BEACON_HEIGHT = BUILDER.comment("Bousen FX: sky-beacon height above an extinguished candle (blocks); this is what makes an out"
+                + " candle findable from 50+ blocks away, where a flat billboard is sub-pixel").defineInRange("fxBeaconHeight", 4.0D, 0.5D, 32.0D);
+        BOUSEN_FX_BEACON_ALPHA = BUILDER.comment("Bousen FX: sky-beacon opacity").defineInRange("fxBeaconAlpha", 0.6D, 0.0D, 1.0D);
+        BOUSEN_FX_GOLD_ALPHA = BUILDER.comment("Bousen FX: altar-wide pale-gold ground glow while producing (all candles lit AND started)").defineInRange("fxGoldAlpha", 0.35D, 0.0D, 1.0D);
+        BOUSEN_FX_GOLD_RADIUS = BUILDER.comment("Bousen FX: ground-glow radius (blocks); the altar floor is radius 9, so 10 covers it with margin").defineInRange("fxGoldRadius", 10.0D, 1.0D, 64.0D);
+        BOUSEN_FX_GOLD_LIFT = BUILDER.comment("Bousen FX: how far the producing glow sits ABOVE the lowest candle ring's mid-height (blocks)."
+                + " Default 0 puts it at the mid-height of the innermost candles. MUST NOT go negative to"
+                + " 0-and-below: a glow painted flat onto the walking surface is occluded by the pedestals"
+                + " and the ring kerb, which reads as 'the light is underground'").defineInRange("fxGoldLift", 0.0D, -0.9D, 8.0D);
         BUILDER.pop();
 
         BUILDER.push("ritualFx").comment("Ritual runtime grid/shader FX (ritual-presentation-polish): fire bed, mist ribbon, bolt arcs, spirit orb");

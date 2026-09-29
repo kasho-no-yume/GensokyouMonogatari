@@ -19,11 +19,22 @@
 ## gensokyou:barrier_break_circle
 
 - 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=false · 优先级 548
-- palette：`2=#gensokyou:ritual_stones_2_plus · C=gensokyou:ritual_core · D=minecraft:purple_stained_glass · M=minecraft:amethyst_block · P=#gensokyou:ritual_pedestals · Q=minecraft:quartz_block · R=minecraft:purpur_pillar · S=minecraft:soul_lantern · U=minecraft:purpur_block · X=minecraft:crying_obsidian · b=minecraft:deepslate_bricks · g=gensokyou:air · p=minecraft:polished_deepslate`
+- palette：`2=#gensokyou:ritual_stones_2_plus · C=gensokyou:ritual_core · D=minecraft:purple_stained_glass · M=minecraft:amethyst_block · P=#gensokyou:ritual_pedestals · Q=minecraft:quartz_block · R=minecraft:purpur_pillar · S=minecraft:soul_lantern · U=minecraft:purpur_block · X=minecraft:crying_obsidian · b=minecraft:deepslate_bricks · g=minecraft:air · p=minecraft:polished_deepslate`
 
 | 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |
 |---|---|---|---|---|
 | 2 | 143 | 548 | 81 | y-2:29 y-1:50 y0:12 y1:2 y2:6 y3:6 y4:10 y5:8 y6:7 y7:13 |
+
+## gensokyou:bousen_circle
+
+- 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=false · 优先级 2157
+- palette：`1=#gensokyou:ritual_stones_1_plus · 2=#gensokyou:ritual_stones_2_plus · 3=#gensokyou:ritual_stones_3_plus · C=gensokyou:ritual_core · D=minecraft:candle · P=#gensokyou:ritual_pedestals · a=minecraft:stone_bricks · b=minecraft:chiseled_stone_bricks · c=minecraft:polished_andesite · d=minecraft:deepslate_bricks · e=minecraft:deepslate_tiles · f=minecraft:moss_block · g=minecraft:amethyst_block · i=minecraft:quartz_pillar · j=minecraft:sea_lantern · k=minecraft:purpur_block · l=minecraft:purpur_pillar · m=minecraft:purple_stained_glass · n=minecraft:soul_lantern · o=minecraft:crying_obsidian · p=minecraft:potted_cherry_sapling · q=minecraft:stone_brick_wall · u=minecraft:cracked_deepslate_bricks · w=minecraft:stone_brick_slab`
+
+| 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |
+|---|---|---|---|---|
+| 1 | 74 | 287 | 50 | y-2:31 y-1:31 y0:8 y1:4 |
+| 2 | 162 | 639 | 98 | y-2:57 y-1:57 y0:25 y1:11 y2:8 y3:4 |
+| 3 | 310 | 1231 | 162 | y-2:91 y-1:91 y0:61 y1:26 y2:20 y3:16 y4:5 |
 
 ## gensokyou:haniyasu_circle
 
@@ -49,7 +60,7 @@
 
 ## gensokyou:hyakki_yagyo_circle
 
-- 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=true · 优先级 1826
+- 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=false · 优先级 1826
 - palette：`0=#gensokyou:ritual_stones_1_plus · 1=#gensokyou:ritual_stones_2_plus · 2=#gensokyou:ritual_stones_3_plus · C=gensokyou:ritual_core · P=#gensokyou:ritual_pedestals · Q=minecraft:soul_lantern · a=minecraft:amethyst_block · b=minecraft:blackstone · c=minecraft:cobblestone · d=minecraft:chiseled_deepslate · e=minecraft:crying_obsidian · f=minecraft:chiseled_stone_bricks · g=minecraft:deepslate_bricks · h=minecraft:dark_oak_log · i=minecraft:deepslate_tiles · j=minecraft:end_stone_bricks · k=minecraft:moss_block · l=minecraft:mossy_cobblestone · m=minecraft:magenta_stained_glass · n=minecraft:purple_banner · o=minecraft:polished_basalt · p=minecraft:pink_petals · r=minecraft:potted_cherry_sapling · s=minecraft:potted_dead_bush · t=minecraft:polished_deepslate · u=minecraft:potted_fern · v=minecraft:purple_stained_glass · w=minecraft:purpur_block · x=minecraft:quartz_block · y=minecraft:stone_bricks · z=minecraft:stone_brick_wall`
 
 | 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |
@@ -136,6 +147,19 @@
 | 0 | 20 | 77 | 10 | y-1:9 y0:5 y1:3 y2:3 |
 | 1 | 79 | 313 | 25 | y-1:20 y0:15 y1:10 y2:10 y3:7 y4:7 y5:10 |
 | 2 | 200 | 797 | 64 | y-1:45 y0:30 y1:16 y2:13 y3:9 y4:9 y5:13 y6:46 y7:19 |
+
+## gensokyou:reiyoku_circle
+
+- 锚点 key：`C`（全文件唯一，仅最低级声明，位于 (0,0,0)）· toggleable=true · 优先级 4512
+- palette：`1=#gensokyou:ritual_stones_1_plus · 2=#gensokyou:ritual_stones_2_plus · 3=#gensokyou:ritual_stones_3_plus · 4=#gensokyou:ritual_stones_4_plus · 5=#gensokyou:ritual_stones_5_plus · A=minecraft:polished_andesite · B=minecraft:lantern · C=gensokyou:ritual_core · D=minecraft:prismarine_bricks · E=minecraft:dark_prismarine · I=minecraft:end_stone_bricks · J=minecraft:purple_wool · K=minecraft:white_wool · M=minecraft:purpur_stairs · a=minecraft:polished_deepslate · b=minecraft:stone_bricks · c=minecraft:chiseled_stone_bricks · d=minecraft:deepslate_bricks · g=minecraft:quartz_pillar · h=minecraft:sea_lantern · i=minecraft:soul_lantern · l=minecraft:chain · m=minecraft:moss_block · n=minecraft:potted_fern · o=minecraft:potted_cherry_sapling · q=minecraft:dark_oak_log · r=minecraft:dark_oak_planks · s=minecraft:stone_brick_wall · u=minecraft:purpur_block · v=minecraft:purpur_pillar · w=minecraft:amethyst_block · x=minecraft:purple_stained_glass`
+
+| 层 | 规范格数 | 展开格数 | 最大半径² | y 分布(格数) |
+|---|---|---|---|---|
+| 1 | 100 | 394 | 68 | y-1:35 y0:20 y1:6 y2:9 y3:22 y4:8 |
+| 2 | 142 | 562 | 68 | y-1:35 y0:20 y1:12 y2:17 y3:31 y4:11 y5:9 y6:7 |
+| 3 | 213 | 846 | 170 | y-1:59 y0:36 y1:17 y2:22 y3:40 y4:11 y5:9 y6:7 y7:6 y8:6 |
+| 4 | 296 | 1178 | 338 | y-1:109 y0:38 y1:19 y2:24 y3:42 y4:16 y5:16 y6:8 y7:6 y8:6 y9:6 y10:6 |
+| 5 | 386 | 1532 | 338 | y-1:109 y0:43 y1:24 y2:29 y3:92 y4:16 y5:21 y6:8 y7:6 y8:6 y9:6 y10:6 y11:6 y12:6 y13:2 y14:2 y15:3 y16:1 |
 
 ## gensokyou:resonance_relay
 

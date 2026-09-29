@@ -135,12 +135,32 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
         return 8.0D;
     }
 
-    /** 移速覆写点。 */
+    /**
+     * 移速覆写点。
+     *
+     * <p>本值是 {@link FairyMoveControl} 唯一的速度来源（它只读
+     * {@code MoveControl.speedModifier}，不读 {@code Attributes.MOVEMENT_SPEED} /
+     * {@code FLYING_SPEED}——那两个属性在 {@link #applyStats()} 里照常设置，但对位移无影响）。
+     *
+     * <p><b>语义：乘区，非格/tick。</b>{@code FairyMoveControl} 是加速度模型
+     * （每 tick 累加 accel，终速由 {@code FlyingMob.travel} 的阻力系数决定），
+     * 故本值是相对于 accel 基线的倍率，不能直接读作格/秒。
+     *
+     * <p>子类可覆写以获得单只 BOSS 的独立移速。
+     */
     protected double moveSpeed() {
         return GensokyouConfig.BOSS_MOVE_SPEED.get();
     }
 
-    /** 静态属性 supplier 的通用部分。 */
+    /**
+     * 静态属性 supplier 的通用部分。
+     *
+     * <p>全部东方 BOSS 经由本工厂构建属性（无绕过路径），故在此声明的项对每只 BOSS 生效，
+     * 新增 BOSS 只要复用本工厂即自动继承。
+     *
+     * <p>{@code KNOCKBACK_RESISTANCE = 1.0} = 完全击退免疫，覆盖近战、爆炸与活塞三类来源。
+     * BOSS 被推动会破坏站桩输出节奏与弹幕走位，且允许玩家用原版武器推着 BOSS 走。
+     */
     public static AttributeSupplier.Builder bossAttributes(double maxHealth, double damage,
                                                           double followRange) {
         return net.minecraft.world.entity.Mob.createMobAttributes()
@@ -149,6 +169,7 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
                 .add(Attributes.ATTACK_DAMAGE, damage)
                 .add(Attributes.MOVEMENT_SPEED, 0.3D)
                 .add(Attributes.FLYING_SPEED, 0.3D)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 1.0D)
                 .add(Attributes.FOLLOW_RANGE, followRange);
     }
 
@@ -361,7 +382,9 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
         }
         double y = Mth.clamp(wanderTarget.y,
                 hoverBase() + hoverFloor(), hoverBase() + hoverCeiling());
-        this.moveControl.setWantedPosition(wanderTarget.x, y, wanderTarget.z, 1.0D);
+        // speedModifier MUST 来自 moveSpeed()（= config bossMoveSpeed）。
+        // 曾经传字面量 1.0D，使 config 完全失效、BOSS 实际跑在约 10~12 格/秒。
+        this.moveControl.setWantedPosition(wanderTarget.x, y, wanderTarget.z, moveSpeed());
     }
 
     /**

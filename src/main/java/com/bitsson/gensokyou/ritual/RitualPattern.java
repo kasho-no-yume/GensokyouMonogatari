@@ -75,6 +75,28 @@ public record RitualPattern(ResourceLocation id, char anchorKey,
         public int maxY() {
             return blocks.stream().mapToInt(BlockEntry::y).max().orElse(0);
         }
+
+        /**
+         * 最低格位的 Y 偏移（≤0；空切片为 0）。
+         *
+         * <p>取绝对值即「把核心放在离地这么多格、最高阶最深的一层正好落在地面、全程零开挖」
+         * 的建议离地高度。向上长多高（{@link #maxY()}）不构成摆放约束，故不参与。
+         */
+        public int minY() {
+            return blocks.stream().mapToInt(BlockEntry::y).min().orElse(0);
+        }
+
+        /**
+         * XZ 占地的 Chebyshev 半径（正方形半宽），即 {@code max(|x|, |z|)}。
+         *
+         * <p>格位占用是轴对齐的，故正方形预留 {@code (2r+1)^2} 才是真实需要保留的面积。
+         * 全部仪式图案的 XZ 包围盒长宽比均 ≥ 0.87，用半径不会低估或误导。
+         */
+        public int maxChebRadius() {
+            return blocks.stream()
+                    .mapToInt(b -> Math.max(Math.abs(b.x()), Math.abs(b.z())))
+                    .max().orElse(0);
+        }
     }
 
     public enum ConsumeMode { NONE, ON_ACTIVATE, PERIODIC }

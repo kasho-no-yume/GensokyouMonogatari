@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.ritual;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.ritual.behavior.BousenBehavior;
 import com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior;
 import com.bitsson.gensokyou.ritual.behavior.BafangGuiyuanBehavior;
 import com.bitsson.gensokyou.ritual.behavior.KagutsuchiFlameBehavior;
@@ -63,6 +64,12 @@ public final class RitualBehaviors {
      * 充灵速率按<b>结构等级</b>对应的玩家阶级标准池取值（不按玩家自身阶级）。
      */
     public static final ResourceLocation REIYOKU = Gensokyou.id("reiyoku_circle");
+    /**
+     * 忘川灯坛：全亮门控产灵。启停门控（pattern {@code toggleable:true}）、非会话型。
+     * 产灵判据 = {@code enabled} ∧ 结构内全部蜡烛点亮；熄灭<b>不</b>停机（补灯即自动恢复），
+     * 熄灭后<b>自我冻结</b>（不再产灵也不再继续随机熄灭）。蜡烛是结构的一部分——打掉即散坛。
+     */
+    public static final ResourceLocation BOUSEN = Gensokyou.id("bousen_circle");
 
     static {
         register(RESONANCE, new ResonanceRelayBehavior());
@@ -87,6 +94,7 @@ public final class RitualBehaviors {
         register(SAIR_ENERGY, new SairEnergyBehavior());
         register(HYAKKI_YAGYO, new HyakkiYagyoBehavior());
         register(REIYOKU, new ReiyokuBehavior());
+        register(BOUSEN, new BousenBehavior());
     }
 
     private RitualBehaviors() {

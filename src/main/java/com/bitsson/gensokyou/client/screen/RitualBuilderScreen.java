@@ -15,6 +15,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -43,6 +44,14 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
     private static final int MAT_VIEW_H = PANEL_HEIGHT - 4 - MAT_Y;
     private static final int MAT_ROWS = MAT_VIEW_H / 18;
     private static final int MAT_BAR_X = PANEL_WIDTH - 10;
+    /**
+     * 摆放规划区（建议离地高度 + 最大占地半径）：左列列表下方的空白条。
+     * 列表止于 {@code LIST_Y + LIST_ROWS*ROW_H = 164}，面板高 196，故 164..196 空闲；
+     * 材料区在 x≥{@link #RIGHT_X} 的右列，横向不冲突；本区亦在列表滚轮命中区 24..164 之外。
+     */
+    private static final int PLACE_Y = LIST_Y + LIST_ROWS * ROW_H + 4;
+    private static final int PLACE_ROW_H = 11;
+    private static final int COLOR_DIM = 0xFF707070;
     private static final int COLOR_TEXT = 0xFF404040;
     private static final int COLOR_OK = 0xFF2E8B57;
     private static final int COLOR_BAD = 0xFFB22222;
@@ -58,6 +67,8 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
     private BuilderSelection current;
     /** 本帧被悬浮的材料方块名（renderLabels 写入，render 于最上层绘制 tooltip）。 */
     private Component hoveredMaterial;
+    /** 本帧被悬浮的摆放规划区 tooltip（建议离地高度 / 最大占地半径）。 */
+    private Component hoveredPlacement;
 
     public RitualBuilderScreen(RitualBuilderMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -160,6 +171,10 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
         renderScrollbar(graphics, LIST_X + LIST_W + 2, LIST_Y - 2, LIST_ROWS * ROW_H,
                 list.size(), LIST_ROWS, this.scroll);
 
+        // 摆放规划区：建议离地高度 + 最大占地半径（取最高可建阶，故为规划期常量）
+        this.hoveredPlacement = null;
+        renderPlacementInfo(graphics, mouseX, mouseY, currentId);
+
         // 右侧：品阶按钮 + 材料需求（均针对当前选中图案）
         RitualPattern selected = currentId == null ? null
                 : RitualPatternLoader.byId(currentId).orElse(null);
@@ -221,6 +236,9 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
         if (this.hoveredMaterial != null) {
             graphics.renderComponentTooltip(this.font, List.of(this.hoveredMaterial), mouseX, mouseY);
         }
+        if (this.hoveredPlacement != null) {
+            graphics.renderComponentTooltip(this.font, List.of(this.hoveredPlacement), mouseX, mouseY);
+        }
     }
 
     @Override
@@ -278,6 +296,62 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    /**
+     * 渲染「摆放规划」两行：建议离地高度 + 最大占地半径。
+     *
+     * <p>两者都取<b>最高可建阶</b>的累积切片，而非当前所选阶级——最高阶是规划期常量，
+     * 玩家摆放一次即可长期参考，不随品阶切换而变化。
+     *
+     * <ul>
+     *   <li>建议离地高度 = {@code |minY|}：把核心放在离地这么多格，最高阶最深的一层正好
+     *       落在地面，<b>全程零开挖</b>。结构向上长多高（{@code maxY}）不构成摆放约束，故不展示。
+     *   <li>最大占地半径 = {@code max(|x|,|z|)}（Chebyshev，正方形半宽）。
+     * </ul>
+     *
+     * <p>本区只做<b>信息暴露</b>：不对邻近已建成仪式做检测、不阻止玩家贴邻放置，
+     * 冲突判定仍由 {@code RitualBuilderPlacement.classify} 负责。
+     */
+    private void renderPlacementInfo(GuiGraphics graphics, int mouseX, int mouseY,
+                                     ResourceLocation currentId) {
+        if (currentId == null) {
+            return;
+        }
+        RitualPattern pattern = RitualPatternLoader.byId(currentId).orElse(null);
+        if (pattern == null) {
+            return;
+        }
+        // 最高可建阶 = 图案声明的 tiers 与玩家进度上限的交集，取其最大
+        int topTier = visibleTiers(pattern).stream().mapToInt(Integer::intValue)
+                .max().orElse(Integer.MIN_VALUE);
+        if (topTier == Integer.MIN_VALUE) {
+            return;
+        }
+        RitualPattern.LevelSlice slice = RitualBuilderPlacement.sliceFor(pattern, topTier);
+        if (slice == null || slice.blocks().isEmpty()) {
+            return;
+        }
+        // minY ≤ 0；显示的是"把核心抬高多少格"，故取绝对值
+        String height = String.valueOf(Math.abs(slice.minY()));
+        String radius = String.valueOf(slice.maxChebRadius());
+        String tier = String.valueOf(topTier);
+
+        int y0 = PLACE_Y;
+        int y1 = PLACE_Y + PLACE_ROW_H;
+        graphics.drawString(this.font,
+                Component.translatable("gui.gensokyou.builder.core_height", height),
+                LIST_X, y0, COLOR_DIM, false);
+        graphics.drawString(this.font,
+                Component.translatable("gui.gensokyou.builder.footprint", radius),
+                LIST_X, y1, COLOR_DIM, false);
+
+        if (mouseX >= leftPos + LIST_X && mouseX < leftPos + LIST_X + LIST_W
+                && mouseY >= topPos + y0 - 2 && mouseY < topPos + y1 + 2) {
+            this.hoveredPlacement = Component.translatable(
+                    "gui.gensokyou.builder.placement_tip",
+                    height, height, radius, tier, radius);
+        }
     }
 
     /** 列表溢出时绘制右侧滚动条轨道+滑块，提示可滚动（x/top/h 相对面板左上角）。 */

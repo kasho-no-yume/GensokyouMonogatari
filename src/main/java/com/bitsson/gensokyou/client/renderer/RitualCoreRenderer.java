@@ -5,10 +5,12 @@ import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.client.ritual.ClientRitualData;
 import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.ritual.BousenLanterns;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualFxLayout;
 import com.bitsson.gensokyou.ritual.RitualPedestals;
 import com.bitsson.gensokyou.ritual.RitualRenderState;
+import com.bitsson.gensokyou.ritual.behavior.BousenBehavior;
 import com.bitsson.gensokyou.spirit.SpiritCoreItem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -166,8 +168,26 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
      *
      * <p>key 是小整数 boxed，用 ConcurrentHashMap 而非 WeakHashMap：无需也不应回收。
      */
-    private static final Map<Integer, RitualFxLayout.BathSurface> REIYOKU_SURFACE =
-            new ConcurrentHashMap<>();
+    private static final Map<Integer, RitualFxLayout.BathSurface> REIYOKU_SURFACE =            new ConcurrentHashMap<>();
+
+    /**
+     * 忘川灯坛逐阶蜡烛偏移（相对锚点，规范序）。与 {@link #bafangPedestalOffsets} 同源同法：
+     * kind 唯一定位 patternId 后经客户端数据通道读<b>同一份</b> pattern JSON 推导，
+     * 故 64 根蜡烛坐标不进渲染态的 {@code linkPos}、MUST NOT 新增 payload 字段或逐 tick 广播。
+     *
+     * <p>⚠️ <b>跨端位序不变量</b>：本列表的顺序 MUST 与服务端
+     * {@code BousenLanterns.positions(match)} 逐项一致——渲染态的 {@code movingMask} 第 i 位
+     * 正是靠这个顺序指认"哪一根蜡烛"，一旦两侧排序键不同就会高亮错根。
+     */
+    private static final Map<Integer, List<BlockPos>> BOUSEN_LANTERNS = new ConcurrentHashMap<>();
+
+    private static final ResourceLocation LANTERN_HALO_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/lantern_halo.png");
+
+    /** 淡蓝（点亮）= 忘川冷焰；淡红（熄灭）= 需补点；淡金（产灵铺光）。 */
+    private static final int LANTERN_LIT_R = 150, LANTERN_LIT_G = 205, LANTERN_LIT_B = 255;
+    private static final int LANTERN_OUT_R = 255, LANTERN_OUT_G = 110, LANTERN_OUT_B = 110;
+    private static final int LANTERN_GOLD_R = 255, LANTERN_GOLD_G = 226, LANTERN_GOLD_B = 150;
 
     public RitualCoreRenderer(BlockEntityRendererProvider.Context context) {
         this.dispatcher = context.getBlockEntityRenderDispatcher();
@@ -208,6 +228,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                     renderSummon(blockEntity, state, now, poseStack, bufferSource);
             case RitualRenderState.KIND_REIYOKU ->
                     renderReiyoku(blockEntity, state, now, poseStack, bufferSource);
+            case RitualRenderState.KIND_BOUSEN ->
+                    renderLanterns(blockEntity, state, now, poseStack, bufferSource);
             default -> {
             }
         }
@@ -1952,6 +1974,143 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                 FxGeometry.vertex(c, pose, x1, y1, z1, 1.0F, v1, cr, cg, cb, a);
                 FxGeometry.vertex(c, pose, x0, y1, z0, 0.0F, v1, cr, cg, cb, a);
             }
+        }
+    }
+
+    // ================================================================ 忘川灯坛
+
+    /**
+     * 最内圈（最低）蜡烛的方块中点高度（相对锚点，+0.5 为方块中心）。
+     *
+     * <p>忘川的内圈蜡烛恒在 y=1（后二阶只是<b>向外</b>加环，内圈一直在），故本值三阶同为
+     * {@code 1.5}——产灵铺光因此有一个<b>稳定</b>的高度，玩家可再用 {@code fxGoldLift} 微调，
+     * 不必为每一阶各记一个魔数。
+     */
+    private static double lowestCandleMidY(List<BlockPos> offsets) {
+        int minY = Integer.MAX_VALUE;
+        for (BlockPos off : offsets) {
+            minY = Math.min(minY, off.getY());
+        }
+        return minY == Integer.MAX_VALUE ? 0.5D : minY + 0.5D;
+    }
+
+    /** 逐阶蜡烛偏移（相对锚点、规范序）；与 {@link #bafangPedestalOffsets} 同源同法。 */
+    private static List<BlockPos> bousenLanternOffsets(int tier) {
+        return BOUSEN_LANTERNS.computeIfAbsent(tier, t -> ClientRitualData
+                .pattern(RitualBehaviors.BOUSEN)
+                .map(pattern -> BousenLanterns.offsets(pattern, t))
+                .orElse(List.of()));
+    }
+
+    /**
+     * 忘川灯坛灯火表现（三段，全程客户端几何，服务端零粒子包）。
+     *
+     * <ol>
+     *   <li><b>逐烛光晕</b>：点亮 = 淡蓝、熄灭 = 淡红。<b>只此一张贴图</b>，颜色全靠顶点色 tint，
+     *       故亮/暗两批写进<b>同一个</b> {@code VertexConsumer}——{@code DanmakuRenderTypes} 按贴图
+     *       缓存 RenderType、{@code additiveGlow} 加法混合无深度写（{@code sortOnUpload=false}），
+     *       64 蓝 + 64 红合计 <b>1 个 draw call</b>。MUST NOT 为不同颜色各出一张贴图：那会变成两个
+     *       RenderType，触发"换 {@code getBuffer} 即结算上一批"的分趟约束。</li>
+     *   <li><b>熄灭态冲天光柱</b>：淡红十字面片向上拉伸，滚动 UV。这是"找得到"的主手段——3 阶要在
+     *       20×20 坛面上找到那一根，平面 billboard 在 50 格外已是亚像素。熄灭后系统自我冻结、
+     *       不会连锁恶化，故同时出现的光柱期望 &lt; 1，不会退化成信号弹。</li>
+     *   <li><b>产灵铺光</b>：坛面一层淡金。<b>仅在 {@code enabled ∧ 全亮}</b> 时出现——停机或有灯灭着
+     *       即消失（"有产灵才有金光"）。刻意用<b>贴地铺光</b>而非升腾光柱：忘川是水平大坛，
+     *       升腾光柱是百鬼夜行/灵浴在用，会读成另一个仪式。</li>
+     * </ol>
+     *
+     * <p>三段分趟提交（不同 RenderType MUST 写完一批再取下一批），共 3 个 draw call 量级。
+     * {@link #camRot} 由 {@code render()} 在分发<b>之前</b>设好，本方法 MUST NOT 重设。
+     */
+    private void renderLanterns(RitualCoreBlockEntity be, RitualRenderState state, double now,
+                                PoseStack poseStack, MultiBufferSource buffers) {
+        List<BlockPos> offsets = bousenLanternOffsets(state.tier());
+        int total = offsets.size();
+        if (total == 0) {
+            return;
+        }
+        long mask = state.movingMask();
+        long full = BousenBehavior.fullMask(total);
+        boolean allLit = mask == full;
+        // 坛面铺光（第三段）：只认「已启动 ∧ 全亮」，停机/缺灯一律不画
+        if (state.enabled() && allLit) {
+            float goldAlpha = GensokyouConfig.BOUSEN_FX_GOLD_ALPHA.get().floatValue();
+            if (goldAlpha > 0.001F) {
+                float breathe = 0.88F + 0.12F * Mth.sin((float) (now * 0.09D));
+                float radius = GensokyouConfig.BOUSEN_FX_GOLD_RADIUS.get().floatValue();
+                // 高度 MUST 由结构自身推导，MUST NOT 硬编码：坛面是 y-1 层的顶面（= 行走面），
+                // 而内圈祭品台（y0）与各环缘石就坐在上面——把光贴死在行走面上会被这些方块
+                // 逐面遮掉，读作"金光在地底下"。故取**最内圈蜡烛的中点高度**（三阶同为 1.5），
+                // 语义即"灯火本身的光"；再用 config 的 fxGoldLift 微调。
+                float goldY = (float) (lowestCandleMidY(offsets)
+                        + GensokyouConfig.BOUSEN_FX_GOLD_LIFT.get());
+                FxGeometry.emitGroundGlow(poseStack,
+                        buffers.getBuffer(DanmakuRenderTypes.additiveGlow(LANTERN_HALO_TEXTURE)),
+                        0.0F, goldY, 0.0F, radius,
+                        LANTERN_GOLD_R, LANTERN_GOLD_G, LANTERN_GOLD_B,
+                        (int) (goldAlpha * 255.0F * breathe));
+            }
+        }
+
+        // ---- 第一段：逐烛光晕（一张贴图、一个 consumer、一个 draw call）----
+        float litHalf = GensokyouConfig.BOUSEN_FX_HALO_SIZE.get().floatValue();
+        float outHalfBase = GensokyouConfig.BOUSEN_FX_OUT_HALO_SIZE.get().floatValue();
+        float litAlpha = GensokyouConfig.BOUSEN_FX_HALO_ALPHA.get().floatValue();
+        float outAlpha = GensokyouConfig.BOUSEN_FX_OUT_HALO_ALPHA.get().floatValue();
+        float pulsePeriod = Math.max(1.0F, GensokyouConfig.BOUSEN_FX_PULSE_PERIOD.get().floatValue());
+        float pulseAmt = GensokyouConfig.BOUSEN_FX_PULSE_AMOUNT.get().floatValue();
+        int litA = (int) (litAlpha * 255.0F);
+        if (litA <= 0 && outAlpha <= 0.0F) {
+            return;
+        }
+        VertexConsumer halo = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(LANTERN_HALO_TEXTURE));
+        PoseStack.Pose pose = poseStack.last();
+        // 每根熄灭蜡烛一个错相正弦：多根同时灭时不会整齐同拍，读作"各自在闪"而非机械齐闪
+        for (int i = 0; i < total; i++) {
+            BlockPos off = offsets.get(i);
+            float cx = off.getX() + 0.5F;
+            float cy = off.getY() + 0.5F;
+            float cz = off.getZ() + 0.5F;
+            if ((mask & (1L << i)) != 0L) {
+                FxGeometry.emitBillboard(halo, pose, this.camRot, cx, cy, cz,
+                        litHalf, litHalf,
+                        LANTERN_LIT_R, LANTERN_LIT_G, LANTERN_LIT_B, litA);
+            } else {
+                float wave = Mth.sin((float) (now * (2.0D * Math.PI / (double) pulsePeriod) + i * 1.7D));
+                float grow = 1.0F + pulseAmt * wave;
+                int a = (int) (outAlpha * 255.0F * (1.0F + pulseAmt * wave));
+                FxGeometry.emitBillboard(halo, pose, this.camRot, cx, cy, cz,
+                        outHalfBase * grow, outHalfBase * grow,
+                        LANTERN_OUT_R, LANTERN_OUT_G, LANTERN_OUT_B, Mth.clamp(a, 0, 255));
+            }
+        }
+
+        // ---- 第二段：熄灭态冲天光柱（另一张贴图 ⇒ MUST 写完上面整批再取）----
+        float beaconH = GensokyouConfig.BOUSEN_FX_BEACON_HEIGHT.get().floatValue();
+        float beaconA = GensokyouConfig.BOUSEN_FX_BEACON_ALPHA.get().floatValue();
+        if (beaconH <= 0.0F || beaconA <= 0.0F || mask == full) {
+            return;
+        }
+        int beaconAlpha = (int) (beaconA * 255.0F);
+        if (beaconAlpha <= 0) {
+            return;
+        }
+        VertexConsumer beacon = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(BOLT_GLOW_TEXTURE));
+        float scroll = (float) (now * 0.55D);
+        for (int i = 0; i < total; i++) {
+            if ((mask & (1L << i)) != 0L) {
+                continue;
+            }
+            BlockPos off = offsets.get(i);
+            float wave = Mth.sin((float) (now * (2.0D * Math.PI / (double) pulsePeriod) + i * 1.7D));
+            poseStack.pushPose();
+            poseStack.translate(off.getX() + 0.5D, off.getY() + 0.15D, off.getZ() + 0.5D);
+            FxGeometry.emitCrossPlanes(poseStack, beacon, 2,
+                    0.12F, beaconH * (1.0F + 0.10F * wave),
+                    scroll + i * 0.7F, scroll + i * 0.7F + beaconH * 0.10F,
+                    LANTERN_OUT_R, LANTERN_OUT_G, LANTERN_OUT_B,
+                    (int) (beaconAlpha * 0.25F), beaconAlpha);
+            poseStack.popPose();
         }
     }
 }

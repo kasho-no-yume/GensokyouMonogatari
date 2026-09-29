@@ -5,6 +5,8 @@ import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualScaling;
+import com.bitsson.gensokyou.ritual.BousenLanterns;
+import com.bitsson.gensokyou.ritual.behavior.BousenBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ReiyokuBehavior;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -251,6 +253,16 @@ public class RitualTierComponent implements ICustomComponent {
                         + " /秒");
                 add(out, "兑换比", ReiyokuBehavior.cachePerSpirit() + " 灵力 : 1");
             }
+            case "bousen_circle" -> {
+                // 数值全部现算自 config（与行为侧同一组静态函数口径），不写公式。
+                // 三档均非等比序列，故一律走分阶表而非 base × 4^L。
+                add(out, "产灵", compact(BousenBehavior.produceRatePerSecond(L)) + " /秒");
+                add(out, "缓存", compact(BousenBehavior.capacityOf(L)));
+                add(out, "供灵上限", compact(BousenBehavior.outRateOf(L)) + " /秒");
+                add(out, "蜡烛", bousenCandleCount(id, L) + " 盏");
+                add(out, "单盏熄灭率", BousenBehavior.trimPercent(BousenBehavior.extinguishChance(L))
+                        + "% / " + (BousenBehavior.extinguishPeriodTicks() / 20) + " 秒");
+            }
             case "resonance_relay" -> {
                 long scale = pow(2, Math.max(0, L - 2));
                 add(out, "输入连接", String.valueOf(GensokyouConfig.RESONANCE_BASE_IN_QUOTA.get() * scale));
@@ -272,8 +284,14 @@ public class RitualTierComponent implements ICustomComponent {
         return out;
     }
 
-    private static void add(List<Component> list, String label, String value) {
-        list.add(Component.literal(label + "：" + value));
+    /** 忘川该阶蜡烛数（从已同步的 pattern 切片本地枚举，零世界访问）。 */
+    private static int bousenCandleCount(ResourceLocation id, int level) {
+        return ClientRitualData.pattern(id)
+                .map(pattern -> BousenLanterns.offsets(pattern, level).size())
+                .orElse(0);
+    }
+
+    private static void add(List<Component> list, String label, String value) {        list.add(Component.literal(label + "：" + value));
     }
 
     private static String secs(double v) {

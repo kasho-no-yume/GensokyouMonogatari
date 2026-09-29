@@ -1,3 +1,16 @@
+> **归档于 2026-09-29，未实施。** 本文件保留为调查记录，其中的结论已被后续变更取代或推翻。
+>
+> | 本提案的诉求 | 实际归宿 |
+> |---|---|
+> | 第 0 步诊断（硬纠正按弹速分档、滞后 min/中位/p95） | **已交付** —— `DanmakuBudget.recordHardCorrection(double)` / `recordLag(double)` / `recordAgeOffset(...)`，随 `/gs_boss danmaku` 输出 |
+> | 候选 A「速度相对阈值」 | **已交付** —— 配置项 `danmakuMaxLagTicks`（默认 4）与 `danmakuCorrectionFloor`（默认 0.25） |
+> | 候选 B「模拟与渲染分离」 | **已交付，但形态不同** —— `danmaku-render-state` 的 `DanmakuRenderState` 三层状态 + `DanmakuCorrectionBudget` 收敛步进 |
+> | 候选 C「相位推前 `f(t + L̂)`」 | **未实施，且被明确否决** —— render-state 选择「本地模拟为真相、只用有界的渲染偏移追赶」，理由是 `L̂` 会吸收真失步，把硬失败静默转成错渲 |
+>
+> 本提案撰写于 `danmaku-render-state` 之前，其「Why」一节赖以成立的前提（`lerpTo` 会覆写模拟位置、纠偏阈值固定为 1.0 格²）**已不再为真**：`lerpTo` 现在只进诊断。
+>
+> 与本提案相关的未决问题已迁入 `danmaku-timeline-sync`；`clientTrackingRange` 造成的可见性问题（外圈弹在客户端不存在）不属于同步范畴，本提案的 Open Question 3 已随之作废。
+
 ## Why
 
 **本变更为备选项，不在关键路径上。** 先用**未经任何优化**的现存弹幕模式，在普遍网络环境下验证其流畅度；只有当实测证据表明存在可见问题时，本变更才应被实施。
