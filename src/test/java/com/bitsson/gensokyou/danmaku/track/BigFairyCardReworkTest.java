@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.phys.Vec3;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -481,9 +482,62 @@ class BigFairyCardReworkTest {
         assertEquals(0.0D, flowers.formation().rotRateDegPerTick(), 1.0E-9D, "刻意不自旋");
         assertEquals(0.0D, flowers.formation().scaleAmp(), 1.0E-9D, "也不呼吸");
         // 爆散声明与帧必须成对：没有帧就没有爆散方向。
-        assertTrue(flowers.beats().stream().allMatch(b ->
-                        b.behaviour().motion().kind() == Behaviour.Motion.Kind.BURST),
-                "花海每拍都该是径向爆散");
+assertTrue(flowers.beats().stream().allMatch(b ->
+                          b.behaviour().motion().kind() == Behaviour.Motion.Kind.BURST),
+                "花海每一拍都必须是爆散");
+    }
+
+    /**
+     * 花海稳态密度回归：<b>谷底 MUST NOT 低于峰值的 80%</b>。
+     *
+* <p>这是「画面陆续减少、逐渐变空」那条 bug 的守门测试。它 MUST 从真实符卡结构里
+     * 读参数，而不是把 240/200/16 抄一遍——抄一遍的话，把 {@code FLOWER_LIFETIME}
+     * 改回小于周期的那个提交根本不会让这条测试变红。
+     *
+     * <p>算的是：在场花朵数 = 每个周期内「已发射且未到期」的那些拍。峰谷比掉到 0.8 以下，
+     * 就说明寿命短于周期，画面必然周期性排空。这是<b>密度均匀性</b>的断言，
+     * 与「峰值够不够高」是两件事——后者归 {@code TrackLint} 的密度豁免管。
+     */
+    @Test
+    @DisplayName("花海稳态密度：谷底 MUST NOT 低于峰值的 80%")
+    void flowerSeaHasNoDensityTrough() {
+        SpellCard card = BossCards.bigFairy().get(1);
+        Track flowers = card.tracks().get(0);
+        int cycle = card.cycleTicks();
+        assertTrue(cycle > 0, "花海 MUST 有循环");
+        List<Track.Beat> beats = flowers.beats();
+        assertFalse(beats.isEmpty(), "花海 MUST 有拍");
+
+        int lifetime = beats.get(0).lifetimeTicks();
+        assertTrue(lifetime > 0, "花海 MUST 有寿命");
+        // 根因守卫：寿命短于周期时，在场数必然出现周期性排空
+        assertTrue(lifetime >= cycle,
+                "花海寿命 " + lifetime + " < 循环 " + cycle
+                        + "：每轮末尾必然排空（在场数 = 每周期朵数 × 寿命 / 周期）");
+
+        // 连续三个周期，跨过周期边界取样——谷底正出现在跨周期的地方
+        int peak = 0;
+        int trough = Integer.MAX_VALUE;
+        for (int t = 0; t < cycle * 3; t++) {
+            int live = 0;
+            for (Track.Beat beat : beats) {
+                // 每一拍在每个周期的同一相位重复发射
+                for (int cycleStart = t / cycle * cycle - cycle; cycleStart <= t; cycleStart += cycle) {
+                    long emit = (long) cycleStart + beat.tick();
+                    if (emit <= t && t - emit < lifetime) {
+                        live++;
+                    }
+                }
+            }
+            peak = Math.max(peak, live);
+            trough = Math.min(trough, live);
+        }
+
+        assertTrue(peak > 0, "花海 MUST 在某个时刻有花瓣在场");
+        double ratio = (double) trough / peak;
+        assertTrue(ratio >= 0.8D,
+                "花海峰谷比只有 " + String.format("%.2f", ratio) + "（谷 " + trough
+                        + " / 峰 " + peak + "），画面会周期性排空。");
     }
 
     // ------------------------------------------------------------------
@@ -557,13 +611,18 @@ class BigFairyCardReworkTest {
                 "阶段 3 是持续型，MUST 给循环长度（10 拍 × 20 tick）；"
                         + "「不声明循环」不等于「一直放」，恰恰是保证它停掉的设置");
 
-        // 花之海洋的时序契约：飞 3 秒 → 悬停 2 秒 → 第 100 tick 爆散，寿命 10 秒。
+        // 花之海洋的时序契约：飞 3 秒 → 悬停 2 秒 → 第 100 tick 爆散。
         // 这三个数被 lint 同时约束（无害期不得超过寿命的一半），改动时三者 MUST 同步。
         Track.Beat flower = cards.get(1).tracks().get(0).beats().get(0);
         assertEquals(100, flower.harmlessTicks(), "爆散前完全不生效");
-        assertEquals(200, flower.lifetimeTicks(), "寿命 = 爆散前 100 + 爆散后 100");
-        assertEquals(100, flower.lifetimeTicks() - flower.harmlessTicks(),
-                "爆散后的散开行程与成形行程等长（各 100 tick）");
+        // 寿命 MUST 不小于循环：在场花朵数 = 每周期朵数 × 寿命 / 周期，寿命短于周期时
+        // 每轮末尾必然排空（实测谷底只剩峰值的 37%，读作「陆续减少、逐渐变空」）。
+        assertTrue(flower.lifetimeTicks() >= cards.get(1).cycleTicks(),
+                "花海寿命 " + flower.lifetimeTicks() + " MUST 不小于循环 "
+                        + cards.get(1).cycleTicks() + "，否则每轮末尾画面排空");
+        // 爆散后 MUST 留足滑行余量，且不少于原设计的 100 tick
+        assertTrue(flower.lifetimeTicks() - flower.harmlessTicks() >= 100,
+                "爆散后的散开行程 MUST 不少于成形行程（100 tick）");
 
         assertTrue(TrackLint.lint("大妖精", cards, BossCards.BIG_FAIRY_PALETTE).isEmpty(),
                 "在役表 MUST 通过 lint：" + TrackLint.lint("大妖精", cards, BossCards.BIG_FAIRY_PALETTE));

@@ -46,7 +46,34 @@ public final class DanmakuAge {
      * 引入偏差，而不是只在读档后。
      */
     public static int at(int basis, int tickCount) {
-        long sum = (long) basis + tickCount;
+        return at(basis, tickCount, 1.0D);
+    }
+
+    /**
+     * 年龄求值，带客户端／服务器速率差。
+     *
+     * <p><b>为什么客户端要除以速率</b>——客户端的本地 tick 未必与服务器游戏时间同速。
+     * 设 {@code rate} 为「每个服务器 tick 走多少本地 tick」，则经过
+     * {@code Δtick} 个本地 tick 后流逝的服务器时间是 {@code Δtick / rate}，
+     * 而弹幕年龄跟随的是<b>服务器</b>时间，所以年龄必须推进 {@code Δtick / rate}。
+     *
+     * <p>这正是客户端「慢 5%」时弹会越看越慢的原因：它每个本地 tick 只把年龄
+     * 推进 1，而服务器推进了 1/0.95，于是年龄差每 tick 拉大 0.05，线性发散。
+     *
+     * <p><b>服务端恒为 1.0</b>：服务端 tick 与游戏时间由同一个循环驱动，比值恒等于 1。
+     * {@code rate == 1.0} 时本方法与 {@link #at(int, int)} <b>逐位相同</b>——
+     * 这是「接上时钟不改变任何现有行为」的保证。
+     *
+     * @param rate 每个服务器 tick 走多少本地 tick；非正数按 1.0 处理
+     */
+    public static int at(int basis, int tickCount, double rate) {
+        int ticks = tickCount;
+        if (rate > 0.0D && Double.isFinite(rate) && Math.abs(rate - 1.0D) > 1.0E-12D) {
+            long scaled = Math.round(tickCount / rate);
+            // 钳到 int：tickCount 为负时除法会把它推向 0，那与「刚出生」同义，不可接受。
+            ticks = (int) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, scaled));
+        }
+        long sum = (long) basis + ticks;
         if (sum <= 0L) {
             return 0;
         }

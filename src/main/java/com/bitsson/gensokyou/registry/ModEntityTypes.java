@@ -20,6 +20,30 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ModEntityTypes {
+
+    /**
+     * 弹幕实体的位置包间隔（tick）。
+     *
+     * <p><b>为什么可以调到 20（每秒一次）</b>——所有弹幕类型都继承
+     * {@code AbstractDanmakuProjectile}，而它把 {@code lerpTo} 覆写成<b>只计数</b>：
+     * 客户端的权威来源是 {@code DanmakuSnapshotPayload}（追踪时一次）与
+     * {@code DanmakuCalibrationPayload}（低频校准），两者都<b>不受本间隔影响</b>。
+     * 所以位置包是「服务器照发、客户端照收、但一个字节都不用」的通道。
+     *
+     * <p>原值 2 意味着每枚弹每 2 tick 一个包 = 10 包/秒/枚。500 枚即 5,000 包/秒
+     * （约 83 包/帧），2,000 枚即 20,000 包/秒（约 2.4 Mbps/玩家）——而客户端把它们
+     * 全部丢弃。调到 20 是 10 倍削减，且<b>零行为变化</b>。
+     *
+     * <p><b>为什么不是更大</b>：留 1 秒的地板，是为了「万一有人把 lerpTo 接回去」
+     * 退化成一秒滞后，而不是两秒。改这个值之前先确认
+     * {@code AbstractDanmakuProjectile#lerpTo} 仍然是 no-op。
+     *
+     * <p><b>不适用于非弹幕实体</b>：{@code orbit_yin_yang_orb} 继承原版
+     * {@code Entity}、{@code zaohua_flight_item} 继承 {@code ItemEntity} 且自己覆写了
+     * {@code lerpTo} —— 它们<b>真的</b>消费位置包，间隔必须保持原值。
+     */
+    private static final int DANMAKU_UPDATE_INTERVAL = 20;
+
     public static final DeferredRegister<EntityType<?>> ENTITY_TYPES =
             DeferredRegister.create(Registries.ENTITY_TYPE, Gensokyou.MODID);
 
@@ -28,7 +52,7 @@ public final class ModEntityTypes {
                     .<DanmakuProjectile>of(DanmakuProjectile::new, MobCategory.MISC)
                     .sized(0.4F, 0.4F)
                     .clientTrackingRange(4)
-                    .updateInterval(10)
+                    .updateInterval(DANMAKU_UPDATE_INTERVAL)
                     .build("danmaku"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<SphereDanmaku>> SPHERE_DANMAKU =
@@ -36,7 +60,7 @@ public final class ModEntityTypes {
                     .<SphereDanmaku>of(SphereDanmaku::new, MobCategory.MISC)
                     .sized(0.4F, 0.4F)
                     .clientTrackingRange(8)
-                    .updateInterval(2)
+                    .updateInterval(DANMAKU_UPDATE_INTERVAL)
                     .fireImmune()
                     .build("sphere_danmaku"));
 
@@ -45,7 +69,7 @@ public final class ModEntityTypes {
                     .<KnifeDanmaku>of(KnifeDanmaku::new, MobCategory.MISC)
                     .sized(0.2F, 1.5F)
                     .clientTrackingRange(8)
-                    .updateInterval(2)
+                    .updateInterval(DANMAKU_UPDATE_INTERVAL)
                     .fireImmune()
                     .build("knife_danmaku"));
 
@@ -54,10 +78,21 @@ public final class ModEntityTypes {
                     .<TalismanDanmaku>of(TalismanDanmaku::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F)
                     .clientTrackingRange(8)
-                    .updateInterval(2)
+                    .updateInterval(DANMAKU_UPDATE_INTERVAL)
                     .fireImmune()
                     .build("talisman_danmaku"));
 
+    /**
+     * 激光<b>刻意保持 {@code updateInterval(1)}</b>，不与其它弹幕统一。
+     *
+     * <p>它同样不消费位置包（继承同一个 no-op {@code lerpTo}），但两条理由让它单独判断：
+     * <ol>
+     *   <li><b>省不到带宽</b>：激光数量是个位数（喷泉轨 10 秒 10 发），改间隔的收益可忽略；</li>
+     *   <li><b>它已经有一个双端分歧</b>：服务端按服务端方块世界裁剪长度判伤，
+     *       客户端按客户端方块世界裁剪视觉（见 {@code danmaku-event-sync}）。
+     *       在那件事有结论之前动它的更新节奏，等于在一个已知不可靠的通道上再加改动。</li>
+     * </ol>
+     */
     public static final DeferredHolder<EntityType<?>, EntityType<LaserDanmaku>> LASER_DANMAKU =
             ENTITY_TYPES.register("laser_danmaku", () -> EntityType.Builder
                     .<LaserDanmaku>of(LaserDanmaku::new, MobCategory.MISC)
@@ -67,6 +102,12 @@ public final class ModEntityTypes {
                     .fireImmune()
                     .build("laser_danmaku"));
 
+    /**
+     * 阴阳玉<b>必须</b>保持高频位置包。
+     *
+     * <p>它继承原版 {@code Entity}，<b>没有</b>覆写 {@code lerpTo} ⇒ 客户端真的消费位置包。
+     * 它是「弹幕不消费位置包」这条性质的<b>反例</b>，改错这里会让它变成一格一格跳。
+     */
     public static final DeferredHolder<EntityType<?>, EntityType<OrbitYinYangOrb>> ORBIT_YIN_YANG_ORB =
             ENTITY_TYPES.register("orbit_yin_yang_orb", () -> EntityType.Builder
                     .<OrbitYinYangOrb>of(OrbitYinYangOrb::new, MobCategory.MISC)
@@ -76,6 +117,13 @@ public final class ModEntityTypes {
                     .fireImmune()
                     .build("orbit_yin_yang_orb"));
 
+    /**
+     * 造化飞行原料<b>必须</b>保持 {@code updateInterval(2)}。
+     *
+     * <p>它不是 {@code AbstractDanmakuProjectile}，而且<b>自己覆写了 {@code lerpTo}**
+     * ——覆写内容是「按本地年龄重算曲线位置」，与弹幕的 no-op 是两回事。
+     * 它的客户端位置确实来自网络，所以这里跟着服务端频率走。
+     */
     /** 源初造化飞行原料（无重力、无碰撞拾取、服务端权威 + 双端曲线）。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.ZaohuaFlightItem>> ZAOHUA_FLIGHT_ITEM =
             ENTITY_TYPES.register("zaohua_flight_item", () -> EntityType.Builder

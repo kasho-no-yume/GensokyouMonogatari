@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
@@ -187,13 +188,13 @@ public class TalismanDanmaku extends AbstractDanmakuProjectile {
         if (hit.isAlive()) {
             hit.hurt(ModDamageTypes.danmaku(this, this.getOwner()), this.damage);
         }
-        this.discard();
+        this.discard(DanmakuBudget.RemovalCause.ENTITY);
     }
 
     @Override
     protected void onHitBlock(BlockHitResult result) {
         if (this.level() instanceof ServerLevel) {
-            this.discard();
+            this.discard(DanmakuBudget.RemovalCause.BLOCK);
         }
     }
 

@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client;
 
+import com.bitsson.gensokyou.danmaku.render.DanmakuClientClock;
 import com.bitsson.gensokyou.danmaku.render.DanmakuResyncQueue;
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
@@ -29,8 +30,15 @@ public final class DanmakuClientSyncEvents {
         var level = Minecraft.getInstance().level;
         if (level == null) {
             DanmakuResyncQueue.clear();
+            // 退出世界 MUST 一并清时钟：上一段连接的速率套到新一段上，
+            // 而新连接的快慢可能完全不同。
+            DanmakuClientClock.reset();
             return;
         }
         DanmakuResyncQueue.onClientTick(level.getGameTime());
+        // 陈旧即降级：收不到服务器时间观测时停止外推，而不是给出一个
+        // 越来越离谱的答案。放在这里而不是包处理器里，是因为「多久没收到」
+        // 只有按 tick 问才准得出来。
+        DanmakuClientClock.noteTick(level.getGameTime());
     }
 }

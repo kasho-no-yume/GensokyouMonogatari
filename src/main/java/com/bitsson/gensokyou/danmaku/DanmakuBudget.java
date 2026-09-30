@@ -21,13 +21,74 @@ import java.util.WeakHashMap;
  * 删旧弹会让画面突然少一大片，读作「BOSS 放空了」；停发读作「这一轮到此为止」，可预期。
  *
  * <p>计数口径：投影物入世界 +1、离世界 −1。这是一个<b>软预算</b>：区块卸载等非常规移除
- * 路径可能造成轻微漂移，故另设一条低频对账（{@link #reconcile}）以实际存活数纠正。
+ * 路径可能造成轻微漂移，故由 {@link #reconcile} 按实际存活数纠正。
+ *
+ * <p><b>但「低频对账」这个说法曾经是个会锁死的闩</b>——见 {@link #canEmit}。
+ * 现在改成「接近上限时先对账再决定」，因为离上限还远时精度根本不影响判定。
  */
 @EventBusSubscriber(modid = com.bitsson.gensokyou.Gensokyou.MODID)
 public final class DanmakuBudget {
 
     private static final Map<ServerLevel, long[]> COUNTERS = new WeakHashMap<>();
     private static int sinceReconcile;
+
+    // ------------------------------------------------------------------
+    // 回收诊断：死因 × 死亡年龄
+    // ------------------------------------------------------------------
+
+    /**
+     * 弹幕的死因。
+     *
+     * <p><b>为什么必须有它</b>——所有死法都走同一个 {@code discard()} → 原版
+     * {@code remove(DISCARDED)}。于是在诊断里「寿命到期」「撞方块」「撞玩家」
+     * 「分裂」「溜め触发」长得<b>一模一样</b>，全都被算成一次 remove。
+     *
+     * <p>症状是「弹幕莫名消失，但说不清为什么」，而这种猜测正是本项目吃过大亏的地方
+     * （见类注释里 {@code hardCorrect} 那段：一整轮归因被一个错误的守卫带偏）。
+     * 一份能区分死因、并且同时给出<b>死亡年龄分布</b>的诊断，把「消失」变成一个
+     * 可以一次定死的数字。
+     */
+    public enum RemovalCause {
+        /** 寿命到期（{@code age > lifetime}）。 */
+        LIFETIME,
+        /** 撞方块。 */
+        BLOCK,
+        /** 撞到实体（通常是玩家）。 */
+        ENTITY,
+        /** 速率曲线让它回到了发射点。 */
+        RETURNED_TO_ORIGIN,
+        /** 分裂：本体换成子代。 */
+        SPLIT,
+        /** 溜め被踩到。 */
+        MINE,
+        /** 插在方块上到期（飞刀）。 */
+        STUCK_EXPIRED,
+        /** 激光的延迟 + 持续时间走完。 */
+        BEAM_ENDED,
+        /** 其它／未标注。 */
+        OTHER
+    }
+
+    /** 死亡年龄分桶的右边界（tick）。 */
+    private static final int[] REMOVAL_AGE_EDGES =
+            {0, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096};
+
+    private static final String[] REMOVAL_AGE_NAMES = {
+            "0", "1", "2-3", "4-7", "8-15", "16-31", "32-63", "64-127",
+            "128-255", "256-511", "512-1023", "1024-2047", "2048-4095", "4096+"};
+
+    private static final java.util.concurrent.atomic.AtomicLong[] REMOVAL_COUNTS = newRemovalCounters(RemovalCause.values().length);
+    private static final java.util.concurrent.atomic.AtomicLong[] REMOVAL_AGE_BUCKETS = newRemovalCounters(REMOVAL_AGE_EDGES.length);
+
+    private static java.util.concurrent.atomic.AtomicLong[] newRemovalCounters(int size) {
+        // 每个桶都必须真存在：引用类型数组的元素默认是 null，缺一个就在写的时候 NPE，
+        // 而症状是「一收包就崩」，诊断读起来却毫无异常。
+        java.util.concurrent.atomic.AtomicLong[] counters = new java.util.concurrent.atomic.AtomicLong[size];
+        for (int i = 0; i < size; i++) {
+            counters[i] = new java.util.concurrent.atomic.AtomicLong();
+        }
+        return counters;
+    }
 
     private DanmakuBudget() {
     }
@@ -61,30 +122,74 @@ public final class DanmakuBudget {
         onRemoved(event.getEntity());
     }
 
-    /** 是否还能再生成一发。达上限返回 false。 */
+    /**
+     * 是否还能再生成一发。达上限返回 false。
+     *
+     * <p><b>计数器是增量的，而增量会漏。</b>它靠 {@code EntityJoinLevelEvent} 加、
+     * {@code EntityLeaveLevelEvent} 减；任何一侧不对称（区块卸载/重载的时序、实体跨维度
+     * 迁移）都会让它单向漂移。真值只能靠 {@link #reconcile} 重新数一遍得到。
+     *
+     * <p><b>旧实现是一个会锁死的闩</b>：{@code reconcile} 只在本方法里跑、且每 201 次
+     * 调用才跑一次。于是
+     * <ul>
+     *   <li>BOSS 一停止攻击就没人调本方法 ⇒ 计数器<b>永不</b>自我纠正；</li>
+     *   <li>计数器一旦漂高，卡门就<b>永久</b>关死，而唯一的安全网恰好在需要它的时候不跑。</li>
+     * </ul>
+     * 症状是「{@code live} 钉在上限、等多久都不降、画面上一发都没有」——而那个数字
+     * <b>本身就是不准的</b>，所以「多等一会儿」永远等不到它降。
+     *
+     * <p><b>现在</b>：只要计数接近上限就<b>先对账再决定</b>。离上限还远时精度无所谓
+     * （本来就会放行），不必扫全表；于是自愈的代价只发生在真正需要它的时候。
+     * 周期对账保留为「向下漂移」的兜底 —— 那种漂移不触发上限，只会让弹幕超发。
+     */
     public static boolean canEmit(ServerLevel level) {
-        long cap = Math.max(16L, GensokyouConfig.DANMAKU_ENTITY_CAP.get());
+        long cap = effectiveCap();
         long live = counter(level)[0];
-        if (sinceReconcile++ >= 200) {
+        if (needsReconcileBeforeGate(live, cap) || sinceReconcile++ >= 200) {
             sinceReconcile = 0;
-            reconcile(level, cap);
-            live = counter(level)[0];
+            live = reconcile(level);
         }
         return live < cap;
     }
 
-    /** 当前计数（调试用）。 */
-    public static long live(ServerLevel level) {
-        return counter(level)[0];
+    /**
+     * 距上限还有多远才算「接近」。
+     *
+     * <p>取 {@code max(16, cap/16)}：上限 500 时是 31，即 469 以上就开始对账。
+     * 16 是地板，因为上限允许低到 16，那时任何余量都算接近。
+     *
+     * <p>纯函数、刻意不碰实体：这条判据恰恰是最容易写坏的地方——写成「永远对账」
+     * 就变成每 tick 全表扫描，写成「从不对账」就回到锁死。它必须能离线断言。
+     */
+    public static boolean needsReconcileBeforeGate(long live, long cap) {
+        return live >= cap - Math.max(16L, cap / 16L);
+    }
+
+    /** 实际生效的上限（含地板）。 */
+    public static long effectiveCap() {
+        return Math.max(16L, GensokyouConfig.DANMAKU_ENTITY_CAP.get());
     }
 
     /**
-     * 低频对账：按实际存活数纠正计数。
+     * 当前存活弹幕数。<b>先对账再读</b>。
      *
-     * <p>用 {@code getAllEntities()} 全量扫是 O(实体总数)，故只每 200 次查询做一次——
-     * 它唯一的职责是兜住区块卸载造成的漂移，精度要求不高。
+     * <p>诊断报一个可能失真的数字比没有诊断更糟：它会把「卡门锁死」误读成
+     * 「弹幕真的堆到上限了」，而这两件事的处置完全相反。
      */
-    private static void reconcile(ServerLevel level, long cap) {
+    public static long live(ServerLevel level) {
+        return reconcile(level);
+    }
+
+    /**
+     * 按实际存活实体重新计数并回写。
+     *
+     * <p>全表扫 O(实际实体数)。只在需要真值时调用，见 {@link #needsReconcileBeforeGate}。
+     * 一次调用的量级是「弹幕数」，而弹幕本身每 tick 也要被 tick 一次，所以这条路径
+     * 并不比弹幕 tick 更贵——原先为省它而设的「低频」才是那个真正昂贵的设计。
+     *
+     * @return 校正后的存活数
+     */
+    public static long reconcile(ServerLevel level) {
         long actual = 0L;
         for (Entity entity : level.getAllEntities()) {
             if (entity instanceof AbstractDanmakuProjectile && entity.isAlive()) {
@@ -92,6 +197,7 @@ public final class DanmakuBudget {
             }
         }
         counter(level)[0] = actual;
+        return actual;
     }
 
     private static long[] counter(ServerLevel level) {
@@ -175,10 +281,73 @@ public final class DanmakuBudget {
         SPLIT_REQUESTED.set(0L);
         SPLIT_CAPPED.set(0L);
         REJECTED.clear();
+        resetRemoval();
         resetTiming();
     }
 
     /** 一行统计：发射 / 实体命中 / 方块命中 / 实际伤害总量 / 场内存活。 */
+    /**
+     * 记录一次弹幕回收：死因 + 死亡年龄。
+     *
+     * <p>只在<b>服务端</b>记：客户端那边的「消失」是本端推算的结果，记下来只会把
+     * 同一件事数成两次。
+     *
+     * @param cause 死因
+     * @param age   死亡时的弹幕年龄（tick）。负数按 0 计
+     */
+    public static void recordRemoval(RemovalCause cause, int age) {
+        if (cause == null) {
+            cause = RemovalCause.OTHER;
+        }
+        REMOVAL_COUNTS[cause.ordinal()].incrementAndGet();
+        int clamped = Math.max(0, age);
+        // 桶 b 的范围是 [EDGES[b], EDGES[b+1]-1]，所以推进的条件 MUST 是
+        // 「已经越过下一条边」，而不是「已经越过本桶的起始边」。
+        // 后者会把每一个区间内部的取值都多推进一格：200 tick 会被报成 256-511。
+        // 一个会说谎的诊断比没有诊断更糟——它会让人把结论建在错的数上。
+        int bucket = 0;
+        while (bucket < REMOVAL_AGE_EDGES.length - 1
+                && clamped >= REMOVAL_AGE_EDGES[bucket + 1]) {
+            bucket++;
+        }
+        REMOVAL_AGE_BUCKETS[bucket].incrementAndGet();
+    }
+
+    /** 回收死因 × 死亡年龄分布。一行，供 {@code /gs_boss danmaku}。 */
+    public static String removalStats() {
+        long total = 0L;
+        StringBuilder causes = new StringBuilder();
+        for (RemovalCause cause : RemovalCause.values()) {
+            long n = REMOVAL_COUNTS[cause.ordinal()].get();
+            total += n;
+            if (n > 0L) {
+                causes.append(cause.name().toLowerCase(java.util.Locale.ROOT))
+                        .append('=').append(n).append(' ');
+            }
+        }
+        if (total == 0L) {
+            return "remove[none]";
+        }
+        StringBuilder ages = new StringBuilder();
+        for (int i = 0; i < REMOVAL_AGE_BUCKETS.length; i++) {
+            long n = REMOVAL_AGE_BUCKETS[i].get();
+            if (n > 0L) {
+                ages.append(REMOVAL_AGE_NAMES[i]).append(':').append(n).append(' ');
+            }
+        }
+        return String.format("remove[n=%d %s| age %s]", total, causes.toString().trim(),
+                ages.toString().trim());
+    }
+
+    private static void resetRemoval() {
+        for (java.util.concurrent.atomic.AtomicLong counter : REMOVAL_COUNTS) {
+            counter.set(0L);
+        }
+        for (java.util.concurrent.atomic.AtomicLong bucket : REMOVAL_AGE_BUCKETS) {
+            bucket.set(0L);
+        }
+    }
+
     public static String stats(ServerLevel level) {
         return String.format(
                 "emitted=%d entityHits=%d blockHits=%d damageSum=%d live=%d cap=%d "

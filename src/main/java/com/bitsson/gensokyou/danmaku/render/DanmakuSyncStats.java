@@ -41,6 +41,14 @@ public final class DanmakuSyncStats {
     private static final AtomicLong RESYNC_REQUESTS_SERVED = new AtomicLong();
     private static final AtomicLong RESYNC_REQUESTS_REFUSED = new AtomicLong();
 
+    // ---- 客户端：服务器时间轴（danmaku-timeline-sync T1） ----
+    private static final AtomicLong CLOCK_ACCEPTED = new AtomicLong();
+    private static final AtomicLong CLOCK_RATE_UPDATES = new AtomicLong();
+    private static final AtomicLong CLOCK_OUTLIERS = new AtomicLong();
+    private static final AtomicLong CLOCK_RATE_OUT_OF_RANGE = new AtomicLong();
+    private static final AtomicLong CLOCK_STALE = new AtomicLong();
+    private static final AtomicLong CLOCK_RESETS = new AtomicLong();
+
     private DanmakuSyncStats() {
     }
 
@@ -109,17 +117,47 @@ public final class DanmakuSyncStats {
         RESYNC_REQUESTS_REFUSED.incrementAndGet();
     }
 
+    // ---- 客户端：服务器时间轴 ----
+
+    /**
+     * 一次时钟观测的判定。
+     *
+     * <p>健康基线：{@code out} 与 {@code range} 允许非零（单包抖动与偶发离群是正常的），
+     * 但它们<b>持续增长</b>说明时间轴在反复失信；此时 {@code SAMPLES_NOT_COMPARABLE}
+     * 会同步上涨，而后者才是「自检已停摆」的直接证据。
+     */
+    public static void recordClockObservation(
+            com.bitsson.gensokyou.danmaku.motion.DanmakuServerClock.Outcome outcome) {
+        switch (outcome) {
+            case ACCEPTED -> CLOCK_ACCEPTED.incrementAndGet();
+            case ACCEPTED_RATE -> {
+                CLOCK_ACCEPTED.incrementAndGet();
+                CLOCK_RATE_UPDATES.incrementAndGet();
+            }
+            case REJECTED_OUTLIER -> CLOCK_OUTLIERS.incrementAndGet();
+            case REJECTED_RATE_RANGE -> CLOCK_RATE_OUT_OF_RANGE.incrementAndGet();
+            case REJECTED_STALE -> CLOCK_STALE.incrementAndGet();
+        }
+    }
+
+    public static void recordClockReset() {
+        CLOCK_RESETS.incrementAndGet();
+    }
+
     public static String summary() {
         return String.format(
                 "sync[snapA=%d dup=%d rej=%d cmp=%d oot=%d nc=%d esc=%d jump=%d "
-                        + "req=%d supp=%d out[calB=%d calN=%d snapS=%d srv=%d ref=%d] legacy=%d]",
+                        + "req=%d supp=%d out[calB=%d calN=%d snapS=%d srv=%d ref=%d] legacy=%d "
+                        + "clock[acc=%d rateUp=%d out=%d range=%d stale=%d resets=%d]]",
                 SNAPSHOTS_APPLIED.get(), SNAPSHOTS_DUPLICATE.get(), SNAPSHOTS_REJECTED.get(),
                 SAMPLES_COMPARED.get(), SAMPLES_OUT_OF_TOLERANCE.get(),
                 SAMPLES_NOT_COMPARABLE.get(), ESCALATIONS.get(), RECOVERY_JUMPS.get(),
                 RESYNC_REQUESTS_SENT.get(), RESYNC_REQUESTS_SUPPRESSED.get(),
                 CALIBRATION_BATCHES.get(), CALIBRATION_SAMPLES.get(),
                 SNAPSHOTS_SENT.get(), RESYNC_REQUESTS_SERVED.get(),
-                RESYNC_REQUESTS_REFUSED.get(), LEGACY_SAMPLES.get());
+                RESYNC_REQUESTS_REFUSED.get(), LEGACY_SAMPLES.get(),
+                CLOCK_ACCEPTED.get(), CLOCK_RATE_UPDATES.get(), CLOCK_OUTLIERS.get(),
+                CLOCK_RATE_OUT_OF_RANGE.get(), CLOCK_STALE.get(), CLOCK_RESETS.get());
     }
 
     public static void reset() {
@@ -139,5 +177,11 @@ public final class DanmakuSyncStats {
         SNAPSHOTS_SENT.set(0L);
         RESYNC_REQUESTS_SERVED.set(0L);
         RESYNC_REQUESTS_REFUSED.set(0L);
+        CLOCK_ACCEPTED.set(0L);
+        CLOCK_RATE_UPDATES.set(0L);
+        CLOCK_OUTLIERS.set(0L);
+        CLOCK_RATE_OUT_OF_RANGE.set(0L);
+        CLOCK_STALE.set(0L);
+        CLOCK_RESETS.set(0L);
     }
 }

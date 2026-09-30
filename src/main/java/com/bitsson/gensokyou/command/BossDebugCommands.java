@@ -108,6 +108,10 @@ public final class BossDebugCommands {
     private static int danmakuStats(CommandSourceStack source) {
         source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
                 + com.bitsson.gensokyou.danmaku.DanmakuBudget.stats(source.getLevel())), false);
+        // 「弹幕莫名消失」单列一行。所有死法在原版那边都是同一个 remove(DISCARDED)，
+        // 分开打印才有意义；age 那段是死亡年龄分布，用来判断「是不是按寿命到期」。
+        source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
+                + com.bitsson.gensokyou.danmaku.DanmakuBudget.removalStats()), false);
         source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
                 + com.bitsson.gensokyou.danmaku.DanmakuBudget.timingStats()), false);
         // 状态同步读数单列一行：上面那行的 lag/age 是「空间误差在速度方向上的投影」，
@@ -115,6 +119,11 @@ public final class BossDebugCommands {
         // 混在一行里读会把投影当年龄差。
         source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
                 + com.bitsson.gensokyou.danmaku.render.DanmakuSyncStats.summary()), false);
+        // 时间轴读数**仅客户端有意义**（速率是客户端相对服务器的快慢）。专用服务端上
+        // 它恒为 WARMING/rate=1.0，那本身就是「这里没有客户端时间轴」的正确答案，
+        // 所以不按服务端/客户端分开打印 —— 打印一个恒定值比不打印更容易误导。
+        source.sendSuccess(() -> Component.literal("[GS-DANMAKU] clock "
+                + com.bitsson.gensokyou.danmaku.render.DanmakuClientClock.summary()), false);
         return 1;
     }
 

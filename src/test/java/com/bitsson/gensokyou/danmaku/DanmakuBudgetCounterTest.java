@@ -87,4 +87,64 @@ class DanmakuBudgetCounterTest {
         assertTrue(DanmakuBudget.ageValueStats().contains("11-100:0"),
                 "重置后年龄量级 MUST 清零：" + DanmakuBudget.ageValueStats());
     }
+
+    /**
+     * 卡门判据 MUST 在「接近上限时对账」与「远离上限时不对账」之间取中。
+     *
+     * <p><b>这条守的是一个会自锁的设计。</b>旧实现把对账放在
+     * {@code canEmit} 里、每 201 次调用一次，于是 BOSS 一停止攻击就没人调它，
+     * 计数器永不自我纠正；一旦增量漂高，卡门就永久关死，而安全网恰好在需要它的
+     * 时刻不跑。症状是「{@code live} 钉在上限、等多久都不降、画面上一发都没有」——
+     * 而那个数字<b>本身就是不准的</b>，所以「多等一会儿」永远等不到它降。
+     *
+     * <p>两个方向都会写坏：永远对账 = 每 tick 全表扫描；永不对账 = 回到自锁。
+     */
+    @Test
+    void gateReconcilesOnlyWhenNearTheCap() {
+        long cap = 500L;
+        assertFalse(DanmakuBudget.needsReconcileBeforeGate(0L, cap),
+                "远离上限时 MUST NOT 对账（本来就会放行，精度无所谓）");
+        assertFalse(DanmakuBudget.needsReconcileBeforeGate(100L, cap));
+        assertFalse(DanmakuBudget.needsReconcileBeforeGate(468L, cap),
+                "469 = 500 − max(16, 500/16) 是阈值，468 仍属安全区");
+        assertTrue(DanmakuBudget.needsReconcileBeforeGate(469L, cap),
+                "到达阈值 MUST 对账 —— 否则漂高的计数器会永久锁死卡门");
+        assertTrue(DanmakuBudget.needsReconcileBeforeGate(cap, cap));
+        assertTrue(DanmakuBudget.needsReconcileBeforeGate(cap + 137L, cap),
+                "已超限（漂高）时 MUST 对账，那正是它能自愈的唯一机会");
+    }
+
+    /**
+     * 极小上限时任何余量都算「接近」，否则 16 这个地板会让判据永远为假。
+     *
+     * <p>上限允许低到 16。若不取地板，{@code cap/16 = 1} 会让阈值变成 15，
+     * 而 {@code live} 长期停在低位时永不触发对账 —— 恰好是最需要它的规模失去自愈。
+     */
+    @Test
+    void tinyCapStillReconciles() {
+        long cap = 16L;
+        assertTrue(DanmakuBudget.needsReconcileBeforeGate(0L, cap),
+                "上限 16 时 live=0 也算接近，地板 16 生效");
+        assertTrue(DanmakuBudget.needsReconcileBeforeGate(16L, cap));
+    }
+
+    /**
+     * 阈值 MUST 随上限缩放，不能是常数。
+     *
+     * <p>常数阈值在上限很大时会退化成「几乎从不对账」—— 而 500 这个实际配置下
+     * 方向恰好相反：阈值太大 ⇒ 迟迟不对账 ⇒ 卡门先锁死后自愈。
+     */
+    @Test
+    void thresholdScalesWithTheCap() {
+        // cap 500  → 阈值 500 − max(16, 31)  = 469
+        // cap 2000 → 阈值 2000 − max(16, 125) = 1875
+        assertTrue(DanmakuBudget.needsReconcileBeforeGate(1875L, 2000L),
+                "上限 2000 的阈值是 1875");
+        assertFalse(DanmakuBudget.needsReconcileBeforeGate(1874L, 2000L),
+                "1874 仍在安全区 —— 余量随上限成比例，不是常数");
+        assertTrue(DanmakuBudget.needsReconcileBeforeGate(1000L, 500L),
+                "同一个 live=1000 对上限 500 早就超限");
+        assertFalse(DanmakuBudget.needsReconcileBeforeGate(1000L, 2000L),
+                "而对上限 2000 它还有一半余量 —— 阈值必须随上限缩放");
+    }
 }

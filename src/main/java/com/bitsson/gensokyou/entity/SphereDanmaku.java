@@ -100,14 +100,14 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
                 com.bitsson.gensokyou.danmaku.DanmakuBudget.recordEntityHit(this.damage);
             }
         }
-        this.discard();
+        this.discard(DanmakuBudget.RemovalCause.ENTITY);
     }
 
     @Override
     protected void onHitBlock(BlockHitResult result) {
         if (this.level() instanceof ServerLevel) {
             com.bitsson.gensokyou.danmaku.DanmakuBudget.recordBlockHit();
-            this.discard();
+            this.discard(DanmakuBudget.RemovalCause.BLOCK);
         }
     }
 

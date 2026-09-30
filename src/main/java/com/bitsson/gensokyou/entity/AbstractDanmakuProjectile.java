@@ -3,10 +3,12 @@ package com.bitsson.gensokyou.entity;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
+import com.bitsson.gensokyou.danmaku.DanmakuBudget.RemovalCause;
 import com.bitsson.gensokyou.danmaku.DanmakuHitScan;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuAge;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuCorrection;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
+import com.bitsson.gensokyou.danmaku.motion.DanmakuTrackKinds;
 import com.bitsson.gensokyou.danmaku.render.DanmakuMotionState;
 import com.bitsson.gensokyou.danmaku.render.DanmakuRenderState;
 import com.bitsson.gensokyou.danmaku.render.DanmakuResyncQueue;
@@ -337,7 +339,10 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
      */
     public int age() {
         if (this.level().isClientSide && this.ageAnchored) {
-            return DanmakuAge.at(this.anchorAge, this.tickCount - this.anchorTick);
+            // 除以速率：客户端的本地 tick 未必与服务器游戏时间同速，而年龄跟随的是
+            // 服务器时间。速率 1.0（时钟尚未建立）时与旧写法逐位相同。
+            return DanmakuAge.at(this.anchorAge, this.tickCount - this.anchorTick,
+                    com.bitsson.gensokyou.danmaku.render.DanmakuClientClock.rate());
         }
         return DanmakuAge.at(this.ageBasis(), this.tickCount);
     }
@@ -447,6 +452,18 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
      * 服务端：已配对次数，与 {@link #trackingToken} 一起区分「新追踪周期」与「重复包」。
      */
     private int trackingPairings = 0;
+
+    /**
+     * 重复配对日志的全局配额。
+     *
+     * <p>计数 MUST 永远全量记（{@code /gs_boss danmaku} 的 {@code integrity[pairing]}），
+     * 但日志 MUST 限量：一次故障能刷出成千上万行，把真正的其它日志埋掉，
+     * 于是「这条诊断存在」反而变成了「没人能读到日志」。
+     *
+     * <p>配额用完就静默。真要看细节时按 {@code id} 单独查，而不是让全世界的日志陪葬。
+     */
+    private static final java.util.concurrent.atomic.AtomicInteger REPEAT_PAIRING_LOG_BUDGET =
+            new java.util.concurrent.atomic.AtomicInteger(8);
 
     /**
      * 客户端状态容器（模拟历史 / 权威样本 / 视觉偏移 / 失步生命周期）。
@@ -574,7 +591,7 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         super.tick();
 
         if (this.age() > getLifetimeTicks()) {
-            this.discard();
+            this.discard(RemovalCause.LIFETIME);
             return;
         }
 
@@ -638,7 +655,7 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             this.setDeltaMovement(velocity);
             if (this.entityData.get(DATA_DIES_AT_ORIGIN)
                     && profile.returnedToOrigin(this.age())) {
-                this.discard();
+                this.discard(RemovalCause.RETURNED_TO_ORIGIN);
                 return;
             }
         }
@@ -1174,11 +1191,26 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         return value / PROFILE_SCALE;
     }
 
-    /** 触发分裂。仅服务端有意义（子弹是服务端新建实体），两端都会执行以保持时序一致。 */
+    /**
+     * 带死因的回收。
+     *
+     * <p><b>所有主动回收 MUST 走这个重载</b>，而不是原版无参 {@code discard()}。
+     * 原版那条路最终落到 {@code remove(DISCARDED)}，于是「寿命到期」「撞方块」
+     * 「撞玩家」「分裂」在诊断里完全同形 —— 一次「弹幕莫名消失」能被解释成任何一种，
+     * 而猜错方向比查不出来更贵。
+     */
+    protected void discard(DanmakuBudget.RemovalCause cause) {
+        if (this.level() instanceof ServerLevel) {
+            DanmakuBudget.recordRemoval(cause, this.age());
+        }
+        this.discard();
+    }
+
+    /** 主动触发分裂。仅服务端有意义（子弹是服务端新建实体），两端都会执行以保持时序一致。 */
     private void fireSplit() {
         int count = Math.max(2, splitCount());
         this.spawnSplitChildren(count);
-        this.discard();
+        this.discard(RemovalCause.SPLIT);
     }
 
     protected void spawnSplitChildren(int count) {
@@ -1202,7 +1234,7 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         if (this.isSplitting()) {
             this.spawnSplitChildren(Math.max(2, this.splitCount()));
         }
-        this.discard();
+        this.discard(RemovalCause.MINE);
     }
 
     /** 静止弹的命中判定：零位移下扫掠必然返回 MISS，故改用 AABB 相交。 */
@@ -1573,11 +1605,14 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     public long noteTracking() {
         this.trackingPairings++;
         if (this.trackingPairings > 1) {
+            // 计数永远记，日志只打开头几次
             DanmakuBudget.recordRepeatPairing(this.hasFormationFrame());
-            Gensokyou.LOGGER.info(
-                    "[danmaku-track] REPEAT id={} pairing#{} age={} restored={} tick={} frame={}",
-                    this.getId(), this.trackingPairings, this.age(),
-                    this.restoredAge, this.tickCount, this.hasFormationFrame());
+            if (REPEAT_PAIRING_LOG_BUDGET.getAndDecrement() > 0) {
+                Gensokyou.LOGGER.info(
+                        "[danmaku-track] REPEAT id={} pairing#{} age={} restored={} tick={} frame={}",
+                        this.getId(), this.trackingPairings, this.age(),
+                        this.restoredAge, this.tickCount, this.hasFormationFrame());
+            }
         }
         // 令牌只在配对时前进：同一周期内重复推送保持不变，客户端据此幂等丢弃。
         this.trackingToken++;
@@ -1585,6 +1620,35 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             this.trackingToken = 0L;
         }
         return this.trackingToken;
+    }
+
+    /**
+     * 服务端：结束一个追踪周期。
+     *
+     * <p><b>为什么这个方法 MUST 存在</b>——{@code trackingPairings} 不清零的话，
+     * 「重复配对」这个诊断把两件完全不同的事混在一起数：
+     *
+     * <ul>
+     *   <li><b>异常</b>：同一追踪周期内 {@code StartTracking} 触发两次 —— 真 bug，
+     *       客户端会被重新锚定一次，离散跳变就来自这里；</li>
+     *   <li><b>正常</b>：玩家飞远 → 弹幕脱离追踪 → 玩家回来 → 重新配对。
+     *       这在弹幕海战里每秒都在发生，而且完全正确。</li>
+     * </ul>
+     *
+     * <p>两者累加出来的数字（本项目实测到 2727）无法回答「到底有没有 bug」这个问题，
+     * 于是这条诊断本身就不可信了。实测 2727、而方法注释写着「健康状态 MUST 为 0」——
+     * 这两件事同时成立唯一可能的解释是计数口径错了，而不是游戏有几千次重复配对。
+     *
+     * <p>清零的时机 MUST 是 {@code StopTracking}，而不是下一次 {@code StartTracking}：
+     * 在后者清零的话，「第二次配对」和「上一周期的第一次配对」就无法区分。
+     */
+    public void endTrackingPeriod() {
+        this.trackingPairings = 0;
+    }
+
+    /** 本追踪周期内这是第几次配对（服务端权威，客户端镜像）。 */
+    public int trackingPairings() {
+        return this.trackingPairings;
     }
 
     @Override
@@ -1775,6 +1839,26 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             tag.putInt("FrameOrate", this.entityData.get(DATA_FRAME_ORBIT_RATE));
             tag.putInt("FrameAdv", this.entityData.get(DATA_FRAME_ADVANCE_SPEED));
         }
+        // 速度：只有「位置不由速度决定」的弹种之外才需要。
+        //
+        // <p>编队弹与速率曲线弹读档后能自愈（rig 覆写位置 / alongAxis 回落到方向轴），
+        // 给它们写速度既没用又误导 —— 读的人会以为速度是它们的权威。
+        // 剩下的<b>直线弹与曲射弹</b>的速度只存在于 deltaMovement 里，缺了它就永久冻结：
+        // 四只 BOSS 的普通弹全是 Behaviour.NONE + 匀速直线，症状是「退出重进后原地
+        // 不动，约 60 秒后按寿命消失」。见 DanmakuTrackKinds 的逐条依据。
+        DanmakuTrackKinds.writeVelocity(tag, velocityPersistenceNeeded(),
+                this.getDeltaMovement());
+    }
+
+    /**
+     * 本弹是否需要把速度写入存档。判据的唯一真相在 {@link DanmakuTrackKinds}。
+     *
+     * <p>读侧也 MUST 用它：写侧按「挂帧或挂曲线」决定要不要写，读侧若按别的条件读，
+     * 就会出现「写了没读」或「没写却读」—— 后者让一个陈旧存档把别人的速度安到这枚弹上。
+     */
+    private boolean velocityPersistenceNeeded() {
+        return DanmakuTrackKinds.needsVelocityPersistence(
+                this.isCurving(), this.hasSpeedProfile(), this.hasFormationFrame());
     }
 
     @Override
@@ -1866,5 +1950,14 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             this.entityData.set(DATA_BURST_FIRED, tag.getBoolean("BurstFired"));
         }
 
+        // 速度 MUST 最后读：判据依赖 DATA_HAS_FRAME / DATA_HAS_PROFILE，而这两个是
+        // 上面按「键是否存在」<b>推断</b>出来的，提前读会拿到尚未推断的 false，
+        // 于是给一枚编队弹安上本不该存在的速度。
+        if (velocityPersistenceNeeded()) {
+            Vec3 restored = DanmakuTrackKinds.readVelocity(tag, true);
+            if (restored.lengthSqr() > 1.0E-12D) {
+                this.setDeltaMovement(restored);
+            }
+        }
     }
 }

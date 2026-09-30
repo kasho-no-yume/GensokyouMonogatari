@@ -169,7 +169,8 @@ public final class DanmakuRenderState {
         this.phase = Phase.TRACKING;
         this.requestAttempts = 0;
         this.pendingSinceTick = -1;
-        this.timeline.anchor(serverGameTime, localTick);
+        // 锚点逐实体，斜率借自全局时钟。默认 1.0 ⇒ 与本变更之前逐位相同。
+        this.timeline.anchor(serverGameTime, localTick, DanmakuClientClock.rate());
 
         // 画面连续性：恢复前画在 oldSim + offset，恢复后画在 newSim + newOffset。
         // 让 newOffset 把两处接上，视觉上就不跳。
@@ -216,6 +217,14 @@ public final class DanmakuRenderState {
             return false;
         }
         this.lastSequence = sampleSequence;
+
+        // 速率必须在比较<b>之前</b>刷新：斜率是全局的、锚点是逐实体的，
+        // 所以每次观测后都要把最新的速率推给本实体的时间线。
+        //
+        // 观测本身由 payload 处理器每批做一次（一次包就是一次观测，物理上正确的计数），
+        // 本方法只取用结果。观测放在处理器而不是这里，是因为只有它知道客户端 tick，
+        // 且一批 N 枚弹只应产生 1 次观测而不是 N 次。
+        this.timeline.setRate(DanmakuClientClock.rate());
 
         DanmakuSampleCheck.Result result = DanmakuSampleCheck.compare(
                 this.timeline, serverGameTime, sampleAge, sampleRevision, samplePosition, tolerance);

@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
@@ -102,7 +103,7 @@ public class KnifeDanmaku extends AbstractDanmakuProjectile {
         if (this.isStuck()) {
             // 冻结：不推进、不判伤；仅服务端计时，到点移除（客户端由移除包同步）
             if (!this.level().isClientSide && --this.stickRemaining <= 0) {
-                this.discard();
+                this.discard(DanmakuBudget.RemovalCause.STUCK_EXPIRED);
             }
             return;
         }
@@ -118,7 +119,7 @@ public class KnifeDanmaku extends AbstractDanmakuProjectile {
     protected void onHitBlock(BlockHitResult result) {
         int ticks = GensokyouConfig.KNIFE_STICK_TICKS.get();
         if (ticks <= 0) {
-            this.discard();
+            this.discard(DanmakuBudget.RemovalCause.STUCK_EXPIRED);
             return;
         }
         // 沿飞行方向把刀尖压入墙面：锚点 = 命中点 - 飞行方向 * (刀尖偏移 - 入墙深度)

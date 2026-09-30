@@ -72,6 +72,10 @@ public final class DanmakuSyncServer {
         if (event.getEntity() instanceof ServerPlayer player
                 && event.getTarget() instanceof AbstractDanmakuProjectile bullet) {
             DanmakuTrackingIndex.onStopTracking(player.getUUID(), bullet.getId());
+            // 追踪周期到此结束。不清零的话，「重复配对」会把玩家飞远再回来这种
+            // 合法重新配对和真正的重复触发数在一起，那条诊断就再也回答不了
+            // 「有没有 bug」——见 AbstractDanmakuProjectile#endTrackingPeriod。
+            bullet.endTrackingPeriod();
         }
     }
 

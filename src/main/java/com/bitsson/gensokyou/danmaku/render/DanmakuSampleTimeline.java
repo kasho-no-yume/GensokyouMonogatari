@@ -41,6 +41,7 @@ public final class DanmakuSampleTimeline {
     private boolean anchored;
     private long anchorServerTime;
     private int anchorLocalTick;
+    private double rate = 1.0D;
 
     public DanmakuSampleTimeline() {
         this(DEFAULT_WINDOW_TICKS);
@@ -74,19 +75,54 @@ public final class DanmakuSampleTimeline {
     }
 
     /**
-     * 建立／重建锚点。
+     * 建立／重建锚点，斜率视为 1。
+     *
+     * <p>等价于 {@link #anchor(long, int, double)} 传 1.0。保留它是为了让既有调用点
+     * 与既有测试在时钟尚未接入时<b>逐位不变</b>。
+     */
+    public void anchor(long serverTime, int localTick) {
+        anchor(serverTime, localTick, 1.0D);
+    }
+
+    /**
+     * 建立／重建锚点，并带上客户端／服务器速率差。
      *
      * <p>每次<b>接受完整快照</b>都重锚：快照的采样时刻是权威的，而此前的锚点
      * 可能来自一个已经被作废的追踪周期。
+     *
+     * <p><b>斜率从哪来</b>——不是本类自己估的，而是借自 {@link DanmakuServerClock}。
+     * 本类保留<b>自己的</b>锚点是有意的：不同实体的本地 tick 计数互相有偏移
+     * （新生成的实体从 0 起），所以「服务器时刻 ↔ 本地 tick」必须逐实体成立；
+     * 而速率是连接的属性，全局一份即可。
      */
-    public void anchor(long serverGameTime, int localTick) {
+    public void anchor(long serverTime, int localTick, double rate) {
         this.anchored = true;
-        this.anchorServerTime = serverGameTime;
+        this.anchorServerTime = serverTime;
         this.anchorLocalTick = localTick;
+        this.rate = rate > 0.0D && Double.isFinite(rate) ? rate : 1.0D;
+    }
+
+    /** 当前锚点使用的斜率（每个服务器 tick 走多少本地 tick）。 */
+    public double rate() {
+        return this.rate;
+    }
+
+    /**
+     * 只更新斜率，不动锚点。
+     *
+     * <p>斜率是<b>全局</b>的（连接的属性），锚点是<b>逐实体</b>的。新观测修正速率后，
+     * 每一枚已锚定的时间线都要跟上，但锚点本身不动 —— 动了就等于给这枚弹重新定基，
+     * 而它本来没有变。
+     */
+    public void setRate(double rate) {
+        this.rate = rate > 0.0D && Double.isFinite(rate) ? rate : 1.0D;
     }
 
     /**
      * 服务器时刻 → 本地 tick 编号。
+     *
+     * <p>斜率来自 {@link #anchor(long, int, double)}，默认 1.0 时与旧的
+     * {@code anchorLocalTick + Δ} <b>逐位相同</b>。
      *
      * <p>未锚定时返回 {@link Integer#MIN_VALUE}，调用方 MUST 视为「无法比较」。
      */
@@ -94,11 +130,12 @@ public final class DanmakuSampleTimeline {
         if (!this.anchored) {
             return Integer.MIN_VALUE;
         }
-        long delta = serverGameTime - this.anchorServerTime;
-        if (delta > Integer.MAX_VALUE || delta < Integer.MIN_VALUE) {
+        double delta = (double) (serverGameTime - this.anchorServerTime);
+        double ticks = this.anchorLocalTick + this.rate * delta;
+        if (ticks > Integer.MAX_VALUE || ticks < Integer.MIN_VALUE) {
             return Integer.MIN_VALUE;
         }
-        return this.anchorLocalTick + (int) delta;
+        return (int) Math.round(ticks);
     }
 
     /** 记录一个本地 tick 的模拟状态。同 tick 重复记录以最后一次为准。 */
@@ -146,5 +183,6 @@ public final class DanmakuSampleTimeline {
         this.anchored = false;
         this.anchorServerTime = 0L;
         this.anchorLocalTick = 0;
+        this.rate = 1.0D;
     }
 }

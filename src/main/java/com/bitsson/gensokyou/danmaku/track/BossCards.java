@@ -70,7 +70,11 @@ public final class BossCards {
     private static final int FLOWER_CARD_CYCLE = 240;
     /**
      * 阶段 2 每朵花的间隔（0.2 秒 = 4 tick），16 朵占 64 tick。
-     * 最后一朵在第 60 tick 抛出、于第 160 tick 爆散，故 240 tick 的循环留了 80 tick 余量。
+     * 最后一朵在第 60 tick 抛出。
+     *
+     * <p>间隔 MUST NOT 调稀来「填满周期」——见 {@link #FLOWER_LIFETIME}，那会让同时开花的
+     * 朵数从 16 掉到 4，压迫密度只剩四分之一（{@code TrackLint} 按 50 tick 的危险窗口
+     * 重叠数计密度，峰值从 736 掉到 184）。
      */
     private static final int FLOWER_STEP = 4;
     private static final int FLOWER_COUNT = 16;
@@ -84,8 +88,29 @@ public final class BossCards {
     private static final int FLOWER_RAMP = 60;
     private static final int FLOWER_HOLD = 40;
     private static final int FLOWER_BURST_AGE = FLOWER_RAMP + FLOWER_HOLD;
-    /** 寿命 = 爆散前 100 tick + 爆散后 100 tick（花瓣 4 格/秒飞满 20 格）。 */
-    private static final int FLOWER_LIFETIME = 2 * FLOWER_BURST_AGE;
+    /**
+     * 阶段 2 单朵花的寿命：<b>MUST 不小于 {@link #FLOWER_CARD_CYCLE}</b>。
+     *
+     * <p>原为 {@code 2 * FLOWER_BURST_AGE = 200}，比循环 240 短 40 tick。这个差值就是
+     * 「画面陆续减少、逐渐变空」的<b>全部</b>原因，而且它与发射密度无关：在场花朵数
+     * {@code = 每周期朵数 × 寿命 / 周期}，{@link #FLOWER_STEP} 改多少都动不了它。
+     *
+     * <p>寿命 200 / 周期 240 时，每轮第 201~261 tick 没有任何新发射、而上一批正在陆续到期，
+     * 画面从 736 枚排空到 276 枚（峰值的 37%），然后再涨回来。取 240 后，
+     * 下一轮的第 0 朵恰好在上一轮第 0 朵到期的那一 tick 补上，在场数稳定在 16~17 朵。
+     *
+     * <p><b>为什么不能用「把间隔调稀」来代替</b>——那样会把同时开花的朵数从 16 压到 4：
+     * {@code TrackLint} 的密度按 50 tick 危险窗口的重叠数计，峰值会从 736 掉到 184。
+     * 补间隔治的是症状，掉的是这张卡本来就该有的压迫感。
+     *
+     * <p>本文件对「循环留余量」已有既定态度（见 {@link #RAIN_CARD_CYCLE}：循环 MUST 等于
+     * 内容跨度，余量就是「放一段然后哑掉」）。花卡的 80 tick 余量本该一并去掉，但去掉会把
+     * 12 秒压成 10 秒——那是节奏选择，不是 bug，所以留在这里，只把寿命补到与之匹配。
+     *
+     * <p>代价：爆散后的滑行余量由 100 tick 变成 140 tick（花瓣滑行 20 格 → 28 格）。
+     * {@code harmlessTicks} 仍是 100，即爬升与悬停全程无害这一点没有被改动。
+     */
+    private static final int FLOWER_LIFETIME = FLOWER_CARD_CYCLE;
     /**
      * 阶段 3 的循环长度：<b>MUST 等于内容跨度</b>（10 拍 × 20 tick = 200），不得留余量。
      *
@@ -93,9 +118,11 @@ public final class BossCards {
      * 看不出问题；一旦花卡的循环被调长，雨卡就跟着变成 240 —— 于是每轮最后 40 tick
      * 完全静默，正是本文件顶部注释描述的那类「放一段然后哑掉」。
      *
-     * <p>为什么雨卡不能留余量而花卡可以：花卡的内容跨度是 64 tick（末朵在第 60 tick 抛出），
-     * 循环必须长过「末朵的整段编排」（160 tick）才放得下；雨卡每秒一拍、拍到第 9 秒就满了，
-     * 循环等于跨度才是「每秒一滴、从不间断」。
+     * <p>为什么雨卡必须等于跨度、花卡却可以重叠：雨卡是「一拍一滴」的稀疏型，
+     * 循环一旦长过跨度就会在末尾留一段静默；花卡是多代重叠型——寿命 200 与循环 240 同量级，
+     * 一代还没死完下一代已经开始，本来就不该追求「末朵编排先结束」。它要的是稳态密度恒定，
+     * 也就是 {@link #FLOWER_COUNT} × 单朵寿命 / 循环 ≈ 13~14 朵在场，不多不少。
+     * 雨卡每秒一拍、拍到第 9 秒就满了，循环等于跨度才是「每秒一滴、从不间断」。
      */
     private static final int RAIN_CARD_CYCLE = 200;
 

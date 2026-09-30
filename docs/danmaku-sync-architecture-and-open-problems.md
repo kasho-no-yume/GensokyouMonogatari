@@ -5,6 +5,25 @@
 > **代码基线**：`4ede3e9 实现灵浴` + 本次会话的未提交改动
 > **平台**：Minecraft 1.21.1 / NeoForge 21.1.248
 
+> ## ⚠️ 先读这一段（2026-09-30 追加）
+>
+> **本文 §5.3、§6.5、§6.7 标注的读数不可信，不要再拿它们做归因。** §5.3 记着一次守卫
+> 把 99% 的样本丢掉，§6.5 记着 `lagTicks` 的投影被硬纠正是污染的 —— 这两条是本文自己写的。
+>
+> 现已有一份**离线合成实测**取代它们：
+> `src/test/java/com/bitsson/gensokyou/danmaku/render/DanmakuSyncProbeTest.java`
+> （12 条，驱动真实的 `DanmakuRenderState` / `DanmakuSampleTimeline`）。
+> 结论见本文末尾「附录 D」。要点：
+>
+> - **§6.1 的「rebuilt 差 4~8 tick」没有被任何已知失真解释。** 五种注入失真都产生不了它。
+>   §6.7 机制 A（`StartTracking` 二次触发改写 `peerAge`）仍是最可能的候选，但
+>   `danmaku-render-state` 落地后 `age()` 在 `ageAnchored` 时**不读** `peerAge`，
+>   该路径**可能已失效** —— 这需要实机复测，不是推理。
+> - **`danmakuMaxLagTicks` 对 rebuilt 失步无效。** 实测证明基准跳变走
+>   `REVISION_MISMATCH`（severe 档，第一个样本即升级），**不参与**容差比较。
+>   §5.2 把它设计来治这个症状，方向从一开始就错了。
+> - **§6.4 的符号翻转未被复现。** 探针下比较误差在五种失真里全为 0。
+
 ---
 
 ## 0. 一页速览
@@ -575,3 +594,101 @@ fresh-ahead :n=976, p50=2, p95=2 ← 全部，且只有 2 tick，零方差
 | `danmaku-motion-and-rig` | 已归档 | `openspec/changes/archive/2026-09-29-danmaku-motion-and-rig/` |
 | `danmaku-pipeline-capacity` | 规范已建立 | `openspec/specs/danmaku-pipeline-capacity/` |
 | `danmaku-motion` | 规范已建立 | `openspec/specs/danmaku-motion/` |
+
+---
+
+## 附录 D：合成时钟实测（2026-09-30，取代 §6 的读数）
+
+`src/test/java/com/bitsson/gensokyou/danmaku/render/DanmakuSyncProbeTest.java`，
+12 条断言，全离线，无需服务器。探针 `DanmakuSyncProbe` 驱动**真实的**
+`DanmakuRenderState` / `DanmakuSampleTimeline` / `DanmakuSampleCheck`，
+把「哪一种失真真的会让同刻比较失效」变成可复现的数字。
+
+弹的轨迹取**闭式** `pos(age) = v · age`，这是刻意的：它让映射误差成为唯一的误差来源，
+测到的数字就是映射误差本身，而不是「闭式误差 + 映射误差」的混合。
+
+### D.1 实测表
+
+| 注入的失真 | 比较误差 | 恢复次数 | 自检可达性 |
+|---|---|---|---|
+| 单向延迟 0~20 tick | 0 | 0 | 保持 |
+| 抖动 ±8 tick | 0 | 0 | 保持（约半数样本 `TOO_EARLY`，属数据不足） |
+| **速率慢 5%** | **0** | **0** | **第 2 个样本起永久 `TOO_EARLY`** |
+| 速率快 5% | 0 | 0 | 窗口内保持；>40 s 后永久 `EXPIRED` |
+| 离散年龄基准跳变 8 tick（匀速弹） | 0 | 1，**第一个样本**就升级 | 走 `REVISION_MISMATCH` |
+
+### D.2 三条与本文直觉相反的结论
+
+**① 延迟与抖动不产生误差。** 映射 `localTick = anchorLocalTick + (serverTime − anchorServerTime)`
+是在**年龄空间**做的，单向延迟被吸收成两侧同时带有的常数偏置，误差相消。相位亏欠
+精确等于延迟（`delayShowsUpAsAConstantPhaseDeficit` 断言 `== 6.0`）。
+
+⇒ 推翻了 §3.5 / §5.2 把问题归给「位置包描述的是 N tick 前的状态」的思路在**比较环节**上的
+适用性；也推翻了「延迟造成失步」。延迟是客户端预测架构的固有代价（客户端**应该**领先），
+不是缺陷。**但它必须是已知量** —— 容差、生命周期边界与命中窗口都要拿它做预算。
+
+**② 速率失配也不产生误差、也不触发恢复。** 映射把 `S − S_snap` 同时当成服务端年龄增量
+和客户端 tick 增量，两侧同增，误差相消。
+
+⇒ **§6.4 那张表假想的「恢复风暴」不可能由速率失配引起，也不可能由延迟引起。**
+恢复风暴若确实存在，成因在别处。
+
+**③ 速率失配的真正后果是自检静默失效。** 慢侧从第二个样本起，每一个样本都指向本地
+尚未推进到的 tick（`mappedAheadBy` 每采样间隔 +1，已用 jshell 验算）。
+`recordCalibration` 对 `TOO_EARLY`/`EXPIRED` 既不升级也不发请求 —— 设计如此，它们是
+「数据不足」而非「偏差」。
+
+⇒ 于是 render-state 的**全部校验能力在任何一个非 tick 锁定到服务端的客户端上整体失效**，
+且没有任何症状。`DanmakuSyncStats.recordSampleNotComparable` 已经在计数，但没有任何东西
+消费它。
+
+两侧**不对称**：慢侧立即且永久，快侧要等 `ΔS(r−1)` 超过 40 tick 窗口（约 40 s）才永久。
+慢侧严格更糟，也是玩家更容易遇到的方向。
+
+### D.3 对 §6 的修正
+
+**§6.4 / §6.5 的 rebuilt 双峰与符号翻转未被复现。** 探针下五种失真的比较误差全为 0。
+
+**§5.2 设计的 `danmakuMaxLagTicks`（速度相对容差）对 rebuilt 失步无效。**
+`discreteAgeBasisStepOnAnIncrementalBulletIsCaughtImmediately` 显示：注入 8 tick 离散
+基准跳变后，**第一个样本**就被判 `REVISION_MISMATCH`（severe 档，不需连续两次），
+而不是「误差 8 tick 超过容差 4 tick」。
+
+⇒ severe 档**不参与** `danmakuMaxLagTicks` 的任何计算。那个 config 从设计之初就治不了
+它想治的症状。
+
+⇒ 也意味着 §6.4 那张表从一开始就分错了类：真实的失步是**版本不符**，不是位置超差。
+两条分支的处置不同（一个先降级为 `UNCERTAIN`，一个直接升级），混成「误差」会误导阈值设计。
+
+### D.4 修法形状已被取证
+
+`knowingTheRateRestoresSelfCheck`：同一条时间线、同一批样本、同一份状态机，只把
+「服务器时刻 → 本地 tick」的换算换成带速率的版本：
+
+- 慢 5% 的 `TOO_EARLY` 从 15/16 降到 **0**
+- 比较误差仍为 0，**不引入任何恢复**
+
+⇒ 需要的是**斜率**。锚点只能平移映射，斜率恒为 1 的直线永远够不到 `floor(r·ΔS)`。
+`DanmakuSampleTimeline` 目前根本没有斜率这个概念。
+
+`knownRateModelAgreesWithProductionAtUnitRate` 钉住「带速率的模型」在 `rate = 1.0` 时与
+生产比较逐项一致 —— 那个模型是手抄的 `DanmakuSampleCheck.compare` 只改斜率，抄错一处
+取证就变成自说自话。
+
+### D.5 探针**没有**覆盖的（诚实的缺口）
+
+- **`StartTracking` 在实体仍存活时二次触发**（`seedPeerAge` 的 `peerAgeSeeded` 分支）。
+  这是**事件**不是速率，离线测不到。§6.7 机制 A 的判定需要实机：
+  在 `onStartTracking` 打出 `entityId / serverAge / 已配对次数`。
+- 真实 chunk 卸载/重载、客户端重连、多客户端错时追踪。
+- 曲射的 `sin/cos` 逐 tick 累积误差（`Rotation` 的数值纪律问题，与时间轴无关）。
+- 非闭式弹种（`tickMine`、爆散、目标追踪）—— 探针的闭式轨迹对它们不成立。
+
+⇒ **用户报的实机症状（rebuilt 弹 ±4~8 tick 抖动）仍未归因。** 探针能证明它**不是**
+上述五种失真，证不了它是**什么**。下一步是 3.3 任务：实机打 `StartTracking` 的日志。
+
+### D.6 对变更的影响
+
+`openspec/changes/danmaku-timeline-sync/` 已据此重写为三层：
+T1 服务器时间轴（**event-sync 的硬前置**）、T2 纯函数轨道求值 + 直线读档重算，
+T3 轨道层移出到 `openspec/changes/danmaku-track-scope/`（门槛为生成突发的带宽基线）。

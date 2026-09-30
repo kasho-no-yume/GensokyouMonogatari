@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.render.DanmakuMotionState;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
@@ -128,7 +129,7 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         }
 
         if (this.age() >= this.getDelayTicks() + this.getDurationTicks()) {
-            this.discard();
+            this.discard(DanmakuBudget.RemovalCause.BEAM_ENDED);
         }
     }
 

@@ -245,7 +245,13 @@ MUST 声明 `harmlessTicks > 0`，且**不得超过寿命的一半**（否则声
 只是普通弹 2 秒就飞出场外没人注意。
 
 **为什么不修**：见 `openspec/changes/danmaku-event-sync/spellcard-blockers.md`。
-结论是等 `danmaku-timeline-sync` 落地后按它声明的兼容路径处理。
+分两段：`danmaku-timeline-sync` 的 T2 任务 2.4 为**直线弹与曲射弹**补上了速度的
+存档往返（改向段不在其内）；改向之后那段归 `danmaku-event-sync` 的 `REDIRECT`。
+
+**一个反直觉的事实**：编队弹与速率曲线弹**读档后不冻结**。`DATA_HAS_FRAME` /
+`DATA_HAS_PROFILE` 是按对应 NBT 键是否存在推断恢复的，rig 从第一个 tick 起就用
+`positionAt(age)` 覆写位置，`alongAxis` 在速度为零时回落到已持久化的 `axis()`。
+所以「只有 2.5 节说的那三类会中招」——而那三类恰好都是**不挂编队、不挂曲线**的。
 
 **写符卡时的实际影响**：任何带「静止等待」段的编排（`harmlessTicks` 语义的那些）
 都会在读档后被撞上。实测时记得退出重进一次。

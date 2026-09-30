@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.client;
 
 import com.bitsson.gensokyou.client.ritual.ClientRitualData;
+import com.bitsson.gensokyou.danmaku.render.DanmakuClientClock;
 import com.bitsson.gensokyou.jei.GensokyouJeiPlugin;
 import com.bitsson.gensokyou.network.DialogSyncPayload;
 import com.bitsson.gensokyou.network.RitualConflictPayload;
@@ -88,7 +89,14 @@ public final class ClientPayloadHandler {
             if (level == null) {
                 return;
             }
-            for (com.bitsson.gensokyou.network.DanmakuCalibrationPayload.Sample sample
+            // 一批包就是<b>一次</b>时钟观测，不是每枚弹一次：批内所有样本共享同一个
+            // 服务器采样时刻，也在同一个本地 tick 被处理。逐弹提交会产生 N 次
+            // 到达 tick 相同的观测，后 N-1 次会被判非单调而白白浪费。
+            //
+            // 观测放在循环之外还解开了另一处死锁：不可比的样本恰恰是最能说明
+            // 速率需要修正的样本，若把 observe 挂在「可比」之后，两者会互相锁死
+            // ——不可比 → 不更新速率 → 永远不可比。
+            DanmakuClientClock.observe(payload.serverGameTime(), level.getGameTime());            for (com.bitsson.gensokyou.network.DanmakuCalibrationPayload.Sample sample
                     : payload.samples()) {
                 if (level.getEntity(sample.entityId())
                         instanceof com.bitsson.gensokyou.entity.AbstractDanmakuProjectile bullet) {

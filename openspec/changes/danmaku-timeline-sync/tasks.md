@@ -1,40 +1,136 @@
-## 1. 证据与协议边界
+> 每条任务都挂一条**可离线断言**的验收。`DanmakuSyncProbeTest` 已经存在并全绿，
+> 它是本变更的回归地板：T1 每一步都必须在它之上变好，且不得让既有断言变差。
 
-- [ ] 1.1 记录当前原版位置包、render-state 快照/校准包、CPU、带宽和渲染表现基线；分别覆盖内嵌服务端与 dedicated server
-- [ ] 1.2 设计诊断字段：服务器采样时间、服务器当前时间、客户端收包时间、本地 tick、轨道时间、scope/实例身份、同步模式和版本
-- [ ] 1.3 修正年龄/滞后测量口径：不得把位置误差沿当前速度的投影直接当作年龄差；硬纠偏和恢复边界附近样本单独计数
-- [ ] 1.4 定义 `LEGACY_POSITION`、`ENTITY_SNAPSHOT`、`TRACK`、`KEYFRAME` 的能力标记和写权限；验证同一状态不会由两个模式同时驱动
-- [ ] 1.5 定义 `scopeId`、`scopeVersion`、实例索引、生命周期状态、时间单位和序号的跨变更契约，供 event 变更复用
+## T1. 服务器时间轴（event-sync 的前置，无条件）
 
-## 2. 时间语义与纯函数轨道
+### T1-a 时钟估计器（纯函数，无世界）—— 已完成
 
-- [ ] 2.1 定义服务器单调时间源，明确 tick gap、暂停、降速、世界重载、跨维度和客户端暂停的语义
-- [ ] 2.2 实现无世界时间映射与受限客户端时钟估计，包含单调性检查、漂移上限、过期锚点和无法估计时的降级
-- [ ] 2.3 抽取确定性轨道求值接口，覆盖直线、速率曲线、曲射、编队帧、悬停/溜め、相位显隐和固定阶段
-- [ ] 2.4 明确轨道输入的数值纪律；不能可靠逐端重建的运动标记为非确定性，不塞入确定性轨道
-- [ ] 2.5 增加无世界测试：同一轨道在不同追踪时刻、不同客户端时间偏移和长时间运行下的求值一致性
+- [x] 1.1 新增 `danmaku/motion/DanmakuServerClock`：状态为
+      `anchorServerTime` / `anchorClientTick` / `rate`（默认 1.0）/ 残差界限 / 陈旧度；
+      API 为 `observe(serverGameTime, arrivalClientTick)`、`serverTimeNow(clientTick)`、
+      `localTickFor(serverTime)`。无世界依赖，可离线测试。
+      **验收**：新测试断言 `rate = 1.0` 时 `localTickFor` 与 `anchorClientTick + Δ` 逐位相等。
+- [x] 1.2 速率估计：连续观测拟合斜率，斜率变化 MUST 落在配置区间内（默认 `[0.8, 1.25]`）
+      才生效；区间外退回 1.0 并进入 `UNCERTAIN`。
+      **验收**：注入 5% 慢（0.95）与 5% 快（1.05），断言 `rate` 收敛到真值 ±0.005。
+- [x] 1.3 **残差界限**：残差超界 MUST 拒绝并计数，MUST NOT 因为「看起来更准」而接受。
+      **验收**：单点注入 8 tick 离群样本，断言 `rate` 与锚点均不变、拒绝计数 +1。
+- [x] 1.4 硬重锚 MUST 连续 N 次同向残差才允许（默认 3），避免单包抖动触发。
+      **验收**：单次离群后不得重锚；三次同向后必须重锚。
+- [x] 1.5 陈旧降级：超过 `stalenessTicks` 无新观测 ⇒ `UNCERTAIN`，停止外推。
+      **验收**：静默 N tick 后 `localTickFor` 返回「不可用」而不是继续外推。
 
-## 3. 轨道快照与实例身份
+> **实现期修正**：斜率的量纲是「每个服务器 tick 走多少本地 tick」，第一版写成
+> 倒数。它有欺骗性——`1.05` 的客户端被估成 `0.9524`，**仍落在可信区间内**，
+> 于是区间检查放行了一个方向错误的速率。另两处同源错误：残差判据与重锚 streak
+> 都拿「被检验的那个点」参与了判据本身的定义，于是恒为 0、静默失效。三处都写进了
+> `DanmakuServerClock` 的 javadoc。
 
-- [ ] 3.1 定义轨道快照编码：身份、版本、起始时间/年龄、生命周期、完整参数、外观阶段和实例索引范围
-- [ ] 3.2 定义实体实例到轨道的绑定、UUID/实体 id 校验、重复快照幂等、旧版本拒绝和新版本原子替换
-- [ ] 3.3 让 `DanmakuEmitter` 为确定性批次创建轨道状态和稳定实例索引；不改变服务端弹幕预算与分裂配额
-- [ ] 3.4 实现实体/轨道包竞态的有限暂存、超时和恢复；未知身份不得创建幽灵实体
-- [ ] 3.5 为重追踪、区块卸载/重载、读档、跨区块和跨维度补充轨道生命周期清理
+### T1-b 接入 —— 已完成
 
-## 4. 兼容接入与确定性试点
+- [x] 1.6 `DanmakuSampleTimeline` 的换算接受斜率；默认 1.0 时**行为逐位不变**。
+      **验收**：既有 `DanmakuSampleTimelineTest` 全部不改期望值即通过。
+- [x] 1.7 `AbstractDanmakuProjectile#age()` 的客户端分支改读时钟，
+      不再读 `tickCount − anchorTick`。
+      **验收**：既有 `DanmakuAgeTest` / `DanmakuRenderStateTest` 不改期望值即通过。
 
-- [ ] 4.1 将轨道时间接入现有实体模拟/渲染入口，保持 render-state 对普通位置包和视觉偏移的所有权
-- [ ] 4.2 选择球弹/编队弹确定性路径作为首个试点，验证轨道位置不会进入服务端命中、伤害或分裂判定
-- [ ] 4.3 在轨道模式下保留兼容位置包诊断，记录其流量和到达情况；不得让它重新驱动模拟
-- [ ] 4.4 审计实体渲染、激光缓存和包围盒读取点，确认 timeline 接入没有重新引入第二个视觉坐标来源
-- [ ] 4.5 实测试点在低延迟、高延迟、高抖动、客户端暂停和重追踪下的相位、抖动、重建次数和资源开销
-- [ ] 4.6 根据带宽/CPU/画面质量门槛决定是否关闭试点类型的位置驱动；未达门槛则保留兼容模式，不扩大迁移
+> **分解**：速率是**全局**的（连接的属性），锚点是**逐实体**的（不同实体的
+> `tickCount` 互相有偏移，而本地历史按各自 `tickCount` 寻址）。跨维度的
+> `getGameTime()` 差异是常数偏移而非速率差，由逐实体锚点吸收；若塞进全局时钟，
+> 换维度会表现成一次剧烈速率跳变并触发无谓重锚。
 
-## 5. 验证、观测与交付边界
+### T1-c 接线与验收 —— 已完成
 
-- [ ] 5.1 增加轨道重建、版本回退、生命周期结束、重复追踪和旧包拒绝的自动化测试
-- [ ] 5.2 增加 dedicated server 双客户端错时追踪测试，区分正常传播延迟、时钟偏移、实体缺失和真实轨道不一致
-- [ ] 5.3 在 `/gs_boss danmaku` 展示同步模式、轨道/实例数、锚点年龄、时间估计误差、重建次数、兼容包量和状态清理数
-- [ ] 5.4 记录轨道模式的带宽峰值/均值、客户端 CPU、服务端 CPU 和弹幕密度，不能只用理论估算验收
-- [ ] 5.5 完成 NeoForge 编译、纯函数测试、服务端启动和客户端实机回归；仅在本变更完成后把稳定契约交给 event 变更
+- [x] 1.8 以 `DanmakuCalibrationPayload` 的 `serverGameTime` 为观测通道（**不加新协议**），
+      打开速率估计。观测**每批一次**而非每弹一次：批内样本共享同一采样时刻，
+      逐弹提交会让后 N−1 次被判非单调而白白浪费；且观测必须放在「可比性判定之外」，
+      否则不可比的样本（恰恰是最能说明速率需要修正的样本）永远等不到速率被修正，
+>     两者互相锁死。
+      **验收**：`rateMismatch*` 系列断言翻转 —— 慢 5% 的
+      `TOO_EARLY` 计数从 15/16 降到 **0**；比较误差仍为 0；恢复次数仍为 0。
+- [x] 1.9 **反向测试（不可省）**：注入 8 tick 离散年龄基准跳变，时钟 MUST **仍然**把它
+      判为 `REVISION_MISMATCH` 并升级。
+      **验收**：`discreteAgeBasisStepOnAnIncrementalBulletIsCaughtImmediately` 仍绿。
+      若此条失败，本变更制造的问题比它修复的更糟 —— 停下来重做 1.3/1.4。
+- [x] 1.10 抖动回归：延迟 0~20、抖动 ±8 全部条件下误差为 0、恢复为 0。
+      **验收**：`networkDelayAndJitterCannotProduceErrorOrResync` 仍绿。
+- [x] 1.11 诊断接入 `/gs_boss danmaku`：新增 `clock` 行（可用性、速率、残差、
+      重锚/拒绝/陈旧计数），`DanmakuSyncStats` 增 `clock[...]` 段。
+- [x] 1.12 更正 `danmakuMaxLagTicks` 与 `danmakuCalibrationIntervalTicks` 的语义与
+      config 注释：前者是**映射误差上界**（不是网络延迟容忍度），且**对离散基准跳变
+      无效**；后者现在**同时是时钟的观测通道**，置 0 不只是减少检查，而是让时钟无法
+      学到客户端的快慢。现在的注释仍在描述 render-state 之前的世界。
+- [x] 1.13 在 `danmaku-event-sync` 的前置依赖里注明：T1 完成后即可开工，MUST NOT 等
+      `danmaku-track-scope`。
+
+> 探针的「速率已知」模式已改为走**真实接线**（`DanmakuClientClock` →
+> `DanmakuSampleTimeline.setRate` → `DanmakuSampleCheck.compare`），
+> 不再是手抄的模型 —— 否则那条取证只是自说自话。
+
+## T2. 弹道形式分类与读档速度 —— 已完成
+
+> **实施期修订**：本节原写「把六种确定性运动抽成无世界纯函数」+「读档后由轨道时间
+> 重算」。逐行核对 `tickDanmaku` 与 `readAdditionalSaveData` 后发现两条都不成立，
+> 已按 `design.md` §5b / §5c 收窄。修订依据见各自的「实测」小节。
+
+- [x] 2.1 **分类表**（`danmaku/motion/DanmakuTrackKinds`）：把「弹道相对轨道时间的
+      形式」与「读档能否自愈」两条判据放在一处，供 `danmaku-event-sync` 查询
+      「这项状态能否由轨道时间推导」。
+      **实测**：编队帧 / 速率曲线 / 相位显隐**本来就是**无世界纯函数，无需改动；
+      曲射**不可**闭式化（`rotateAbout` 作用在上一步速度上，而闭式化会把
+      `Rotation` 的 `sin/cos` 例外从「一次旋转」放大成「整段轨迹」= 行为变更）。
+      **验收**：`formOf` / `survivesReloadWithoutVelocity` / `needsVelocityPersistence`
+      的真值表；并断言「曲射 + 速率曲线」按形式归 CLOSED_FORM 但靠 profile 自愈 ——
+      两条判据不可互相替代，合并会让这枚弹读档后冻结。
+- [x] 2.2 超越函数纪律锁：编译后常量池扫描，断言 `DanmakuSpeedProfile` 与
+      `FormationFrame` 不引用 `sin/cos/tan/sqrt/pow/exp/log`；同时断言
+      `Rotation` **仍然**有（它是已记录的例外，纪律不得顺手扩展过去 ——
+      扩展会立刻改变编队弹轨迹，而没人会想到原因是这个）。
+      **验收**：`speedProfileAndFormationFrameStayTranscendentalFree`、
+      `rotationIsTheOneRecordedException`。实测两个纪律类当前**零**超越函数。
+- [x] 2.3 位置闭式求值：断言同一龄的解析位置与求值历史无关（长时间运行不累积误差）。
+      这是 rig 存在的**全部**理由；改成「在上一 tick 位置上叠加增量」会让误差单调增长，
+      而症状是弹道缓慢发散，几乎不可能被归因到那一行。
+      **验收**：`formationPositionIsClosedFormSoErrorDoesNotAccumulate`。
+- [x] 2.5 **编队弹读档后是否冻结：不冻结。** `DATA_HAS_FRAME` 按 `FrameSp` 键存在
+      **推断**恢复，rig 从第一个 tick 起就用 `positionAt(age)` 覆写位置。
+      速率曲线弹同理（`DATA_HAS_PROFILE` 按 `SpV3` 推断 + `alongAxis` 回落到 `axis()`）。
+      ⇒ 真正冻结的只有**曲射**与**直线**两类。**因此 2.4 不推广到编队弹**，
+      并且给它们写速度是**误导**（速度不是它们的权威）。
+- [x] 2.4 读档速度往返：新增 `MotionX/Y/Z` 三个 double，**仅**对
+      `needsVelocityPersistence` 为真的弹种写盘与读盘。
+      **读侧必须最后读** —— 判据依赖 `DATA_HAS_FRAME`/`DATA_HAS_PROFILE`，而这两个是
+      按键存在推断出来的，提前读会拿到尚未推断的 `false`，于是给一枚编队弹安上本不该
+      存在的速度。
+      **缺键一律退化为零速度**，即本变更之前的行为：旧存档全都没有这个键，
+      缺键时抛异常会让读档直接失败 —— 那比冻结严重得多。
+      **验收**：`velocityRoundTripsExactly`（逐项 putDouble，不被量化再吃一次）、
+      `unneededKindsWriteNothing`、`missingKeyDegradesToTheOldBehaviour`、
+      `partialTagDegradesPerComponent`（逐项降级，不整体丢弃）。
+      **仍需实机**：存档→读档后弹以正确速度离场（不是停住 60 秒后消失），
+      覆盖普通弹、玩家武器弹与「静止等待 N tick」编排三类。纯函数层已覆盖，
+      NBT 与实体的接缝留给 3.4。
+
+## 验证与交付
+
+- [x] 3.1 跑通探针全套 + 既有 danmaku 测试全集（T2 完成后为 675 tests / 80 suites，
+      不得减少）。
+- [ ] 3.2 dedicated server 双客户端错时追踪：区分正常传播延迟、时钟偏移、实体缺失与
+      真实轨道不一致。**这是探针覆盖不到的部分**（二次 `StartTracking`、真实 chunk 重载）。
+- [x] 3.3 实机在 `onStartTracking` 打出 `entityId / serverAge / 已配对次数`，归因 rebuilt 弹
+      ±4~8 tick 抖动 —— 验证 design「Open Questions」机制 A（`seedPeerAge` 在客户端实体仍存在时
+      被二次改写）。注意 render-state 落地后 `age()` 在 `ageAnchored` 时**不读** `peerAge`，
+      所以该路径可能已失效；「可能」需要实测，不需要推理。
+      计数口径已先修：`StopTracking` 现在结束追踪周期（`endTrackingPeriod`）。原先
+      `trackingPairings` 永不清零，于是「玩家飞远再回来」的合法重新配对与真正的重复触发被数在
+      一起 —— 实测 `integrity[pairing=2727]` 与同处注释「健康状态 MUST 为 0」自相矛盾。
+      修完后 `pairing` 只统计同一追踪周期内的重复，该数才可用于判定。
+- [ ] 3.4 完成 NeoForge 编译与客户端实机回归。
+
+## 移出本变更
+
+以下进入 `danmaku-track-scope`，其 proposal 里写明门槛为**生成突发的实测带宽基线**，
+且不阻塞任何其它变更：
+
+轨道快照编码、`scopeId`/`scopeVersion`、实例索引与实例身份绑定、轨道生命周期与清理、
+共享编队参数下发、单一实体类型灰度、关闭位置驱动的带宽门槛。
