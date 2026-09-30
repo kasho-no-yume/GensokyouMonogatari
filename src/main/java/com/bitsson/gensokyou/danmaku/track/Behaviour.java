@@ -58,9 +58,41 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
         return new Behaviour(motion, split, newVisibility);
     }
 
+    /** 定时换向的目标：解析成「本份所对的那名玩家」。 */
+    public static final int TARGET_AUTO = -1;
+    /** 定时换向的目标：在被锁定的玩家里随机挑一个。 */
+    public static final int TARGET_RANDOM = -2;
+    /** 定时换向的目标：不指定（换向时退化为沿原方向）。 */
+    public static final int TARGET_NONE = 0;
+
+    /**
+     * 定时换向的目标解析。
+     *
+     * <p>符卡表只能写「这一拍朝谁打」的<b>意图</b>（本份的目标 / 随机一名 / 不指定），
+     * 具体的实体 id 要到<b>按人复制</b>的那一刻才知道——同一拍在 5 人场里会发 5 份，
+     * 每份该朝不同的人。故解析发生在 {@code TrackRunner} 的复制循环里。
+     *
+     * @param copyTargetId 本份所对的那名玩家的实体 id（无目标时为 0）
+     * @param randomPick   「随机一名」已解析出的实体 id（未启用时为 0）
+     * @return 可直接下发给弹的具体实体 id；0 = 无目标
+     */
+    public static int resolveTurnTarget(int declared, int copyTargetId, int randomPick) {
+        if (declared > 0) {
+            return declared;
+        }
+        if (declared == TARGET_AUTO) {
+            return Math.max(0, copyTargetId);
+        }
+        if (declared == TARGET_RANDOM) {
+            return Math.max(0, randomPick);
+        }
+        return TARGET_NONE;
+    }
+
     // ------------------------------------------------------------------
     // 运动
     // ------------------------------------------------------------------
+
 
     /**
      * 弹的运动方式。同一时刻只有一种运动生效。
@@ -80,7 +112,11 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
                          double profileV1, double profileP1,
                          double profileV2, double profileP2,
                          double profileV3,
-                         boolean diesAtOrigin) {
+                         boolean diesAtOrigin,
+                         int burstAtTick,
+                         double burstRadialSpeed,
+                         double burstAimSpeed,
+                         int burstTargetId) {
 
 
         /** 运动种类。 */
@@ -107,11 +143,35 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
              * 且<b>只用四则运算</b>——双端各自推进时逐位一致（曲线旋转做不到这点，
              * 它走 Rodrigues 公式，含超越函数，无跨平台保证）。
              */
-            SPEED_PROFILE
+            SPEED_PROFILE,
+            /**
+             * 径向爆散：到达给定年龄后<b>改写速度方向</b>，沿「弹自身位置 → 编队参考点」
+             * 的连线朝外射出。
+             *
+             * <p>它是唯一一个<b>改方向</b>的形态。曲射做不到：曲射是绕单轴的等角速度偏转，
+             * 每颗弹转过的角度相同，而「各自朝外」要求每颗弹转向<b>自己的</b>半径。
+             * 分裂也做不到：子代从母弹所在点散开，不是从各自的出生点散开。
+             *
+             * <p>「弹自身即参考点」（花心）时连线退化，改按 {@code aimSpeed} 朝目标射出。
+             * 这不是特例分支，而是同一条规则的边界：参考点自身没有「远离自己」的方向。
+             */
+            BURST,
+            /**
+             * 定时重瞄：到达给定年龄后，把速度方向改为<b>朝目标</b>射出。
+             *
+             * <p>与 {@link #BURST} 的分野是参考点：重瞄不需要参考点（它的方向只由目标决定），
+             * 因此可以配在<b>没有编队帧</b>的普通弹上——「一圈静止的弹等 3 秒后同时朝你扑过来」
+             * 正是这种。
+             *
+             * <p>与 {@link #SPEED_PROFILE} 的分野：曲线只改速率不改方向，
+             * 表达不出「停 3 秒后朝<b>移动后</b>的目标射出」。
+             */
+            RECLAIM
         }
 
+
         public static Motion none() {
-            return new Motion(Kind.NONE, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false);
+            return new Motion(Kind.NONE, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0);
         }
 
         /**
@@ -121,22 +181,22 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
          * 既有的曲射轴打包约定，两端各自按同一规则反解出单位向量，故双端解析一致。
          */
         public static Motion curve(double yawDeg, double pitchDeg, double rateDegPerSec) {
-            return new Motion(Kind.CURVE, yawDeg, pitchDeg, rateDegPerSec, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false);
+            return new Motion(Kind.CURVE, yawDeg, pitchDeg, rateDegPerSec, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0);
         }
 
         /** 悬停。{@code hoverTick <= 0} 不生效。 */
         public static Motion hover(int hoverTick) {
-            return new Motion(Kind.HOVER, 0.0D, 0.0D, 0.0D, hoverTick, 0.0D, 0, 0, 0, 0, 0, 0, 0, false);
+            return new Motion(Kind.HOVER, 0.0D, 0.0D, 0.0D, hoverTick, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0);
         }
 
         /** 溜め。{@code mineRadius <= 0} 不生效。 */
         public static Motion mine(double triggerRadius) {
-            return new Motion(Kind.MINE, 0.0D, 0.0D, 0.0D, 0, triggerRadius, 0, 0, 0, 0, 0, 0, 0, false);
+            return new Motion(Kind.MINE, 0.0D, 0.0D, 0.0D, 0, triggerRadius, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0);
         }
 
         /** 贴地。 */
         public static Motion groundHug() {
-            return new Motion(Kind.GROUND_HUG, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false);
+            return new Motion(Kind.GROUND_HUG, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0);
         }
 
         /**
@@ -164,10 +224,55 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
         public static Motion speedProfile(DanmakuSpeedProfile profile, boolean diesAtOrigin) {
             return new Motion(Kind.SPEED_PROFILE, 0.0D, 0.0D, 0.0D, 0, 0.0D,
                     profile.v0(), profile.p0(), profile.v1(), profile.p1(),
-                    profile.v2(), profile.p2(), profile.v3(), diesAtOrigin);
+                    profile.v2(), profile.p2(), profile.v3(), diesAtOrigin, 0, 0.0D, 0.0D, 0);
+        }
+
+        /**
+         * 径向爆散。
+         *
+         * <p><b>要求本轨挂了编队帧</b>：爆散方向是「弹自身位置 → 参考点」的连线，
+         * 而参考点就是编队帧的中心。没帧就没有参考点。该约束由 lint 静态拒绝。
+         *
+         * <p>爆散<b>前</b>的速度时序由 {@code preBurst} 给出（「飞 1 秒 → 停 2 秒」正是
+         * 一条三段曲线），本形态只负责那一刻的<b>换向</b>。二者必须合成一个 Motion
+         * 而不是两个：行为是「同一时刻只有一种运动生效」的单值，爆散与曲线是
+         * 同一条时间轴的前后半段，不是两条并行的运动。
+         *
+         * @param preBurst     爆散前的速率曲线
+         * @param atAge        爆散年龄（tick）
+         * @param radialSpeed  径向爆散速率（格/tick）
+         * @param aimSpeed     弹自身即参考点时改用「朝目标射出」的速率（格/tick）
+         * @param targetId     目标实体 id；{@code <= 0} = 无目标
+         */
+        public static Motion burst(DanmakuSpeedProfile preBurst, int atAge, double radialSpeed,
+                                   double aimSpeed, int targetId) {
+            return new Motion(Kind.BURST, 0.0D, 0.0D, 0.0D, 0, 0.0D,
+                    preBurst.v0(), preBurst.p0(), preBurst.v1(), preBurst.p1(),
+                    preBurst.v2(), preBurst.p2(), preBurst.v3(), false,
+                    atAge, radialSpeed, aimSpeed, targetId);
+        }
+
+        /**
+         * 定时重瞄。
+         *
+         * <p>与 {@link #burst} 共用同一组同步参数：年龄、速率、目标 id。
+         * 差别只在「参考点从哪来」——重瞄没有参考点，因此不需要编队帧。
+         *
+         * @param preBurst 换向前的速率曲线（「停 3 秒」正是它）
+         * @param atAge    换向年龄（tick）
+         * @param speed    换向后的速率（格/tick）
+         * @param targetId 目标实体 id
+         */
+        public static Motion reclaim(DanmakuSpeedProfile preBurst, int atAge, double speed,
+                                     int targetId) {
+            return new Motion(Kind.RECLAIM, 0.0D, 0.0D, 0.0D, 0, 0.0D,
+                    preBurst.v0(), preBurst.p0(), preBurst.v1(), preBurst.p1(),
+                    preBurst.v2(), preBurst.p2(), preBurst.v3(), false,
+                    atAge, 0.0D, speed, targetId);
         }
 
         /** 还原成曲线对象。 */
+
         public DanmakuSpeedProfile speedProfile() {
             return new DanmakuSpeedProfile(profileV0, profileP0, profileV1, profileP1,
                     profileV2, profileP2, profileV3);
@@ -182,8 +287,16 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
                 case MINE -> mineRadius > 0.0D;
                 case GROUND_HUG -> true;
                 case SPEED_PROFILE -> speedProfile().varies();
+                case BURST -> burstAtTick > 0;
+                case RECLAIM -> burstAtTick > 0;
             };
         }
+
+        /** 该运动是否带「定时换向」语义（换向前半段是一条速率曲线）。 */
+        public boolean turnsDirectionAtAge() {
+            return kind == Kind.BURST || kind == Kind.RECLAIM;
+        }
+
 
         /** 运动是否会让弹在途中停下或反复（影响「悬停期保持判伤」这类判定的适用范围）。 */
         public boolean stopsMidFlight() {
@@ -309,6 +422,23 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
         }
 
         /**
+         * 只要参考点，不要平面内编排。
+         *
+         * <p>存在的理由：{@link FormationFrame#active()} 判的是「平面内有没有动作」
+         * （自转 / 呼吸 / 公转），于是一个<b>只提供参考点与平移轴</b>的帧会被判为不活动、
+         * 在 {@code bindToFrame} 里被静默丢弃。而「径向爆散」恰恰需要这种帧——
+         * 它的爆散方向就是「弹自身位置 → 参考点」的连线，没有参考点就没有径向。
+         *
+         * <p>它与 {@link #NONE} 的区别是本方法存在的全部意义：{@code NONE} 是
+         * 「不声明编队」，本方法是「声明编队，且明确不要平面内动作」。
+         */
+        public static Formation reference() {
+            return new Formation(true, 0.0D, FormationFrame.HORIZONTAL_PITCH_DEG, 0.0D,
+                    1.0D, 0.0D, 0.0D,
+                    0.0D, FormationFrame.HORIZONTAL_PITCH_DEG, 0.0D, 0.0D);
+        }
+
+        /**
          * 只自转的编队（无呼吸）。
          *
          * @param axisYawDeg   环绕平面下转角。水平环绕用 {@code 0}
@@ -428,8 +558,20 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
             return switch (motion.kind()) {
                 case MINE, HOVER, CURVE -> true;
                 case SPEED_PROFILE -> motion.diesAtOrigin();
-                case NONE, GROUND_HUG -> false;
+                case NONE, GROUND_HUG, BURST, RECLAIM -> false;
             };
+        }
+
+        /**
+         * 「径向爆散需要参考点」判据。
+         *
+         * <p>爆散方向是「弹自身位置 → 参考点」的连线，而参考点就是编队帧的中心。
+         * 没有帧就没有参考点，径向无从定义——弹会退化为沿原方向飞，而那不报错，
+         * 只是「花没有散开」。故这条在静态期就拒。
+         */
+        public boolean providesBurstReference() {
+            return active;
         }
     }
 }
+

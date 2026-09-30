@@ -1,7 +1,9 @@
 package com.bitsson.gensokyou.danmaku.track;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 轨道表静态校验器——把「三维可读性契约」R1/R2/R3 与缺段约束变成可断言的规则。
@@ -43,6 +45,15 @@ public final class TrackLint {
     public static final double STEADY_STATE_BUDGET = 120.0D;
 
     /**
+     * 单张符卡可声明的密度豁免上限（相对预算的倍数）。
+     *
+     * <p>豁免是给「估值模型结构性失真」的情形开的口子，不是给人随手放宽预算的。
+     * 封顶 8 倍意味着：一张卡最多能声明到 960 颗/玩家，再高 MUST 走「改估值模型
+     * 或改设计」这条路——而那正是应该发生的事。
+     */
+    public static final double MAX_DENSITY_WAIVER_FACTOR = 8.0D;
+
+    /**
      * 密度判定用的玩家包络直径（格）。spec 以「6 格内」表述，故取直径 12。
      */
     private static final double PLAYER_ENVELOPE_DIAMETER = 12.0D;
@@ -76,10 +87,28 @@ public final class TrackLint {
         for (SpellCard card : cards) {
             maxTracks = Math.max(maxTracks, card.tracks().size());
             violations.addAll(lintCard(owner, card));
+            for (Track track : card.tracks()) {
+                // 声明色现在真的被读取了（TrackRunner 用 track.color()），所以它必须是
+                // 本 BOSS 的签名色之一，否则「每轨一种独占视觉标识」就退化成作者自觉。
+                if (!palette.contains(track.color())) {
+                    violations.add(String.format("%s: 符卡「%s」轨「%s」的颜色 #%06X 不在签名色盘内",
+                            owner, card.name(), track.name(), track.color() & 0xFFFFFF));
+                }
+            }
         }
         if (!palette.fits(maxTracks)) {
             violations.add(String.format("%s: 色盘容量 %d < 最大并发轨道数 %d",
                     owner, palette.size(), maxTracks));
+        }
+        Set<Integer> used = new LinkedHashSet<>();
+        for (SpellCard card : cards) {
+            for (Track track : card.tracks()) {
+                used.add(track.color() & 0xFFFFFF);
+            }
+        }
+        if (used.size() > palette.size()) {
+            violations.add(String.format("%s: 符卡表用到 %d 个色号，色盘只有 %d 个",
+                    owner, used.size(), palette.size()));
         }
         double previous = Double.MAX_VALUE;
         for (SpellCard card : cards) {
@@ -101,6 +130,7 @@ public final class TrackLint {
             violations.add(String.format("%s: 轨道数 %d 越界 [%d, %d]",
                     tag, tracks, MIN_TRACKS, MAX_TRACKS));
         }
+        violations.addAll(lintTimelineReplays(tag, card));
         for (int i = 0; i < tracks; i++) {
             for (int j = i + 1; j < tracks; j++) {
                 if (card.tracks().get(i).identity().equals(card.tracks().get(j).identity())) {
@@ -123,9 +153,54 @@ public final class TrackLint {
         for (Track track : card.tracks()) {
             steady += steadyStateEstimate(track);
         }
-        if (steady > STEADY_STATE_BUDGET) {
+        double budget = card.hasDensityWaiver() ? card.densityWaiver() : STEADY_STATE_BUDGET;
+        if (card.hasDensityWaiver() && budget > STEADY_STATE_BUDGET * MAX_DENSITY_WAIVER_FACTOR) {
+            violations.add(String.format("%s: 密度豁免 %.0f 超过预算的 %d 倍（%.0f）"
+                            + "——豁免是有界例外，不是空白支票",
+                    tag, budget, (int) MAX_DENSITY_WAIVER_FACTOR,
+                    STEADY_STATE_BUDGET * MAX_DENSITY_WAIVER_FACTOR));
+        }
+        if (steady > budget) {
             violations.add(String.format("%s: 违反 R3 层限——稳态并发密度约 %.0f 颗/玩家 > 预算 %.0f"
-                    + "（判据为稳态并发数，不是每拍发数）", tag, steady, STEADY_STATE_BUDGET));
+                    + "（判据为稳态并发数，不是每拍发数%s）",
+                    tag, steady, budget,
+                    card.hasDensityWaiver() ? "；本卡声明了密度豁免，理由见 SpellCard#densityWaiver" : ""));
+        }
+        return violations;
+    }
+
+    /**
+     * 多拍显式时间线 MUST 声明循环长度，否则它只响一次。
+     *
+     * <p>节拍判据跑在<b>循环内的步号</b>上：{@code step = cycleTicks > 0 ? tick % cycle : tick}。
+     * 于是一张「显式枚举拍（{@code repeatEvery == 0}）且未声明循环长度」的符卡，
+     * 其节拍判据退化为「绝对 tick 等于拍号」——每个拍各响一次，之后永远不再发射。
+     *
+     * <p>这类符卡<b>不报错、不崩、lint 全绿</b>，症状只是「进卡几秒后彻底静默」。
+     * 而它恰恰最容易被写成「持续型」：作者以为「不声明循环」=「一直放」，
+     * 实际那正是保证它停掉的设置。踩过两次（阶段 1 的环、阶段 3 的雨），
+     * 故在此静态拒绝。
+     *
+     * <p><b>「一次性过场」用单拍表达</b>：{@code repeatEvery(0)} + 一个拍就是「响一次就停」，
+     * 它不违反本规则（本判据只管多拍）。刻意不为此再开一个结构豁免——
+     * 「多拍但不想重放」与「忘了声明循环」在结构上无法区分，
+     * 而前者几乎没有使用场景，后者是反复发生的错误。
+     */
+    private static List<String> lintTimelineReplays(String tag, SpellCard card) {
+        List<String> violations = new ArrayList<>();
+        if (card.hasCycle()) {
+            return violations;
+        }
+        for (Track track : card.tracks()) {
+            if (track.repeatEvery() != 0 || track.beats().size() <= 1) {
+                continue;
+            }
+            violations.add(String.format("%s: 轨「%s」是多拍显式时间线（%d 拍、repeatEvery=0）"
+                            + "但本卡未声明循环长度——节拍判据会退化成「绝对 tick 等于拍号」，"
+                            + "于是这些拍各响一次后永不重放，现象是「进卡几秒后彻底静默」。"
+                            + "若本卡本就该持续，请声明 cycleTicks；"
+                            + "若本该只响一次，请压成单拍",
+                    tag, track.name(), track.beats().size()));
         }
         return violations;
     }
@@ -150,15 +225,20 @@ public final class TrackLint {
     private static List<String> lintFormation(String tag, Track track) {
         List<String> violations = new ArrayList<>();
         Behaviour.Formation formation = track.formation();
-        if (!formation.active()) {
-            return violations;
-        }
         for (Track.Beat beat : track.beats()) {
-            if (formation.conflictsWith(beat.behaviour().motion())) {
+            if (formation.active() && formation.conflictsWith(beat.behaviour().motion())) {
                 violations.add(String.format("%s: 轨「%s」t=%d 同时用了编队帧与运动「%s」"
                                 + "——编队帧已接管弹位，该运动会与之争夺位置权威",
                         tag, track.name(), beat.tick(),
                         beat.behaviour().motion().kind()));
+            }
+            // 径向爆散的方向是「弹自身位置 → 参考点」的连线，参考点即编队帧的中心。
+            // 没有帧就没有参考点，弹会退化为沿原方向飞——不报错，只是「花没有散开」。
+            if (!formation.providesBurstReference()
+                    && beat.behaviour().motion().kind() == Behaviour.Motion.Kind.BURST) {
+                violations.add(String.format("%s: 轨「%s」t=%d 用了径向爆散但未挂编队帧"
+                        + "——爆散方向需要参考点，而参考点就是编队帧的中心",
+                        tag, track.name(), beat.tick()));
             }
         }
         return violations;
@@ -167,35 +247,103 @@ public final class TrackLint {
     /**
      * 一条轨道的<b>稳态并发密度</b>估值（颗/玩家）。
      *
-     * <p>模型：每拍发出的 {@code count} 颗弹，各自在玩家 6 格包络内停留约
-     * {@code 包络直径 ÷ 弹速} 个 tick；按重复周期摊薄即得稳态并发数。
+     * <p>模型：每拍发出的弹各在玩家 6 格包络内停留约 {@code 包络直径 ÷ 弹速} 个 tick。
      *
-     * <pre>
-     *   contribution = count × (包络直径 / speed) / max(1, repeatEvery)
-     * </pre>
+     * <p><b>估值口径按编排形态分两种</b>——这是本方法正确性的关键：
+     * <ul>
+     *   <li><b>无限重复轨</b>（声明了正重复周期）：每周期发一次，贡献按周期摊薄，
+     *       {@code Σ count × 停留 / period}。</li>
+     *   <li><b>显式时间线</b>（{@code repeatEvery == 0}，节拍逐个枚举）：该轨在整条
+     *       时间线跑完前<b>不会</b>重复发射，故贡献 MUST 按「全部节拍的<b>累计在场数</b>」
+     *       计，MUST NOT 把每个节拍当作每 tick 发射。</li>
+     * </ul>
      *
-     * <p>零速弹（溜め）没有「飞过包络」的过程，只按每拍发数计入其常驻量。
+     * <p>后者若按前者算，会把「48 拍逐发、跑完即止」这种编排高估一个数量级——
+     * 正确值远低于预算，错误值超预算十倍以上，于是任何<b>会停的编排</b>都 lint 不通过。
      *
      * <p>本估值是<b>保守的静态近似</b>：它只取弹速与包络直径，不涉及地形遮挡、
      * 弹与弹互斥、玩家走位等运行时因素。MUST NOT 被当作精确值使用，只用于
      * 「一数量级的错判」——即每拍糊几百发那种。
      */
     public static double steadyStateEstimate(Track track) {
-        int period = Math.max(1, track.repeatEvery());
+        return track.repeatEvery() > 0 ? repeatingEstimate(track) : timelinePeakEstimate(track);
+    }
+
+    /** 无限重复轨：每周期贡献按周期摊薄。 */
+    private static double repeatingEstimate(Track track) {
+        int period = track.repeatEvery();
         double perTick = 0.0D;
         for (Track.Beat beat : track.beats()) {
-            Shape.Params params = beat.params();
-            double speed = params.speed();
-            double residence;
-            if (speed <= 1.0E-4D) {
-                // 静止弹不飞越包络；只按每拍发数计其常驻量（溜め环带即此类）。
-                residence = 1.0D;
-            } else {
-                residence = PLAYER_ENVELOPE_DIAMETER / speed;
-            }
-            perTick += params.count() * emissionMultiplier(beat.shape()) * residence / period;
+            perTick += perBeatLoad(beat) / period;
         }
         return perTick;
+    }
+
+    /**
+     * 显式时间线：取「全部节拍的在场区间」的最大重叠数。
+     *
+     * <p>每拍在包络内的停留视为一个区间 {@code [出生 tick, 出生 tick + 停留)}，
+     * 区间权重为该拍的发数。最大重叠数即该轨的稳态并发峰值。
+     *
+     * <p>用扫线而非「逐拍求和」：求和会把「同一时刻先后到达」误算成并发，
+     * 对 16 朵花每朵 3 秒寿命这种密集时间线会高估数倍。
+     */
+    private static double timelinePeakEstimate(Track track) {
+        List<double[]> events = new ArrayList<>();
+        for (Track.Beat beat : track.beats()) {
+            double load = perBeatCount(beat);
+            double residence = residenceOf(beat);
+            if (load <= 0.0D) {
+                continue;
+            }
+            int birth = beat.tick();
+            events.add(new double[]{birth, load});
+            events.add(new double[]{birth + Math.max(1.0D, residence), -load});
+        }
+        if (events.isEmpty()) {
+            return 0.0D;
+        }
+        // 同 tick 先出后进：先减后加，否则「上一批恰好离场、下一批恰好出生」
+        // 会被算成重叠，双批时间线的峰值凭空翻倍。
+        events.sort((a, b) -> a[0] != b[0]
+                ? Double.compare(a[0], b[0])
+                : Double.compare(a[1], b[1]));
+        double live = 0.0D;
+        double peak = 0.0D;
+        for (double[] event : events) {
+            live += event[1];
+            peak = Math.max(peak, live);
+        }
+        return peak;
+    }
+
+    /** 该拍一次发多少颗。权重 MUST 是「颗数」而非「颗数 × 停留」——
+     *  峰值重叠数统计的是<b>同时在场多少颗</b>，把停留时长乘进去等于把并发数放大数十倍。 */
+    private static double perBeatCount(Track.Beat beat) {
+        return beat.params().count() * emissionMultiplier(beat.shape()) + extraShotCount(beat.shape());
+    }
+
+    /**
+     * 形状实际多发出的弹数（不含 {@code count} 本身）。
+     *
+     * <p>{@link Shape#CAGE} 是 {@code count} 的三倍（三个正交面各转一圈），
+     * 由 {@link #emissionMultiplier} 覆盖；{@link Shape#FLOWER} 则是
+     * {@code count + 1}——多出来的那颗是花心，{@code count} 只数花瓣。
+     */
+    private static int extraShotCount(Shape shape) {
+        return shape == Shape.FLOWER ? 1 : 0;
+    }
+
+    /** 单拍在其停留时长内贡献的「弹数 × tick」量（仅供无限重复轨摊薄用）。 */
+    private static double perBeatLoad(Track.Beat beat) {
+        return perBeatCount(beat) * residenceOf(beat);
+    }
+
+    /** 该拍发出的弹在玩家包络内的停留时长（tick）。 */
+    private static double residenceOf(Track.Beat beat) {
+        double speed = beat.params().speed();
+        // 零速弹不飞越包络；只按每拍发数计其常驻量（溜め环带即此类）。
+        return speed <= 1.0E-4D ? 1.0D : PLAYER_ENVELOPE_DIAMETER / speed;
     }
 
     /**
@@ -209,7 +357,7 @@ public final class TrackLint {
         return shape == Shape.CAGE ? 3 : 1;
     }
 
-    private static List<String> lintBeat(String tag, Track track, Track.Beat beat) {
+    static List<String> lintBeat(String tag, Track track, Track.Beat beat) {
         List<String> violations = new ArrayList<>();
         Shape shape = beat.shape();
         Shape.Params params = beat.params();
@@ -263,9 +411,39 @@ public final class TrackLint {
             }
         }
         if (shape == Shape.AROUND_TARGET && params.radius() <= 0.0D) {
-            violations.add(where + ": AROUND_TARGET 的目标周围区域半径须为正，实际 "
-                    + params.radius());
+            violations.add(where + ": AROUND_TARGET 的目标周围区域半径须为正，实际 " + params.radius());
         }
+        // 侧挂圆盘：整圈排满且不留缺口即是一面幕墙，与其它环形同理须留缺口。
+        if (shape == Shape.DISC_RING && params.count() >= R2_SEAL_COUNT && params.gapDeg() <= 0.0D) {
+            violations.add(where + ": 违反 R1 前向威胁——侧挂圆盘单拍排满且未留缺口（gapDeg=0）");
+        }
+        // 二维栅格的角间隔为 0 会退化成「全部重叠在一处」，与「格点阵」的语义不符。
+        if (shape == Shape.GRID_FACING && params.count() > 1 && params.spreadDeg() <= 0.0D) {
+            violations.add(where + ": 二维角度栅格的每轴角间隔须为正（spreadDeg=" + params.spreadDeg()
+                    + "）——为 0 时所有发重叠在同一条射线上");
+        }
+        // 需要解析地形的形状必须声明锚定，否则生成点就停在半空。
+        if (shape.needsWorldAnchor() && beat.anchor() == Track.Beat.SpawnAnchor.NONE) {
+            violations.add(where + ": " + shape + " 的生成点需向下解析地面/空气，"
+                    + "但本拍未声明 SpawnAnchor");
+        }
+        // R1 的另一种兑现：无约束全向随机 MUST 以「该发在固定年龄前不生效」兑现公平性。
+        //
+        // 反向亦不成立：若弹的有效寿命远大于无害期，声明就是一个晃眼的空话——
+        // 玩家在第 3 秒躲开的那发，第 4 秒仍然在朝他飞。故要求无害期不得短于寿命的一半。
+        if (shape.isOmniRandom()) {
+            if (!beat.hasHarmlessWindow()) {
+                violations.add(where + ": " + shape + " 是全向无约束随机，"
+                        + "MUST 声明无害窗口（harmlessTicks > 0）作为可读性的兑现，"
+                        + "否则生成方位完全在玩家视野外");
+            } else if (beat.lifetimeTicks() > 0
+                    && beat.harmlessTicks() * 2 > beat.lifetimeTicks()) {
+                violations.add(String.format("%s: 无害窗口 %d tick 超过寿命 %d tick 的一半"
+                                + "——声明形同虚设，弹在玩家躲开后仍持续朝他生效",
+                        where, beat.harmlessTicks(), beat.lifetimeTicks()));
+            }
+        }
+
         // 激光 + 速度语义：激光是静止的射线，速率曲线对它是空转。
         // 不静默忽略——「配了却没反应」正是本项目反复踩的那类故障。
         if (beat.projectile().isLaser()
@@ -286,8 +464,15 @@ public final class TrackLint {
                     + " 发且未留任何可穿过的间隙");
         }
 
-        if (shape != Shape.SCATTER_STATIC && params.speed() <= 0.0D) {
-            violations.add(where + ": 弹速必须为正（静止散布类除外）");
+        // 弹速必须为正——除非这批弹本来就不动。
+        //
+        // <p>静止散布类（溜め）由几何给出零方向，「弹速」对它没有意义；
+        // <b>激光更是如此</b>：它是一条静止的射线，位置由自身生命周期决定，
+        // 「弹速为 0」是它的正确取值而非漏配。此前把激光按球弹判，
+        // 于是任何地射激光都 lint 不通过。
+        boolean inherentlyStatic = shape == Shape.SCATTER_STATIC || beat.projectile().isLaser();
+        if (!inherentlyStatic && params.speed() <= 0.0D) {
+            violations.add(where + ": 弹速必须为正（静止散布类与激光除外）");
         }
         violations.addAll(lintBehaviour(where, shape, beat.behaviour()));
         return violations;

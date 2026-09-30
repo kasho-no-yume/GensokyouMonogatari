@@ -17,12 +17,18 @@ import java.util.List;
  * 同符卡内两轨的 identity 组合 MUST 至少有一项不同（由 {@link TrackLint} 静态校验）。
  * 色相由 {@link #color()} 给出，取自该 BOSS 的 {@link SignaturePalette}。
  */
-public record Track(
+    public record Track(
         String name,
         int color,
         boolean terminates,
         int repeatEvery,
-        int phaseStepDeg,
+        /**
+         * 每次重复的角度推进（度）。
+         *
+         * <p>取 {@code double}：「一圈 48 颗逐颗点亮」需要每拍推进 {@code 360/48 = 7.5°}，
+         * 取整会把整圈扫成 {@code 8° × 48 = 384°}，多扫一整格。
+         */
+        double phaseStepDeg,
         double damageScale,
         List<Beat> beats,
         /**
@@ -37,6 +43,7 @@ public record Track(
         Behaviour.Formation formation,
         /** 视觉独占标识：四项各一个量化档位，供 lint 断言。 */
         VisualIdentity identity) {
+
 
     /**
      * 视觉独占标识：五项各一个量化档位，供 lint 断言。
@@ -58,16 +65,60 @@ public record Track(
      * 任何行为可与任何几何组合。
      *
      * <p>{@code phaseStepDeg} 让同轨的重复拍之间错开角度（环自转、扇推进）。
+     *
+     * @param lifetimeTicks 本批弹的寿命（tick）。{@code 0} = 沿用弹体默认寿命。
+     *        <b>存在的理由</b>：默认寿命是 60 秒，而「每 N 秒发一批」的编排会按
+     *        {@code N × 60} 累积在场弹数，几批就撞上实体硬上限。有了它，
+     *        「一批弹在存活若干秒后消失」才能被编排表达。
+     * @param harmlessTicks 本批弹在多少 tick 内<b>不对任何玩家生效</b>。
+     *        <b>存在的理由</b>：它是全向无约束随机唯一被接受的兑现方式——
+     *        「生成点在不在视野锥内」不影响玩家能否公平躲避，只要弹在开火前够久不生效，
+     *        玩家就有完整的观察窗口（见 {@code TrackLint} 的 R1 判据）。
+     * @param anchor 生成点的世界锚定方式。几何层 MUST NOT 接触世界，
+     *        故「往下找地面 / 找第一个空气」由翻译层按本字段求值。
+     * @param centreDamage 本批里那颗<b>中心弹</b>的伤害乘数（仅 {@link Shape#FLOWER} 读）。
+     * @param centreSize 本批里那颗<b>中心弹</b>的直径乘数（仅 {@link Shape#FLOWER} 读）。
      */
     public record Beat(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
-                       TargetMode targetMode, Projectile projectile) {
+                       TargetMode targetMode, Projectile projectile,
+                       int lifetimeTicks, int harmlessTicks,
+                       SpawnAnchor anchor, double centreDamage, double centreSize) {
+
+        /** 生成点锚定方式。 */
+        public enum SpawnAnchor {
+            /** 不锚定：生成点即几何给出的点。 */
+            NONE,
+            /** 从生成点<b>向下</b>找第一个空气块，把生成点放在那里（「头顶 60 格下雨」）。 */
+            FIRST_AIR_BELOW,
+            /** 从生成点<b>向下</b>找地面，把生成点放在地面之上（「从地面向上打激光」）。 */
+            GROUND_BELOW,
+            /**
+             * 先取一名被锁定玩家的 xz 柱，再向下找地面。
+             *
+             * <p>「每 5 次至少一次压在玩家头上」这条规则因此是<b>数据</b>而不是代码里的
+             * 计数器：编排表把每第 5 拍标成这个值，其余拍用随机点。
+             */
+            PLAYER_GROUND
+        }
 
         /** 球弹的简写构造（绝大多数拍）。 */
         public Beat(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
                     TargetMode targetMode) {
-            this(tick, shape, params, behaviour, targetMode, Projectile.SPHERE);
+            this(tick, shape, params, behaviour, targetMode, Projectile.SPHERE,
+                    0, 0, SpawnAnchor.NONE, 1.0D, 1.0D);
         }
 
+        /** 带弹种的构造。 */
+        public Beat(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
+                    TargetMode targetMode, Projectile projectile) {
+            this(tick, shape, params, behaviour, targetMode, projectile,
+                    0, 0, SpawnAnchor.NONE, 1.0D, 1.0D);
+        }
+
+        /** 该拍是否声明了「开火前不生效」的窗口。 */
+        public boolean hasHarmlessWindow() {
+            return harmlessTicks > 0;
+        }
 
         /** 行为维度标识档位，供 {@link VisualIdentity} 断言「同符卡内两轨行为不重复」。 */
         public int behaviourIndex() {
@@ -108,7 +159,7 @@ public record Track(
         private final int color;
         private boolean terminates = true;
         private int repeatEvery = 0;
-        private int phaseStepDeg = 0;
+        private double phaseStepDeg = 0.0D;
         private double damageScale = 1.0D;
         private int colorStep = 0;
         private int speedStep = 0;
@@ -139,8 +190,13 @@ public record Track(
             return this;
         }
 
-        /** 每次重复的角度推进（度）。环自转 / 扇推进。 */
-        public Builder phaseStep(int degrees) {
+        /**
+         * 每次重复的角度推进（度）。环自转 / 扇推进。
+         *
+         * <p>取 {@code double} 而非 {@code int}：「一圈 48 颗逐颗点亮」需要每拍推进
+         * {@code 360/48 = 7.5°}，取整会把整圈扫成 8°×48 = 384°，多扫 24°。
+         */
+        public Builder phaseStep(double degrees) {
             this.phaseStepDeg = degrees;
             return this;
         }
@@ -185,12 +241,11 @@ public record Track(
             return at(tick, shape, params, behaviour, mode, Projectile.SPHERE);
         }
 
-        /** 完整形式：几何参数 + 行为 + 目标模式 + 弹种。 */
+        /** 带弹种的完整形式。 */
         public Builder at(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
                           TargetMode mode, Projectile projectile) {
-            this.beats.add(new Beat(tick, shape, params, behaviour, mode,
-                    projectile == null ? Projectile.SPHERE : projectile));
-            return this;
+            return at(tick, shape, params, behaviour, mode, projectile,
+                    0, 0, Beat.SpawnAnchor.NONE, 1.0D, 1.0D);
         }
 
         /** 激光版简写：几何 + 弹种，不带行为。 */
@@ -202,6 +257,30 @@ public record Track(
         /** 无行为、无几何参数的简写。 */
         public Builder at(int tick, Shape shape, TargetMode mode) {
             return at(tick, shape, Shape.Params.defaults(), Behaviour.NONE, mode);
+        }
+
+        /**
+         * 完整形式：几何参数 + 行为 + 目标模式 + 弹种 + 寿命 + 无害窗口 + 锚定 + 中心弹旋钮。
+         *
+         * <p>后五项都有「零值即沿用既有语义」的缺省，故绝大多数拍仍用较短的重载。
+         */
+        public Builder at(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
+                          TargetMode mode, Projectile projectile, int lifetimeTicks,
+                          int harmlessTicks, Beat.SpawnAnchor anchor,
+                          double centreDamage, double centreSize) {
+            this.beats.add(new Beat(tick, shape, params, behaviour, mode,
+                    projectile == null ? Projectile.SPHERE : projectile,
+                    Math.max(0, lifetimeTicks), Math.max(0, harmlessTicks),
+                    anchor == null ? Beat.SpawnAnchor.NONE : anchor,
+                    Math.max(0.0D, centreDamage), Math.max(0.0D, centreSize)));
+            return this;
+        }
+
+        /** 带寿命与无害窗口的简写（最常用的一档扩展）。 */
+        public Builder at(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
+                          TargetMode mode, int lifetimeTicks, int harmlessTicks) {
+            return at(tick, shape, params, behaviour, mode, Projectile.SPHERE,
+                    lifetimeTicks, harmlessTicks, Beat.SpawnAnchor.NONE, 1.0D, 1.0D);
         }
 
         public Track build() {

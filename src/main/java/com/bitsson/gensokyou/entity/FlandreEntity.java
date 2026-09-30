@@ -8,7 +8,6 @@ import com.bitsson.gensokyou.entity.goal.FourOfAKindGoal;
 import com.bitsson.gensokyou.registry.ModItems;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.util.Mth;
 import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
@@ -26,8 +25,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 public class FlandreEntity extends Monster implements TouhouMonster, TouhouBoss {
-    private final ServerBossEvent bossBar = new ServerBossEvent(
-            this.getDisplayName(), BossEvent.BossBarColor.BLUE, BossEvent.BossBarOverlay.NOTCHED_20);
+    // ⚠️ 传 this 而非 this.getUUID()：实体的 UUID 在构造之后还会被 Entity#load 用存档值覆盖。
+    private final TouhouBossBar bossBar = new TouhouBossBar(
+            this, this.getDisplayName(),
+            BossEvent.BossBarColor.BLUE, BossEvent.BossBarOverlay.NOTCHED_20);
 
     private boolean fake = false;
     private boolean statsApplied = false;
@@ -35,6 +36,24 @@ public class FlandreEntity extends Monster implements TouhouMonster, TouhouBoss 
     public FlandreEntity(EntityType<? extends FlandreEntity> type, Level level) {
         super(type, level);
         this.xpReward = 0;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p><b>占位待定，且比别的 BOSS 更没有依据</b>：芙兰朵露目前<b>根本召不出来</b>——
+     * {@code SummonBossEffects.REGISTRY} 只注册 4 只（big_fairy / kuzumono /
+     * kitsunebi / nomen），她不在任何 spawn tag 或 biome modifier 里，只能 {@code /summon}。
+     *
+     * <p>按 {@code boss-dev-design} §7 的定位她属「寝宫 BOSS」（专属场地、高阶），
+     * 而寝宫 worldgen 尚未落地，故暂给 5 阶紫位占位。
+     *
+     * <p>本类<b>不</b>覆写 {@code activeCardIndex()}：四重存在的「血量比 ⇒ 选阶段」
+     * 对她不成立（4 条命、HP 分数语义不同），走接口缺省即"无符卡"，HUD 不画该行。
+     */
+    @Override
+    public int bossTier() {
+        return 5;
     }
 
     public boolean isFake() {

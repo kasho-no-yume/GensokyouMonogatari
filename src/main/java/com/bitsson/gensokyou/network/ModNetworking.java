@@ -5,6 +5,8 @@ import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.client.ClientPayloadHandler;
 import com.bitsson.gensokyou.dialogue.DialogueManager;
 import com.bitsson.gensokyou.entity.AbstractDanmakuProjectile;
+import com.bitsson.gensokyou.entity.AbstractTouhouBoss;
+import com.bitsson.gensokyou.entity.TouhouBoss;
 import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
 import com.bitsson.gensokyou.registry.ModDataComponents;
@@ -19,6 +21,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -88,6 +91,41 @@ public final class ModNetworking {
         registrar.playToServer(DanmakuResyncRequestPayload.TYPE,
                 DanmakuResyncRequestPayload.STREAM_CODEC,
                 com.bitsson.gensokyou.danmaku.render.DanmakuSyncServer::handleResyncRequest);
+        registrar.playToClient(SpellCardNamePayload.TYPE, SpellCardNamePayload.STREAM_CODEC,
+                ClientPayloadHandler::handleSpellCardName);
+    }
+
+    /**
+     * 符卡名下标：向所有正在跟踪该 BOSS 的玩家单发一次。
+     *
+     * <p>用 {@code sendToPlayersTrackingEntity} 而非遍历血条受众：两者<b>本来就是同一批人</b>
+     * ——血条靠 {@code StartTracking}/{@code StopTracking} 增删受众，跟踪范围也由同一套
+     * {@code ServerEntity} 逻辑决定。用跟踪集不必自己维护「谁看得见这只 BOSS」。
+     */
+    public static void broadcastSpellCardName(Entity boss, int cardIndex) {
+        PacketDistributor.sendToPlayersTrackingEntity(boss,
+                new SpellCardNamePayload(boss.getId(), cardIndex));
+    }
+
+    /**
+     * 符卡名补发：玩家开始跟踪某东方 BOSS 时下发其<b>当前</b>符卡下标。
+     *
+     * <p>⚠️ 这一步 MUST NOT 省。切卡才发的话，晚进场的玩家从没见过任何包，血条下方的
+     * 符卡位会一直空白到下一次切卡——而「空白」与「这只 BOSS 没有符卡」在画面上
+     * <b>完全无法区分</b>，是本能力里最难自查的一类 bug。
+     *
+     * <p>无符卡表的血族（{@code FlandreEntity}）走 {@code activeCardIndex()} 的缺省空值，
+     * 此时不发包，客户端因而无从显示——与「本来就没有符卡」一致。
+     */
+    @SubscribeEvent
+    public static void onStartTrackingBoss(net.neoforged.neoforge.event.entity.player.PlayerEvent.StartTracking event) {
+        if (event.getTarget() instanceof TouhouBoss boss
+                && event.getTarget() instanceof AbstractTouhouBoss tracked
+                && event.getEntity() instanceof ServerPlayer player) {
+            tracked.activeCardIndex().ifPresent(idx ->
+                    PacketDistributor.sendToPlayer(player,
+                            new SpellCardNamePayload(tracked.getId(), idx)));
+        }
     }
 
     /**

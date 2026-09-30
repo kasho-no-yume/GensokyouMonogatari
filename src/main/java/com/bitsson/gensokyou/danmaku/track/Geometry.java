@@ -30,9 +30,29 @@ import java.util.List;
  */
 public final class Geometry {
 
-    /** 一条发射指令。 */
-    public record Shot(Vec3 origin, Vec3 direction, Vec3 planeAxis, Shape.Params params) {
+    /**
+     * 一条发射指令。
+     *
+     * @param damageScale <b>本发</b>的伤害乘数。默认 1.0。
+     *        它存在的理由是「一颗 4 倍伤害的中心弹与 45 颗普通花瓣属于同一拍」：
+     *        轨道级 {@code damageScale} 无法表达同拍内不同发，而拆成两轨又做不到
+     *        两轨共享同一个随机抛射方向与同一段寿命。
+     * @param sizeScale <b>本发</b>的直径乘数。默认 1.0，语义同 {@code damageScale}。
+     */
+    public record Shot(Vec3 origin, Vec3 direction, Vec3 planeAxis, Shape.Params params,
+                       double damageScale, double sizeScale) {
+
+        /** 无逐发差异的发射指令（绝大多数）。 */
+        public Shot(Vec3 origin, Vec3 direction, Vec3 planeAxis, Shape.Params params) {
+            this(origin, direction, planeAxis, params, 1.0D, 1.0D);
+        }
+
+        /** 本发的实际直径 = 几何声明的直径 × 本发尺寸乘数。 */
+        public double size() {
+            return params.size() * sizeScale;
+        }
     }
+
 
     /**
      * {@link Shape#AROUND_TARGET} 的瞄准夹角上限（度）。
@@ -92,7 +112,8 @@ public final class Geometry {
     public static List<Shot> build(Shape shape, Vec3 origin, Vec3 forward, Vec3 target,
                                    Vec3 worldUp, Shape.Params params, double gapPhase, double phase,
                                    RandomSource random) {
-        return buildInternal(shape, origin, forward, target, worldUp, params, gapPhase, phase, random);
+        return buildInternal(shape, origin, forward, target, worldUp, params, gapPhase, phase,
+                random, 1.0D, 1.0D);
     }
 
     /**
@@ -106,19 +127,120 @@ public final class Geometry {
      */
     public static List<Shot> build(Shape shape, Vec3 origin, Vec3 forward, Vec3 target,
                                    Vec3 worldUp, Shape.Params params, double gapPhase, double phase) {
-        return buildInternal(shape, origin, forward, target, worldUp, params, gapPhase, phase, null);
+        return buildInternal(shape, origin, forward, target, worldUp, params, gapPhase, phase, null,
+                1.0D, 1.0D);
+    }
+
+    /**
+     * 带随机源与逐发差异旋钮的完整形式。
+     *
+     * <p>{@code centreDamage} / {@code centreSize} 只被 {@link Shape#FLOWER} 读：
+     * 「一颗 4 倍伤害、2 倍大的中心弹与 45 颗普通花瓣属于同一拍」这件事，
+     * 轨道级 {@code damageScale} 表达不了，拆两轨也做不到两轨共享同一个随机抛射方向。
+     */
+    public static List<Shot> build(Shape shape, Vec3 origin, Vec3 forward, Vec3 target,
+                                   Vec3 worldUp, Shape.Params params, double gapPhase, double phase,
+                                   RandomSource random, double centreDamage, double centreSize) {
+        return buildInternal(shape, origin, forward, target, worldUp, params, gapPhase, phase,
+                random, centreDamage, centreSize);
+    }
+
+    /**
+     * 以整拍为输入的便捷形式：直接取拍上的逐发差异旋钮。
+     */
+    public static List<Shot> build(Track.Beat beat, Vec3 origin, Vec3 forward, Vec3 target,
+                                   Vec3 worldUp, double gapPhase, double phase,
+                                   RandomSource random) {
+        return buildInternal(beat.shape(), origin, forward, target, worldUp, beat.params(),
+                gapPhase, phase, random, beat.centreDamage(), beat.centreSize());
+    }
+
+    /** 玫瑰线上一点：极坐标（方位角, 半径）。 */
+    private record Polar(double theta, double radius) {
+    }
+
+    /**
+     * 玫瑰线排布——<b>先分组再瓣内铺满</b>，不是整圈均分。
+     *
+     * <p>分母 MUST 含花瓣数：玫瑰线的一个花瓣占据整整 {@code 2π/k} 的方位角
+     * （半径从极值走到谷底再走回极值，一整圈）。写成 {@code 2π·within/perPetal} 时
+     * 只铺了该扇区的 40%，于是「伸出去」那一半有、「收回来」那一半没有——
+     * 读起来是<b>半片花瓣</b>，且完全不报错。
+     *
+     * <p>花瓣数 {@code < 2} 时幅度强制归零（{@code cos θ} 会给出一颗「心脏线」
+     * 而不是圆环，与「参数为 0 即退化成圆」的约定不符）；幅度夹到 {@code [0, 基准]}，
+     * 负幅度只是把花瓣换个朝向，超过基准则内侧半径变负、花瓣会穿过花心长到另一边。
+     */
+    private static List<Polar> rosette(int count, int petals, double base, double amp,
+                                       double phase) {
+        int n = Math.max(3, count);
+        int k = Math.max(1, petals);
+        double base2 = Math.max(0.5D, base);
+        double amp2 = k < 2 ? 0.0D : Math.min(base2, Math.max(0.0D, amp));
+        double sector = Math.PI * 2.0D / k;
+        int perPetal = Math.max(1, n / k);
+        List<Polar> out = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            int petal = i / perPetal;
+            int within = i % perPetal;
+            double theta = sector * petal + sector * within / perPetal + phase;
+            out.add(new Polar(theta, base2 + amp2 * Math.cos(k * theta)));
+        }
+        return out;
+    }
+
+    /** 球面均匀单位向量（z 两次均匀采样，避免极点聚集）。 */
+    private static Vec3 uniformSphere(RandomSource rng) {
+        double z = rng.nextDouble() * 2.0D - 1.0D;
+        double phi = rng.nextDouble() * Math.PI * 2.0D;
+        double radial = Math.sqrt(Math.max(0.0D, 1.0D - z * z));
+        return new Vec3(radial * Math.cos(phi), z, radial * Math.sin(phi));
+    }
+
+    /** 与 {@code dir} 正交的一个单位向量。 */
+    private static Vec3 anyPerpendicular(Vec3 dir) {
+        Vec3 seed = Math.abs(dir.y) > 0.9D ? new Vec3(1.0D, 0.0D, 0.0D) : new Vec3(0.0D, 1.0D, 0.0D);
+        return seed.cross(dir).normalize();
+    }
+
+    /**
+     * 生成点沿两个轴的偏移。
+     *
+     * <p>「沿 forward」与「沿世界竖直」两个偏移对绝大多数「换个地方冒出来」的需求
+     * 已经够用，故不再新增几何——偏移只改弹「在哪儿冒出来」，不改弹的方位。
+     */
+    private static Vec3 offsetOrigin(Vec3 origin, Vec3 forward, Vec3 worldUp,
+                                     Shape.Params params) {
+        Vec3 out = origin;
+        if (params.offsetForward() != 0.0D) {
+            out = out.add(forward.scale(params.offsetForward()));
+        }
+        if (params.offsetUp() != 0.0D) {
+            out = out.add(worldUp.scale(params.offsetUp()));
+        }
+        return out;
+    }
+
+    /** 水平圆盘上的一个点（围绕给定中心，方位由参数给出，距离真随机）。 */
+    private static Vec3 onDisc(Vec3 center, double radius, double angle, RandomSource rng) {
+        Vec3 east = new Vec3(1.0D, 0.0D, 0.0D);
+        Vec3 north = new Vec3(0.0D, 0.0D, 1.0D);
+        double r = Math.max(0.0D, radius) * Math.sqrt(rng.nextDouble());
+        return center.add(east.scale(Math.cos(angle) * r)).add(north.scale(Math.sin(angle) * r));
     }
 
     private static List<Shot> buildInternal(Shape shape, Vec3 origin, Vec3 forward, Vec3 target,
-                                            Vec3 worldUp, Shape.Params params,
-                                            double gapPhase, double phase, RandomSource random) {
+                                             Vec3 worldUp, Shape.Params params,
+                                             double gapPhase, double phase, RandomSource random,
+                                             double centreDamage, double centreSize) {
         RandomSource rng = random == null ? DEFAULT_RANDOM : random;
         Vec3 right = forward.cross(worldUp);
         if (right.lengthSqr() < 1.0E-6D) {
-            right = new Vec3(1, 0, 0);
+            right = new Vec3(1.0D, 0.0D, 0.0D);
         }
         right = right.normalize();
         Vec3 up = right.cross(forward).normalize();
+
         return switch (shape) {
             case AIMED_SINGLE -> List.of(new Shot(origin, forward, up, params));
 
@@ -413,8 +535,116 @@ public final class Geometry {
                 }
                 yield List.copyOf(out);
             }
+
+            case GRID_FACING -> {
+                // 二维角度栅格：两轴各按固定角间隔展开，<b>全部同速同原点同刻</b>。
+                //
+                // <p>于是在空间里落到的是弧面而非平面——这是「同速 + 固定角偏」的必然结果。
+                // 刻意不去构造球壳：球壳要让远处的弹更慢，那就得按距离改速度，
+                // 而「同速」正是本形态可读的原因（整片是一次性压过来的，不是分批到的）。
+                int total = Math.max(1, params.count());
+                int rows = Math.max(1, (int) Math.round(Math.sqrt(total)));
+                int cols = Math.max(1, (int) Math.ceil((double) total / rows));
+                double step = Math.toRadians(params.spreadDeg());
+                Vec3 gridOrigin = offsetOrigin(origin, forward, worldUp, params);
+                List<Shot> out = new ArrayList<>(total);
+                for (int i = 0; i < total; i++) {
+                    int r = i / cols;
+                    int c = i % cols;
+                    double yaw = cols <= 1 ? 0.0D : step * (c - (cols - 1) / 2.0D);
+                    double pitch = rows <= 1 ? 0.0D : step * (r - (rows - 1) / 2.0D);
+                    double cp = Math.cos(pitch);
+                    Vec3 dir = forward.scale(Math.cos(yaw) * cp)
+                            .add(right.scale(Math.sin(yaw) * cp))
+                            .add(up.scale(Math.sin(pitch)))
+                            .normalize();
+                    out.add(new Shot(gridOrigin, dir, forward, params));
+                }
+                yield List.copyOf(out);
+            }
+
+            case DISC_RING -> {
+                // 侧挂圆盘：一圈弹排在垂直于 forward 的平面上，圆心在 forward*offsetForward。
+                //
+                // <p>取 count=1 并让相位逐拍推进，即得「一圈弹依次点亮」——
+                // 逐颗出现比整圈同时出现可读得多：玩家能数出还剩几颗没出来。
+                int n = Math.max(1, params.count());
+                double ringRadius = Math.max(0.0D, params.radius());
+                Vec3 discCenter = offsetOrigin(origin, forward, worldUp, params);
+                List<Shot> out = new ArrayList<>(n);
+                for (int i = 0; i < n; i++) {
+                    double rad = Math.toRadians(i * 360.0D / n + phase);
+                    Vec3 at = discCenter.add(right.scale(Math.cos(rad) * ringRadius))
+                            .add(up.scale(Math.sin(rad) * ringRadius));
+                    out.add(new Shot(at, forward, forward, params));
+                }
+                yield List.copyOf(out);
+            }
+
+            case SCATTER_FALL -> {
+                // 体积内随机撒点 + 竖直向下。位置与距离都真随机。
+                //
+                // <p>与 FALL_FROM_ABOVE 的分野是秩序 vs 随机：后者是规则网格、看得见行列；
+                // 本形态是「天降一片雨」。最终坐标由翻译层按 FIRST_AIR_BELOW 锚定求出，
+                // 几何只负责给出「相对发射者的落点」。
+                int n = Math.max(1, params.count());
+                Vec3 rainOrigin = offsetOrigin(origin, forward, worldUp, params);
+                List<Shot> out = new ArrayList<>(n);
+                for (int i = 0; i < n; i++) {
+                    Vec3 at = onDisc(rainOrigin, params.radius(),
+                            rng.nextDouble() * Math.PI * 2.0D, rng);
+                    out.add(new Shot(at, worldUp.scale(-1.0D), worldUp, params));
+                }
+                yield List.copyOf(out);
+            }
+
+            case PILLAR_UP -> {
+                // 地柱：地面上的一个点，方向竖直向上。存在的理由是激光需要
+                // 「起点在地面、指向天空」，而 FALL_FROM_ABOVE 正好方向相反。
+                int n = Math.max(1, params.count());
+                Vec3 base = offsetOrigin(origin, forward, worldUp, params);
+                List<Shot> out = new ArrayList<>(n);
+                for (int i = 0; i < n; i++) {
+                    Vec3 at = onDisc(base, params.radius(),
+                            rng.nextDouble() * Math.PI * 2.0D, rng);
+                    out.add(new Shot(at, worldUp, worldUp, params));
+                }
+                yield List.copyOf(out);
+            }
+
+            case FLOWER -> {
+                // 一朵刚体花 = 1 颗中心弹 + count 颗花瓣弹，全部同速同刻发射。
+                //
+                // <p>刚体性由「同速同刻」物理地给出，不需要编队帧：本形态刻意不自转，
+                // 花瓣的长短已经编码在出生点里。
+                //
+                // <p><b>平面取向与抛射方向各自独立随机</b>——这是本形态与 ROSETTE 的
+                // 关键分野。ROSETTE 的平面恒为「面向主目标的竖直面」，于是所有花共面，
+                // 16 朵一起抛出来读作一堵共面的墙；本形态让每朵花有自己的平面，
+                // 且该平面<b>不必垂直于</b>它的飞行方向，于是「花之海洋」才读作海而不是墙。
+                int petals = Math.max(1, params.count());
+                Vec3 throwDir = uniformSphere(rng);
+                Vec3 planeN = uniformSphere(rng);
+                Vec3 petalU = anyPerpendicular(planeN);
+                Vec3 petalW = planeN.cross(petalU).normalize();
+                Vec3 flowerCenter = offsetOrigin(origin, forward, worldUp, params);
+                List<Shot> out = new ArrayList<>(petals + 1);
+                // 中心弹：出生点即编队中心，故后续「径向爆散」对它是退化情形，
+                // 由爆散实现改判为「朝指定目标射出」。
+                out.add(new Shot(flowerCenter, throwDir, planeN, params,
+                        Math.max(0.0D, centreDamage), Math.max(0.0D, centreSize)));
+                for (Polar p : rosette(petals, params.petals(), params.radius(),
+                        params.radialAmp(), phase)) {
+                    Vec3 radial = petalU.scale(Math.cos(p.theta()))
+                            .add(petalW.scale(Math.sin(p.theta())));
+                    out.add(new Shot(flowerCenter.add(radial.scale(p.radius())),
+                            throwDir, planeN, params));
+                }
+                yield List.copyOf(out);
+            }
         };
     }
+
 
     /** 绕 {@code up} 轴在 (forward, up) 平面内旋转。 */
     private static Vec3 rotateY(Vec3 forward, Vec3 up, double angle) {

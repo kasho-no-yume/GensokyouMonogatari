@@ -29,7 +29,12 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue FAIRY_SHOT_INTERVAL;
     public static final ModConfigSpec.DoubleValue BIG_FAIRY_MAX_HEALTH;
     public static final ModConfigSpec.DoubleValue BIG_FAIRY_DAMAGE;
-    public static final ModConfigSpec.IntValue BIG_FAIRY_SHOT_INTERVAL;
+    public static final ModConfigSpec.IntValue BIG_FAIRY_WALL_INTERVAL;
+    public static final ModConfigSpec.IntValue BIG_FAIRY_WALL_COUNT;
+    public static final ModConfigSpec.DoubleValue BIG_FAIRY_WALL_STEP_DEG;
+    public static final ModConfigSpec.DoubleValue BIG_FAIRY_WALL_SPEED;
+    public static final ModConfigSpec.DoubleValue BIG_FAIRY_WALL_SIZE;
+    public static final ModConfigSpec.DoubleValue BIG_FAIRY_WALL_OFFSET;
     public static final ModConfigSpec.DoubleValue FAIRY_PPOINT_CHANCE;
     public static final ModConfigSpec.DoubleValue FAIRY_BPOINT_CHANCE;
     public static final ModConfigSpec.IntValue FAIRY_VARIANT_SINGLE_WEIGHT;
@@ -652,40 +657,42 @@ public class GensokyouConfig {
     public static final ModConfigSpec SPEC;
 
     /**
-     * grace 阶级表的代码内默认值（与 config key `graceTierTable` 同布局）。
+     * grace 阶级表的代码内默认值（与 config key `graceTierTableV2` 同布局）。
      * NeoForge 不会把新增条目合并进已存在的列表值，故读取时对 config 中缺失的 (tier,key)
      * 回退到本表——避免"改了默认表但旧配置文件仍生效导致新键恒 0"。
+     * 注意：本回退只补"config 里完全没有的 (tier,key)"，救不了"config 里有同键但旧值"的情况
+     * （effectiveRows 把 config 行排在前面，entry() 取首个匹配）。整表换值必须改 config key 名。
      */
     private static final List<String> GRACE_DEFAULT_ROWS = List.of(
-            "1,max_spirit,1000,0.2", "1,spirit_power,6,0.2", "1,spirit_regen_rate,1.2,0.7",
+            "1,max_spirit,1000,0.2", "1,spirit_power,1,0.2", "1,spirit_regen_rate,1.2,0.7",
             "1,danmaku_reduce,1.0,0.2",
             "1,health_bonus,10,0.35", "1,move_speed_bonus,0.05,0.35", "1,graze_chance,0.05,0.35",
             "1,tenacity,0.05,0.35", "1,crit_chance,0.06,0.35",
             "1,crit_damage,0.10,0.35", "1,spell_amp,0.15,0.35", "1,spell_cdr,0.06,0.35",
             "1,buff_extend,0.07,0.35", "1,spirit_leech_rate,0.03,0.35",
             "1,jump,0.4,0.5", "1,phys_resist,0.04,0.35", "1,melee_damage,5,0.25",
-            "2,max_spirit,9000,0.2", "2,spirit_power,54,0.2", "2,spirit_regen_rate,10.8,0.7",
+            "2,max_spirit,9000,0.2", "2,spirit_power,9,0.2", "2,spirit_regen_rate,10.8,0.7",
             "2,danmaku_reduce,1.9,0.2",
             "2,health_bonus,20,0.35", "2,move_speed_bonus,0.08,0.35", "2,graze_chance,0.05,0.35",
             "2,tenacity,0.10,0.35", "2,crit_chance,0.05,0.35",
             "2,crit_damage,0.20,0.35", "2,spell_amp,0.25,0.35", "2,spell_cdr,0.05,0.35",
             "2,buff_extend,0.13,0.35", "2,spirit_leech_rate,0.04,0.35",
             "2,jump,0.4,0.5", "2,phys_resist,0.08,0.35", "2,melee_damage,7,0.25",
-            "3,max_spirit,90000,0.2", "3,spirit_power,480,0.2", "3,spirit_regen_rate,108,0.7",
+            "3,max_spirit,90000,0.2", "3,spirit_power,80,0.2", "3,spirit_regen_rate,108,0.7",
             "3,danmaku_reduce,1.9,0.2",
             "3,health_bonus,60,0.35", "3,move_speed_bonus,0.12,0.35", "3,graze_chance,0.07,0.35",
             "3,tenacity,0.15,0.35", "3,crit_chance,0.07,0.35",
             "3,crit_damage,0.30,0.35", "3,spell_amp,0.50,0.35", "3,spell_cdr,0.07,0.35",
             "3,buff_extend,0.20,0.35", "3,spirit_leech_rate,0.06,0.35",
             "3,jump,0.4,0.5", "3,phys_resist,0.12,0.35", "3,melee_damage,13,0.25",
-            "4,max_spirit,900000,0.2", "4,spirit_power,4100,0.2", "4,spirit_regen_rate,1080,0.7",
+            "4,max_spirit,900000,0.2", "4,spirit_power,683,0.2", "4,spirit_regen_rate,1080,0.7",
             "4,danmaku_reduce,1.9,0.2",
             "4,health_bonus,180,0.35", "4,move_speed_bonus,0.15,0.35", "4,graze_chance,0.08,0.35",
             "4,tenacity,0.20,0.35", "4,crit_chance,0.08,0.35",
             "4,crit_damage,0.40,0.35", "4,spell_amp,0.80,0.35", "4,spell_cdr,0.08,0.35",
             "4,buff_extend,0.25,0.35", "4,spirit_leech_rate,0.07,0.35",
             "4,jump,0.4,0.5", "4,phys_resist,0.16,0.35", "4,melee_damage,25,0.25",
-            "5,max_spirit,9000000,0.2", "5,spirit_power,34500,0.2", "5,spirit_regen_rate,10800,0.7",
+            "5,max_spirit,9000000,0.2", "5,spirit_power,5750,0.2", "5,spirit_regen_rate,10800,0.7",
             "5,danmaku_reduce,1.9,0.2",
             "5,health_bonus,540,0.35", "5,move_speed_bonus,0.15,0.35", "5,graze_chance,0.08,0.35",
             "5,tenacity,0.20,0.35", "5,crit_chance,0.09,0.35",
@@ -742,7 +749,17 @@ public class GensokyouConfig {
         FAIRY_SHOT_INTERVAL = BUILDER.comment("Legacy fan interval, retained for Cirno").defineInRange("fairyShotIntervalTicks", 60, 5, Integer.MAX_VALUE);
         BIG_FAIRY_MAX_HEALTH = BUILDER.defineInRange("bigFairyMaxHealth", 60D, 1D, 4096D);
         BIG_FAIRY_DAMAGE = BUILDER.defineInRange("bigFairyDanmakuDamage", 4D, 0D, 256D);
-        BIG_FAIRY_SHOT_INTERVAL = BUILDER.defineInRange("bigFairyShotIntervalTicks", 80, 5, Integer.MAX_VALUE);
+        // 大妖精的默认攻击（5×5 弹幕墙）。它<b>不是</b>符卡：符卡表是按血量阈值切分的
+        // 内容，而默认攻击是全程在符卡底下继续跑的底噪——两者语义不同，故不进 BossCards。
+        // 键名沿用早已存在却无人读取的 bigFairyShotIntervalTicks（原本是个死键）。
+        BIG_FAIRY_WALL_INTERVAL = BUILDER.comment("BigFairy default attack: ticks between volleys")
+                .defineInRange("bigFairyShotIntervalTicks", 60, 5, Integer.MAX_VALUE);
+        BIG_FAIRY_WALL_COUNT = BUILDER.defineInRange("bigFairyWallCount", 25, 1, 64);
+        BIG_FAIRY_WALL_STEP_DEG = BUILDER.defineInRange("bigFairyWallStepDeg", 10.0D, 0.5D, 45.0D);
+        BIG_FAIRY_WALL_SPEED = BUILDER.defineInRange("bigFairyWallSpeed", 0.3D, 0.01D, 2.0D);
+        BIG_FAIRY_WALL_SIZE = BUILDER.defineInRange("bigFairyWallSize", 0.7D, 0.05D, 4.0D);
+        BIG_FAIRY_WALL_OFFSET = BUILDER.defineInRange("bigFairyWallForwardOffset", 3.0D, 0.0D, 32.0D);
+
         FAIRY_PPOINT_CHANCE = BUILDER.defineInRange("fairyPpointDropChance", 0.10D, 0D, 1D);
         FAIRY_BPOINT_CHANCE = BUILDER.defineInRange("fairyBpointDropChance", 0.10D, 0D, 1D);
         FAIRY_VARIANT_SINGLE_WEIGHT = BUILDER.comment("Spawn weights for the three attack variants (relative)").defineInRange("fairyVariantSingleWeight", 60, 0, 10000);
@@ -1059,8 +1076,10 @@ public class GensokyouConfig {
                         + " (its increment is 0.12% of that tier's pool, keeping the cumulative at 0.03%~0.3%/s), the rest 0.35."
                         + " danmaku_reduce is now the dimensionless ward exponent P (damage taken x2^-P);"
                         + " the retired danmaku_resist key is intentionally absent."
-                        + " max_spirit/spirit_power write the pool ledger; the rest go to permanent contributions grace_tier_N")
-                .defineListAllowEmpty("graceTierTable", GRACE_DEFAULT_ROWS, o -> o instanceof String);
+                        + " max_spirit/spirit_power write the pool ledger; the rest go to permanent contributions grace_tier_N."
+                        + " Key is V2-suffixed so pre-rebalance configs (which NeoForge never rewrites for an existing"
+                        + " list value) fall through to the shipped table instead of keeping stale rows.")
+                .defineListAllowEmpty("graceTierTableV2", GRACE_DEFAULT_ROWS, o -> o instanceof String);
         GRACE_FLIGHT_COST_PCT = BUILDER.comment("Flight spirit drain per second, percent of max spirit, index = tier-1"
                         + " (default 0/0/0/0/0 = flying is free at every tier). Set e.g. (5/2/1/0.5/0) to re-enable"
                         + " per-tier drain; tier 5 stays free either way.")
@@ -1164,13 +1183,16 @@ public class GensokyouConfig {
                 .defineInRange("runeRangeDecayExp", 0.75D, 0.1D, 4D);
         BUILDER.push("coreSphere");
         CORE_SPHERE_MULT = BUILDER.defineInRange("coreBaseMult", 1.0D, 0D, 100D);
-        CORE_SPHERE_SP_COST = BUILDER.defineInRange("spiritCost", 10, 0, 10000);
+        CORE_SPHERE_SP_COST = BUILDER.comment("Cost bound: 1000 pool must cover the 400 shots needed to kill a"
+                        + " same-tier boss, i.e. spiritCost <= 2.5 x coreBaseMult x pellets. See"
+                        + " docs/weapon-design-guidelines.md section 4.")
+                .defineInRange("spiritCost", 2, 0, 10000);
         CORE_SPHERE_RATE = BUILDER.comment("Attack cooldown ticks per shot").defineInRange("attackRateTicks", 8, 1, 12000);
         CORE_SPHERE_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
         BUILDER.pop();
         BUILDER.push("coreShotgun");
         CORE_SHOTGUN_MULT = BUILDER.defineInRange("coreBaseMult", 0.45D, 0D, 100D);
-        CORE_SHOTGUN_SP_COST = BUILDER.defineInRange("spiritCost", 22, 0, 10000);
+        CORE_SHOTGUN_SP_COST = BUILDER.defineInRange("spiritCost", 4, 0, 10000);
         CORE_SHOTGUN_RATE = BUILDER.defineInRange("attackRateTicks", 24, 1, 12000);
         CORE_SHOTGUN_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
         CORE_SHOTGUN_COUNT = BUILDER.defineInRange("pelletCount", 5, 1, 32);
@@ -1180,7 +1202,7 @@ public class GensokyouConfig {
         BUILDER.pop();
         BUILDER.push("coreKnife");
         CORE_KNIFE_MULT = BUILDER.defineInRange("coreBaseMult", 1.4D, 0D, 100D);
-        CORE_KNIFE_SP_COST = BUILDER.defineInRange("spiritCost", 14, 0, 10000);
+        CORE_KNIFE_SP_COST = BUILDER.defineInRange("spiritCost", 3, 0, 10000);
         CORE_KNIFE_RATE = BUILDER.defineInRange("attackRateTicks", 12, 1, 12000);
         CORE_KNIFE_REQ_TIER = BUILDER.defineInRange("requiredTier", 1, 1, 10);
         CORE_KNIFE_SPEED = BUILDER.defineInRange("projectileSpeed", 1.2D, 0.05D, 4D);
@@ -1401,9 +1423,10 @@ public class GensokyouConfig {
 
         BUILDER.push("talismanBar").comment("Touhou boss bar: one fixed ofuda/talisman shape for every Touhou boss (not per-boss). Replaces the vanilla 182x5 bar; vanilla bosses are untouched");
         TALISMAN_BAR_WIDTH = BUILDER.comment("Talisman bar: total width in pixels").defineInRange("talismanBarWidth", 182, 120, 400);
-        TALISMAN_BAR_ROW_HEIGHT = BUILDER.comment("Talisman bar: how much vertical space one bar claims. MUST exceed vanilla's 10+lineHeight so the torn edge and the seal fit")
-                .defineInRange("talismanBarRowHeight", 28, 20, 80);
-        TALISMAN_BAR_BODY_HEIGHT = BUILDER.comment("Talisman bar: health bar body height in pixels").defineInRange("talismanBarBodyHeight", 7, 3, 20);
+        TALISMAN_BAR_ROW_HEIGHT = BUILDER.comment("Talisman bar: MINIMUM vertical space one bar claims. MUST exceed vanilla's 10+lineHeight so the torn edge and the seal fit. This is a FLOOR, not a fixed height: the renderer raises it further when a spell-card line is present (that line is drawn below the bar, so ignoring it would make the next bar overlap it)")
+                .defineInRange("talismanBarRowHeight", 30, 20, 80);
+        TALISMAN_BAR_BODY_HEIGHT = BUILDER.comment("Talisman bar: health bar body height in pixels. ⚠️ Only used by the FALLBACK draw path (when a frame_N.png is missing from the classpath). The textured path takes its body height from the frame texture's transparent window, so that all five tiers share one window rect. Keep it at 7 to match the legacy look")
+                .defineInRange("talismanBarBodyHeight", 7, 3, 20);
         TALISMAN_BAR_COLOR_FRAME = BUILDER.comment("Talisman bar: header/footer paper border (vermilion) as 0xRRGGBB")
                 .defineInRange("talismanBarColorFrame", 0xC1272D, 0x000000, 0xFFFFFF);
         TALISMAN_BAR_COLOR_FILL = BUILDER.comment("Talisman bar: health fill (cinnabar red) as 0xRRGGBB").defineInRange("talismanBarColorFill", 0xE03A2F, 0x000000, 0xFFFFFF);

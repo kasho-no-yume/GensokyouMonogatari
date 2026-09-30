@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.danmaku.track;
 
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -41,7 +42,7 @@ class SpellCardThresholdTest {
                 break;
             }
         }
-        return next.name();
+        return next.name().getString();
     }
 
     @Test
@@ -66,7 +67,7 @@ class SpellCardThresholdTest {
                 seen.add(select(cards, f));
             }
             assertEquals(cards.size(), seen.size(),
-                    "「" + cards.get(0).name() + "」等 BOSS 的符卡表在血量 100%→0% 期间"
+                    "「" + cards.get(0).name().getString() + "」等 BOSS 的符卡表在血量 100%→0% 期间"
                             + "只触发了 " + seen + "，期望全部 " + cards.size() + " 张");
         }
     }
@@ -76,8 +77,8 @@ class SpellCardThresholdTest {
         for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.kuzumono(),
                 BossCards.kitsuneBi(), BossCards.nomenMask())) {
             for (SpellCard card : cards) {
-                boolean reachable = select(cards, card.hpFraction()).equals(card.name());
-                assertTrue(reachable, "符卡「" + card.name() + "」永远不会被选中");
+                boolean reachable = select(cards, card.hpFraction()).equals(card.name().getString());
+                assertTrue(reachable, "符卡「" + card.name().getString() + "」永远不会被选中");
             }
         }
     }
@@ -89,7 +90,7 @@ class SpellCardThresholdTest {
                 BossCards.kitsuneBi(), BossCards.nomenMask())) {
             for (int i = 1; i < cards.size(); i++) {
                 assertTrue(cards.get(i).hpFraction() < cards.get(i - 1).hpFraction(),
-                        "符卡「" + cards.get(i).name() + "」的起始占比未低于前一张");
+                        "符卡「" + cards.get(i).name().getString() + "」的起始占比未低于前一张");
             }
             assertTrue(cards.get(0).hpFraction() > 0.9D, "首卡应从接近满血开始");
         }

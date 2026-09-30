@@ -30,7 +30,7 @@ public class KitsuneBiEntity extends AbstractTouhouBoss {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return bossAttributes(160.0D, 8.0D, 48.0D);
+        return bossAttributes(160.0D, 8.0D);
     }
 
     @Override
@@ -51,6 +51,18 @@ public class KitsuneBiEntity extends AbstractTouhouBoss {
     @Override
     protected int configHits() {
         return 6;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p><b>占位待定</b>。狐火是百鬼夜行召唤的低阶残影，暂定 1 阶。
+     * 正式阶级表随寝宫 BOSS / 高阶内容落地后重定（见
+     * {@code openspec/changes/boss-bar-tier-and-spellcard-name} design D3）。
+     */
+    @Override
+    public int bossTier() {
+        return 1;
     }
 
 

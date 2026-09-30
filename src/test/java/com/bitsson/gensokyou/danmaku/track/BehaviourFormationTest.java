@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.danmaku.track;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
 import com.bitsson.gensokyou.danmaku.motion.FormationFrame;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -112,7 +113,7 @@ class BehaviourFormationTest {
     /** lint MUST 真的报出冲突，否则「静态拒绝」等于没有。 */
     @Test
     void lintRejectsFormationCombinedWithConflictingMotion() {
-        SpellCard bad = new SpellCard("编队+溜め", 1.0D,
+        SpellCard bad = new SpellCard(Component.literal("编队+溜め"), 1.0D,
                 List.of(Track.of("轨", 0)
                         .formation(breathing())
                         .at(0, Shape.SCATTER_STATIC, Shape.Params.defaults(),
@@ -134,7 +135,7 @@ class BehaviourFormationTest {
      */
     @Test
     void lintAcceptsLegalFormationCombination() {
-        SpellCard good = new SpellCard("编队+推进", 1.0D,
+        SpellCard good = new SpellCard(Component.literal("编队+推进"), 1.0D,
                 List.of(Track.of("轨", 0)
                         .formation(breathing())
                         .at(0, Shape.RING, Shape.Params.defaults(),
@@ -211,7 +212,7 @@ class BehaviourFormationTest {
     /** 编队帧 + 「过原点销毁」MUST 被拒——那个判据在有帧时没有意义。 */
     @Test
     void lintRejectsFormationCombinedWithDiesAtOrigin() {
-        SpellCard bad = new SpellCard("编队+销毁", 1.0D,
+        SpellCard bad = new SpellCard(Component.literal("编队+销毁"), 1.0D,
                 List.of(Track.of("轨", 0)
                         .formation(breathing())
                         .at(0, Shape.ROSETTE, Shape.Params.defaults().count(60).radius(3.0D)
@@ -237,7 +238,7 @@ class BehaviourFormationTest {
      */
     @Test
     void formationWithRetreatingAdvanceIsLegal() {
-        SpellCard good = new SpellCard("花后撤", 1.0D,
+        SpellCard good = new SpellCard(Component.literal("花后撤"), 1.0D,
                 List.of(Track.of("轨", 0)
                         .formation(breathing())
                         .at(0, Shape.ROSETTE, Shape.Params.defaults().count(12).radius(3.0D)
@@ -259,7 +260,7 @@ class BehaviourFormationTest {
     /** 编队数 MUST NOT 超过轨道数——一个符卡至多 3 轨，故至多 3 个编队。 */
     @Test
     void formationCountNeverExceedsTrackCount() {
-        SpellCard card = new SpellCard("三轨三编队", 1.0D,
+        SpellCard card = new SpellCard(Component.literal("三轨三编队"), 1.0D,
                 List.of(Track.of("a", 0).formation(spinning())
                                 .at(0, Shape.RING, TargetMode.SELF_AXIS)
                                 .identity(0, 0, 0).build(),

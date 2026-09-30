@@ -160,4 +160,19 @@ public final class ClientPayloadHandler {
             }
         });
     }
+
+    /**
+     * 符卡名下标：记进 {@link ClientSpellCardNames}，供血条下方那一行显示。
+     *
+     * <p>只存下标不存名字——名字由 {@code BossCards} 的表在渲染时本地反查，
+     * 于是 Component 不上线（见 {@code SpellCardNamePayload} 的类注释）。
+     *
+     * <p>实体查不到时**照收不误**：包先于实体到达是可能的（生成包与本包同序但不同批），
+     * 此时记下即可，血条真正画出来时实体早已加载。若在这里因查不到就丢弃，
+     * 玩家会看到空白符卡位且此后永不更新——而空白与「无符卡」画面上无法区分。
+     */
+    public static void handleSpellCardName(
+            com.bitsson.gensokyou.network.SpellCardNamePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> ClientSpellCardNames.put(payload.entityId(), payload.cardIndex()));
+    }
 }

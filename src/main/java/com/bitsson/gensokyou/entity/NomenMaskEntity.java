@@ -33,7 +33,7 @@ public class NomenMaskEntity extends AbstractTouhouBoss {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return bossAttributes(400.0D, 12.0D, 64.0D);
+        return bossAttributes(400.0D, 12.0D);
     }
 
     @Override
@@ -54,6 +54,20 @@ public class NomenMaskEntity extends AbstractTouhouBoss {
     @Override
     protected int configHits() {
         return 5;
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p><b>占位待定</b>。暂定 2 阶——四只召唤 BOSS 里它符卡最多（5 张）且缺「結」
+     * （全轨 endless），故比其他三只高半档，但**远不是设计结论**：四只全是百鬼夜行的
+     * 低阶召唤物，5 阶造型目前只有这一档会被真正用到，属基础设施预付。
+     * 正式阶级表随寝宫 BOSS / 高阶内容落地后重定（见
+     * {@code openspec/changes/boss-bar-tier-and-spellcard-name} design D3）。
+     */
+    @Override
+    public int bossTier() {
+        return 2;
     }
 
 

@@ -23,7 +23,7 @@ import java.util.UUID;
 public final class DanmakuMotionState {
 
     /** 运动输入块的字段数。改动 MUST 同步 {@code PARAM_*} 常量与实体的编解码。 */
-    public static final int PARAM_COUNT = 48;
+    public static final int PARAM_COUNT = 53;
 
     public static final int P_FLAGS = 0;
     public static final int P_HOVER_TICK = 1;
@@ -49,6 +49,11 @@ public final class DanmakuMotionState {
     public static final int P_PHASE_OFFSET = 40;
     public static final int P_LASER_BASE = 41;
     public static final int P_LASER_COUNT = 7;   // dir xyz, maxLength, radius, delay, duration
+    public static final int P_BURST_AT = 48;        // 爆散年龄（tick）
+    public static final int P_BURST_RADIAL = 49;    // 径向爆散速率
+    public static final int P_BURST_AIM = 50;       // 「自身即参考点」时朝目标射出的速率
+    public static final int P_BURST_TARGET = 51;    // 目标实体 id（-1 = 无）
+    public static final int P_BURST_FIRED = 52;     // 爆散是否已发生（1 = 已发生）
 
     /** 位置定点化比例。与原版实体位置包的 1/4096 一致，便于对照与诊断。 */
     public static final double POSITION_SCALE = 4096.0D;

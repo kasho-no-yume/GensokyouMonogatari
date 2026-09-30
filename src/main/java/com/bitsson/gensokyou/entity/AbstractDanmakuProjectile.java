@@ -227,6 +227,45 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     private static final EntityDataAccessor<Integer> DATA_FRAME_ADVANCE_SPEED =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
 
+    // ------------------------------------------------------------------
+    // 径向爆散
+    //
+    // 「一团弹保持队形飞一段 → 停住 → 各自朝外炸开」。四项参数：
+    // 爆散年龄、径向速率、「自身即参考点」时的瞄准速率、目标实体 id。
+    //
+    // <p>参考点<b>不另存</b>：它就是编队帧的中心（{@code DATA_FRAME_CX..CZ}），
+    // 而爆散时「弹到参考点的偏移」正是它在帧里的偏移。于是爆散与编队共用一份数据，
+    // 不需要第二套参考点同步。
+    // ------------------------------------------------------------------
+
+    /** 爆散年龄（tick）。{@code <= 0} = 无爆散。 */
+    private static final EntityDataAccessor<Integer> DATA_BURST_AT =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /** 径向爆散速率（格/tick），float 位模式。 */
+    private static final EntityDataAccessor<Integer> DATA_BURST_RADIAL =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /** 弹自身即参考点时改用「朝目标射出」的速率（格/tick），float 位模式。 */
+    private static final EntityDataAccessor<Integer> DATA_BURST_AIM =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /**
+     * 爆散时瞄准的目标实体 id。
+     *
+     * <p>刻意只存 id 而非世界坐标：坐标在爆散那一刻才知道，那时弹已在天上飞了两秒，
+     * 存一份快照等于把「它朝哪飞」在出生时就定死。id 让两端各自在爆散时刻就地解析，
+     * 于是爆散方向是「弹自身位置 + 参考点 + 目标当前位置」的纯函数。
+     */
+    private static final EntityDataAccessor<Integer> DATA_BURST_TARGET =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /**
+     * 爆散是否<b>已发生</b>。
+     *
+     * <p>它 MUST 是独立的一位，<b>MUST NOT</b> 用「编队帧没了」来代替：帧的缺失有歧义——
+     * 「爆散后被解除」与「从来没绑上」是两件事，而后者会让弹从出生起就被判为已结算，
+     * 于是速率曲线与换向双双被跳过（症状：花一路直飞，既不停也不散）。
+     */
+    private static final EntityDataAccessor<Boolean> DATA_BURST_FIRED =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.BOOLEAN);
+
     /**
      * 位置纠偏阈值（平方）。<b>已不再使用</b>——判据改为速度相对
      * （见 {@link DanmakuCorrection#accepts} 与 {@link #lerpTo}）。固定阈值与速度无关，
@@ -498,6 +537,11 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         builder.define(DATA_FRAME_ORBIT_RADIUS, 0);
         builder.define(DATA_FRAME_ORBIT_RATE, 0);
         builder.define(DATA_FRAME_ADVANCE_SPEED, 0);
+        builder.define(DATA_BURST_AT, 0);
+        builder.define(DATA_BURST_RADIAL, 0);
+        builder.define(DATA_BURST_AIM, 0);
+        builder.define(DATA_BURST_TARGET, -1);
+        builder.define(DATA_BURST_FIRED, false);
         builder.define(DATA_HAS_PROFILE, false);
         builder.define(DATA_PHASE_PERIOD, 0);
         builder.define(DATA_PHASE_DUTY, 100);
@@ -548,9 +592,22 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
 
         // 悬停：到达 tick 后定住。定住后 moveVector 追踪会失效（零向量 = MISS），
         // 故必须改走 AABB 相交，否则「网」的静止节点会变成打不到人的摆设。
+        //
+        // <p>「零速率」本身即判 stationary，而不只是悬停：速率曲线把速度压到 0 的
+        // 期间（定住等待 N tick 再发射）位移同样为零，扫掠恒 MISS，于是弹会静默地
+        // 穿过玩家而不掉血——玩家看到弹穿身而过却毫无反馈，读作判定坏了。
+        // 故凡是使速率为零的成因都走 AABB 接触判伤，而不是只对悬停生效。
         boolean stationary = false;
         if (isHovering() && this.age() >= hoverTick()) {
             this.setDeltaMovement(Vec3.ZERO);
+            stationary = true;
+        } else if (this.hasSpeedProfile() && !this.hasFormationFrame()
+                && !this.timedTurnSettled()
+                && Math.abs(this.speedProfile().speedAt(this.age())) < 1.0E-6D) {
+            // 速率曲线的零速段：速度已被下面的 profile 分支清零，这里只标记判伤方式。
+            //
+            // <p>刻意排除编队弹：编队弹的位置由帧每 tick 重新给出，「零速」不等于「不动」
+            // （自转/呼吸段照样在动），此时按 stationary 提前 return 会冻结编队。
             stationary = true;
         }
 
@@ -571,7 +628,11 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
 
         // 速率曲线：只改速率、不改方向，故曲线内含「回头」时位移会变成负的，
         // 弹沿原路飞回发射点。回到即销毁。
-        if (this.hasSpeedProfile()) {
+        //
+        // <p>爆散发生后 MUST NOT 再套曲线：爆散把曲线压到 0 的那一段用来「停住」，
+        // 换向之后弹已改向并解除编队（或清掉曲线），若继续套曲线会把它重新按回 0
+        // —— 表现为「花炸开了一下又缩回去停住」。
+        if (this.hasSpeedProfile() && !this.timedTurnSettled()) {
             DanmakuSpeedProfile profile = speedProfile();
             velocity = alongAxis(velocity, profile.speedAt(this.age()));
             this.setDeltaMovement(velocity);
@@ -605,6 +666,27 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             Vec3 next = this.framePositionThisTick().add(this.axis().scale(advance));
             velocity = next.subtract(this.position());
             this.setDeltaMovement(velocity);
+        }
+
+        // 径向爆散：到年龄后改写速度方向，并<b>解除编队帧的接管</b>。
+        //
+        // <p>解除是必需的：爆散之后每颗弹各走各的，若帧仍在每 tick 写位置，
+        // 它们会被拽回队形里继续转 —— 现象是「炸开了又缩回去」。
+        // 解除之后弹的位置由它自己的速度决定，回到「解析终点 − 当前坐标」的常规路径。
+        if (this.isBursting() && !this.timedTurnSettled()) {
+            Vec3 burst = this.burstVelocityThisTick();
+            if (burst != null) {
+                velocity = burst;
+                this.setDeltaMovement(velocity);
+            if (this.isReclaiming()) {
+                // 重瞄没有编队帧可解除，故以「清掉曲线」为结算标记。
+                this.entityData.set(DATA_HAS_PROFILE, false);
+            } else {
+                this.entityData.set(DATA_HAS_FRAME, false);
+            }
+            this.entityData.set(DATA_BURST_FIRED, true);
+
+            }
         }
 
         if (stationary) {
@@ -869,9 +951,17 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     }
 
     public void bindToFrame(FormationFrame frame) {
-        if (frame == null || !frame.active()) {
+        if (frame == null) {
             return;
         }
+        // <b>刻意不再判 {@code frame.active()}</b>：那个方法回答的是「平面内有没有动作」
+        // （自转 / 呼吸 / 公转），而「要不要编队」已由声明侧 {@code Formation#active()} 决定。
+        // 早先在这里再判一次，于是「只要参考点、不要平面内动作」的帧被静默丢弃——
+        // 而径向爆散恰恰需要这种帧（爆散方向 = 弹自身位置 → 参考点的连线）。
+        // 症状是弹既不减速（速率曲线分支被误判为已结算而跳过）也不爆散，一路直飞。
+        //
+        // 代价：一个全零参数的帧会被绑上并占 16 个同步整数。这是声明者主动要求的，
+        // 而「声明了却绑不上」是更坏的失败模式。
         this.entityData.set(DATA_FRAME_CX, scale(frame.centerX()));
         this.entityData.set(DATA_FRAME_CY, scale(frame.centerY()));
         this.entityData.set(DATA_FRAME_CZ, scale(frame.centerZ()));
@@ -904,6 +994,139 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
     /** 本弹是否挂了编队帧。 */
     public boolean hasFormationFrame() {
         return this.entityData.get(DATA_HAS_FRAME);
+    }
+
+    // ------------------------------------------------------------------
+    // 径向爆散
+    // ------------------------------------------------------------------
+
+    /**
+     * 挂上径向爆散。
+     *
+     * <p><b>要求本弹已挂编队帧</b>：爆散方向是「弹自身位置 → 参考点」的连线，
+     * 而参考点就是编队帧的中心。没帧就没有参考点，径向无从定义——
+     * 该约束由 {@code TrackLint} 静态拒绝，不靠运行期报错。
+     *
+     * @param atAge     爆散年龄（tick）
+     * @param radialSpeed 径向爆散速率（格/tick）
+     * @param aimSpeed  弹自身即参考点时改用「朝目标射出」的速率（格/tick）
+     * @param targetId  目标实体 id；{@code <= 0} = 无目标（此时爆散退化为沿原方向）
+     */
+    public void configureBurst(int atAge, double radialSpeed, double aimSpeed, int targetId) {
+        this.entityData.set(DATA_BURST_AT, Math.max(0, atAge));
+        this.entityData.set(DATA_BURST_RADIAL, scale(radialSpeed));
+        this.entityData.set(DATA_BURST_AIM, scale(aimSpeed));
+        this.entityData.set(DATA_BURST_TARGET, targetId);
+    }
+
+    /** 爆散年龄（tick）。{@code <= 0} = 无爆散。 */
+    public int burstAtTick() {
+        return this.entityData.get(DATA_BURST_AT);
+    }
+
+    /** 本弹是否已挂径向爆散。 */
+    public boolean isBursting() {
+        return burstAtTick() > 0;
+    }
+
+    /**
+     * 本弹是否走「定时重瞄」（而非径向爆散）。
+     *
+     * <p>两者共用同一组同步参数，判据是「径向速率为零」：爆散 MUST 有径向分量，
+     * 重瞄的方向只由目标决定、没有径向分量。
+     */
+    public boolean isReclaiming() {
+        return burstAtTick() > 0
+                && Math.abs(unscale(this.entityData.get(DATA_BURST_RADIAL))) < 1.0E-6D;
+    }
+
+    /**
+     * 定时换向是否<b>已结算</b>。
+     *
+     * <p>换向前半段的速率曲线把速度压到 0（「停住等待」），换向之后弹要带着新方向飞走，
+     * 于是那条曲线必须<b>同时退场</b>，否则它会在下一 tick 把速度重新按回 0——
+     * 现象是「花炸开了一下又缩回去停住」「环扑出来一下又定住」。
+     *
+     * <p>两种换向的<b>结算标记不同</b>，因为它们各自能解除的东西不同：
+     * <ul>
+     *   <li>径向爆散解除<b>编队帧</b>（爆散之后弹各走各的，帧不该再写位置）；</li>
+     *   <li>定时重瞄<b>没有帧可解除</b>，故以「曲线被清除」为标记。</li>
+     * </ul>
+     * 早先两者都用「帧没了」判定，于是重瞄弹（本来就没帧）在出生当 tick 就被判为已结算——
+     * 曲线从未生效、换向也永不触发，现象是「环一出生就朝你扑，且完全不减速」。
+     */
+    private boolean timedTurnSettled() {
+        if (burstAtTick() <= 0) {
+            return false;
+        }
+        return isReclaiming() ? !this.hasSpeedProfile() : burstFired();
+    }
+
+    /**
+     * 爆散是否<b>已经发生</b>。
+     *
+     * <p>独立的一位同步位，<b>不是</b>「编队帧没了」——帧的缺失有歧义：
+     * 「爆散后被解除」与「从来没绑上」是两件事。早先用后者当前者，
+     * 于是一颗从没绑上帧的弹从出生 tick 起就被判为已结算，
+     * 速率曲线与换向双双被跳过：花一路直飞，既不停也不散开。
+     */
+    private boolean burstFired() {
+        return this.entityData.get(DATA_BURST_FIRED);
+    }
+
+    /**
+     * 爆散当 tick 求出新的速度矢量；不该爆散时返回 {@code null}。
+     *
+     * <p><b>方向逐发不同</b>，因为它取「弹自身位置 → 参考点」的连线。
+     * 弹恰好落在参考点上（花心）时连线退化，此时改用「朝目标射出」——
+     * 这条退化不是特例分支，而是同一条规则的边界：参考点自身没有「远离自己」的方向。
+     */
+    private Vec3 burstVelocityThisTick() {
+        int at = burstAtTick();
+        if (at <= 0 || this.age() < at || timedTurnSettled()) {
+            return null;
+        }
+        double aimSpeed = unscale(this.entityData.get(DATA_BURST_AIM));
+        if (isReclaiming()) {
+            Vec3 toward = directionToBurstTarget();
+            return toward == null ? null : toward.scale(aimSpeed);
+        }
+        Vec3 reference = frameCenterThisTick();
+        Vec3 offset = this.position().subtract(reference);
+        if (offset.lengthSqr() > 1.0E-4D) {
+            return offset.normalize().scale(unscale(this.entityData.get(DATA_BURST_RADIAL)));
+        }
+        // 弹自身即参考点（花心）：连线退化，改按「朝目标射出」。
+        // 这不是特例分支，而是同一条规则的边界——参考点自身没有「远离自己」的方向。
+        Vec3 toward = directionToBurstTarget();
+        return toward == null ? null : toward.scale(aimSpeed);
+    }
+
+    /** 编队参考点在本 tick 的世界坐标 = 帧中心 + 沿弹道的推进量。 */
+    private Vec3 frameCenterThisTick() {
+        Vec3 center = new Vec3(
+                unscale(this.entityData.get(DATA_FRAME_CX)),
+                unscale(this.entityData.get(DATA_FRAME_CY)),
+                unscale(this.entityData.get(DATA_FRAME_CZ)));
+        int tick = this.age();
+        double advance = this.hasSpeedProfile()
+                ? this.speedProfile().travelAt(tick)
+                : unscale(this.entityData.get(DATA_FRAME_ADVANCE_SPEED)) * tick;
+        return center.add(this.axis().scale(advance));
+    }
+
+    /** 朝爆散目标的方向；无目标或目标已不在世界里时返回 {@code null}。 */
+    private Vec3 directionToBurstTarget() {
+        int id = this.entityData.get(DATA_BURST_TARGET);
+        if (id <= 0) {
+            return null;
+        }
+        Entity target = this.level().getEntity(id);
+        if (target == null) {
+            return null;
+        }
+        Vec3 to = target.position().subtract(this.position());
+        return to.lengthSqr() < 1.0E-6D ? null : to.normalize();
     }
 
     /** 读回当前编队帧。 */
@@ -1254,6 +1477,11 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         params[DanmakuMotionState.P_PHASE_PERIOD] = phasePeriodTicks();
         params[DanmakuMotionState.P_PHASE_DUTY] = (int) Math.round(phaseDuty() * 100.0D);
         params[DanmakuMotionState.P_PHASE_OFFSET] = phaseOffset();
+        params[DanmakuMotionState.P_BURST_AT] = this.entityData.get(DATA_BURST_AT);
+        params[DanmakuMotionState.P_BURST_RADIAL] = this.entityData.get(DATA_BURST_RADIAL);
+        params[DanmakuMotionState.P_BURST_AIM] = this.entityData.get(DATA_BURST_AIM);
+        params[DanmakuMotionState.P_BURST_TARGET] = this.entityData.get(DATA_BURST_TARGET);
+        params[DanmakuMotionState.P_BURST_FIRED] = this.entityData.get(DATA_BURST_FIRED) ? 1 : 0;
         return params;
     }
 
@@ -1291,6 +1519,11 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         this.entityData.set(DATA_PHASE_PERIOD, Math.max(0, params[DanmakuMotionState.P_PHASE_PERIOD]));
         this.entityData.set(DATA_PHASE_DUTY, Mth.clamp(params[DanmakuMotionState.P_PHASE_DUTY], 0, 100));
         this.entityData.set(DATA_PHASE_OFFSET, params[DanmakuMotionState.P_PHASE_OFFSET]);
+        this.entityData.set(DATA_BURST_AT, params[DanmakuMotionState.P_BURST_AT]);
+        this.entityData.set(DATA_BURST_RADIAL, params[DanmakuMotionState.P_BURST_RADIAL]);
+        this.entityData.set(DATA_BURST_AIM, params[DanmakuMotionState.P_BURST_AIM]);
+        this.entityData.set(DATA_BURST_TARGET, params[DanmakuMotionState.P_BURST_TARGET]);
+        this.entityData.set(DATA_BURST_FIRED, params[DanmakuMotionState.P_BURST_FIRED] != 0);
         this.onMotionParamsApplied();
     }
 
@@ -1480,6 +1713,15 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         tag.putFloat("CurveRate", curveRate());
         tag.putFloat("MineRadius", mineRadius());
         tag.putInt("Lifetime", getLifetimeTicks());
+        // 径向爆散：爆散年龄与两个速率必须入盘。缺了它们，重载后的弹永远停在花上不炸开——
+        // 而「不炸开」不报错、不崩，只是花一直悬在半空。
+        if (this.isBursting()) {
+            tag.putInt("BurstAt", burstAtTick());
+            tag.putDouble("BurstRadial", unscale(this.entityData.get(DATA_BURST_RADIAL)));
+            tag.putDouble("BurstAim", unscale(this.entityData.get(DATA_BURST_AIM)));
+            tag.putInt("BurstTarget", this.entityData.get(DATA_BURST_TARGET));
+            tag.putBoolean("BurstFired", this.entityData.get(DATA_BURST_FIRED));
+        }
         // 年龄：存的是「保存那一刻的真实年龄」，不是基准。读档时 tickCount 归零，
         // 基准必须补上这个差，否则双端自变量从此不等（位置存了、年龄没存）。
         // 缺键时读入 0，即退化为本变更之前的行为——不比迁移前更差。
@@ -1613,8 +1855,16 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             this.entityData.set(DATA_FRAME_ORBIT_PITCH, tag.getInt("FrameOpitch"));
             this.entityData.set(DATA_FRAME_ORBIT_RADIUS, tag.getInt("FrameOr"));
             this.entityData.set(DATA_FRAME_ORBIT_RATE, tag.getInt("FrameOrate"));
-            this.entityData.set(DATA_FRAME_ADVANCE_SPEED, tag.getInt("FrameAdv"));
-            this.entityData.set(DATA_HAS_FRAME, true);
+        this.entityData.set(DATA_FRAME_ADVANCE_SPEED, tag.getInt("FrameAdv"));
+        this.entityData.set(DATA_HAS_FRAME, true);
         }
+        if (tag.contains("BurstAt")) {
+            this.configureBurst(tag.getInt("BurstAt"), tag.getDouble("BurstRadial"),
+                    tag.getDouble("BurstAim"), tag.getInt("BurstTarget"));
+            // 缺键（旧存档）时保持 false：读档得到的爆散弹会重放一次爆散，
+            // 表现为「已炸开的花瓣又聚回去炸一次」——比静默不重放更容易察觉，且不丢命。
+            this.entityData.set(DATA_BURST_FIRED, tag.getBoolean("BurstFired"));
+        }
+
     }
 }

@@ -28,6 +28,22 @@ public record SignaturePalette(int[] colors) {
         return colors[Math.floorMod(index, colors.length)];
     }
 
+    /**
+     * 该色盘是否包含给定颜色。
+     *
+     * <p>供 {@code TrackLint} 断言「轨道声明的颜色确实来自本 BOSS 的签名色盘」——
+     * 否则作者会随手写一个不在盘内的裸色号，而「每轨一种独占标识」这条规则
+     * 就从「色盘保证」退化成「作者自觉」。
+     */
+    public boolean contains(int rgb) {
+        for (int c : colors) {
+            if ((c & 0xFFFFFF) == (rgb & 0xFFFFFF)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** 该色盘能否容纳给定数量的并发轨道。 */
     public boolean fits(int trackCount) {
         return trackCount <= colors.length;

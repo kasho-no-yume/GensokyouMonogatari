@@ -3,15 +3,22 @@ package com.bitsson.gensokyou.danmaku;
 import com.bitsson.gensokyou.danmaku.track.Behaviour;
 import com.bitsson.gensokyou.danmaku.track.Geometry;
 import com.bitsson.gensokyou.danmaku.track.Projectile;
+import com.bitsson.gensokyou.danmaku.track.Track;
 import com.bitsson.gensokyou.entity.AbstractDanmakuProjectile;
+import com.bitsson.gensokyou.entity.AbstractTouhouBoss;
 import com.bitsson.gensokyou.entity.DanmakuWhitelists;
 import com.bitsson.gensokyou.entity.LaserDanmaku;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+import java.util.List;
 import java.util.Set;
+
 
 /**
  * 发射指令 → 弹幕实体的翻译层。
@@ -73,16 +80,44 @@ public final class DanmakuEmitter {
     public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behaviour,
                             int color, float damage, Behaviour.Formation formation, Vec3 center,
                             Projectile projectile) {
+        emit(boss, shot, behaviour, color, damage, formation, center, projectile,
+                Track.Beat.SpawnAnchor.NONE, 0, 0);
+    }
+
+    /**
+     * 发射一枚弹的完整入口。
+     *
+     * @param anchorArg 生成点的世界锚定（几何层不接触世界，故由本层求值）
+     * @param lifetimeTicks 本批弹的寿命（tick）；{@code 0} = 沿用弹体默认寿命
+     * @param turnTargetId 定时换向的目标实体 id（{@code 0} = 无目标）。
+     *        它由 {@code TrackRunner} 在<b>按人复制</b>的那一刻解析——同一拍发 5 份时
+     *        每份该朝不同的人，故不能由符卡表写死。
+     */
+    public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behaviour,
+                            int color, float damage, Behaviour.Formation formation, Vec3 center,
+                            Projectile projectile, Track.Beat.SpawnAnchor anchorArg,
+                            int lifetimeTicks, int turnTargetId) {
+
         if (!(boss.level() instanceof ServerLevel server)) {
             return;
         }
+        Track.Beat.SpawnAnchor anchor = anchorArg == null
+                ? Track.Beat.SpawnAnchor.NONE : anchorArg;
+        // 逐发旋钮先于实体构造施加：尺寸进构造器（走 setSize → refreshDimensions），
+        // 寿命与生成点锚定都要在入世界前落定。
+        double size = Math.max(0.05D, shot.size());
         double speed = shot.params().speed();
-        AbstractDanmakuProjectile bullet = create(server, boss, shot, color, damage, speed,
-                projectile);
+        float shotDamage = (float) (damage * shot.damageScale());
+        AbstractDanmakuProjectile bullet =
+                create(server, boss, shot, color, shotDamage, size, projectile);
         if (bullet == null) {
             return;
         }
-        applyMotion(bullet, shot, behaviour.motion(), speed);
+        if (lifetimeTicks > 0) {
+            bullet.setLifetimeTicks(lifetimeTicks);
+        }
+        applySpawnAnchor(bullet, boss, shot, anchor);
+        applyMotion(bullet, shot, behaviour.motion(), speed, turnTargetId);
         applySplit(bullet, behaviour.split());
         applyVisibility(bullet, behaviour.visibility());
         // MUST 在 setDirection 之后：编队帧会接管位置，几何给的初速随即失效。
@@ -93,6 +128,87 @@ public final class DanmakuEmitter {
         server.addFreshEntity(bullet);
         DanmakuBudget.recordEmit();
     }
+
+    /**
+     * 生成点的世界锚定。
+     *
+     * <p>「往下找地面 / 找第一个空气」需要访问世界，而<b>几何层刻意不接触世界</b>
+     * （它是无世界即可离线 lint 与断言的纯数学）。故锚定在此完成：
+     * 发射器持有发射者，因而持有世界。
+     *
+     * <p>锚定只改出生点，<b>不改方向</b>——雨往下、柱往上是几何决定的语义，
+     * 锚定只回答「从哪儿开始」。
+     */
+    private static void applySpawnAnchor(AbstractDanmakuProjectile bullet, LivingEntity boss,
+                                         Geometry.Shot shot, Track.Beat.SpawnAnchor anchor) {
+        if (anchor == Track.Beat.SpawnAnchor.NONE) {
+            return;
+        }
+        Vec3 at = switch (anchor) {
+            case NONE -> shot.origin();
+            case FIRST_AIR_BELOW -> firstAirBelow(boss.level(), shot.origin());
+            case GROUND_BELOW -> groundBelow(boss.level(), shot.origin());
+            case PLAYER_GROUND -> groundBelow(boss.level(), randomPlayerColumn(boss, shot.origin()));
+        };
+        bullet.setPos(at.x, at.y, at.z);
+    }
+
+    /**
+     * 从给定点向下找<b>第一个空气块</b>。
+     *
+     * <p>返回该空气块的下沿（即贴着上方实体块的顶面）。找不到（下方 64 格全是空气）时
+     * 退回给定点本身——宁可让雨从原高度落下，也不要凭空把它塞进地底。
+     */
+    private static Vec3 firstAirBelow(Level level, Vec3 from) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        int startY = (int) Math.floor(from.y);
+        for (int y = startY; y >= startY - 64; y--) {
+            cursor.set((int) Math.floor(from.x), y, (int) Math.floor(from.z));
+            if (level.getBlockState(cursor).isAir()) {
+                return new Vec3(from.x, y, from.z);
+            }
+        }
+        return from;
+    }
+
+    /**
+     * 从给定点向下找<b>地面</b>，返回地面之上那一格。
+     *
+     * <p>找不到实体方块时退回给定点：地柱打不中人也比打在地底下强。
+     */
+    private static Vec3 groundBelow(Level level, Vec3 from) {
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        int startY = (int) Math.floor(from.y);
+        for (int y = startY; y >= startY - 64; y--) {
+            cursor.set((int) Math.floor(from.x), y, (int) Math.floor(from.z));
+            if (!level.getBlockState(cursor).isAir()) {
+                return new Vec3(from.x, y + 1.0D, from.z);
+            }
+        }
+        return from;
+    }
+
+    /**
+     * 取一名被锁定玩家的 xz 柱，返回其正上方的给定点高度。
+     *
+     * <p>「每 5 次至少一次压在玩家头上」这条规则由<b>拍</b>声明：
+     * 编排表把每第 5 拍标成 {@code PLAYER_GROUND}，其余拍用随机点。
+     * 规则因此是数据而不是代码里的计数器。
+     */
+    private static Vec3 randomPlayerColumn(LivingEntity boss, Vec3 fallback) {
+        if (boss instanceof AbstractTouhouBoss touhou) {
+            List<Player> locked = touhou.lockedTargets();
+            if (!locked.isEmpty()) {
+                Player pick = locked.get(boss.getRandom().nextInt(locked.size()));
+                return new Vec3(pick.getX(), fallback.y, pick.getZ());
+            }
+        }
+        if (boss instanceof net.minecraft.world.entity.Mob mob && mob.getTarget() != null) {
+            return new Vec3(mob.getTarget().getX(), fallback.y, mob.getTarget().getZ());
+        }
+        return fallback;
+    }
+
 
     /**
      * 按弹种造出实体。
@@ -106,7 +222,7 @@ public final class DanmakuEmitter {
      */
     private static AbstractDanmakuProjectile create(ServerLevel server, LivingEntity boss,
                                                      Geometry.Shot shot, int color, float damage,
-                                                     double speed, Projectile projectile) {
+                                                     double size, Projectile projectile) {
         if (projectile != null && projectile.isLaser()) {
             LaserDanmaku laser = new LaserDanmaku(server, shot.origin(), shot.direction(),
                     damage, color,
@@ -115,11 +231,15 @@ public final class DanmakuEmitter {
                     boss, NO_WHITELIST);
             return laser;
         }
+        // 第 5 个形参是 <b>size</b>（球体直径），不是速度。此处此前传的是 speed，
+        // 于是所有 BOSS 弹幕的实际直径 = 弹速：符卡表声明的 size 全程未被读取，
+        // 「全大慢弹」实际发成比默认球（0.4）还小的弹，碰撞箱也随之变小。
         SphereDanmaku sphere = new SphereDanmaku(
-                server, boss, damage, color, (float) speed, NO_WHITELIST);
+                server, boss, damage, color, (float) size, NO_WHITELIST);
         sphere.moveTo(shot.origin().x, shot.origin().y, shot.origin().z, 0F, 0F);
         return sphere;
     }
+
 
     /**
      * 几何给出的初速，再按行为运动改写。
@@ -128,7 +248,8 @@ public final class DanmakuEmitter {
      * 竖直分量抹掉，而几何不必知道自己被改写了。
      */
     private static void applyMotion(AbstractDanmakuProjectile bullet, Geometry.Shot shot,
-                                    Behaviour.Motion motion, double speed) {
+                                    Behaviour.Motion motion, double speed, int turnTargetId) {
+
         Behaviour.Motion.Kind kind = motion.kind();
         if (kind == Behaviour.Motion.Kind.GROUND_HUG) {
             Vec3 flat = new Vec3(shot.direction().x, 0.0D, shot.direction().z);
@@ -155,11 +276,29 @@ public final class DanmakuEmitter {
                     motion.diesAtOrigin());
             case HOVER -> bullet.configureHover(motion.hoverTick());
             case MINE -> bullet.configureMine(motion.mineRadius());
+            case BURST, RECLAIM -> {
+                // 定时换向 = 换向前的一条速率曲线（「飞 1 秒停 2 秒」/「原地停 3 秒」）
+                // + 那一刻的换向。两者是同一条时间轴的两半，必须一起挂：
+                // 只挂曲线则到点不变向（花一直悬着、环一直不动），
+                // 只挂换向则时序丢失（花立刻炸开、环一出生就扑）。
+                //
+                // <p><b>换向目标解析不出实体时，整条运动都不挂。</b>只挂曲线的话，
+                // 弹会走到「停住等待」那一段再无下文——零速悬在原地直到寿命结束
+                // （默认 60 秒），既打不到人也退不掉。宁可让它退回普通匀速弹直飞出去：
+                // 打偏是一瞬间的事，悬住是一分钟的事，而且完全静默。
+                if (turnTargetId > 0 || motion.burstTargetId() > 0) {
+                    bullet.configureSpeedProfile(motion.speedProfile(), false);
+                    bullet.configureBurst(motion.burstAtTick(), motion.burstRadialSpeed(),
+                            motion.burstAimSpeed(),
+                            turnTargetId > 0 ? turnTargetId : motion.burstTargetId());
+                }
+            }
             case NONE, GROUND_HUG -> {
                 // 上面已处理
             }
         }
     }
+
 
     private static void applySplit(AbstractDanmakuProjectile bullet, Behaviour.Split split) {
         if (split.active()) {

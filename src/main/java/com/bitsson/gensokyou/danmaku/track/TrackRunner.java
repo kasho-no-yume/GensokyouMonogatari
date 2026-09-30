@@ -29,6 +29,22 @@ public final class TrackRunner {
     private final SignaturePalette palette;
     private int tick;
     private SpellCard current;
+    /**
+     * {@link #current} 在 {@link #cards} 中的下标；未选卡时为 -1。
+     *
+     * <p>单独存而不是用 {@code cards.indexOf(current)}：{@code SpellCard} 是 record，
+     * {@code indexOf} 走结构化 {@code equals}，两张 name/hpFraction/tracks 全同的卡
+     * 会被判为同一条，下标就指错了。这里跟着 {@link #selectCard} 的赋值走，恒定正确。
+     */
+    private int currentIndex = -1;
+    /**
+     * 挂起中的目标符卡。
+     *
+     * <p>血量已跨过下一张卡的门槛、但当前卡的循环尚未走完时，它在此登记而<b>不生效</b>。
+     * 真正切换那一刻按当时的血量重算落点，故本字段只用于读状态（调试 / 血条提示），
+     * MUST NOT 成为切换判据本身。
+     */
+    private SpellCard pending;
     private boolean currentResolved;
     /**
      * 本阶段的编队装置，按轨道下标索引；无编队的轨道为 {@code null}。
@@ -55,11 +71,26 @@ public final class TrackRunner {
     }
 
     /**
+     * 当前符卡在表中的下标；未选卡时为 -1。
+     *
+     * <p>HUD 显示符卡名走这里而不是 {@link #current()}：网络包只传下标，客户端据此
+     * 在本地表里反查名字，符卡名字符串因此永不上线（见 {@code SpellCardNamePayload}）。
+     */
+    public int currentIndex() {
+        return currentIndex;
+    }
+
+    /**
      * 切到给定生命占比对应的符卡。返回是否发生了切换。
      *
      * <p><b>阈值语义</b>：{@code SpellCard.hpFraction} 是该符卡的<b>起始</b>生命占比，
      * 符卡表按占比从高到低排列。选中规则 = <b>「起始门槛已被达到的最后一张」</b>。
      * 这样边界无歧义：血量恰好等于某张卡的门槛时，算<b>已经进入</b>那张。
+     *
+     * <p><b>挂起语义</b>：若目标卡与当前卡不同、且<b>当前卡声明了循环长度</b>，
+     * 本方法 SHALL NOT 立即切换，只把目标记为挂起；待当前卡的循环走完
+     * （{@link #tick} 到达该长度）才真正切换。这保证符卡之间不叠加半程。
+     * 未声明循环长度的符卡保持既有的即时切换。
      *
      * <p>（早先误写成「取第一个 {@code f <= threshold} 的卡」——而首卡阈值最高，
      * 于是它永远第一个命中，<b>符卡永不切换</b>，玩家从头到尾只见过一种弹幕。）
@@ -68,6 +99,35 @@ public final class TrackRunner {
         if (cards.isEmpty()) {
             return false;
         }
+        SpellCard next = cardFor(hpFraction);
+        if (next == current) {
+            // 血量回到当前卡区间内：撤销挂起。
+            pending = null;
+            return false;
+        }
+        if (current != null && current.cycleTicks() > 0 && !cycleFinished()) {
+            // 当前卡还在循环中：挂起，不切换。
+            pending = next;
+            return false;
+        }
+        current = next;
+        currentIndex = cards.indexOf(next);
+        pending = null;
+        currentResolved = false;
+        tick = 0;
+        // 换阶段先收装置：上一阶段的 rig 若留着，它的新弹会挂到「上一阶段的编队」上，
+        // 表现为切卡瞬间队形突变。残留的旧弹则自行脱钩自由飞行（见 AbstractDanmakuProjectile）。
+        return true;
+    }
+
+    /**
+     * 「起始门槛已达成的最后一张」。
+     *
+     * <p>循环边界处若有挂起的目标，<b>以挂起者为准</b>：挂起期间血量可能又跌过一张卡，
+     * 而挂起者记的是「第一次跨阈值时应该去的那张」。这里在真正切换那一刻按<b>当时</b>的血量
+     * 重算一次，故最终落点与「若未挂起会落在哪」一致。
+     */
+    private SpellCard cardFor(double hpFraction) {
         SpellCard next = cards.get(0);
         for (SpellCard card : cards) {
             if (hpFraction <= card.hpFraction() + 1.0E-6D) {
@@ -76,15 +136,27 @@ public final class TrackRunner {
                 break;
             }
         }
-        if (next == current) {
-            return false;
+        return next;
+    }
+
+    /** 挂起中的目标符卡（无挂起时为 null）。供调试读。 */
+    public SpellCard pending() {
+        return pending;
+    }
+
+    /**
+     * 当前符卡的循环是否已走完。
+     *
+     * <p>「走完」的判据是 <b>整除</b>而非 {@code >=}：符卡表按周期枚举时长度取整，
+     * 而一个 10 秒周期（200 tick）的循环不该在第 201 tick 也算「走完」——
+     * 那会让同一拍在边界上被发两次。
+     */
+    private boolean cycleFinished() {
+        if (current == null) {
+            return true;
         }
-        current = next;
-        currentResolved = false;
-        tick = 0;
-        // 换阶段先收装置：上一阶段的 rig 若留着，它的新弹会挂到「上一阶段的编队」上，
-        // 表现为切卡瞬间队形突变。残留的旧弹则自行脱钩自由飞行（见 AbstractDanmakuProjectile）。
-        return true;
+        int cycle = current.cycleTicks();
+        return cycle <= 0 || tick > 0 && tick % cycle == 0;
     }
 
     /**
@@ -95,19 +167,28 @@ public final class TrackRunner {
      * @param baseDamage 单发弹伤
      */
     public void tick(LivingEntity boss, List<Player> targets, float baseDamage) {
-        if (current == null || boss.level().isClientSide || !(boss.level() instanceof ServerLevel)) {
+        if (current == null || boss == null || boss.level().isClientSide
+                || !(boss.level() instanceof ServerLevel)) {
+            // 无发射者时只推进时钟：调度本身不依赖世界，故离线可测「循环边界」这件事。
             tick++;
             return;
         }
         if (!currentResolved && tick >= currentCardDuration()) {
             currentResolved = true;
         }
+        // 发射判据 MUST 用<b>循环内的步号</b>，不是自入卡以来的绝对 tick。
+        //
+        // <p>「显式枚举拍」的时间线是按周期写的（0..47 放一圈），而符卡一旦不切走，
+        // 绝对 tick 就一直涨过 47 —— 那些拍再也不会命中，于是「每 240 tick 放一次环」
+        // 退化成「只放一次」。未声明循环长度的符卡 {@code cycleTick()} 就等于绝对 tick，
+        // 行为不变。
+        int step = cycleTick();
         for (int i = 0; i < current.tracks().size(); i++) {
             Track track = current.tracks().get(i);
-            if (!isDue(track, tick)) {
+            if (!isDue(track, step)) {
                 continue;
             }
-            emitTrack(boss, targets, track, tick, palette.at(i),
+            emitTrack(boss, targets, track, step,
                     (float) (baseDamage * track.damageScale()), formationOf(track));
         }
         tick++;
@@ -137,6 +218,7 @@ public final class TrackRunner {
     /** 结束：清空当前符卡（换阶段或死亡时调用）。 */
     public void stop() {
         current = null;
+        currentIndex = -1;
         currentResolved = false;
         tick = 0;
     }
@@ -157,17 +239,68 @@ public final class TrackRunner {
         return max;
     }
 
-    private void emitTrack(LivingEntity boss, List<Player> targets, Track track, int tickIndex,
-                           int color, float baseDamage, Behaviour.Formation formation) {
+    /**
+     * 当前符卡循环内的进度（tick）。
+     *
+     * <p>符卡内部按「循环内的第几拍」编排时需要它——典型是「前 120 tick 悬停放环、
+     * 后 120 tick 游走」，这条分界既不进弹幕也不进移动策略，只进演出。
+     *
+     * <p>未声明循环长度时返回自入卡以来的总 tick。
+     */
+    public int cycleTick() {
+        if (current == null) {
+            return 0;
+        }
+        int cycle = current.cycleTicks();
+        return cycle > 0 ? tick % cycle : tick;
+    }
+
+    /** 当前符卡声明的循环长度（tick）；未声明时为 0。 */
+    public int cycleTicks() {
+        return current == null ? 0 : current.cycleTicks();
+    }
+
+    /**
+     * 发射一条轨道的全部到期拍。
+     *
+     * <p><b>颜色取 {@code track.color()} 而非 {@code palette.at(轨序)}。</b>
+     * 后者让「符卡表里声明的颜色」全程未被读取：单轨符卡（多张卡的常态）全部拿到
+     * {@code at(0)}，于是三张卡同色，而作者写在 {@code of(name, PALETTE.at(k))} 里的
+     * 那个颜色是死的。症状是「我明明声明了淡蓝，激光出来是白灰」——
+     * 淡蓝声明在轨 2，运行时拿到的是 {@code at(1)}。
+     *
+     * <p>轨序只用来做<b>卡内轨与色盘的对应</b>（即每条轨从色盘取一个身份色），
+     * 取哪个色号是符卡作者的决定，不该由位置决定。
+     */
+    private void emitTrack(LivingEntity boss, List<Player> targets, Track track, int step,
+                           float baseDamage, Behaviour.Formation formation) {
         List<Player> aimTargets = targets;
         boolean perTarget = track.beats().stream().anyMatch(b -> b.targetMode().copiesPerTarget());
-        int copies = perTarget ? Math.max(1, aimTargets.size()) : 1;
+        if (perTarget && aimTargets.isEmpty()) {
+            // 瞄准型轨道在<b>无人可瞄</b>时整轨不发射。
+            //
+            // <p>瞄准型的语义是「有一发是给你的」；没有给的人就不该有这一发。
+            // 早先这里用 {@code Math.max(1, aimTargets.size())} 兜底，于是「零目标」
+            // 被静默当成「一个人」：锚点落回 BOSS 自己的脚，瞄准方向变成竖直向下，
+            // 环挂到 BOSS 下方，而「重瞄各自的目标」解析不出实体 id ⇒ 那 48 颗弹
+            // 永远不发射、零速悬在原地 60 秒（默认寿命）才消失。
+            // 现象是「玩家一死，BOSS 就不放追踪环了」——它其实还在放，只是放歪了、
+            // 而且放出来的是一批打不到人的僵尸弹。
+            return;
+        }
+        int copies = perTarget ? aimTargets.size() : 1;
         for (int c = 0; c < copies; c++) {
             if (!DanmakuBudget.canEmit((ServerLevel) boss.level())) {
                 return;
             }
             Vec3 anchor = aimTargets.isEmpty() ? boss.position()
                     : aimTargets.get(Math.min(c, aimTargets.size() - 1)).position();
+            // 「朝本份的目标」与「随机一名」都在复制这一刻才确定具体是谁：
+            // 同一拍在 5 人场里发 5 份，每份该朝不同的人。
+            int copyTargetId = aimTargets.isEmpty() ? 0
+                    : aimTargets.get(Math.min(c, aimTargets.size() - 1)).getId();
+            int randomPick = aimTargets.isEmpty() ? 0
+                    : aimTargets.get(boss.level().getRandom().nextInt(aimTargets.size())).getId();
             Vec3 toAnchor = anchor.subtract(boss.getEyePosition());
             if (toAnchor.lengthSqr() < 1.0E-6D) {
                 continue;
@@ -180,23 +313,28 @@ public final class TrackRunner {
             }
             // 缺口对齐玩家方位：缺口中心 = 玩家方位在 BOSS 平面内的投影角。
             double gapPhase = gapPhaseTowards(forward, up, worldUp, aimTargets);
-            double phase = track.phaseAt(tickIndex);
+            double phase = track.phaseAt(step);
             for (Track.Beat beat : track.beats()) {
-                if (!isDue(beat, track, tickIndex)) {
+                if (!isDue(beat, track, step)) {
                     continue;
                 }
-                // 把<b>目标位置</b>一并传入：AROUND_TARGET 的发射点采样自目标周围，
-                // 方向由每一发自己的「原点 → 目标」决定。它是唯一需要它的形状。
-                List<Geometry.Shot> shots = Geometry.build(
-                        beat.shape(), boss.getEyePosition(), forward, anchor, worldUp,
-                        beat.params(), gapPhase, phase, boss.level().getRandom());
+                // 把<b>目标位置</b>一并传入：AROUND_TARGET / LATTICE 的发射点采样自目标周围，
+                // 方向由每一发自己的「原点 → 目标」决定。它们是唯一需要它的形状。
+                List<Geometry.Shot> shots = Geometry.build(beat, boss.getEyePosition(), forward,
+                        anchor, worldUp, gapPhase, phase, boss.level().getRandom());
+                int turnTarget = Behaviour.resolveTurnTarget(
+                        beat.behaviour().motion().burstTargetId(), copyTargetId, randomPick);
                 for (Geometry.Shot shot : shots) {
                     // 编队参考点在<b>发射这一刻</b>对 BOSS 位置取快照，随后写进每颗弹。
                     // 刻意<b>不</b>存 BOSS 实体引用：编队不是反应式的，此后弹的世界里
                     // 再没有外部输入，双端也就不再有「任何需要收敛的量」。
-                    DanmakuEmitter.emit(boss, shot, beat.behaviour(), color, baseDamage,
-                            formation, formation.active() ? boss.position() : null,
-                            beat.projectile());
+                    //
+                    // 取<b>眼位</b>而非脚位：编队中心必须与几何给出的形状中心同一点，
+                    // 否则形状中心的那颗弹（花心）到参考点就有一段固定偏移，
+                    // 「自身即参考点 → 改朝目标射」这条退化分支永不成立。
+                    DanmakuEmitter.emit(boss, shot, beat.behaviour(), track.color(), baseDamage,
+                            formation, formation.active() ? boss.getEyePosition() : null,
+                            beat.projectile(), beat.anchor(), beat.lifetimeTicks(), turnTarget);
                 }
             }
         }
@@ -236,7 +374,7 @@ public final class TrackRunner {
     /** 供 HUD/调试：当前轨道的可读状态。 */
     public List<String> describe() {
         List<String> out = new ArrayList<>();
-        out.add("card=" + (current == null ? "-" : current.name()));
+        out.add("card=" + (current == null ? "-" : current.name().getString()));
         out.add("tick=" + tick);
         out.add("tracks=" + (current == null ? 0 : current.tracks().size()));
         out.add("palette=" + palette.size());

@@ -111,6 +111,53 @@ class GraceLedgerTest {
         samples.forEach(d -> assertTrue(d.max() <= 0F));
     }
 
+    /**
+     * 旧表存档的自动迁移判别（rebalance-tier1-spirit-and-danmaku-cost，design Migration Plan A 族）。
+     *
+     * <p>{@code GraceService.migrateIfNeeded()} 按阶 1 台账增益与
+     * {@code LEGACY_MAX_SPIRIT_T1_THRESHOLD = 500} 比较：低于阈值视为旧表档，按当前表重 roll
+     * 覆盖（旧表 1 阶 max_spirit 基准 200、roll 0.15 ⇒ 170~230；新表 1000/0.2 ⇒ 800~1200）。
+     *
+     * <p>此处锁的是<b>判别阈值两侧的归属</b>——它决定"哪些玩家会自动吃到新表"，
+     * 是本变更唯一的存档侧行为。
+     */
+    @Test
+    void legacyLedgerIsDetectedByTierOnePoolThreshold() {
+        final float threshold = 500F;
+        GraceNumbers.Entry oldT1 = GraceNumbers.entry(TABLE, 1, AttributeKeyProbe.MAX_SPIRIT);
+        GraceNumbers.Entry newT1 = GraceNumbers.entry(NEW_TABLE, 1, AttributeKeyProbe.MAX_SPIRIT);
+        assertEquals(200D, oldT1.base(), 1e-9, "TABLE 即化石旧表");
+        assertEquals(1000D, newT1.base(), 1e-9);
+
+        // 旧表 1 阶 roll 区间整体低于阈值 → 判为旧表档，触发重 roll
+        double oldLo = oldT1.base() * (1 - oldT1.roll());
+        double oldHi = oldT1.base() * (1 + oldT1.roll());
+        assertTrue(oldHi < threshold,
+                "旧表 1 阶上界 " + oldHi + " 应 < 500，否则旧档不会被识别");
+
+        // 新表 1 阶 roll 区间整体高于阈值 → 不触发，避免"迁移后立刻再迁移"的循环
+        double newLo = newT1.base() * (1 - newT1.roll());
+        double newHi = newT1.base() * (1 + newT1.roll());
+        assertTrue(newLo >= threshold,
+                "新表 1 阶下界 " + newLo + " 应 >= 500，否则 migrateIfNeeded 会反复重 roll");
+        assertTrue(newLo <= newHi);
+    }
+
+    /** 重 roll 后 spiritDamage 会落到新表量级（约 1），而非旧表的 8。 */
+    @Test
+    void rerollAgainstNewTableYieldsTierOneSpiritPowerAboutOne() {
+        GraceNumbers.GraceRoll roll = GraceNumbers.rollTier(NEW_TABLE, 1, RandomSource.create(7L));
+        double lo = 1.0 * (1 - 0.2);
+        double hi = 1.0 * (1 + 0.2);
+        assertTrue(roll.powerGain() >= lo - 1e-6 && roll.powerGain() <= hi + 1e-6,
+                "重 roll 的 1 阶 spirit_power 应落在 [0.8, 1.2], got " + roll.powerGain());
+        assertTrue(roll.powerGain() < 2F, "旧表量级（8）不应再出现");
+    }
+
+    /** 变更后的 config 默认表 1 阶行（单测不触 config 加载态）。 */
+    private static final List<String> NEW_TABLE = List.of(
+            "1,max_spirit,1000,0.2", "1,spirit_power,1,0.2", "1,danmaku_reduce,1.0,0.2");
+
     /** 探针别名（避免 import 环与可读性）。 */
     private static final class AttributeKeyProbe {
         static final com.bitsson.gensokyou.spirit.attr.AttributeKey MAX_SPIRIT =

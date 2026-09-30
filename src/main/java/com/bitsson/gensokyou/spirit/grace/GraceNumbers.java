@@ -11,7 +11,7 @@ import java.util.Map;
 
 /**
  * 八百万神恩数值表（world-independent 纯逻辑，可单测）：
- * config {@code grace.graceTierTable} 条目 "tier,key,base,roll" 的解析与 roll。
+ * config {@code grace.graceTierTableV2} 条目 "tier,key,base,roll" 的解析与 roll。
  *
  * <p>roll 语义：{@code value = base × uniform(1−roll, 1+roll)}；表值均为"该阶级的增量"，
  * 最终属性 = 配置基准 + Σ各阶增量（池两键走台账求和，其余走 grace_tier_N 贡献组）。

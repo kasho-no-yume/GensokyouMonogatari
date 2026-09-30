@@ -191,7 +191,7 @@ public final class DanmakuTestCommands {
                 : List.of(cards.get(cardIndex));
         DanmakuPreview.start(player, set, selected, seconds, damage);
         source.sendSuccess(() -> Component.literal("§c图案预览 §7"
-                + bossId + (cardIndex < 0 ? "（全部 " + cards.size() + " 张）" : " / " + cards.get(cardIndex).name())
+                + bossId + (cardIndex < 0 ? "（全部 " + cards.size() + " 张）" : " / " + cards.get(cardIndex).name().getString())
                 + "，共 " + seconds + " 秒，伤害 " + damage
                 + "。§f/danmaku stop 停止"), false);
         return selected.size();

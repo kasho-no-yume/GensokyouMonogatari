@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.danmaku.track;
 
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -36,6 +37,10 @@ class BossCardLintTest {
      * 而符卡表是持续生长的。若现有卡已经贴着预算，下一个作者加一条轨就会撞线，
      * 而撞线的表现是「符卡表编译期失败」——容易被误当成代码错误。
      * 留一半余量把这个问题提前暴露成可见的数字。
+     *
+     * <p><b>声明了密度豁免的卡不参与本条</b>，改由 {@link #densityWaiversAreExplicitAndBounded()}
+     * 约束：豁免必须显式、必须有据、且被封顶在预算的 8 倍以内。豁免的存在本身就是
+     * 「这条估值算错了」的记录，混进余量统计会让这条断言失去意义。
      */
     @Test
     void shippedCardsHaveDensityHeadroom() {
@@ -50,13 +55,16 @@ class BossCardLintTest {
         String worstWhere = "-";
         for (Entry entry : tables) {
             for (SpellCard card : entry.cards()) {
+                if (card.hasDensityWaiver()) {
+                    continue;
+                }
                 double steady = 0.0D;
                 for (Track track : card.tracks()) {
                     steady += TrackLint.steadyStateEstimate(track);
                 }
                 if (steady > worst) {
                     worst = steady;
-                    worstWhere = entry.owner() + "/「" + card.name() + "」";
+                    worstWhere = entry.owner() + "/「" + card.name().getString() + "」";
                 }
             }
         }
@@ -65,6 +73,39 @@ class BossCardLintTest {
                 "在役符卡稳态并发密度最高为 %.1f（%s），超过预算的一半（%.0f / 预算 %.0f）。"
                         + "符卡表继续增长会撞线，请复核预算取值或降低该卡密度。",
                 worst, worstWhere, ceiling, TrackLint.STEADY_STATE_BUDGET));
+    }
+
+    /**
+     * 密度豁免 MUST 显式且有界。
+     *
+     * <p>豁免是「这条估值对这张卡结构性失真」的记录，不是让人随手放宽预算的口子。
+     * 本条把它的用法钉死三件事：数量少（一张表至多一处）、有据（必须落在源码注释里）、
+     * 有界（不超过预算的 8 倍）。越界的写法 SHOULD 在 lint 阶段就红。
+     */
+    @Test
+    void densityWaiversAreExplicitAndBounded() {
+        int waivers = 0;
+        for (SpellCard card : BossCards.all()) {
+            if (!card.hasDensityWaiver()) {
+                continue;
+            }
+            waivers++;
+            assertTrue(card.densityWaiver() <= TrackLint.STEADY_STATE_BUDGET
+                            * TrackLint.MAX_DENSITY_WAIVER_FACTOR,
+                    "符卡「" + card.name().getString() + "」的密度豁免 " + card.densityWaiver()
+                            + " 超过预算的 " + (int) TrackLint.MAX_DENSITY_WAIVER_FACTOR + " 倍");
+            double steady = 0.0D;
+            for (Track track : card.tracks()) {
+                steady += TrackLint.steadyStateEstimate(track);
+            }
+            // 豁免必须贴着实际值：报一个远高于实数的预算等于给后人留一把没锁的钥匙。
+            assertTrue(card.densityWaiver() < steady * 1.5D,
+                    "符卡「" + card.name().getString() + "」声明的豁免 " + card.densityWaiver()
+                            + " 远高于实际密度 " + steady + "，应贴着实际值报");
+        }
+        assertTrue(waivers <= 1,
+                "全表至多允许一处密度豁免，当前 " + waivers + " 处——每多一处都意味着"
+                        + "估值模型又有一处结构性失真该先修");
     }
 
     /** 缺「破」= 不主动攻击：整副表 MUST NOT 含瞄准型节拍。 */
@@ -84,7 +125,7 @@ class BossCardLintTest {
     /** 反例：缺「結」的符卡里混入有终止轨道时必须被检出。 */
     @Test
     void endlessCheckRejectsTerminatedTracks() {
-        List<SpellCard> mixed = List.of(new SpellCard("拍", 1.0D, List.of(
+        List<SpellCard> mixed = List.of(new SpellCard(Component.literal("拍"), 1.0D, List.of(
                 Track.of("有终止", 0xFFFFFF).terminates().repeatEvery(40)
                         .at(0, Shape.RING_FACING, Shape.Params.defaults()
                                 .count(10).gap(60.0D).speed(0.3D), TargetMode.SELF_AXIS)
@@ -95,7 +136,7 @@ class BossCardLintTest {
     /** R1：环形不留缺口 = 一半弹在玩家背后，必须被检出。 */
     @Test
     void ringWithoutGapViolatesR1() {
-        List<SpellCard> bad = List.of(new SpellCard("无缺口环", 1.0D, List.of(
+        List<SpellCard> bad = List.of(new SpellCard(Component.literal("无缺口环"), 1.0D, List.of(
                 Track.of("环", 0xFFFFFF).terminates().repeatEvery(40)
                         .at(0, Shape.RING_FACING, Shape.Params.defaults()
                                 .count(10).gap(0.0D).speed(0.3D), TargetMode.SELF_AXIS)
@@ -107,7 +148,7 @@ class BossCardLintTest {
     /** R2：自轴型在足够密度下不留任何间隙必须被检出。 */
     @Test
     void denseSelfAxisWithoutGapViolatesR2() {
-        List<SpellCard> bad = List.of(new SpellCard("堵死", 1.0D, List.of(
+        List<SpellCard> bad = List.of(new SpellCard(Component.literal("堵死"), 1.0D, List.of(
                 Track.of("轨", 0xFFFFFF).terminates().repeatEvery(40)
                         .at(0, Shape.CONE_RANDOM, Shape.Params.defaults()
                                 .count(TrackLint.R2_SEAL_COUNT + 2).spread(60.0D).speed(0.3D),
@@ -120,7 +161,7 @@ class BossCardLintTest {
     /** 稀疏的自轴型扇（教学档）不构成封死——R2 是密度判据，不是形状身份。 */
     @Test
     void sparseSelfAxisFanPassesR2() {
-        List<SpellCard> ok = List.of(new SpellCard("散華", 1.0D, List.of(
+        List<SpellCard> ok = List.of(new SpellCard(Component.literal("散華"), 1.0D, List.of(
                 Track.of("扇", 0xFFFFFF).terminates().repeatEvery(40)
                         .at(0, Shape.FAN, Shape.Params.defaults()
                                 .count(5).spread(60.0D).speed(0.3D), TargetMode.SELF_AXIS)
@@ -141,7 +182,7 @@ class BossCardLintTest {
                 .at(0, Shape.SHELL, Shape.Params.defaults()
                         .count(8).radius(6.0D).speed(0.3D), TargetMode.SELF_AXIS)
                 .build();
-        List<SpellCard> bad = List.of(new SpellCard("撞色", 1.0D, List.of(a, b)));
+        List<SpellCard> bad = List.of(new SpellCard(Component.literal("撞色"), 1.0D, List.of(a, b)));
         assertFalse(TrackLint.lint("坏卡", bad, SignaturePalette.of(0x111111, 0x222222)).isEmpty(),
                 "视觉标识完全相同的两轨应被检出");
     }
@@ -165,7 +206,7 @@ class BossCardLintTest {
      */
     @Test
     void overSteadyStateDensityViolatesR3() {
-        List<SpellCard> bad = List.of(new SpellCard("爆量", 1.0D, List.of(
+        List<SpellCard> bad = List.of(new SpellCard(Component.literal("爆量"), 1.0D, List.of(
                 Track.of("轨", 0xFFFFFF).terminates().repeatEvery(10)
                         .at(0, Shape.RING_HORIZONTAL, Shape.Params.defaults()
                                 .count(200).gap(45.0D).speed(0.2D),
@@ -183,7 +224,7 @@ class BossCardLintTest {
     @Test
     void sustainedPatternCaughtByPerBeatCountAlone() {
         int perBeatCount = 20;                                  // 远低于旧的单拍预算 48
-        List<SpellCard> sustained = List.of(new SpellCard("壁", 1.0D, List.of(
+        List<SpellCard> sustained = List.of(new SpellCard(Component.literal("壁"), 1.0D, List.of(
                 Track.of("轨", 0xFFFFFF).terminates().repeatEvery(5)
                         .at(0, Shape.RING_HORIZONTAL, Shape.Params.defaults()
                                 .count(perBeatCount).gap(45.0D).speed(0.2D),
@@ -202,7 +243,7 @@ class BossCardLintTest {
      */
     @Test
     void fastOneShotPatternNotOverFlagged() {
-        List<SpellCard> fast = List.of(new SpellCard("连射", 1.0D, List.of(
+        List<SpellCard> fast = List.of(new SpellCard(Component.literal("连射"), 1.0D, List.of(
                 Track.of("轨", 0xFFFFFF).terminates().repeatEvery(5)
                         .at(0, Shape.RING_HORIZONTAL, Shape.Params.defaults()
                                 .count(100).gap(45.0D).speed(3.0D),
@@ -252,7 +293,7 @@ class BossCardLintTest {
     /** 随机必须被锥包络约束。 */
     @Test
     void unconstrainedRandomIsRejected() {
-        List<SpellCard> bad = List.of(new SpellCard("全向乱", 1.0D, List.of(
+        List<SpellCard> bad = List.of(new SpellCard(Component.literal("全向乱"), 1.0D, List.of(
                 Track.of("轨", 0xFFFFFF).terminates().repeatEvery(40)
                         .at(0, Shape.CONE_RANDOM, Shape.Params.defaults()
                                 .count(6).spread(360.0D).speed(0.3D), TargetMode.SELF_AXIS)
@@ -286,7 +327,7 @@ class BossCardLintTest {
             double previous = Double.MAX_VALUE;
             for (SpellCard card : cards) {
                 assertTrue(card.hpFraction() <= previous,
-                        "符卡「" + card.name() + "」起始占比未随血量递减");
+                        "符卡「" + card.name().getString() + "」起始占比未随血量递减");
                 previous = card.hpFraction();
             }
         }

@@ -33,7 +33,7 @@ public class KuzumonoEntity extends AbstractTouhouBoss {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return bossAttributes(120.0D, 6.0D, 48.0D);
+        return bossAttributes(120.0D, 6.0D);
     }
 
     @Override
@@ -54,6 +54,18 @@ public class KuzumonoEntity extends AbstractTouhouBoss {
     @Override
     protected int configHits() {
         return GensokyouConfig.KUZUMONO_BOSS_HITS.get();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p><b>占位待定</b>。鬼蛛是百鬼夜行召唤的低阶残影，暂定 1 阶。
+     * 正式阶级表随寝宫 BOSS / 高阶内容落地后重定（见
+     * {@code openspec/changes/boss-bar-tier-and-spellcard-name} design D3）。
+     */
+    @Override
+    public int bossTier() {
+        return 1;
     }
 
 

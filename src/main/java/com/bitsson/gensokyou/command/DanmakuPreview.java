@@ -185,7 +185,7 @@ public final class DanmakuPreview {
             List<SpellCard> cards = setOf(id).cards();
             sb.append(id).append("  ");
             for (int i = 0; i < cards.size(); i++) {
-                sb.append(i).append('=').append(cards.get(i).name()).append("  ");
+                sb.append(i).append('=').append(cards.get(i).name().getString()).append("  ");
             }
             sb.append('\n');
         }

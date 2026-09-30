@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.danmaku.track;
 
+import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.RecordComponent;
@@ -19,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class BehaviourDecouplingTest {
 
     private static SpellCard cardOf(Track... tracks) {
-        return new SpellCard("测试", 1.0D, List.of(tracks));
+        return new SpellCard(Component.literal("测试"), 1.0D, List.of(tracks));
     }
 
     private static Track.Builder trackOf(String name) {
@@ -46,9 +47,13 @@ class BehaviourDecouplingTest {
                         "Shape.Params 是纯几何，MUST NOT 含行为字段 —— 发现: " + component.getName());
             }
         }
-        assertEquals(11, Shape.Params.class.getRecordComponents().length,
-                "几何参数应为 11 个字段（改前是 14，因混入了 7 个行为参数；"
-                        + "现为 8 基础 + ROSETTE 的花瓣数与径向幅度 + LATTICE 的直瞄比例）");
+        assertEquals(13, Shape.Params.class.getRecordComponents().length,
+                "几何参数应为 13 个字段（改前是 14，因混入了 7 个行为参数；"
+                        + "现为 8 基础 + ROSETTE/FLOWER 的花瓣数与径向幅度 + LATTICE 的直瞄比例"
+                        + " + 生成点的两个偏移 offsetForward/offsetUp。"
+                        + "后两个是纯几何——它们只改「弹在哪儿冒出来」，不改「怎么动」；"
+                        + "「中心弹的伤害/尺寸」刻意放在 Beat 而非此处，"
+                        + "因为那是本批弹的旋钮而不是形状的形状）");
     }
 
     // ------------------------------------------------------------------
@@ -243,7 +248,10 @@ class BehaviourDecouplingTest {
         assertFalse(hovering.identity().equals(plain.identity()),
                 "行为不同应使视觉标识不同（行为轴须参与 identity）");
         assertTrue(TrackLint.lint("异行为", List.of(cardOf(hovering, plain)),
-                        SignaturePalette.of(0x111111, 0x222222)).isEmpty(),
+                        // MUST 含两轨的声明色 0xFFFFFF（见本文件的 trackOf）——
+                        // lint 断言「声明色属于该 BOSS 的签名色盘」，
+                        // 这是「每轨一种独占视觉标识」在色盘上的落地，不是可选项
+                        SignaturePalette.of(0x111111, 0x222222, 0xFFFFFF)).isEmpty(),
                 "靠行为轴区分的两轨应合规");
     }
 

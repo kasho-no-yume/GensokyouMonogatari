@@ -57,7 +57,8 @@ class DanmakuWeaponBalanceTest {
     @Test
     void playerDpsLadderAtLeastTenPerTier() {
         // 与 config grace 表同构：spirit_power 累计 / 暴击期望 / 武器带倍率
-        double[] spiritPower = {6, 60, 540, 4640, 39140};
+        // rebalance-tier1-spirit-and-danmaku-cost：spirit_power 整列 ÷6，比例结构不变
+        double[] spiritPower = {1, 10, 90, 773, 6523};
         double[] critAvg = {1.066, 1.128, 1.253, 1.465, 1.80};
         double[] weaponBand = {1.0, 1.0, 2.0, 2.0, 4.0};
         double shotsPerSecond = 2.5;
@@ -72,14 +73,132 @@ class DanmakuWeaponBalanceTest {
         }
     }
 
+    /**
+     * spirit_power 阶梯的阶间倍率与 ÷6 之前逐项一致（design D1）。
+     *
+     * <p>断言的是"相对误差 &lt; 0.1%"而非严格相等：4/5 阶的 683、5750 是 4100/6、34500/6
+     * 的舍入值，逐项相等在 4/5 阶字面为假（8.5926→8.5889、8.4353→8.4386）。
+     */
     @Test
-    void tierOneSphereDpsLandsBetweenDiamondAndSharpnessFive() {
-        // T1：spirit_power 6、weaponLvMult 1.0、暴击率 0.11、暴伤 +0.6、球核 2.5 发/s
-        double spiritPower = 6.0;
+    void spiritPowerLadderRatiosSurviveUniformRescale() {
+        double[] before = {6, 60, 540, 4640, 39140};
+        double[] after = {1, 10, 90, 773, 6523};
+        assertEquals(before.length, after.length);
+        for (int i = 1; i < before.length; i++) {
+            double rBefore = before[i] / before[i - 1];
+            double rAfter = after[i] / after[i - 1];
+            assertTrue(Math.abs(rAfter / rBefore - 1.0) < 0.001,
+                    "第 " + (i + 1) + " 阶倍率相对偏差应 &lt; 0.1%: before x"
+                            + rBefore + " after x" + rAfter);
+        }
+    }
+
+    /**
+     * 阶 1 伤害锚点：单发约 1，低于石剑（5）与铁剑（6）。
+     *
+     * <p>取代旧断言 {@code tierOneSphereDpsLandsBetweenDiamondAndSharpnessFive}——后者把
+     * 阶 1 DPS 锁在 11.2~17.6（"钻石剑~锋利5下界剑"），意味着阶 1 单发 6.4 已超过铁剑，
+     * 原版武器在该阶直接退伍。这正是 rebalance-tier1-spirit-and-danmaku-cost 否决的目标：
+     * 阶 1 应当是"原版武器仍有竞争力"的起点，弹幕主武器不该一阶就碾压。
+     */
+    @Test
+    void tierOneSphereDamageIsAboutOneAndBelowStoneSword() {
+        // T1：spirit_power 1、coreBaseMult 1.0、暴击率 0.11、暴伤 +0.6
+        double spiritPower = 1.0;
         double critAvg = 1.0 + 0.11 * 0.60;
-        double dps = spiritPower * 1.0 * critAvg * 2.5;
-        assertTrue(dps >= 11.2 && dps <= 17.6, "T1 平均 DPS 应在钻石剑~锋利5下界剑之间, got " + dps);
-        assertEquals(16.0, dps, 0.6);
+        double perShot = spiritPower * 1.0 * 1.0 * critAvg;
+        assertEquals(1.07, perShot, 0.01, "T1 球核单发伤害应约 1");
+        assertTrue(perShot < 5.0, "T1 弹幕单发应低于石剑 5, got " + perShot);
+        assertTrue(perShot < 6.0, "T1 弹幕单发应低于铁剑 6, got " + perShot);
+        // 参考 DPS 同步下移：旧 16.0 → 新 2.67
+        assertEquals(2.67, spiritPower * 1.0 * critAvg * 2.5, 0.01);
+    }
+
+    /**
+     * 击杀所需发数是尺度不变量：玩家伤害与 BOSS 血量同源于 spirit_power，均匀缩放两边同缩。
+     *
+     * <p>击杀所需发数 = bossSeconds × refShotsPerSecond / (coreBaseMult × 弹数)。
+     * 分母是<b>每触发伤害倍率</b>，MUST NOT 用 docs §3 的"有效 DPS 因子"
+     * （= coreBaseMult × 弹数 × 20/attackRate）——那含射速，球核会算出 160 而非 400。
+     */
+    @Test
+    void shotsToKillBossIsScaleInvariant() {
+        double bossSeconds = 160.0;
+        double refShotsPerSecond = 2.5;
+        // (名称, coreBaseMult, 弹数, 期望击杀发数)
+        Object[][] cores = {
+                {"球", 1.0, 1.0, 400.0},
+                {"飞刀", 1.4, 1.0, 400.0 / 1.4},
+                {"散弹", 0.45, 5.0, 400.0 / 2.25},
+        };
+        for (Object[] c : cores) {
+            double perTrigger = (double) c[1] * (double) c[2];
+            double shots = bossSeconds * refShotsPerSecond / perTrigger;
+            assertEquals((double) c[3], shots, 1e-9, c[0] + "核击杀所需发数");
+        }
+        // 尺度不变性：spirit_power 任意缩放，发数不变
+        for (double spiritPower : new double[]{1.0, 6.0, 60.0}) {
+            double perShot = spiritPower * 1.0 * (1.0 + 0.11 * 0.60);
+            double bossHp = spiritPower * 1.0 * (1.0 + 0.11 * 0.60) * refShotsPerSecond * bossSeconds;
+            assertEquals(400.0, bossHp / perShot, 1e-9,
+                    "spirit_power=" + spiritPower + " 时击杀发数应恒为 400");
+        }
+    }
+
+    /**
+     * 满池可负担发数 MUST 覆盖击杀所需发数（danmaku-weapon 灵力成本判据）。
+     *
+     * <p>阶 1：池 1000、bossSeconds 160。上界 = 1000 × coreBaseMult × 弹数 / 400。
+     * 三核全部满足——包括散弹，因其弹数（5）抬高每触发倍率、需求发数正比下降，
+     * <b>不需要射程豁免</b>。
+     */
+    @Test
+    void fullPoolAffordsTheShotsNeededToKillSameTierBoss() {
+        double pool = 1000.0;
+        double bossSeconds = 160.0;
+        double refShotsPerSecond = 2.5;
+        // (名称, coreBaseMult, 弹数, spiritCost)
+        Object[][] cores = {
+                {"球", 1.0, 1.0, 2.0},
+                {"飞刀", 1.4, 1.0, 3.0},
+                {"散弹", 0.45, 5.0, 4.0},
+        };
+        for (Object[] c : cores) {
+            double perTrigger = (double) c[1] * (double) c[2];
+            double needed = bossSeconds * refShotsPerSecond / perTrigger;
+            double affordable = pool / (double) c[3];
+            assertTrue(affordable >= needed,
+                    c[0] + "核满池可负担 " + affordable + " 发 < 击杀所需 " + needed + " 发");
+        }
+        // 球核具体锚点
+        assertEquals(500.0, pool / 2.0, 1e-9);
+        assertTrue(pool / 2.0 >= 400.0);
+    }
+
+    /**
+     * 同档核"伤害/灵力"效率仍在同一量级（相对球核偏移 ≤ ±10%）。
+     *
+     * <p>不是精确保持：spiritCost 是 IntValue，2/3/4 是凑整而非 10/14/22 的 ÷5
+     * （实际 ÷5 / ÷4.667 / ÷5.5），故飞刀 −6.7%、散弹 +10%。danmaku-weapon 要求的是
+     * "量级一致"而非精确相等。
+     */
+    @Test
+    void tierOneCoreSpiritEfficiencyStaysWithinOneMagnitude() {
+        // (名称, coreBaseMult, 弹数, 变更前成本, 变更后成本)
+        Object[][] cores = {
+                {"球", 1.0, 1.0, 10.0, 2.0},
+                {"飞刀", 1.4, 1.0, 14.0, 3.0},
+                {"散弹", 0.45, 5.0, 22.0, 4.0},
+        };
+        double sphereBefore = 1.0 * 1.0 / 10.0;
+        double sphereAfter = 1.0 * 1.0 / 2.0;
+        for (Object[] c : cores) {
+            double perTrigger = (double) c[1] * (double) c[2];
+            double relBefore = perTrigger / (double) c[3] / sphereBefore;
+            double relAfter = perTrigger / (double) c[4] / sphereAfter;
+            assertTrue(Math.abs(relAfter - relBefore) / relBefore <= 0.10 + 1e-9,
+                    c[0] + "核效率偏移应 ≤ ±10%: before x" + relBefore + " after x" + relAfter);
+        }
     }
 
     /**

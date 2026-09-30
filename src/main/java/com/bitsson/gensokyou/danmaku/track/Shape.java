@@ -121,7 +121,72 @@ public enum Shape {
     /** 散布静止弹：在目标周围按环带放置弹，方向为零。承载行为通常是 {@link Behaviour.Motion#mine}。 */
     SCATTER_STATIC,
     /** 补位分裂：从缺口方位按角度分布发出弹。<b>名字里的「分裂」指几何上的补位排布</b>，与 {@link Behaviour.Split} 无关。 */
-    GAP_FAN;
+    GAP_FAN,
+    /**
+     * 二维角度栅格：在<b>垂直于瞄准方向</b>的平面上，按两轴各自的固定角间隔排出
+     * {@code rows × cols} 发。
+     *
+     * <p><b>每一发的角偏固定、速度相同</b>，故这些弹在空间里落到的是一个<b>弧面</b>而非
+     * 平面——这是「同速 + 固定角偏」的自然结果，不必也不该刻意去构造球壳。
+     *
+     * <p>参数：
+     * <ul>
+     *   <li>{@code count} —— 总发数（按 {@code round(sqrt(count))} 拆成近方形）</li>
+     *   <li>{@code spreadDeg} —— <b>每轴</b>的角间隔（度），非总张角</li>
+     *   <li>{@code offsetForward} —— 整片栅格沿瞄准方向前移的距离（负 = 在身后）</li>
+     * </ul>
+     */
+    GRID_FACING,
+    /**
+     * 体积内随机撒点：在水平圆盘内真随机取 N 个生成点，全部竖直向下。
+     *
+     * <p>与 {@link #FALL_FROM_ABOVE} 的分野是<b>秩序 vs 随机</b>：后者是规则网格，
+     * 看得见行列；本形态位置与距离都随机，是「天降一片雨」而非「摆好的一排」。
+     *
+     * <p>与 {@link #LATTICE} 的分野是<b>围绕谁</b>：后者围绕<b>目标</b>采样且只服务激光；
+     * 本形态围绕<b>发射者</b>采样，弹往下走。
+     *
+     * <p>参数：{@code count} 颗、{@code radius} 圆盘半径、{@code offsetUp} 起手高度
+     * （配合拍上的「向下找第一个空气」锚定，即得「在 BOSS 头顶 60 格下雨」）。
+     */
+    SCATTER_FALL,
+    /**
+     * 地柱：水平圆盘内取一个点，方向竖直<b>向上</b>。
+     *
+     * <p>存在的理由是激光的生成点：激光需要「起点在地面、指向天空」，
+     * 而既有的 {@link #FALL_FROM_ABOVE} 给的是「起点在空中、指向地面」——方向正好相反，
+     * 两者不是同一个几何。
+     *
+     * <p>地面高度由拍上的锚定（{@code GROUND_BELOW}）在翻译层求出，几何本身不接触世界。
+     */
+    PILLAR_UP,
+    /**
+     * 侧挂圆盘：一圈弹排在<b>垂直于瞄准方向</b>的平面上，圆心在发射者
+     * <b>身后</b> {@code offsetForward} 处。
+     *
+     * <p>与 {@link #RING_FACING} 的分野是<b>圆心位置</b>：后者以发射者为圆心（弹从 BOSS
+     * 身上散开），本形态把整圈挪到 BOSS 身后（弹在 BOSS 背后排成一面）。
+     *
+     * <p>取 {@code count = 1} 并让相位逐拍推进，即得「一圈弹<b>依次</b>出现」——
+     * 逐颗点亮比整圈同时出现可读得多。
+     */
+    DISC_RING,
+    /**
+     * 花形阵列：一朵刚体花 = <b>1 颗中心弹 + {@code count} 颗花瓣弹</b>，全部同速同刻发射。
+     *
+     * <p>与 {@link #ROSETTE} 的分野是三处，缺一不可：
+     * <ul>
+     *   <li>本形态<b>自带中心弹</b>（ROSETTE 明确规定花蕊由另一个节拍产生）；</li>
+     *   <li>中心弹的<b>伤害与尺寸可独立声明</b>（拍上的 {@code centreDamage} /
+     *       {@code centreSize}），故「一颗 4 倍伤害的大弹带着 45 颗普通花瓣」能被表达；</li>
+     *   <li>本形态支持<b>逐发随机平面</b>——每一发各自一套局部基向量，
+     *       故 16 朵全向乱抛的花不会挤在同一竖直面里。</li>
+     * </ul>
+     *
+     * <p>刚体性由「同速同刻发射」物理地给出，MUST NOT 依赖编队帧：
+     * 编队帧的价值在自转与呼吸，而本形态刻意不自转（花瓣长短已编码在出生点里）。
+     */
+    FLOWER;
 
     /**
      * 一个形状的<b>几何</b>参数——纯几何，<b>不含任何行为参数</b>。
@@ -147,9 +212,9 @@ public enum Shape {
             double speed,
             /** 弹体直径（格）。 */
             double size,
-            /** 花瓣数（仅 ROSETTE 用）。{@code <= 1} 退化成普通圆环 */
+            /** 花瓣数（仅 ROSETTE / FLOWER 用）。{@code <= 1} 退化成普通圆环 */
             int petals,
-            /** 玫瑰线径向幅度（仅 ROSETTE 用）。与 {@code radius} 相加得到花瓣尖处的半径 */
+            /** 玫瑰线径向幅度（仅 ROSETTE / FLOWER 用）。与 {@code radius} 相加得到花瓣尖处的半径 */
             double radialAmp,
             /**
              * 直瞄比例，(0,1]（仅 {@link Shape#LATTICE} 用）。
@@ -158,31 +223,47 @@ public enum Shape {
              * 它是「网」能玩起来的关键：全是散射的话玩家随便走就能躲，
              * 全是直瞄的话没有夹缝可找。
              */
-            double aimBias) {
+            double aimBias,
+            /**
+             * 生成点沿「发射者→目标」方向的偏移（格）。
+             *
+             * <p>负值 = 生成点在发射者<b>后方</b>。用于「在 BOSS 身后立一面环」这类
+             * 构图——它不改变弹的方位，只改变弹「在哪儿冒出来」。
+             */
+            double offsetForward,
+            /**
+             * 生成点沿世界竖直方向的偏移（格）。
+             *
+             * <p>正 = 在发射者上方。用于「在 BOSS 头顶 60 格起手往下浇」这类构图。
+             * 与 {@code offsetForward} 一起覆盖了绝大多数「换个地方冒出来」的需求，
+             * 而不必为此新增几何。
+             */
+            double offsetUp) {
 
         /** 全零 / 全默认参数。 */
         public static Params defaults() {
-            return new Params(1, 0.0D, 0.0D, 0.0D, 0.0D, 1.0D, 0.5D, 0.4D, 0, 0.0D, 0.3D);
+            return new Params(1, 0.0D, 0.0D, 0.0D, 0.0D, 1.0D, 0.5D, 0.4D, 0, 0.0D, 0.3D,
+                    0.0D, 0.0D);
         }
 
         public Params count(int value) {
             return new Params(value, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, size, petals, radialAmp, aimBias);
+                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
         }
 
         public Params spread(double value) {
             return new Params(count, value, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, size, petals, radialAmp, aimBias);
+                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
         }
 
         public Params gap(double value) {
             return new Params(count, spreadDeg, value, radius, radiusPerTick, riseFactor,
-                    speed, size, petals, radialAmp, aimBias);
+                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
         }
 
         public Params radius(double value, double perTick) {
             return new Params(count, spreadDeg, gapDeg, value, perTick, riseFactor,
-                    speed, size, petals, radialAmp, aimBias);
+                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
         }
 
         public Params radius(double value) {
@@ -191,17 +272,17 @@ public enum Shape {
 
         public Params rise(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, value,
-                    speed, size, petals, radialAmp, aimBias);
+                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
         }
 
         public Params speed(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    value, size, petals, radialAmp, aimBias);
+                    value, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
         }
 
         public Params size(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, value, petals, radialAmp, aimBias);
+                    speed, value, petals, radialAmp, aimBias, offsetForward, offsetUp);
         }
 
         /**
@@ -212,22 +293,47 @@ public enum Shape {
          */
         public Params aimBias(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, size, petals, radialAmp, Math.min(1.0D, Math.max(0.0D, value)));
+                    speed, size, petals, radialAmp, Math.min(1.0D, Math.max(0.0D, value)),
+                    offsetForward, offsetUp);
         }
+
         /**
-         * 玫瑰线参数：花瓣数与径向幅度（仅 {@link Shape#ROSETTE} 使用）。
+         * 直瞄比例（仅 {@link Shape#LATTICE} 使用）。
+         *
+         * <p>0 = 全部散射（没有必须躲的）；1 = 全部精确瞄准（没有夹缝）。
+         * 0.2~0.4 通常最好玩：几条逼你动，其余可以穿。
+         */
+        /**
+         * 玫瑰线参数：花瓣数与径向幅度（{@link Shape#ROSETTE} / {@link Shape#FLOWER} 使用）。
          *
          * <p>{@code amplitude = 0} 时半径处处相等，本形状退化成普通圆环，故不额外校验；
          * 越界值（花瓣数 ≤ 1、幅度为负）由 {@code Geometry} 夹取。
          */
         public Params rose(int petalCount, double amplitude) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, size, petalCount, amplitude, aimBias);
+                    speed, size, petalCount, amplitude, aimBias, offsetForward, offsetUp);
+        }
+
+        /** 沿发射者→目标方向的生成点偏移（负 = 在发射者后方）。 */
+        public Params offsetForward(double value) {
+            return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
+                    speed, size, petals, radialAmp, aimBias, value, offsetUp);
+        }
+
+        /** 沿世界竖直的生成点偏移（正 = 在发射者上方）。 */
+        public Params offsetUp(double value) {
+            return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
+                    speed, size, petals, radialAmp, aimBias, offsetForward, value);
         }
 
         /** 返回一份把 {@code radiusPerTick} 换掉的副本——SHELL 的逐拍收拢由 Geometry 施加。 */
         public Params withRadiusPerTick(double perTick) {
             return radius(radius, perTick);
+        }
+
+        /** 返回一份把生成点偏移清零的副本——偏移只对声明它的那个形状有意义。 */
+        public Params withoutOffsets() {
+            return offsetForward(0.0D).offsetUp(0.0D);
         }
     }
 
@@ -243,7 +349,10 @@ public enum Shape {
             // SCATTER_STATIC 是环带散布，弹与弹之间处处是解；缺口方位是靠玩家自己走位找的。
             // FALL_FROM_ABOVE 是【网格】而非帘幕：地面整片是解，威胁是时间性的（会砸下来），
             // 玩家靠横移躲开即可，不需要穿洞——故不算封死。
-            case AXIAL_STAR, SHELL, RING, ROSETTE, RADIAL_BURST, SCATTER_STATIC, FALL_FROM_ABOVE -> true;
+            // GRID_FACING 是稀疏点阵，DISC_RING 是一圈弹之间的缝隙，SCATTER_FALL / PILLAR_UP
+            // 是地面上的落点，FLOWER 是花瓣簇——它们弹与弹之间处处是解。
+            case AXIAL_STAR, SHELL, RING, ROSETTE, RADIAL_BURST, SCATTER_STATIC, FALL_FROM_ABOVE,
+                    GRID_FACING, DISC_RING, SCATTER_FALL, PILLAR_UP, FLOWER -> true;
             // AROUND_TARGET 是「每发各自指向目标」，指向性由该发自己的原点决定，
             // 全批不共享缺口方位，故不按「必有缺口」论。
             case AIMED_SINGLE, FAN, GAP_FAN, CONE_RANDOM, AROUND_TARGET, LATTICE -> false;
@@ -252,18 +361,52 @@ public enum Shape {
 
     /** 该形状是否含随机成分（R1 要求随机必须被包络约束，故 lint 需知道）。 */
     public boolean isRandom() {
-        return this == CONE_RANDOM || this == AROUND_TARGET || this == LATTICE;
+        return this == CONE_RANDOM || this == AROUND_TARGET || this == LATTICE
+                || this == SCATTER_FALL || this == FLOWER;
+    }
+
+    /**
+     * 该形状是否<b>方向全向无约束</b>随机。
+     *
+     * <p>与 {@link #isRandom()} 的分野：锥内随机、围绕目标的随机都有可读的<b>方向</b>包络，
+     * 只需限制张角；而「方向在整个球面上均匀取」没有任何包络，玩家读不出大致来向。
+     * 后者 MUST 以「该发在固定年龄前不对任何玩家生效」兑现公平性，由 lint 判定。
+     *
+     * <p><b>位置随机但方向固定者不在此列</b>（如 {@link #SCATTER_FALL}：落点随机，
+     * 方向恒为竖直向下且来自 60 格之上）。它的方向极其可读，随机性在「落在哪」而非
+     * 「朝哪来」，把它算进全向随机会让「无害期」这条豁免被摊薄成惯例。
+     */
+    public boolean isOmniRandom() {
+        return this == FLOWER;
     }
 
     /** 本形状是否需要 BOSS 转向目标（用于「发射前转向」预警）。 */
     public boolean needsFacing() {
         return this == AIMED_SINGLE || this == FAN || this == RING_FACING
-                || this == FALL_FROM_ABOVE || this == RING || this == ROSETTE;
+                || this == FALL_FROM_ABOVE || this == RING || this == ROSETTE
+                || this == GRID_FACING;
     }
 
     /** 本形状是否发出零方向的弹（静止待发，靠行为决定其语义）。 */
     public boolean isStaticSpawn() {
         return this == SCATTER_STATIC;
+    }
+
+    /** 本形状的生成点是否被 {@code offsetForward} / {@code offsetUp} 挪过位置。 */
+    public boolean usesSpawnOffset() {
+        return this == GRID_FACING || this == DISC_RING || this == SCATTER_FALL
+                || this == PILLAR_UP;
+    }
+
+    /**
+     * 本形状的生成点是否<b>不由发射者自身位置</b>决定、而需要翻译层解析世界。
+     *
+     * <p>只有「地面 / 第一个空气」这类需要向下扫描地形的形状才为真。
+     * 几何层 MUST NOT 接触世界，故这些形状只给出「相对发射者的偏移 + 锚定意图」，
+     * 由 {@code DanmakuEmitter}（持有世界）求出最终坐标。
+     */
+    public boolean needsWorldAnchor() {
+        return this == SCATTER_FALL || this == PILLAR_UP;
     }
 
     /** 全部形状的清单（lint 与测试用）。 */
