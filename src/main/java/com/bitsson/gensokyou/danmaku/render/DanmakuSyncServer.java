@@ -199,14 +199,27 @@ public final class DanmakuSyncServer {
     }
 
     /**
+     * 下发一份带运动参数的权威快照 —— {@code TARGET} 段换向时用。
+     *
+     * <p><b>刻意复用既有快照包，不为「换向」新建包类型</b>：快照已含
+     * 位置 + 速度 + 指纹，足以让客户端「以权威状态重新锚定」
+     * （见 {@code danmaku-pipeline-capacity} 的档三说明）。
+     * 按服务器时间重放历史那条路走不通 ——
+     * {@code DanmakuSampleTimeline} 是只读缓冲，而 {@code tickDanmaku} 不是纯函数。
+     */
+    public static void sendTurnSnapshot(ServerPlayer player, AbstractDanmakuProjectile bullet) {
+        sendSnapshot(player, bullet, bullet.trackingToken(), true);
+    }
+
+    /**
      * 采集并下发一份快照。
      *
      * <p>所有分量取自<b>同一次</b>服务端更新边界：位置、速度、年龄、参数指纹。跨 tick
      * 拼装出来的快照会自相矛盾，而客户端拿它重锚之后，症状是「重建成功但依然错位」——
      * 那比不重建更难查。
      */
-    private static void sendSnapshot(ServerPlayer player, AbstractDanmakuProjectile bullet,
-                                     long token, boolean withParams) {
+    static void sendSnapshot(ServerPlayer player, AbstractDanmakuProjectile bullet,
+                             long token, boolean withParams) {
         int age = bullet.age();
         int revision = DanmakuMotionState.revisionFor(age);
         Vec3 position = bullet.position();

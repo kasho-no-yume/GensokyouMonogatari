@@ -82,7 +82,26 @@ import java.util.List;
     public record Beat(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
                        TargetMode targetMode, Projectile projectile,
                        int lifetimeTicks, int harmlessTicks,
-                       SpawnAnchor anchor, double centreDamage, double centreSize) {
+                       SpawnAnchor anchor, double centreDamage, double centreSize,
+                       com.bitsson.gensokyou.danmaku.motion.DanmakuLegSpec legSpec) {
+
+    /**
+     * 旧签名（无段式运动）。保留它是为了让既有调用点与测试<b>一行不改</b>——
+     * 本变更的纪律是「既有期望值零改动」，把构造器变更摊到几十个调用点上
+     * 会让真正的回归淹没在机械改动里。
+     */
+    public Beat(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
+                TargetMode targetMode, Projectile projectile,
+                int lifetimeTicks, int harmlessTicks,
+                SpawnAnchor anchor, double centreDamage, double centreSize) {
+        this(tick, shape, params, behaviour, targetMode, projectile, lifetimeTicks,
+                harmlessTicks, anchor, centreDamage, centreSize, null);
+    }
+
+    /** 本拍是否声明了段式运动。 */
+    public boolean hasLegSpec() {
+        return legSpec != null;
+    }
 
         /** 生成点锚定方式。 */
         public enum SpawnAnchor {
@@ -166,6 +185,9 @@ import java.util.List;
         private int sizeStep = 0;
         private Behaviour.Formation formation = Behaviour.Formation.NONE;
         private final List<Beat> beats = new ArrayList<>();
+
+        /** 段式运动形态；{@code null} = 本轨不使用。由 {@link #legMotion} 设置。 */
+        private com.bitsson.gensokyou.danmaku.motion.DanmakuLegSpec legSpec = null;
 
         private Builder(String name, int color) {
             this.name = name;
@@ -272,7 +294,21 @@ import java.util.List;
                     projectile == null ? Projectile.SPHERE : projectile,
                     Math.max(0, lifetimeTicks), Math.max(0, harmlessTicks),
                     anchor == null ? Beat.SpawnAnchor.NONE : anchor,
-                    Math.max(0.0D, centreDamage), Math.max(0.0D, centreSize)));
+                    Math.max(0.0D, centreDamage), Math.max(0.0D, centreSize),
+                    this.legSpec));
+            return this;
+        }
+
+        /**
+         * 声明本轨后续各拍的段式运动形态。
+         *
+         * <p>刻意做成 <b>builder 级</b>而不是 per-beat 重载：那会让
+         * {@code at(...)} 多出第 12 个参数，而段式运动是「整轨一个形态」
+         * （见 {@code DanmakuLegSpec} 的类注释）。调用时机决定它影响
+         * <b>此后</b>添加的拍，故 MUST 在添加拍<b>之前</b>调用。
+         */
+        public Builder legMotion(com.bitsson.gensokyou.danmaku.motion.DanmakuLegSpec spec) {
+            this.legSpec = spec;
             return this;
         }
 

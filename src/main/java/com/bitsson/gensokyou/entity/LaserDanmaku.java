@@ -53,6 +53,18 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
             SynchedEntityData.defineId(LaserDanmaku.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_DURATION_TICKS =
             SynchedEntityData.defineId(LaserDanmaku.class, EntityDataSerializers.INT);
+    /**
+     * 是否为<b>穿墙形态</b>。
+     *
+     * <p>默认 {@code false} = 被遮挡形态，射程裁剪到第一个方块。
+     * 两种形态并存，被遮挡形态的裁剪实现全部保留 ——
+     * 它不是遗留物，而是「可被掩体规避」这一类设计的实现。
+     *
+     * <p>本位<b>决定长度</b>，故 MUST 同时进运动指纹（见 {@link #motionParams()}）：
+     * 校准通道只比位置，两端形态不一致若不进指纹就无法被检测。
+     */
+    private static final EntityDataAccessor<Boolean> DATA_PIERCES_BLOCKS =
+            SynchedEntityData.defineId(LaserDanmaku.class, EntityDataSerializers.BOOLEAN);
 
     /** 客户端渲染用的长度缓存，避免每帧做一次 clip。键为年龄而非 tickCount。 */
     private double cachedLength = -1.0D;
@@ -105,6 +117,36 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         this.setDeltaMovement(Vec3.ZERO);
     }
 
+    /**
+     * 构造一枚<b>指定形态</b>的激光。
+     *
+     * <p>与默认构造器的区别只在形态位：默认是<b>被遮挡</b>（可被掩体规避）。
+     * 穿墙形态 MUST 显式声明，不靠默认值隐式得到。
+     */
+    public LaserDanmaku(Level level, Vec3 position, Vec3 direction, float damage, int color,
+                        double maxLength, double radius, double delayTime, double duration,
+                        @Nullable LivingEntity owner, Set<EntityType<?>> whitelist,
+                        boolean piercesBlocks) {
+        this(level, position, direction, damage, color, maxLength, radius, delayTime, duration,
+                owner, whitelist);
+        this.setPiercesBlocks(piercesBlocks);
+    }
+
+    /** 是否为穿墙形态（{@code false} = 被遮挡，默认）。 */
+    public boolean piercesBlocks() {
+        return this.entityData.get(DATA_PIERCES_BLOCKS);
+    }
+
+    public void setPiercesBlocks(boolean piercesBlocks) {
+        if (this.entityData.get(DATA_PIERCES_BLOCKS) != piercesBlocks) {
+            this.entityData.set(DATA_PIERCES_BLOCKS, piercesBlocks);
+            // 形态一变长度就变，两套缓存都必须失效 ——
+            // 否则穿墙形态会沿用被遮挡形态裁出来的长度（反之亦然）。
+            this.cachedLengthTick = -1;
+            this.renderCacheTick = -1;
+        }
+    }
+
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
@@ -115,6 +157,7 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         builder.define(DATA_RADIUS, 0.3F);
         builder.define(DATA_DELAY_TICKS, 20);
         builder.define(DATA_DURATION_TICKS, 60);
+        builder.define(DATA_PIERCES_BLOCKS, false);
     }
 
     @Override
@@ -170,15 +213,23 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
     }
 
     /**
-     * 实际长度 = min(最大长度, 到第一个方块的距离)。
+     * 判伤长度。
      *
-     * <p><b>这是权威输入</b>：服务端判伤用它，客户端也用它算同一段光束。
-     * 客户端的<b>视觉</b>裁剪必须走 {@link #getRenderLength(float)}，不能用这个——
+     * <p><b>被遮挡形态</b>（默认）：{@code min(最大长度, 到第一个方块的距离)}。
+     * <b>穿墙形态</b>：恒为 {@link #getMaxLength()}。
+     *
+     * <p><b>这是权威输入</b>：判伤只在 {@code ServerLevel} 跑（见 {@link #tick}），
+     * 所以本方法永远是服务端权威值。
+     * 客户端的<b>视觉</b>长度必须走 {@link #getRenderLength(float)}，不能用这个——
      * 改成一个方法会同时把渲染状态喂进玩法判定。
      *
-     * <p>结果按 tick 缓存，渲染每帧调用也不会重复 clip。
+     * <p>结果按年龄缓存，渲染每帧调用也不会重复 clip。
      */
     public double getActualLength() {
+        if (this.piercesBlocks()) {
+            // 穿墙形态不查询世界：长度只由发射方给定的标量决定。
+            return this.getMaxLength();
+        }
         if (this.cachedLengthTick == this.age() && this.cachedLength >= 0.0D) {
             return this.cachedLength;
         }
@@ -189,13 +240,21 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
     }
 
     /**
-     * 客户端<b>视觉</b>裁剪长度：从渲染起点算起。
+     * 客户端<b>视觉</b>长度：穿墙形态等于 {@link #getMaxLength()}；
+     * 被遮挡形态则从渲染起点重新裁剪。
      *
-     * <p>起点带纠偏量，而上一行的起点不带——两者可以相差一个偏移的上限。起点不同，
+     * <p>起点带纠偏量，而判伤的起点不带——两者可以相差一个偏移的上限。起点不同，
      * 裁到的方块就不同：光束末端会与地面/墙角错开一截，看起来像「光穿进了墙里」
-     * 或「光够不到墙角」。视觉与权威因此 MUST 是两次裁剪。
+     * 或「光够不到墙角」。被遮挡形态的视觉与权威因此 MUST 是两次裁剪。
+     *
+     * <p><b>逐形态不变量</b>：对同一形态，视觉长度 MUST 等于判伤长度。
+     * 穿墙形态两者都恒为 {@code maxLength}（起点差异不影响长度），
+     * 故该不变量自动成立。
      */
     public double getRenderLength(float partialTick) {
+        if (this.piercesBlocks()) {
+            return this.getMaxLength();
+        }
         Vec3 origin = this.position().add(this.renderOffset(partialTick));
         if (this.renderCacheTick == this.age() && this.renderCacheOrigin.distanceToSqr(origin) < 1.0E-6D) {
             return this.renderCacheLength;
@@ -299,6 +358,8 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         params[b + 4] = Float.floatToRawIntBits((float) this.getRadius());
         params[b + 5] = this.getDelayTicks();
         params[b + 6] = this.getDurationTicks();
+        // 形态位进指纹：它决定长度，两端不一致必须可被检测（校准只比位置）。
+        params[b + 7] = this.piercesBlocks() ? 1 : 0;
         return params;
     }
 
@@ -317,6 +378,8 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         this.entityData.set(DATA_RADIUS, Math.max(0.05F, Float.intBitsToFloat(params[b + 4])));
         this.entityData.set(DATA_DELAY_TICKS, Math.max(0, params[b + 5]));
         this.entityData.set(DATA_DURATION_TICKS, Math.max(1, params[b + 6]));
+        // 缺这一位（旧快照）⇒ 0 ⇒ 被遮挡，与默认形态一致
+        this.setPiercesBlocks(params[b + 7] != 0);
         // 两套长度缓存的键都含年龄，参数一变必须失效，否则沿用旧方向的裁剪结果。
         this.cachedLengthTick = -1;
         this.renderCacheTick = -1;
@@ -376,6 +439,7 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         tag.putFloat("Radius", (float) this.getRadius());
         tag.putInt("DelayTicks", this.getDelayTicks());
         tag.putInt("DurationTicks", this.getDurationTicks());
+        tag.putBoolean("PiercesBlocks", this.piercesBlocks());
     }
 
     @Override
@@ -397,5 +461,8 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         if (tag.contains("DurationTicks")) {
             this.entityData.set(DATA_DURATION_TICKS, tag.getInt("DurationTicks"));
         }
+        // 缺键（旧存档）⇒ 被遮挡形态，与默认一致。
+        // 用 setPiercesBlocks 而非直接 set：它负责让两套长度缓存失效。
+        this.setPiercesBlocks(tag.getBoolean("PiercesBlocks"));
     }
 }

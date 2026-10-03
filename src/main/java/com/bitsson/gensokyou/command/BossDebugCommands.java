@@ -124,8 +124,50 @@ public final class BossDebugCommands {
         // 所以不按服务端/客户端分开打印 —— 打印一个恒定值比不打印更容易误导。
         source.sendSuccess(() -> Component.literal("[GS-DANMAKU] clock "
                 + com.bitsson.gensokyou.danmaku.render.DanmakuClientClock.summary()), false);
+        source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
+                + legMotionStats(source)), false);
         return 1;
     }
+
+    /**
+     * 段式运动的现场读数。
+     *
+     * <p><b>三段信息各有各的排查指向</b>：在场段式弹数回答「有没有在用」；
+     * 段类型分布回答「三种形态各自的弹量」；换向下发次数回答
+     * 「档三是不是被误用了」—— 它的量级<b>必须</b>远小于
+     * 「段式弹数 × 段数」，否则说明有人在用 {@code TARGET} 段做本该档二的事。
+     */
+    private static String legMotionStats(CommandSourceStack source) {
+        int active = 0;
+        int fixed = 0;
+        int seed = 0;
+        int target = 0;
+        // 只统计命令来源附近的弹：调试命令的意图是「看眼前发生了什么」，
+        // 而全世界扫描在多玩家服上既慢又���不到要看的东西。
+        net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(
+                source.getPosition(),
+                source.getPosition()).inflate(SPAWN_SCAN_RADIUS);
+        for (com.bitsson.gensokyou.entity.AbstractDanmakuProjectile bullet
+                : source.getLevel().getEntitiesOfClass(
+                        com.bitsson.gensokyou.entity.AbstractDanmakuProjectile.class, box)) {
+            if (!bullet.hasLegMotion()) {
+                continue;
+            }
+            active++;
+            switch (bullet.legKind()) {
+                case FIXED -> fixed++;
+                case SEED -> seed++;
+                case TARGET -> target++;
+            }
+        }
+        String sync = com.bitsson.gensokyou.danmaku.render.DanmakuSyncStats.summary();
+        String turn = sync.contains("leg[") ? sync.substring(sync.indexOf("leg[")) : "leg[?]";
+        return "leg[active=" + active + " fixed=" + fixed + " seed=" + seed
+                + " target=" + target + "] " + turn;
+    }
+
+    /** {@code /gs_boss danmaku} 现场读数的扫描半径（格）。 */
+    private static final double SPAWN_SCAN_RADIUS = 64.0D;
 
     private static int danmakuReset(CommandSourceStack source) {
         com.bitsson.gensokyou.danmaku.DanmakuBudget.resetStats();

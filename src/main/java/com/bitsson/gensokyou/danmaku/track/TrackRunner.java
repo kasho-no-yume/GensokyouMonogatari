@@ -334,7 +334,8 @@ public final class TrackRunner {
                     // 「自身即参考点 → 改朝目标射」这条退化分支永不成立。
                     DanmakuEmitter.emit(boss, shot, beat.behaviour(), track.color(), baseDamage,
                             formation, formation.active() ? boss.getEyePosition() : null,
-                            beat.projectile(), beat.anchor(), beat.lifetimeTicks(), turnTarget);
+                            beat.projectile(), beat.anchor(), beat.lifetimeTicks(), turnTarget,
+                            beat.legSpec());
                 }
             }
         }

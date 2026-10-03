@@ -111,6 +111,66 @@ class BigFairyCardReworkTest {
     }
 
     // ------------------------------------------------------------------
+    // R1 的「先停住」例外（fix-ring-card-geometry 决策 3）
+    // ------------------------------------------------------------------
+
+    /**
+     * 正向：<b>先停住再启动</b>的闭合圆盘不是幕墙。
+     *
+     * <p>可读性来自时间窗。一面静止三秒的闭合圆盘是<b>预告</b>而非墙：
+     * 玩家有三秒看清它并走到它的三维包围之外（竖直圆盘本就可以从上下与两侧绕过）。
+     */
+    @Test
+    void discRingThatParksBeforeFiringIsNotAWall() {
+        Shape.Params params = Shape.Params.defaults()
+                .count(48).radius(4.0D).offsetForward(-6.0D).speed(0.6D);
+        Track.Beat parked = new Track.Beat(0, Shape.DISC_RING, params,
+                Behaviour.NONE.withMotion(Behaviour.Motion.reclaim(
+                        DanmakuSpeedProfile.decelerateAndHold(0.6D, 1),
+                        60, 0.6D, Behaviour.TARGET_AUTO)),
+                TargetMode.AIMED, Projectile.SPHERE, 0, 60,
+                Track.Beat.SpawnAnchor.NONE, 1.0D, 1.0D);
+        assertTrue(TrackLint.lintBeat("parked", trackOf(), parked).isEmpty(),
+                "先静止 60 拍再启动的闭合圆盘 SHOULD 通过："
+                        + TrackLint.lintBeat("parked", trackOf(), parked));
+    }
+
+    /**
+     * 反向：<b>只声明了无害期但仍在流动</b>的闭合圆盘仍然是墙。
+     *
+     * <p>这是本判据的关键边界 —— 若只用 {@code harmlessTicks} 放行，
+     * 「无害期内在飞向你」的一批弹会被误判为可读，而它其实没有任何观察余量。
+     */
+    @Test
+    void harmlessWindowAloneDoesNotExcuseAFlowingRing() {
+        Shape.Params params = Shape.Params.defaults()
+                .count(48).radius(4.0D).offsetForward(-6.0D).speed(0.6D);
+        Track.Beat flowingButHarmless = new Track.Beat(0, Shape.DISC_RING, params,
+                Behaviour.NONE, TargetMode.AIMED, Projectile.SPHERE, 0, 60,
+                Track.Beat.SpawnAnchor.NONE, 1.0D, 1.0D);
+        assertFalse(TrackLint.lintBeat("flowing", trackOf(), flowingButHarmless).isEmpty(),
+                "harmlessTicks 只是不掉血，不等于不动：仍在流动的闭合圆盘 MUST 仍被拒绝");
+    }
+
+    /**
+     * 反向：例外只对 {@code DISC_RING} 的「先停住」成立，不整体豁免该形状。
+     *
+     * <p>若有人把 R1 改成「{@code DISC_RING} 一律放行」，本条会失败 ——
+     * 那会让 {@link #discRingNeedsGapWhenItFillsTheCircle} 变成空断言。
+     */
+    @Test
+    void parkingExemptionDoesNotGeneraliseToOtherMotionKinds() {
+        Shape.Params params = Shape.Params.defaults()
+                .count(48).radius(4.0D).offsetForward(-6.0D).speed(0.6D);
+        Track.Beat hovering = new Track.Beat(0, Shape.DISC_RING, params,
+                Behaviour.NONE.withMotion(Behaviour.Motion.hover(26)),
+                TargetMode.AIMED, Projectile.SPHERE, 0, 60,
+                Track.Beat.SpawnAnchor.NONE, 1.0D, 1.0D);
+        assertFalse(TrackLint.lintBeat("hover", trackOf(), hovering).isEmpty(),
+                "例外只认 RECLAIM（停住后按 atAge 启动）；HOVER 不在例外内");
+    }
+
+    // ------------------------------------------------------------------
     // 花形阵列
     // ------------------------------------------------------------------
 

@@ -23,7 +23,7 @@ import java.util.UUID;
 public final class DanmakuMotionState {
 
     /** 运动输入块的字段数。改动 MUST 同步 {@code PARAM_*} 常量与实体的编解码。 */
-    public static final int PARAM_COUNT = 53;
+    public static final int PARAM_COUNT = 63;
 
     public static final int P_FLAGS = 0;
     public static final int P_HOVER_TICK = 1;
@@ -48,12 +48,27 @@ public final class DanmakuMotionState {
     public static final int P_PHASE_DUTY = 39;
     public static final int P_PHASE_OFFSET = 40;
     public static final int P_LASER_BASE = 41;
-    public static final int P_LASER_COUNT = 7;   // dir xyz, maxLength, radius, delay, duration
+    // dir xyz, maxLength, radius, delay, duration, piercesBlocks。
+    // 末位是「是否穿墙」—— 它决定长度，故 MUST 被指纹覆盖：
+    // 校准通道只比位置，两端形态不一致若不进指纹就无法被检测。
+    public static final int P_LASER_COUNT = 8;
     public static final int P_BURST_AT = 48;        // 爆散年龄（tick）
     public static final int P_BURST_RADIAL = 49;    // 径向爆散速率
     public static final int P_BURST_AIM = 50;       // 「自身即参考点」时朝目标射出的速率
     public static final int P_BURST_TARGET = 51;    // 目标实体 id（-1 = 无）
     public static final int P_BURST_FIRED = 52;     // 爆散是否已发生（1 = 已发生）
+    // 段式运动：种子数 1 项 + 段表打包字节 1 项 + 8 个种子 = 10 项。
+    //
+    // 种子直接影响运动，MUST 被覆盖 —— 否则两端种子不同无法被检测，
+    // 而校准通道只比位置，分叉要累积到肉眼可见才超容差。
+    //
+    // ⚠️ `design.md` 决策 4 写的是「PARAM_COUNT 53 → 62」，但它自己给出的代码片段
+    // 用到 10 个下标（P_RANDOM_COUNT / P_RANDOM_LEGS / 8 个种子）⇒ 53 + 10 = 63。
+    // 此处以代码片段为准取 63。指纹块不写进 NBT（写的是具名键），故无存档兼容问题。
+    public static final int P_RANDOM_SEED_COUNT = 53;
+    public static final int P_RANDOM_LEG_COUNT = 54;
+    public static final int P_RANDOM_SEED_BASE = 55;
+    public static final int P_RANDOM_SEED_SLOTS = 8;
 
     /** 位置定点化比例。与原版实体位置包的 1/4096 一致，便于对照与诊断。 */
     public static final double POSITION_SCALE = 4096.0D;

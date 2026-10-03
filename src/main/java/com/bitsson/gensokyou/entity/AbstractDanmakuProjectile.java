@@ -5,8 +5,11 @@ import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget.RemovalCause;
 import com.bitsson.gensokyou.danmaku.DanmakuHitScan;
+import com.bitsson.gensokyou.danmaku.DanmakuLegTargetPush;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuAge;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuCorrection;
+import com.bitsson.gensokyou.danmaku.motion.DanmakuLegMotion;
+import com.bitsson.gensokyou.danmaku.motion.DanmakuRandomState;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuTrackKinds;
 import com.bitsson.gensokyou.danmaku.render.DanmakuMotionState;
@@ -34,6 +37,7 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
+import javax.annotation.Nullable;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -228,6 +232,184 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
      */
     private static final EntityDataAccessor<Integer> DATA_FRAME_ADVANCE_SPEED =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+
+    // ------------------------------------------------------------------
+    // 段式运动（18 个 accessor）
+    //
+    // 8 个种子 + 8 个打包段参数 + 种子数 + 段表打包字节。
+    // **定义在抽象类上 ⇒ 四种弹种都吃这份内存**（18 × 2000 弹 × 约 24 B ≈ 860 KB）。
+    // 可接受，但不值得再加。
+    //
+    // **生成包不受影响**：未使用段运动的弹全是默认值，而 SynchedEntityData 只下发
+    // 非默认值 ⇒ 零线上成本。这是把 accessor 定长化（而非按需）的前提。
+    // ------------------------------------------------------------------
+
+    /** 发射时抽取的种子 ×8。语义无关——含义由消费方 {@code DanmakuLegMotion} 决定。 */
+    private static final EntityDataAccessor<Integer>[] DATA_RANDOM_SEEDS = newAccessorArray(8);
+
+    /** 打包的单段参数 {@code (时长 << 16) | (速率 & 0xFFFF)} ×8。 */
+    private static final EntityDataAccessor<Integer>[] DATA_LEGS = newAccessorArray(8);
+
+    /** 有效种子个数，范围 [0, 8]。 */
+    private static final EntityDataAccessor<Integer> DATA_RANDOM_SEED_COUNT =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+
+    /**
+     * 段数与段类型打包成一个字节：低 4 位段数、高 2 位段类型。
+     *
+     * <p>合成一个 accessor 是为了保住 18 个的预算 —— 逐段类型需要额外 8 个位。
+     */
+    private static final EntityDataAccessor<Integer> DATA_LEG_COUNT_AND_KIND =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+
+    /** 泛型数组无法直接初始化，逐个填充。 */
+    private static EntityDataAccessor<Integer>[] newAccessorArray(int size) {
+        @SuppressWarnings("unchecked")
+        EntityDataAccessor<Integer>[] array = new EntityDataAccessor[size];
+        for (int i = 0; i < size; i++) {
+            array[i] = SynchedEntityData.defineId(AbstractDanmakuProjectile.class,
+                    EntityDataSerializers.INT);
+        }
+        return array;
+    }
+
+    /** 是否挂了段式运动（段数 > 0）。 */
+    public boolean hasLegMotion() {
+        return DanmakuLegMotion.legCountOf(this.entityData.get(DATA_LEG_COUNT_AND_KIND)) > 0;
+    }
+
+    /** 段数，0 表示未使用段式运动。 */
+    public int legCount() {
+        return DanmakuLegMotion.legCountOf(this.entityData.get(DATA_LEG_COUNT_AND_KIND));
+    }
+
+    /** 段类型。未使用段式运动时返回 {@code FIXED}（无害的默认值）。 */
+    public DanmakuLegMotion.Kind legKind() {
+        return DanmakuLegMotion.kindOf(this.entityData.get(DATA_LEG_COUNT_AND_KIND));
+    }
+
+    public int randomSeedCount() {
+        return Math.max(0, Math.min(DanmakuRandomState.MAX_SEEDS,
+                this.entityData.get(DATA_RANDOM_SEED_COUNT)));
+    }
+
+    /** 第 index 个种子；越界返回 0（与 {@code DanmakuRandomState} 的降级一致）。 */
+    public int randomSeed(int index) {
+        if (index < 0 || index >= DanmakuRandomState.MAX_SEEDS) {
+            return 0;
+        }
+        return this.entityData.get(DATA_RANDOM_SEEDS[index]);
+    }
+
+    /** 第 index 段的打包参数；越界返回 0。 */
+    public int packedLeg(int index) {
+        if (index < 0 || index >= DanmakuLegMotion.MAX_LEGS) {
+            return 0;
+        }
+        return this.entityData.get(DATA_LEGS[index]);
+    }
+
+    /**
+     * 写入完整的段式运动输入（种子 + 段表 + 段数 + 段类型）。
+     *
+     * <p><b>调用即定死方向</b>：{@link #legMotion()} 由本方法写入的字节构造，
+     * 而 {@code DanmakuLegMotion} 在<b>构造期</b>就把段方向解出并缓存 ——
+     * 每 tick 路径不读种子（纪律见 {@code DanmakuLegMotion} 的类注释）。
+     */
+    public void setLegMotion(@Nullable DanmakuLegMotion motion, DanmakuRandomState seeds) {
+        DanmakuRandomState source = seeds == null ? DanmakuRandomState.empty() : seeds;
+        this.entityData.set(DATA_RANDOM_SEED_COUNT, source.size());
+        for (int i = 0; i < DanmakuRandomState.MAX_SEEDS; i++) {
+            this.entityData.set(DATA_RANDOM_SEEDS[i], source.at(i));
+        }
+        int legs = motion == null ? 0 : motion.legCount();
+        DanmakuLegMotion.Kind kind = motion == null
+                ? DanmakuLegMotion.Kind.FIXED : motion.kind();
+        this.entityData.set(DATA_LEG_COUNT_AND_KIND, DanmakuLegMotion.packLegCountAndKind(legs, kind));
+        for (int i = 0; i < DanmakuLegMotion.MAX_LEGS; i++) {
+            this.entityData.set(DATA_LEGS[i], motion == null ? 0 : motion.packedLegAt(i));
+        }
+        this.invalidateLegMotionCache();
+    }
+
+    /** 段式运动的构造期缓存。方向只在<b>首次构造或输入变化</b>时重解。 */
+    @Nullable
+    private DanmakuLegMotion legMotionCache;
+    private int legMotionCacheKey = Integer.MIN_VALUE;
+
+    private void invalidateLegMotionCache() {
+        this.legMotionCache = null;
+        this.legMotionCacheKey = Integer.MIN_VALUE;
+    }
+
+    /**
+     * 本弹的段式运动形态，由已同步的种子与段表在<b>首次访问时</b>构造并缓存。
+     *
+     * <p>返回 {@code null} 表示未使用段式运动。
+     *
+     * <p><b>纪律</b>：段方向在<b>构造期</b>从种子解出并存为字段，之后每 tick 只读缓存。
+     * 若把它改成每次调用都重建，那么「同一份同步输入」在两端重建出的对象方向一致
+     * 但对象不同 —— 真正的风险是任何在构造后改动种子再重建的路径，
+     * 那会让同一条弹在不同时刻拥有不同轨迹。缓存的存在让「方向在生成时定死」成为结构事实。
+     */
+    @Nullable
+    public DanmakuLegMotion legMotion() {
+        if (!this.hasLegMotion()) {
+            return null;
+        }
+        int key = this.legMotionInputKey();
+        if (this.legMotionCache == null || this.legMotionCacheKey != key) {
+            int[] packed = new int[DanmakuLegMotion.MAX_LEGS];
+            for (int i = 0; i < DanmakuLegMotion.MAX_LEGS; i++) {
+                packed[i] = this.packedLeg(i);
+            }
+            this.legMotionCache = DanmakuLegMotion.fromSpec(this.legCount(), packed,
+                    this.randomState(), this.getDeltaMovement().lengthSqr() > 1.0E-12D
+                            ? this.getDeltaMovement().normalize() : new Vec3(0.0D, 0.0D, 1.0D),
+                    this.legKind());
+            this.legMotionCacheKey = key;
+        }
+        return this.legMotionCache;
+    }
+
+    /** 已同步的种子，供 {@link #legMotion()} 构造用。 */
+    public DanmakuRandomState randomState() {
+        int[] seeds = new int[DanmakuRandomState.MAX_SEEDS];
+        for (int i = 0; i < DanmakuRandomState.MAX_SEEDS; i++) {
+            seeds[i] = this.randomSeed(i);
+        }
+        return DanmakuRandomState.of(seeds, this.randomSeedCount());
+    }
+
+    /** 段式运动输入的指纹键：输入一变即重建缓存。 */
+    private int legMotionInputKey() {
+        int key = this.entityData.get(DATA_LEG_COUNT_AND_KIND) * 31 + this.randomSeedCount();
+        for (int i = 0; i < DanmakuRandomState.MAX_SEEDS; i++) {
+            key = key * 31 + this.randomSeed(i);
+        }
+        for (int i = 0; i < DanmakuLegMotion.MAX_LEGS; i++) {
+            key = key * 31 + this.packedLeg(i);
+        }
+        return key;
+    }
+
+    /**
+     * 本弹的服务端追踪目标（{@code TARGET} 段的方向来源）。
+     *
+     * <p>刻意复用 {@code DATA_BURST_TARGET} 那套既有语义，而不是为段式运动
+     * 新造一套目标选择 —— 档三的代价应花在「下发」上，不是「发明语义」上。
+     *
+     * @return 目标实体；无目标、已移除、或查不到时返回 {@code null}
+     */
+    @Nullable
+    public Entity targetEntity() {
+        int id = this.entityData.get(DATA_BURST_TARGET);
+        if (id < 0 || !(this.level() instanceof ServerLevel serverLevel)) {
+            return null;
+        }
+        Entity found = serverLevel.getEntity(id);
+        return found != null && found.isAlive() ? found : null;
+    }
 
     // ------------------------------------------------------------------
     // 径向爆散
@@ -567,6 +749,15 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         builder.define(DATA_AXIS_X, 0.0F);
         builder.define(DATA_AXIS_Y, 0.0F);
         builder.define(DATA_AXIS_Z, 1.0F);
+        // 段式运动：全部默认值为「未使用」，故不上线、不占带宽。
+        builder.define(DATA_RANDOM_SEED_COUNT, 0);
+        builder.define(DATA_LEG_COUNT_AND_KIND, 0);
+        for (EntityDataAccessor<Integer> seed : DATA_RANDOM_SEEDS) {
+            builder.define(seed, 0);
+        }
+        for (EntityDataAccessor<Integer> leg : DATA_LEGS) {
+            builder.define(leg, 0);
+        }
     }
 
     @Override
@@ -657,6 +848,36 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
                     && profile.returnedToOrigin(this.age())) {
                 this.discard(RemovalCause.RETURNED_TO_ORIGIN);
                 return;
+            }
+        }
+
+        // 段式运动：方向与速率都由「年龄 → 段」纯函数给出。
+        //
+        // <p>放在编队帧<b>之后</b>：编队帧每 tick 覆写位置，段式与之同时挂载时
+        // 段式只是多余的一层，反过来放在前面会被编队帧覆盖掉。
+        // 两者同时挂载属于内容表的误配，判档时 {@code DanmakuTrackKinds} 会判
+        // {@code CLOSED_FORM}（位置由帧决定）。
+        //
+        // <p><b>纪律</b>：本分支只读 {@link #legMotion()} 的<b>构造期缓存</b>与年龄，
+        // MUST NOT 读种子 accessor —— 段方向在生成时定死（见 {@code DanmakuLegMotion}
+        // 的类注释）。这是本变更最容易被无声破坏的一条。
+        //
+        // <p>零速率段（悬停）走 AABB 接触判伤，与速率曲线的零速段同一条路径 ——
+        // 否则「弹穿身而过却不掉血」会重新出现。
+        DanmakuLegMotion legMotion = this.legMotion();
+        if (legMotion != null && !this.hasFormationFrame()) {
+            int age = this.age();
+            if (legMotion.requiresServerDecisionAt(age) && !this.level().isClientSide) {
+                // TARGET 段的方向依赖发射之后才发生的事实，只能由服务端在该段起始处
+                // 下发一次权威快照。客户端 MUST NOT 自行求解（见 danmaku-leg-motion spec）。
+                DanmakuLegTargetPush.request(this, legMotion);
+            }
+            Vec3 direction = legMotion.directionAt(age);
+            double speed = legMotion.speedAt(age);
+            velocity = direction.scale(speed);
+            this.setDeltaMovement(velocity);
+            if (Math.abs(speed) < 1.0E-6D) {
+                stationary = true;
             }
         }
 
@@ -1514,6 +1735,13 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         params[DanmakuMotionState.P_BURST_AIM] = this.entityData.get(DATA_BURST_AIM);
         params[DanmakuMotionState.P_BURST_TARGET] = this.entityData.get(DATA_BURST_TARGET);
         params[DanmakuMotionState.P_BURST_FIRED] = this.entityData.get(DATA_BURST_FIRED) ? 1 : 0;
+        // 段式运动：种子直接影响运动，MUST 被指纹覆盖 ——
+        // 否则两端种子不同无法被检测，而校准只比位置，分叉要累积到肉眼可见才超容差。
+        params[DanmakuMotionState.P_RANDOM_SEED_COUNT] = this.randomSeedCount();
+        params[DanmakuMotionState.P_RANDOM_LEG_COUNT] = this.entityData.get(DATA_LEG_COUNT_AND_KIND);
+        for (int i = 0; i < DanmakuRandomState.MAX_SEEDS; i++) {
+            params[DanmakuMotionState.P_RANDOM_SEED_BASE + i] = this.randomSeed(i);
+        }
         return params;
     }
 
@@ -1556,6 +1784,20 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
         this.entityData.set(DATA_BURST_AIM, params[DanmakuMotionState.P_BURST_AIM]);
         this.entityData.set(DATA_BURST_TARGET, params[DanmakuMotionState.P_BURST_TARGET]);
         this.entityData.set(DATA_BURST_FIRED, params[DanmakuMotionState.P_BURST_FIRED] != 0);
+        // 段式运动输入。种子数先写、段表字节后写 —— 两者独立，不互相推断：
+        // 「有种子无段表」与「有段表无种子」是两个不同的残缺存档，都要能读。
+        this.entityData.set(DATA_RANDOM_SEED_COUNT, Math.max(0, Math.min(
+                DanmakuRandomState.MAX_SEEDS, params[DanmakuMotionState.P_RANDOM_SEED_COUNT])));
+        for (int i = 0; i < DanmakuRandomState.MAX_SEEDS; i++) {
+            this.entityData.set(DATA_RANDOM_SEEDS[i], params[DanmakuMotionState.P_RANDOM_SEED_BASE + i]);
+        }
+        this.entityData.set(DATA_LEG_COUNT_AND_KIND, params[DanmakuMotionState.P_RANDOM_LEG_COUNT]);
+        for (int i = 0; i < DanmakuLegMotion.MAX_LEGS; i++) {
+            this.entityData.set(DATA_LEGS[i],
+                    params[DanmakuMotionState.P_RANDOM_LEG_COUNT + 1 + i]);
+        }
+        // 同步字段变了 ⇒ 构造期缓存的方向不再对应当前输入，MUST 失效
+        this.invalidateLegMotionCache();
         this.onMotionParamsApplied();
     }
 
@@ -1839,6 +2081,19 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             tag.putInt("FrameOrate", this.entityData.get(DATA_FRAME_ORBIT_RATE));
             tag.putInt("FrameAdv", this.entityData.get(DATA_FRAME_ADVANCE_SPEED));
         }
+        // 段式运动：种子与段表入盘，使「重载后轨迹与从未卸载时逐位相同」可成立。
+        // 两类键**独立**写入与读取，MUST NOT 互相推断 —— 「有种子无段表」与
+        // 「有段表无种子」都是合法的残缺存档（见读侧注释）。
+        if (this.hasLegMotion()) {
+            tag.putInt("RandomSeedCount", this.randomSeedCount());
+            tag.putInt("LegCountAndKind", this.entityData.get(DATA_LEG_COUNT_AND_KIND));
+            for (int i = 0; i < DanmakuRandomState.MAX_SEEDS; i++) {
+                tag.putInt("RandomSeed" + i, this.randomSeed(i));
+            }
+            for (int i = 0; i < DanmakuLegMotion.MAX_LEGS; i++) {
+                tag.putInt("Leg" + i, this.packedLeg(i));
+            }
+        }
         // 速度：只有「位置不由速度决定」的弹种之外才需要。
         //
         // <p>编队弹与速率曲线弹读档后能自愈（rig 覆写位置 / alongAxis 回落到方向轴），
@@ -1858,7 +2113,8 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
      */
     private boolean velocityPersistenceNeeded() {
         return DanmakuTrackKinds.needsVelocityPersistence(
-                this.isCurving(), this.hasSpeedProfile(), this.hasFormationFrame());
+                this.isCurving(), this.hasSpeedProfile(), this.hasFormationFrame(),
+                this.hasLegMotion());
     }
 
     @Override
@@ -1949,10 +2205,36 @@ public abstract class AbstractDanmakuProjectile extends Projectile {
             // 表现为「已炸开的花瓣又聚回去炸一次」——比静默不重放更容易察觉，且不丢命。
             this.entityData.set(DATA_BURST_FIRED, tag.getBoolean("BurstFired"));
         }
+        // 段式运动：逐键判存在，缺键退化为「未使用段式运动」。
+        //
+        // <p><b>两类键 MUST NOT 互相推断</b>：「有种子无段表」与「有段表无种子」
+        // 是两个不同的残缺存档，各自有确定含义 ——
+        // 前者是「抽了签但没写段表」（退化为无段运动，方向固定），
+        // 后者是「有段表但没抽签」（段方向全部退化为常量种子 0 的结果）。
+        // 任何一侧缺失都只降级自己那半，MUST NOT 让另一半消失。
+        //
+        // <p>缺键（旧存档）⇒ 段数为 0 ⇒ {@code hasLegMotion()} 为假 ⇒
+        // 走与本变更之前完全一致的路径。
+        if (tag.contains("LegCountAndKind")) {
+            this.entityData.set(DATA_RANDOM_SEED_COUNT, Math.max(0, Math.min(
+                    DanmakuRandomState.MAX_SEEDS, tag.getInt("RandomSeedCount"))));
+            for (int i = 0; i < DanmakuRandomState.MAX_SEEDS; i++) {
+                this.entityData.set(DATA_RANDOM_SEEDS[i], tag.contains("RandomSeed" + i)
+                        ? tag.getInt("RandomSeed" + i) : 0);
+            }
+            this.entityData.set(DATA_LEG_COUNT_AND_KIND, tag.getInt("LegCountAndKind"));
+            for (int i = 0; i < DanmakuLegMotion.MAX_LEGS; i++) {
+                this.entityData.set(DATA_LEGS[i], tag.contains("Leg" + i) ? tag.getInt("Leg" + i) : 0);
+            }
+        }
+        this.invalidateLegMotionCache();
 
         // 速度 MUST 最后读：判据依赖 DATA_HAS_FRAME / DATA_HAS_PROFILE，而这两个是
         // 上面按「键是否存在」<b>推断</b>出来的，提前读会拿到尚未推断的 false，
         // 于是给一枚编队弹安上本不该存在的速度。
+        // 速度留在最后读：重算速度必须先于位置积分发生，
+        // 而 `velocityPersistenceNeeded()` 依赖「是否挂了段式运动」——
+        // 它读的是 `DATA_LEG_COUNT_AND_KIND`，故那个键 MUST 在本行之前读完。
         if (velocityPersistenceNeeded()) {
             Vec3 restored = DanmakuTrackKinds.readVelocity(tag, true);
             if (restored.lengthSqr() > 1.0E-12D) {

@@ -16,6 +16,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Set;
 
@@ -93,10 +94,29 @@ public final class DanmakuEmitter {
      *        它由 {@code TrackRunner} 在<b>按人复制</b>的那一刻解析——同一拍发 5 份时
      *        每份该朝不同的人，故不能由符卡表写死。
      */
+public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behaviour,
+                             int color, float damage, Behaviour.Formation formation, Vec3 center,
+                             Projectile projectile, Track.Beat.SpawnAnchor anchorArg,
+                             int lifetimeTicks, int turnTargetId) {
+        emit(boss, shot, behaviour, color, damage, formation, center, projectile,
+                anchorArg, lifetimeTicks, turnTargetId, null);
+    }
+
+    /**
+     * 发射一枚弹的完整入口，<b>可挂段式运动</b>。
+     *
+     * <p>段式运动在<b>此处</b>构造（而不是在 {@code TrackRunner} 里预先构造好传进来），
+     * 因为它需要以这枚弹的<b>发射方向</b>为极轴 —— 那个方向只有翻译层在这一刻知道。
+     * 构造即缓存：{@link com.bitsson.gensokyou.danmaku.motion.DanmakuLegMotion}
+     * 的纪律是「方向在构造期定死，之后每 tick 只读缓存」。
+     *
+     * @param legSpec 本拍的段式运动声明；{@code null} = 不使用段式运动
+     */
     public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behaviour,
-                            int color, float damage, Behaviour.Formation formation, Vec3 center,
-                            Projectile projectile, Track.Beat.SpawnAnchor anchorArg,
-                            int lifetimeTicks, int turnTargetId) {
+                             int color, float damage, Behaviour.Formation formation, Vec3 center,
+                             Projectile projectile, Track.Beat.SpawnAnchor anchorArg,
+                             int lifetimeTicks, int turnTargetId,
+                             @Nullable com.bitsson.gensokyou.danmaku.motion.DanmakuLegSpec legSpec) {
 
         if (!(boss.level() instanceof ServerLevel server)) {
             return;
@@ -118,6 +138,11 @@ public final class DanmakuEmitter {
         }
         applySpawnAnchor(bullet, boss, shot, anchor);
         applyMotion(bullet, shot, behaviour.motion(), speed, turnTargetId);
+        if (legSpec != null) {
+            // 段式运动：以这枚弹自己的发射方向为极轴构造，构造即定死方向。
+            // MUST 在 applyMotion 之后 —— 它会覆盖 applyMotion 设的速度。
+            bullet.setLegMotion(legSpec.toMotion(shot.direction()), legSpec.randomState());
+        }
         applySplit(bullet, behaviour.split());
         applyVisibility(bullet, behaviour.visibility());
         // MUST 在 setDirection 之后：编队帧会接管位置，几何给的初速随即失效。
@@ -228,7 +253,7 @@ public final class DanmakuEmitter {
                     damage, color,
                     projectile.laserLength(), projectile.laserRadius(),
                     projectile.laserDelaySeconds(), projectile.laserDurationSeconds(),
-                    boss, NO_WHITELIST);
+                    boss, NO_WHITELIST, projectile.laserPiercesBlocks());
             return laser;
         }
         // 第 5 个形参是 <b>size</b>（球体直径），不是速度。此处此前传的是 speed，

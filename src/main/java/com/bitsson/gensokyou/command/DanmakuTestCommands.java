@@ -14,7 +14,10 @@ import com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile;
 import com.bitsson.gensokyou.entity.KnifeDanmaku;
 import com.bitsson.gensokyou.entity.LaserDanmaku;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
+import com.bitsson.gensokyou.danmaku.motion.DanmakuLegSpec;
+import com.bitsson.gensokyou.danmaku.motion.DanmakuRandomState;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
+import net.minecraft.util.RandomSource;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -94,14 +97,39 @@ public final class DanmakuTestCommands {
                                                 EntityArgument.getEntity(context, "target"),
                                                 IntegerArgumentType.getInteger(context, "sensitivity"))))))
                 
-                // /danmaku laser [长度] - 生成激光弹幕
+                // /danmaku laser [长度] - 生成激光弹幕（被遮挡形态）
                 .then(Commands.literal("laser")
                         .executes(context -> spawnLaser(context.getSource().getPlayerOrException(), 20.0))
                         .then(Commands.argument("length", IntegerArgumentType.integer(1, 100))
                                 .executes(context -> spawnLaser(
                                         context.getSource().getPlayerOrException(),
                                         IntegerArgumentType.getInteger(context, "length")))))
-                
+
+                // /danmaku piercing-laser [长度] - 生成**穿墙**激光
+                //
+                // 在役符卡全部用被遮挡形态（默认），所以穿墙形态需要这条命令才观察得到。
+                // 两者的唯一区别是射程是否裁剪到第一个方块。
+                .then(Commands.literal("piercing-laser")
+                        .executes(context -> spawnLaser(context.getSource().getPlayerOrException(),
+                                20.0, true))
+                        .then(Commands.argument("length", IntegerArgumentType.integer(1, 100))
+                                .executes(context -> spawnLaser(
+                                        context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "length"), true))))
+
+                // /danmaku leg [段数] - 生成段式随机变向弹幕
+                //
+                // 形态：朝一个随机方向快飞 → 悬停 1 秒 → 再朝一个随机方向飞 → ……
+                // 段数即变向 schedule 的长度；奇数段快飞、偶数段悬停。
+                // **参数是「段数」不是「变向次数」** —— N 段只有 N-1 次转向，
+                // 上一版把它叫做 turns 却按段数实现，读数与实际行为差一次转向。
+                .then(Commands.literal("leg")
+                        .executes(context -> spawnLegMotion(context.getSource().getPlayerOrException(), 6))
+                        .then(Commands.argument("segments", IntegerArgumentType.integer(1, 8))
+                                .executes(context -> spawnLegMotion(
+                                        context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "segments")))))
+
                 // /danmaku ring [数量] - 环形弹幕测试
                 .then(Commands.literal("ring")
                         .executes(context -> spawnRing(context.getSource().getPlayerOrException(), 8))
@@ -437,9 +465,16 @@ public final class DanmakuTestCommands {
     }
 
     /**
-     * 生成激光弹幕
+     * 生成激光弹幕。
+     *
+     * @param pierces {@code true} ⇒ 穿墙形态（射程恒为 length，不裁剪到方块）；
+     *                 {@code false} ⇒ 被遮挡形态（裁剪）
      */
     private static int spawnLaser(ServerPlayer player, double length) {
+        return spawnLaser(player, length, false);
+    }
+
+    private static int spawnLaser(ServerPlayer player, double length, boolean pierces) {
         Vec3 pos = player.getEyePosition();
         Vec3 direction = player.getLookAngle();
 
@@ -454,11 +489,84 @@ public final class DanmakuTestCommands {
                 1.0,            // 延迟 1 秒
                 3.0,            // 持续 3 秒
                 player,         // 发射者
-                new HashSet<>()
+                new HashSet<>(),
+                pierces         // 形态
         );
         player.level().addFreshEntity(laser);
 
-        player.sendSystemMessage(Component.literal("§a生成激光弹幕 §7(长度: " + (int) length + "格, 延迟1秒, 持续3秒)"));
+        player.sendSystemMessage(Component.literal("§a生成激光弹幕 §7(长度: " + (int) length
+                + "格, 延迟1秒, 持续3秒, " + (pierces ? "§e穿墙形态§7" : "§7被遮挡形态") + ")"));
+        return 1;
+    }
+
+    /**
+     * 生成段式随机变向弹幕。
+     *
+     * <p>形态即 design 里的目标形态：朝一个随机方向快飞 → 悬停 1 秒 → 再朝一个随机方向飞
+     * → …… 共 {@code segments} 段（奇数段快飞、偶数段悬停 20 tick）。
+     *
+     * <p><b>参数是段数</b>，不是变向次数 —— N 段只有 N-1 次转向。这点上一版搞错过，
+     * 命令叫 {@code turns} 却按段数实现，读数与实际行为差一次转向。
+     *
+     * <p><b>方向在发射时抽签</b>（档二：烘进同步数据），不是运行期决策 ——
+     * 所以客户端不需要任何事件包就能算出同一条轨迹。这正是本变更要验证的那件事。
+     *
+     * <p>种子取自服务端随机源，故<b>每条命令的弹轨迹都不同</b>；
+     * 但同一条弹在两端 MUST 逐位一致。
+     *
+     * <p><b>刻意把段表打进聊天栏</b>：段式运动最难自查的地方是「我以为它该在某
+     * 年龄转弯，它没转」。看见段表才能把观察到的行为对上号。
+     */
+    private static int spawnLegMotion(ServerPlayer player, int segments) {
+        Vec3 pos = player.getEyePosition();
+        Vec3 direction = player.getLookAngle();
+
+        int[] seeds = new int[DanmakuRandomState.MAX_SEEDS];
+        RandomSource random = player.level().getRandom();
+        for (int i = 0; i < segments; i++) {
+            seeds[i] = random.nextInt();
+        }
+
+        // 段表：偶数段快飞（30 tick）、奇数段悬停 1 秒。悬停段速率 0 ⇒ 走 AABB 接触判伤，
+        // 不会「穿身而过却不掉血」。
+        //
+        // ⚠️ **末段强制为快飞**：`segmentAt(age)` 越过段表末尾时会夹紧到<b>最后一段</b>，
+        // 所以末段速率为 0 ⇒ 弹在段表走完后<b>永久悬停</b>（直到寿命结束），
+        // 看起来就像「弹突然死了又没消失」。段数取偶数时交替表的末段恰是悬停段，
+        // 必须显式纠正 —— 这是段式运动最容易踩的坑。
+        double[] durations = new double[segments];
+        double[] speeds = new double[segments];
+        StringBuilder table = new StringBuilder();
+        for (int i = 0; i < segments; i++) {
+            boolean last = i == segments - 1;
+            boolean hover = (i % 2) == 1 && !last;
+            durations[i] = hover ? 20 : 30;
+            speeds[i] = hover ? 0.0 : 0.45;
+            if (i > 0) {
+                table.append(" → ");
+            }
+            table.append(i).append(':').append(hover ? "悬停1s" : "快飞");
+        }
+
+        DanmakuLegSpec spec = DanmakuLegSpec.seeded(DanmakuLegSpec.Kind.SEED, segments, seeds,
+                durations, speeds);
+
+        SphereDanmaku bullet = new SphereDanmaku(
+                player.level(),
+                player,
+                2.0F,           // 伤害
+                0xFFAA00,       // 橙色，与既有弹幕配色区分开
+                0.5F,           // 尺寸
+                new HashSet<net.minecraft.world.entity.EntityType<?>>()
+        );
+        bullet.moveTo(pos.x, pos.y, pos.z, 0F, 0F);
+        bullet.setDeltaMovement(direction.scale(0.45));
+        bullet.setLegMotion(spec.toMotion(direction), spec.randomState());
+        player.level().addFreshEntity(bullet);
+
+        player.sendSystemMessage(Component.literal("§a生成段式随机变向弹幕 §7("
+                + segments + " 段 = " + (segments - 1) + " 次转向, 形态 SEED —— 方向发射时抽签, 稳态零带宽)"));
+        player.sendSystemMessage(Component.literal("§8 段表 §7" + table));
         return 1;
     }
 

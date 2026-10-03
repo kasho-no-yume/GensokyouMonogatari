@@ -357,12 +357,46 @@ public final class TrackLint {
         return shape == Shape.CAGE ? 3 : 1;
     }
 
+    /** 弹幕的默认寿命上限。与 {@code AbstractDanmakuProjectile#MAX_LIFETIME_TICKS} 同值。 */
+    private static int danmakuMaxLifetimeTicks() {
+        return com.bitsson.gensokyou.entity.AbstractDanmakuProjectile.MAX_LIFETIME_TICKS;
+    }
+
     static List<String> lintBeat(String tag, Track track, Track.Beat beat) {
         List<String> violations = new ArrayList<>();
         Shape shape = beat.shape();
         Shape.Params params = beat.params();
         String where = String.format("%s 轨「%s」t=%d %s", tag, track.name(), beat.tick(), shape);
         // 显影/可见性：激光有自己的生命周期，隐藏态对它另有语义时由下面单独判。
+
+        // 段式运动：末段零速率 ⇒ 弹在段表走完后<b>永久悬停</b>。
+        //
+        // <p><b>为什么必须拦</b>：{@code segmentAt(age)} 越过段表末尾时会夹紧到最后一段，
+        // 于是末段速率为 0 的弹会在段表结束那一刻定住，<b>一直停到寿命结束</b>
+        // —— 现象是「弹突然定住不动却不消失」，无报错、无日志、且完全看不出是声明的问题。
+        // 而交替式段表（「飞 1 秒 → 悬停 1 秒」循环）在<b>偶数段数</b>下末段恰是悬停段，
+        // 于是「段数取偶数」这样一个看似无害的选择就会稳定复现该现象。
+        //
+        // <p>豁免：寿命短于段表总时长的弹不受影响 —— 它在段表走完前就消失了。
+        if (beat.hasLegSpec()) {
+            var legSpec = beat.legSpec();
+            int legs = legSpec.packedLegs().length;
+            if (legs > 0) {
+                int lastSpeed = legSpec.packedLegs()[legs - 1] & 0xFFFF;
+                int lifetime = beat.lifetimeTicks() > 0
+                        ? beat.lifetimeTicks() : danmakuMaxLifetimeTicks();
+                int scheduleTicks = 0;
+                for (int packed : legSpec.packedLegs()) {
+                    scheduleTicks += (packed >>> 16) & 0xFFFF;
+                }
+                if (lastSpeed == 0 && lifetime > scheduleTicks) {
+                    violations.add(where + ": 段式运动的末段速率为 0，而寿命(" + lifetime
+                            + " tick)长于段表总时长(" + scheduleTicks
+                            + " tick) ⇒ 弹会在段表走完后永久悬停。"
+                            + "请让末段有速度，或把寿命压到段表总时长以内");
+                }
+            }
+        }
 
         // R1：绕玩家铺满 360° 的形状必须留缺口，否则等于有一半弹在背后。
         boolean fullCircle = shape == Shape.RING_FACING || shape == Shape.RING_HORIZONTAL
@@ -414,7 +448,27 @@ public final class TrackLint {
             violations.add(where + ": AROUND_TARGET 的目标周围区域半径须为正，实际 " + params.radius());
         }
         // 侧挂圆盘：整圈排满且不留缺口即是一面幕墙，与其它环形同理须留缺口。
-        if (shape == Shape.DISC_RING && params.count() >= R2_SEAL_COUNT && params.gapDeg() <= 0.0D) {
+        //
+        // <p><b>例外：先停住、之后才启动</b>（{@link Behaviour.Motion.Kind#RECLAIM}）。
+        // R1 针对的「幕墙」是<b>不可读</b>的墙，而可读性来自时间窗，不只来自有没有缝：
+        // 一面<b>静止</b>三秒的闭合圆盘不是墙，是一道<b>预告</b> —— 玩家有三秒看清它、
+        // 判断它、走到它的三维包围之外（竖直圆盘本就可以从上下与两侧绕过）。
+        // 而「瞬间铺满并立刻开始流动」才是没有观察余量的那种（既有测试
+        // {@code discRingNeedsGapWhenItFillsTheCircle} 用的正是后者）。
+        //
+        // <p><b>为什么用 motion kind 而不是 harmlessTicks</b>：无害只说明「不掉血」，
+        // 不说明「不动」。一批<b>无害期内在飞向你</b>的闭合圆盘仍然是墙。
+        // {@code RECLAIM} 精确地表达「这批弹先静止停留，到 atAge 才启动」。
+        //
+        // <p><b>与 R2 的关系</b>：R2 通过 {@link Shape#guaranteesGap} 判定，而它对
+        // {@code DISC_RING} 返回 {@code true}（竖直圆盘在三维里有解），故 R2 从不拦它；
+        // R1 此前硬编码 {@code gapDeg <= 0} 而不查该方法 —— 两条规则对<b>同一形状</b>
+        // 的可解性判断互相矛盾。本例外把 R1 对齐到 R2 的立场，但只对「先停住」这一类放行，
+        // 不整体豁免 {@code DISC_RING}（否则既有那条判据会变成空断言）。
+        if (shape == Shape.DISC_RING
+                && params.count() >= R2_SEAL_COUNT
+                && params.gapDeg() <= 0.0D
+                && beat.behaviour().motion().kind() != Behaviour.Motion.Kind.RECLAIM) {
             violations.add(where + ": 违反 R1 前向威胁——侧挂圆盘单拍排满且未留缺口（gapDeg=0）");
         }
         // 二维栅格的角间隔为 0 会退化成「全部重叠在一处」，与「格点阵」的语义不符。

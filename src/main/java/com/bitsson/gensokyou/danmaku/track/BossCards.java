@@ -131,40 +131,46 @@ public final class BossCards {
                 ringCard(), flowerCard(), rainCard());
     }
 
-    /**
-     * 1 阶段 · 花符[弹幕花环]（66%~100%）
-     *
-     * <p>48 拍逐颗放环：每拍 1 颗，间隔 1 tick（0.05 秒），相位每拍 +7.5°，
-     * 于是 48 拍正好绕满一圈。环挂在 BOSS <b>身后</b> 6 格处、半径 4 格的竖直圆盘上，
-     * 平面垂直于「BOSS → 该玩家」——该方向在<b>生成那一 tick 锁定</b>，此后 BOSS
-     * 转向不影响已生成的环。
-     *
-     * <p>每颗弹生成后静止 3 秒（速率先压到 0），第 3 秒<b>重新瞄准</b>它所属的那名玩家
-     * 并以 6 格/秒射出。等待期能伤玩家：环在那 3 秒里是一道实体墙。
-     *
-     * <p>按人复制（{@link TargetMode#AIMED}）：每名被锁定玩家身后各一个环，
-     * 且各环的同一序号在同一 tick 出现。5 人 = 240 颗/轮。
-     */
-    private static SpellCard ringCard() {
-        Track.Builder ring = of("花环", BIG_FAIRY_PALETTE.at(1))
-                .identity(1, 0, 1)
-                .repeatEvery(0)
-                .phaseStep(360.0D / 48.0D);
-        for (int i = 0; i < 48; i++) {
-            ring.at(i, Shape.DISC_RING, Shape.Params.defaults()
-                            .count(1)
-                            .radius(4.0D)
-                            .offsetForward(-6.0D)
-                            .size(0.7D)
-                            .speed(RING_LAUNCH_SPEED),
-                    // 静止 3 秒 → 重新瞄准 → 12 格/秒。曲线只管前半段的「停住」。
-                    Behaviour.NONE.withMotion(Behaviour.Motion.reclaim(
-                            DanmakuSpeedProfile.decelerateAndHold(RING_LAUNCH_SPEED, 1),
-                            60, RING_LAUNCH_SPEED, Behaviour.TARGET_AUTO)),
-                    TargetMode.AIMED, 0, 60);
-        }
-        return new SpellCard(card("big_fairy", 1), 1.00D, List.of(ring.build()), RING_CARD_CYCLE);
-    }
+/**
+ * 1 阶段 · 花符[弹幕花环]（66%~100%）
+ *
+ * <p><b>单拍放环</b>：第 0 拍一次生成 48 颗，相位由 {@code Geometry} 的
+ * {@code i × 360/48} 在这一次调用内展开，于是 48 颗落在<b>同一个</b>圆上。
+ * 环挂在 BOSS <b>身后</b> 6 格处、半径 4 格的竖直圆盘上，平面垂直于
+ * 「BOSS → 该玩家」—— 该方向在生成那一 tick 锁定，此后 BOSS 转向不影响已生成的环。
+ *
+ * <p><b>为什么必须单拍而不是「48 拍各 1 颗」</b>：后者听上去等价，其实不然 ——
+ * {@code TrackRunner#emitTrack} <b>每个 tick 重新采样</b>发射原点与瞄准方向，
+ * 而 48 个 beat 分属 48 个 tick，于是 48 个圆心沿 BOSS 与玩家的相对运动排开，
+ * 相位却仍按 7.5°/拍递增 ⇒ 结果是一条<b>螺线</b>而不是圆。
+ * 实测（{@code RingCardCrossBeatConsistencyTest}）：BOSS 被
+ * {@code movementLocked} 钉住时圆心仍偏离 <b>2.615 格</b>（环半径只有 4 格），
+ * 首尾两颗相距 3.154 格而相邻两颗只隔 0.523 格 —— 环根本没有闭合。
+ * 单拍生成让 48 颗共享同一次采样的圆心，这是唯一能保证共圆的方式。
+ *
+ * <p>每颗弹生成后静止 3 秒（速率先压到 0），第 3 秒<b>重新瞄准</b>它所属的那名玩家
+ * 并以 6 格/秒射出。等待期能伤玩家：环在那 3 秒里是一道实体墙。
+ *
+ * <p>按人复制（{@link TargetMode#AIMED}）：每名被锁定玩家身后各一个环，
+ * 且各环的同一序号在同一 tick 出现。5 人 = 240 颗/轮。
+ */
+private static SpellCard ringCard() {
+    Track.Builder ring = of("花环", BIG_FAIRY_PALETTE.at(1))
+            .identity(1, 0, 1)
+            .repeatEvery(0);
+    ring.at(0, Shape.DISC_RING, Shape.Params.defaults()
+                    .count(48)
+                    .radius(4.0D)
+                    .offsetForward(-6.0D)
+                    .size(0.7D)
+                    .speed(RING_LAUNCH_SPEED),
+// 静止 3 秒 → 重新瞄准 → 12 格/秒。曲线只管前半段的「停住」。
+            Behaviour.NONE.withMotion(Behaviour.Motion.reclaim(
+                    DanmakuSpeedProfile.decelerateAndHold(RING_LAUNCH_SPEED, 1),
+                    60, RING_LAUNCH_SPEED, Behaviour.TARGET_AUTO)),
+            TargetMode.AIMED, 0, 60);
+    return new SpellCard(card("big_fairy", 1), 1.00D, List.of(ring.build()), RING_CARD_CYCLE);
+}
 
     /**
      * 2 阶段 · 花符【花之海洋】（33%~66%）

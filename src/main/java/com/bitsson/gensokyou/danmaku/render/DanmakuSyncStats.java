@@ -39,6 +39,10 @@ public final class DanmakuSyncStats {
     private static final AtomicLong CALIBRATION_SAMPLES = new AtomicLong();
     private static final AtomicLong SNAPSHOTS_SENT = new AtomicLong();
     private static final AtomicLong RESYNC_REQUESTS_SERVED = new AtomicLong();
+    /** 段式运动 TARGET 段的权威方向下发次数（换向 tick，一次一个目标）。 */
+    private static final AtomicLong LEG_TURN_PUSHED = new AtomicLong();
+    /** TARGET 段目标不可解析而走降级路径的次数。 */
+    private static final AtomicLong LEG_TARGET_UNRESOLVED = new AtomicLong();
     private static final AtomicLong RESYNC_REQUESTS_REFUSED = new AtomicLong();
 
     // ---- 客户端：服务器时间轴（danmaku-timeline-sync T1） ----
@@ -112,6 +116,16 @@ public final class DanmakuSyncStats {
         RESYNC_REQUESTS_SERVED.incrementAndGet();
     }
 
+    /** 段式运动 {@code TARGET} 段的权威方向已下发（换向 tick）。 */
+    public static void recordLegTurnPushed() {
+        LEG_TURN_PUSHED.incrementAndGet();
+    }
+
+    /** {@code TARGET} 段到达段起点但目标不可解析 ⇒ 走降级路径（保持当前方向）。 */
+    public static void recordLegTargetUnresolved() {
+        LEG_TARGET_UNRESOLVED.incrementAndGet();
+    }
+
     /** 服务端判定该玩家并不在跟踪此实体。 */
     public static void recordResyncRefused() {
         RESYNC_REQUESTS_REFUSED.incrementAndGet();
@@ -157,7 +171,9 @@ public final class DanmakuSyncStats {
                 SNAPSHOTS_SENT.get(), RESYNC_REQUESTS_SERVED.get(),
                 RESYNC_REQUESTS_REFUSED.get(), LEGACY_SAMPLES.get(),
                 CLOCK_ACCEPTED.get(), CLOCK_RATE_UPDATES.get(), CLOCK_OUTLIERS.get(),
-                CLOCK_RATE_OUT_OF_RANGE.get(), CLOCK_STALE.get(), CLOCK_RESETS.get());
+                CLOCK_RATE_OUT_OF_RANGE.get(), CLOCK_STALE.get(), CLOCK_RESETS.get())
+                + String.format(" leg[turnPushed=%d unresolved=%d]",
+                LEG_TURN_PUSHED.get(), LEG_TARGET_UNRESOLVED.get());
     }
 
     public static void reset() {

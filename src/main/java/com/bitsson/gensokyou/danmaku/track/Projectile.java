@@ -13,10 +13,17 @@ package com.bitsson.gensokyou.danmaku.track;
  *
  * <p>激光参数刻意不进 {@link Shape.Params}——那个记录是<b>纯几何</b>的
  * （{@code BehaviourDecouplingTest} 有断言守着），而延迟与持续时间是<b>时间</b>语义。
+ *
+ * <p><b>激光有两种形态，刻意并存</b>：被遮挡（默认）与穿墙。
+ * 两者不是「正确与错误」之分，而是两类可读性设计：
+ * 被遮挡让玩家能靠掩体规避（激光打在墙上，这是可预期的战术），
+ * 穿墙用于「墙面拦不住」的发光弹。被遮挡形态的实现<b>全部保留</b>，
+ * 详见 {@code LaserDanmaku#getActualLength}。
  */
 public record Projectile(Kind kind,
                          double laserLength, double laserRadius,
-                         double laserDelaySeconds, double laserDurationSeconds) {
+                         double laserDelaySeconds, double laserDurationSeconds,
+                         boolean laserPiercesBlocks) {
 
     /** 弹种。 */
     public enum Kind {
@@ -26,8 +33,8 @@ public record Projectile(Kind kind,
         LASER
     }
 
-    /** 球弹。球弹没有自己的参数，故那四项恒为 0。 */
-    public static final Projectile SPHERE = new Projectile(Kind.SPHERE, 0, 0, 0, 0);
+    /** 球弹。球弹没有自己的参数，故那五项恒为 0 / false。 */
+    public static final Projectile SPHERE = new Projectile(Kind.SPHERE, 0, 0, 0, 0, false);
 
     /** 球弹（显式构造，便于在符卡表里读出来）。 */
     public static Projectile sphere() {
@@ -35,7 +42,10 @@ public record Projectile(Kind kind,
     }
 
     /**
-     * 激光。
+     * 激光，<b>被遮挡形态</b>（默认）。
+     *
+     * <p>射程 = {@code min(length, 到第一个方块的距离)}。判伤与视觉各自裁剪，
+     * 且对同一枚激光给出同一个长度（逐形态不变量）。
      *
      * @param length      射线长度（格）
      * @param radius      射线半径（格），决定判伤粗细
@@ -45,12 +55,31 @@ public record Projectile(Kind kind,
      */
     public static Projectile laser(double length, double radius,
                                    double delaySeconds, double durationSeconds) {
+        return laser(length, radius, delaySeconds, durationSeconds, false);
+    }
+
+    /**
+     * 激光，可指定是否穿墙。
+     *
+     * @param piercesBlocks {@code true} ⇒ 射程恒为 {@code length}，判伤与视觉都不裁剪；
+     *                      {@code false} ⇒ 被遮挡形态，射程裁剪到第一个方块
+     */
+    public static Projectile laser(double length, double radius,
+                                   double delaySeconds, double durationSeconds,
+                                   boolean piercesBlocks) {
         return new Projectile(Kind.LASER,
                 Math.max(1.0D, length), Math.max(0.05D, radius),
-                Math.max(0.0D, delaySeconds), Math.max(1.0D, durationSeconds));
+                Math.max(0.0D, delaySeconds), Math.max(1.0D, durationSeconds),
+                piercesBlocks);
     }
 
     public boolean isLaser() {
         return kind == Kind.LASER;
+    }
+
+    /** 穿墙形态的激光。语义化的便捷入口，便于在符卡表里读出来。 */
+    public static Projectile piercingLaser(double length, double radius,
+                                           double delaySeconds, double durationSeconds) {
+        return laser(length, radius, delaySeconds, durationSeconds, true);
     }
 }

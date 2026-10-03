@@ -47,7 +47,15 @@ public final class DanmakuTrackKinds {
         /**
          * 位置是<b>上一步的累加</b>。丢掉速度就丢掉全部后续运动。
          */
-        INCREMENTAL
+        INCREMENTAL,
+        /**
+         * 位置是累加的（同 {@link #INCREMENTAL}），但<b>速度不是</b> ——
+         * {@code vᵢ = dir(seedᵢ) · speedᵢ} 只由种子与段表决定，不依赖上一 tick 的速度。
+         *
+         * <p>这正是它与 {@link #INCREMENTAL} 的分界，也是它能进闭式分支的全部理由：
+         * 双端逐位一致，同时位置可由「存档位置 + 按年龄重算的速度」续上。
+         */
+        SEGMENTED
     }
 
     /** 存档键。三个分量，与原版实体 NBT 的写法一致。 */
@@ -57,17 +65,39 @@ public final class DanmakuTrackKinds {
     }
 
     /**
-     * 该弹种的弹道形式。
+     * 该弹种的弹道形式（无段式运动时的旧口径）。
      *
-     * @param curving            挂了曲射
-     * @param hasSpeedProfile    挂了速率曲线
-     * @param hasFormationFrame  挂了编队帧
+     * @see #formOf(boolean, boolean, boolean, boolean)
      */
     public static Form formOf(boolean curving, boolean hasSpeedProfile,
                               boolean hasFormationFrame) {
+        return formOf(curving, hasSpeedProfile, hasFormationFrame, false);
+    }
+
+    /**
+     * 该弹种的弹道形式。
+     *
+     * @param segmented 挂了段式运动
+     */
+    public static Form formOf(boolean curving, boolean hasSpeedProfile,
+                              boolean hasFormationFrame, boolean segmented) {
         // 编队帧最强：它每 tick 覆写位置，其余一切都不需要。
         // 速率曲线次之：它能从已持久化的方向轴与 speedAt(age) 重建速度。
-        return hasFormationFrame || hasSpeedProfile ? Form.CLOSED_FORM : Form.INCREMENTAL;
+        // 段式运动再次：速度可由种子与段表解出，但位置仍是累加的。
+        if (hasFormationFrame || hasSpeedProfile) {
+            return Form.CLOSED_FORM;
+        }
+        return segmented ? Form.SEGMENTED : Form.INCREMENTAL;
+    }
+
+    /**
+     * 读档后能否在没有 {@code deltaMovement} 的情况下继续正确运动（无段式运动时的旧口径）。
+     *
+     * @see #survivesReloadWithoutVelocity(boolean, boolean, boolean, boolean)
+     */
+    public static boolean survivesReloadWithoutVelocity(boolean curving, boolean hasSpeedProfile,
+                                                         boolean hasFormationFrame) {
+        return survivesReloadWithoutVelocity(curving, hasSpeedProfile, hasFormationFrame, false);
     }
 
     /**
@@ -75,10 +105,24 @@ public final class DanmakuTrackKinds {
      *
      * <p>与 {@link #formOf} 不是同一个判据：曲射弹是 {@code INCREMENTAL}，
      * 但挂了速率曲线之后它仍能自愈，因为 {@code alongAxis} 会回落到方向轴。
+     *
+     * <p><b>段式运动能自愈</b>：段内速度是 {@code f(种子, 段号, 段表)} 的纯函数，
+     * 段索引是年龄的纯函数，故缺 {@code deltaMovement} 也能重算出来。
      */
     public static boolean survivesReloadWithoutVelocity(boolean curving, boolean hasSpeedProfile,
-                                                         boolean hasFormationFrame) {
-        return hasFormationFrame || hasSpeedProfile;
+                                                         boolean hasFormationFrame,
+                                                         boolean segmented) {
+        return hasFormationFrame || hasSpeedProfile || segmented;
+    }
+
+    /**
+     * 该弹种是否需要把 {@code deltaMovement} 写入存档（无段式运动时的旧口径）。
+     *
+     * @see #needsVelocityPersistence(boolean, boolean, boolean, boolean)
+     */
+    public static boolean needsVelocityPersistence(boolean curving, boolean hasSpeedProfile,
+                                                   boolean hasFormationFrame) {
+        return needsVelocityPersistence(curving, hasSpeedProfile, hasFormationFrame, false);
     }
 
     /**
@@ -87,10 +131,31 @@ public final class DanmakuTrackKinds {
      * <p>为 false 时<b>不写</b>，读档也不读 —— 不是「读了但不用」，而是不占那 6 个
      * 键的体积。编队弹与速率曲线弹的存档里不该出现速度，因为它们的位置不由速度决定；
      * 写进去反而会让人误以为速度是它们的权威。
+     *
+     * <p><b>裸段式运动刻意返回 true，与 {@link #survivesReloadWithoutVelocity} 解耦。</b>
+     * 理由<b>不是</b>「速度不可推导」—— 它是可推导的 —— 而是<b>顺序依赖</b>：
+     * 服务端从存档的 {@code pos} 继续，读侧重算速度必须<b>先于</b>位置积分发生。
+     * 现有代码已经因 {@code DATA_HAS_FRAME} / {@code DATA_HAS_PROFILE} 的推断顺序踩过一次
+     * （见 {@code AbstractDanmakuProjectile} 里「速度 MUST 最后读」的注释）。
+     * 宁可多存 3 个 double。
+     *
+     * <p><b>但编队帧与速率曲线优先于段式判断</b>：它们已让位置不由速度决定，
+     * 此时段式不该反过来把「不写」改写成「写」。
      */
     public static boolean needsVelocityPersistence(boolean curving, boolean hasSpeedProfile,
-                                                   boolean hasFormationFrame) {
-        return !survivesReloadWithoutVelocity(curving, hasSpeedProfile, hasFormationFrame);
+                                                   boolean hasFormationFrame, boolean segmented) {
+        // 编队帧与速率曲线**优先**：它们每 tick 覆写位置或速率，
+        // 速度对位置没有影响 ⇒ 不写。这条先于段式判断，否则段式会把既有语义盖掉。
+        if (hasFormationFrame || hasSpeedProfile) {
+            return false;
+        }
+        // 裸段式运动返回 true，与 {@link #survivesReloadWithoutVelocity} 解耦。
+        // 理由**不是**「速度不可推导」—— 它是可推导的 —— 而是**顺序依赖**：
+        // 服务端从存档的 {@code pos} 继续，读侧重算速度必须<b>先于</b>位置积分发生，
+        // 而这个判据本身依赖「是否挂了段式运动」（读档期顺序问题）。
+        // 现有代码已经因 {@code DATA_HAS_FRAME} / {@code DATA_HAS_PROFILE} 的推断顺序踩过一次。
+        // 宁可多存 3 个 double。
+        return segmented || !survivesReloadWithoutVelocity(curving, hasSpeedProfile, hasFormationFrame);
     }
 
     /**
