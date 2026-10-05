@@ -50,6 +50,12 @@ public final class SairEnergyBehavior implements RitualBehavior {
         return GensokyouConfig.SAIR_ENERGY_OUT_RATE_PER_SECOND.get().longValue();
     }
 
+    /** 供灵源仪式：能量方向是缓存 → 电池，显式豁免默认的"电池 → 缓存"。 */
+    @Override
+    public boolean refillsCacheFromSocket() {
+        return false;
+    }
+
     /** 成型即每秒把缓存补满至上限（无限源语义）；缓存已满时零写入。 */
     @Override
     public void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,

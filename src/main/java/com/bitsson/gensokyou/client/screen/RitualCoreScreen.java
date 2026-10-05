@@ -136,15 +136,33 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
                 .orElse(true);
     }
 
-    /** 该仪式是否声明目标物品槽（星移之仪的增幅核）。 */
-    private static boolean targetSocket(RitualInfoPayload info) {
+    /** 该仪式声明了几个额外物品槽（星移的增幅核、少名的炼药试剂等）。 */
+    private static int extraSlots(com.bitsson.gensokyou.network.RitualInfoPayload info) {
         if (info.patternId().isEmpty()) {
-            return false;
+            return 0;
+        }
+        // MUST mirror RitualCoreBlockEntity#extraSlotCount(): read RitualExtraSlots#slotCount,
+        // NOT RitualBehavior#extraSlotCount (default 0). The old path made syncExtraSlotsVisible(0)
+        // every frame -> slot and its frame invisible while server logic stayed fully functional.
+        return com.bitsson.gensokyou.ritual.RitualBehaviors
+                .get(ResourceLocation.parse(info.patternId()))
+                .filter(com.bitsson.gensokyou.ritual.RitualExtraSlots.class::isInstance)
+                .map(com.bitsson.gensokyou.ritual.RitualExtraSlots.class::cast)
+                .map(com.bitsson.gensokyou.ritual.RitualExtraSlots::slotCount)
+                .map(count -> Math.max(0, Math.min(4, count)))
+                .orElse(0);
+    }
+
+    /** 额外槽的标注 lang 键（行为未声明或返回空串时无标注）。 */
+    private String extraSlotLabelKey() {
+        RitualInfoPayload info = ClientRitualState.latest();
+        if (info == null || info.patternId().isEmpty()) {
+            return "";
         }
         return com.bitsson.gensokyou.ritual.RitualBehaviors
                 .get(ResourceLocation.parse(info.patternId()))
-                .map(com.bitsson.gensokyou.ritual.RitualBehavior::usesTargetSlot)
-                .orElse(false);
+                .map(com.bitsson.gensokyou.menu.RitualCoreMenu::extraSlotLabelKey)
+                .orElse("");
     }
 
     @Override
@@ -154,9 +172,9 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         boolean ours = info != null && info.blockPos().equals(menu.pos());
         boolean showButtons = ours && info.toggleable();
         menu.syncCoreSocketVisible(ours && coreSocket(info));
-        menu.syncTargetSocketVisible(ours && targetSocket(info));
-        // 目标物品槽占信息区首行 → 整条信息区下移一行（仅声明该槽的仪式付此代价）
-        infoTop = INFO_Y_START + (menu.targetSocketShown() ? INFO_TARGET_ROW_H : 0);
+        menu.syncExtraSlotsVisible(ours ? extraSlots(info) : 0);
+        // 额外物品槽占信息区首行 → 整条信息区下移一行（仅声明该槽的仪式付此代价）
+        infoTop = INFO_Y_START + (menu.anyExtraSlotShown() ? INFO_TARGET_ROW_H : 0);
         if (startButton != null) {
             startButton.visible = showButtons && !(ours && info.enabled());
         }
@@ -243,22 +261,28 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
         graphics.blit(BACKGROUND, leftPos, topPos, 0, 0, PANEL_WIDTH, PANEL_HEIGHT,
                 PANEL_WIDTH, PANEL_HEIGHT);
-        // 目标物品槽（星移之仪的增幅核）落在信息区首行，GUI 贴图里没有对应槽框，
-        // 故在此补画一个与电池槽同款的描边框（注意框在槽坐标 −1 处，见 paintSlotFrame）。
-        if (menu.targetSocketShown()) {
-            paintSlotFrame(graphics, leftPos + RitualCoreMenu.TARGET_SLOT_X - 1,
-                    topPos + RitualCoreMenu.TARGET_SLOT_Y - 1);
+        // 额外物品槽落在信息区首行，GUI 贴图里没有对应槽框，
+        // 故在此逐个补画与电池槽同款的描边框（注意框在槽坐标 −1 处，见 paintSlotFrame）。
+        for (int i = 0; i < menu.extraSlotsShown(); i++) {
+            paintSlotFrame(graphics, leftPos + RitualCoreMenu.extraSlotX(i) - 1,
+                    topPos + RitualCoreMenu.extraSlotY() - 1);
         }
     }
 
     /**
-     * 18×18 槽框：1px 亮紫描边、无填充，与 GUI 贴图里电池槽的画法一致。
+     * 18×18 槽框：暗色凹底 + 1px 亮紫描边。
      *
      * <p><b>坐标约定</b>：本 GUI 的槽框画在<b>槽坐标 −1</b> 处（与贴图里电池槽
      * {@code (29,39) 框 / (30,40) 槽} 的关系相同），物品由原版 {@code renderSlot}
      * 画在槽坐标上，故天然内缩 1px 居中。调用方须传 {@code slotX - 1, slotY - 1}。
+     *
+     * <p><b>为何必须填凹底</b>：电池槽的底是 GUI 贴图里<b>烘焙</b>好的，而额外槽落在
+     * 信息区首行——那是贴图里一片空白。原先只描 1px 边，空槽时那圈线在深色面板上几乎
+     * 看不见，读作"这里没有槽"，直到玩家把东西放进去才注意到（实机反馈："没放材料时格子
+     * 视觉上还是没有，直到放了材料才出现"）。填一层暗底即得 vanilla 槽的空态观感。
      */
     private static void paintSlotFrame(GuiGraphics graphics, int x, int y) {
+        graphics.fill(x + 1, y + 1, x + 17, y + 17, SLOT_RECESS);
         graphics.fill(x, y, x + 18, y + 1, SLOT_FRAME_BORDER);
         graphics.fill(x, y + 17, x + 18, y + 18, SLOT_FRAME_BORDER);
         graphics.fill(x, y, x + 1, y + 18, SLOT_FRAME_BORDER);
@@ -308,12 +332,16 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
                     RitualCoreMenu.BATTERY_SLOT_X + 20, RitualCoreMenu.BATTERY_SLOT_Y + 4,
                     COLOR_TEXT, false);
         }
-        // 目标物品槽（星移之仪的增幅核）：位于信息区首行，标注画在槽右侧、垂直居中于框
-        if (menu.targetSocketShown()) {
-            graphics.drawString(font,
-                    Component.translatable("gui.gensokyou.ritual.target_slot"),
-                    RitualCoreMenu.TARGET_SLOT_X + 20, RitualCoreMenu.TARGET_SLOT_Y + 4,
-                    COLOR_TEXT, false);
+        // 额外物品槽标注：单槽时画在槽右侧（与迁移前的目标槽同位）；多槽时行内放不下，
+        // 改由信息区说明（各仪式自行补 InfoLine），避免标注互相压字。
+        int extraShown = menu.extraSlotsShown();
+        if (extraShown == 1) {
+            String labelKey = extraSlotLabelKey();
+            if (!labelKey.isEmpty()) {
+                graphics.drawString(font, Component.translatable(labelKey),
+                        RitualCoreMenu.extraSlotX(0) + 20, RitualCoreMenu.extraSlotY() + 4,
+                        COLOR_TEXT, false);
+            }
         }
         // —— 信息区：行为产出的 InfoLine 逐行渲染（电池槽行下方起笔，避免与槽标注叠行） ——
         renderInfoLines(graphics, font, info.infoLines());
@@ -339,6 +367,8 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     private static final int ROW_H_ICON = 18;
     /** 槽框描边色：取自贴图里电池槽框的实际像素 #AC98D6。 */
     private static final int SLOT_FRAME_BORDER = 0xFFAC98D6;
+    /** 空槽凹底：额外槽所在处贴图没有烘焙槽底，空槽时 MUST 自绘一层暗底才读得出"这是个槽"。 */
+    private static final int SLOT_RECESS = 0xFF23232B;
     /** 进度条相对 textX 的固定起点偏移（barX = textX + BAR_OFFSET）。 */
     private static final int BAR_OFFSET = 52;
 
@@ -394,7 +424,11 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         int textX = INFO_X;
         boolean framed = line.controlKind() == InfoLine.CONTROL_ITEM;
         boolean hasIcon = false;
-        if (!line.iconItemId().isEmpty()) {
+        // ⚠️ 外层条件 MUST 同时接受 framed：CONTROL_ITEM 的语义是"画一个空槽框"，
+        //    而 iconItemId 为空串恰恰是"槽里还没东西"。若只判 iconItemId 非空，
+        //    空槽会整行退化成纯文本行——玩家看不见这里有个能放东西的格子
+        //    （实机反馈：试剂槽空着时信息栏什么都不画）。
+        if (framed || !line.iconItemId().isEmpty()) {
             ItemStack icon = ClientRitualState.stackFor(line.iconItemId());
             if (!icon.isEmpty() || framed) {
                 hasIcon = true;

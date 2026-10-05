@@ -29,6 +29,15 @@ DYN_RE = re.compile(r'(?:translatable|translatableWithFallback)\(\s*"([a-z_][a-z
 CARD_KEY_RE = re.compile(r'card\("([a-z0-9_]+)",\s*(\d+)\)')
 BOSSCARDS = "src/main/java/com/bitsson/gensokyou/danmaku/track/BossCards.java"
 
+# 已知动态前缀：Java 侧靠拼接生成、字面量正则只能抓到残缺前缀的键族。
+# 这些键 MUST NOT 参与「java literal keys not in lang」判定，改由各自的展开检查覆盖
+# （见下方符卡展开与炼药产物展开）。
+DYNAMIC_KEY_PREFIXES = ("item.gensokyou.potion.t",)
+
+
+def is_dynamic(key):
+    return any(key.startswith(prefix) for prefix in DYNAMIC_KEY_PREFIXES)
+
 
 def read_json(fp):
     return json.load(io.open(fp, encoding="utf-8-sig"))
@@ -74,10 +83,13 @@ for root, _dirs, files in os.walk("src/main/java"):
         dyn_prefixes.update(DYN_RE.findall(text))
 
 report("java literal keys not in lang",
-       {k for k in java_keys if k not in en and k not in zh})
+       {k for k in java_keys if not is_dynamic(k) and k not in en and k not in zh})
 print("dynamic prefixes (manual review):")
 for p in sorted(dyn_prefixes):
     print("  ", p + "*")
+
+# 4b) 炼药产物名已改为「基药水显示名 + II/III」后缀、不再依赖 lang 键，
+#     无需此前按 BREWABLE 展开核对的检查。此前 nameKey 已删除。
 
 # 符卡名键：Java 侧是拼接的，字面量正则看不见。展开 BossCards 的 card() 调用，
 # 缺键时报出来——否则新增一张符卡而不补 lang 键不会有任何症状，只在游戏里显示原始键名。

@@ -103,6 +103,15 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
         return true;
     }
 
+    /**
+     * 退出红石代管触发：召唤是"起手式"，让红石脉冲在玩家不在场时悄悄烧掉祭品与十秒供灵，
+     * 等于凭空蒸发玩家的存货。故既不覆写 {@code onRedstonePulse}，也退出默认的代管触发。
+     */
+    @Override
+    public boolean redstoneTriggersUiAction() {
+        return false;
+    }
+
     @Override
     public List<UiAction> uiActions(ServerLevel level, BlockPos corePos, RitualMatch match,
                                      RitualCoreBlockEntity core) {
@@ -350,11 +359,11 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
 
     /**
      * 开放灵力核心槽：槽内核是<b>吸灵三段式的第一段</b>（不限速率抽取，见
-     * {@code SpiritPowerHelper#collect}），故返回 true。
+     * {@code SpiritPowerHelper#collect}），方向与默认口径一致，故返回 true。
      *
      * <p>本仪式 MIGHT NOT 再调 {@code tickBatteryToCacheFill()}：那是「电池→缓存」的推路径、
      * 受 {@code fillRatePerSecond} 限速且只吃槽核自身存量，与主动抽取重复且更慢。
-     * 两者只应取一，本仪式取主动抽取。
+     * 两者只应取一，本仪式取主动抽取 —— <b>方向是同一条，机制不同</b>。
      */
     @Override
     public boolean refillsCacheFromSocket() {

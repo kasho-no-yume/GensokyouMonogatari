@@ -30,10 +30,8 @@ public class WujinzangBehavior implements RitualBehavior {
         return Gensokyou.id("wujinzang_terminal");
     }
 
-    @Override
-    public boolean refillsCacheFromSocket() {
-        return true;
-    }
+    // 无尽藏是物品储物（祭品台上的晶块），灵力缓存只是给电池核当料仓，
+    // 方向为「槽核 → 缓存」——即 RitualBehavior 的默认口径，无需覆写。
 
     @Override
     public void onFormed(ServerLevel level, BlockPos corePos, RitualMatch match) {

@@ -210,10 +210,7 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
         }
     }
 
-    @Override
-    public boolean refillsCacheFromSocket() {
-        return true;
-    }
+    // 能量入口为「槽核 → 缓存」，即 RitualBehavior 的默认口径，无需覆写。
 
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,

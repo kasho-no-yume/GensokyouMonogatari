@@ -107,7 +107,13 @@ public interface RitualBehavior {
         return lines;
     }
 
-    /** 自定义操作的服务端执行入口；返回 FAIL 表示未处理或失败。 */
+    /**
+     * 自定义操作的服务端执行入口；返回 FAIL 表示未处理或失败。
+     *
+     * <p><b>{@code player} 可能为 {@code null}</b>：红石上升沿代管路径（见
+     * {@link #redstoneTriggersUiAction}）在玩家不在场时触发，实现
+     * {@code handlesStartViaUiAction} 的行为 MUST NOT 无条件解引用它。
+     */
     default InteractionResult onUiAction(ServerLevel level, BlockPos corePos, RitualMatch match,
                                          RitualCoreBlockEntity core, ServerPlayer player, int actionId) {
         return InteractionResult.PASS;
@@ -124,23 +130,55 @@ public interface RitualBehavior {
         return true;
     }
 
-    /**
-     * 本仪式是否使用核心 GUI 的「目标物品槽」（紧邻灵力核心槽右侧）。
+/**
+     * 本仪式是否使用核心 GUI 的额外物品槽（紧邻灵力核心槽右侧，可多格）。
      *
      * <p>与祭品台<b>刻意分开</b>：祭品台一台一件且是配方催化剂的载体，低阶结构台位少
-     * （星移 1 阶只有 4 台），核若占一台就挤掉催化剂位。返回 true 的仪式其目标物
-     * （如星移的增幅核）走这个专用槽，祭品台全部留给催化剂。缺省 false。
+     * （星移 1 阶只有 4 台），额外槽若占台就会挤掉催化剂位。实现 {@link RitualExtraSlots}
+     * 的仪式其目标物走这些专用槽，祭品台全部留给催化剂。缺省不实现即 0 格。
+     *
+     * <p>取代旧的 {@code usesTargetSlot()} 单槽契约——后者强制 1 格且需要每加一个仪式就
+     * 改一次 {@code RitualCoreMenu} 与客户端屏幕。
      */
-    default boolean usesTargetSlot() {
-        return false;
+    default int extraSlotCount() {
+        return 0;
     }
 
     /**
-     * 非产灵耗能仪式：true = 核心每 tick 把槽内灵力核心的灵力补入核心缓存（电池→缓存），
-     * 仪式运行只从缓存扣除。默认 false，保持既有产能仪式（缓存→电池）不变。
-     */
+ * 本仪式的灵力核心槽能量方向声明。
+ *
+ * <p><b>true（默认）= 电池 → 缓存</b>：确立"非发电仪式"的统一口径——灵力永远只是使用缓存，
+ * 而缓存由槽内灵力核心自动灌注。发电仪式 MUST 显式覆写为 {@code false}（方向相反：缓存 → 电池）。
+ *
+ * <p><b>注意：本方法当前只是"声明"，没有框架代码读它。</b>真正搬运的是行为自己在
+ * {@link #serverPassiveTick} 里调 {@code core.tickBatteryToCacheFill()}（受核的
+ * {@code fillRatePerSecond} 限速）。实现为 true 的行为 SHALL 在 tick 内**先**补电、
+ * **后**扣费，使同一 tick 内净值不出现负一档。默认取 true 是为了让"非发电 = 电池→缓存"
+ * 成为无需逐个 override 的常态，而非常见的例外清单。
+ */
     default boolean refillsCacheFromSocket() {
-        return false;
+        return true;
+    }
+
+    /**
+ * 红石上升沿是否由框架代管：触发 {@link #uiActions} 里的第一个可用操作。
+ *
+ * <p>缺省跟随 {@link #handlesStartViaUiAction()}——"能手动点按钮的仪式也能用红石控制"
+ * 是通用诉求，逐个覆写 {@link #onRedstonePulse} 既重复又必漏。
+ *
+ * <p><b>两条约束</b>：
+ * <ul>
+ *   <li>行为若已自行覆写 {@link #onRedstonePulse}，框架 SHALL 优先调用其覆写实现，
+ *       MUST NOT 同时执行默认触发；</li>
+ *   <li>玩家不在场时触发，故框架传入的 {@code player} 为 {@code null}——
+ *       实现 {@code handlesStartViaUiAction} 的行为 MUST NOT 无条件解引用它。</li>
+ * </ul>
+ *
+ * <p><b>需要退出时</b>：玩家不在场就自动开打不合理的仪式（起手式召唤、纯会话型）
+ * SHALL 显式返回 {@code false}。
+ */
+    default boolean redstoneTriggersUiAction() {
+        return handlesStartViaUiAction();
     }
 
     /** 行为专属界面菜单 id（null = 通用仪式面板）。由核心右键按图案分派。 */

@@ -58,6 +58,12 @@ public class YumewatariBehavior implements RitualBehavior {
         return GensokyouConfig.YUMEWATARI_OUT_RATE_PER_SECOND.get().longValue();
     }
 
+    /** 发电仪式：能量方向是缓存 → 电池，故显式豁免默认的"电池 → 缓存"。 */
+    @Override
+    public boolean refillsCacheFromSocket() {
+        return false;
+    }
+
     /** 产能不能动：成型即每秒把缓存灵力按核心注灵速率自发搬进槽内灵力核心（无核心时零副作用）。 */
     @Override
     public void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,

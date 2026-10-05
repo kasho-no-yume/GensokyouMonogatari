@@ -18,6 +18,7 @@ import com.bitsson.gensokyou.ritual.behavior.ResonanceRelayBehavior;
 import com.bitsson.gensokyou.ritual.behavior.SairEnergyBehavior;
 import com.bitsson.gensokyou.ritual.behavior.SeiiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ShujouYorokuBehavior;
+import com.bitsson.gensokyou.ritual.behavior.SunakoBehavior;
 import com.bitsson.gensokyou.ritual.behavior.TsukikageBehavior;
 import com.bitsson.gensokyou.ritual.behavior.WatatsumiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.WujinzangBehavior;
@@ -70,6 +71,12 @@ public final class RitualBehaviors {
      * 熄灭后<b>自我冻结</b>（不再产灵也不再继续随机熄灭）。蜡烛是结构的一部分——打掉即散坛。
      */
     public static final ResourceLocation BOUSEN = Gensokyou.id("bousen_circle");
+    /**
+     * 少名：自定义炼药仪式。祭品台摆瓶装三途川水、核心额外槽放炼药试剂，
+     * 点一次按钮跑一个批次（{@code min(有效台数, 缓存 ÷ 单价)} 瓶，原位替换台面）。
+     * 一次性而非启停型；缓存常驻故可被万象共鸣选为下游目标。
+     */
+    public static final ResourceLocation SUNAKO = Gensokyou.id("sunako_circle");
 
     static {
         register(RESONANCE, new ResonanceRelayBehavior());
@@ -95,6 +102,7 @@ public final class RitualBehaviors {
         register(HYAKKI_YAGYO, new HyakkiYagyoBehavior());
         register(REIYOKU, new ReiyokuBehavior());
         register(BOUSEN, new BousenBehavior());
+        register(SUNAKO, new SunakoBehavior());
     }
 
     private RitualBehaviors() {
@@ -111,7 +119,7 @@ public final class RitualBehaviors {
                 || patternId.equals(WATATSUMI);
     }
 
-    /** 献祭光柱色索引（服务端写入渲染态；客户端映射 RGB）：石0/木1/土2/草3/绵津见4水蓝/众生余录5紫/丰穰神6金穗。 */
+    /** 献祭光柱色索引（服务端写入渲染态；客户端映射 RGB）：石0/木1/土2/草3/绵津见4水蓝/众生余录5紫/丰穰神6金穗/少名7汤青。 */
     public static int sacrificeColorIndex(ResourceLocation patternId) {
         if (patternId.equals(KUKUNOCHI)) {
             return 1;
@@ -130,6 +138,9 @@ public final class RitualBehaviors {
         }
         if (patternId.equals(HOUJOUNO_TEIHOU)) {
             return 6;
+        }
+        if (patternId.equals(SUNAKO)) {
+            return 7;
         }
         return 0;
     }

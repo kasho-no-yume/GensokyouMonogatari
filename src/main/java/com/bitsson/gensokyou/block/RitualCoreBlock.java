@@ -27,6 +27,9 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import javax.annotation.Nullable;
 
 /**
@@ -108,7 +111,15 @@ public class RitualCoreBlock extends Block implements EntityBlock {
     }
 
     /**
-     * 红石上升沿：邻居信号 0→>0 跳变时回调当前行为的 onRedstonePulse（仅覆写的仪式响应）。
+     * 红石上升沿：邻居信号 0→>0 跳变时回调当前行为。
+     *
+     * <p>三条优先级：
+     * <ol>
+     *   <li>行为自行覆写了 {@code onRedstonePulse} → 只调它（覆写优先）；</li>
+     *   <li>否则 {@code redstoneTriggersUiAction()} 为真 → 代管触发其首个可用操作
+     *       （"能手动点按钮的仪式也能用红石控制"的通用口径）；</li>
+     *   <li>否则不响应。</li>
+     * </ol>
      * 常亮保持与下降沿不触发；标志持久化，防卸载重载后常亮信号误触一次。
      */
     @Override
@@ -127,9 +138,51 @@ public class RitualCoreBlock extends Block implements EntityBlock {
         if (powered && core.activeMatch() != null) {
             RitualMatch match = core.activeMatch();
             RitualBehaviors.get(match.patternId())
-                    .ifPresent(behavior -> behavior.onRedstonePulse(serverLevel, pos, match, core));
+                    .ifPresent(behavior -> dispatchRedstoneRise(serverLevel, pos, match, core, behavior));
         }
     }
+
+    /**
+     * 红石上升沿的分派（包级可见以便单测锁定优先级）。
+     *
+     * @param player 恒为 {@code null}：红石触发时玩家不在场
+     */
+    public static void dispatchRedstoneRise(ServerLevel level, BlockPos corePos, RitualMatch match,
+                                        RitualCoreBlockEntity core, RitualBehavior behavior) {
+        if (declaresOwnRedstoneHandler(behavior)) {
+            behavior.onRedstonePulse(level, corePos, match, core);
+            return;
+        }
+        if (!behavior.redstoneTriggersUiAction()) {
+            return;
+        }
+        for (RitualBehavior.UiAction action : behavior.uiActions(level, corePos, match, core, null)) {
+            if (action.enabled()) {
+                behavior.onUiAction(level, corePos, match, core, null, action.id());
+                return;
+            }
+        }
+    }
+
+    /**
+     * 行为是否自行覆写了 {@code onRedstonePulse}。
+     *
+     * <p>用反射判定"声明类"而非"当前值"：源初造化既覆写了该方法又想保留默认触发时，
+     * 只有前者能区分二者。缓存结果避免每次红石变化都反射。
+     */
+    public static boolean declaresOwnRedstoneHandler(RitualBehavior behavior) {
+        return OWN_REDSTONE_HANDLERS.computeIfAbsent(behavior.getClass(), type -> {
+            try {
+                return type.getMethod("onRedstonePulse", ServerLevel.class, BlockPos.class,
+                                RitualMatch.class, RitualCoreBlockEntity.class)
+                        .getDeclaringClass() != RitualBehavior.class;
+            } catch (NoSuchMethodException exception) {
+                return false;
+            }
+        });
+    }
+
+    private static final Map<Class<?>, Boolean> OWN_REDSTONE_HANDLERS = new ConcurrentHashMap<>();
 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level,

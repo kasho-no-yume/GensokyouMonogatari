@@ -109,6 +109,10 @@ ENTRIES = [
     # 忘川灯坛：全亮门控产灵。**无任何配方**（不烧材料，靠逐根点蜡烛），
     # 故 no_recipes=True。阶级参数页现算产灵/缓存/供灵上限/蜡烛数/单盏熄灭率。
     ("bousen_circle", "minecraft:candle", True),
+    # 少名：配方来自 brew_recipes + 全注册表反查（数十条，且每条要展示三个阶的产物，
+    # 是"开放式"配方而非封闭配方表），故 no_recipes=True —— 标准阶页只算数值，
+    # 配方展示归 JEI 炼药页签（一卡三阶平铺，正是本仪式的卖点）
+    ("sunako_circle", "minecraft:brewing_stand", True),
 ]
 
 ITEM_RECIPE_ENTRIES = [

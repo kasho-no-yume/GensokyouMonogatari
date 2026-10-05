@@ -5,6 +5,7 @@ import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualScaling;
+import com.bitsson.gensokyou.ritual.behavior.SunakoScaling;
 import com.bitsson.gensokyou.ritual.BousenLanterns;
 import com.bitsson.gensokyou.ritual.behavior.BousenBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ReiyokuBehavior;
@@ -211,6 +212,24 @@ public class RitualTierComponent implements ICustomComponent {
                 add(out, "满台耗灵", compact(totalCost));
                 add(out, "每台采样", compact(samples) + " 次");
                 add(out, "冷却", ((GensokyouConfig.HOUJOUNO_TEIHOU_CYCLE_TICKS.get() + 19) / 20) + " 秒");
+            }
+            case "sunako_circle" -> {
+                // 祭品台数取自 sunako_circle pattern 的四重展开结果（4 / 4 / 8），与结构同源；
+                // 数值一律走 SunakoScaling（3 阶容量与受灵都是显式值，不能用 base×mult^L 外推）
+                int slots = switch (L) {
+                    case 1 -> 4;
+                    case 2 -> 4;
+                    default -> 8;
+                };
+                long capacity = SunakoScaling.capacityOf(L);
+                long inRate = SunakoScaling.inRateOf(L);
+                long unitCost = SunakoScaling.unitCostOf(L);
+                add(out, "缓存", compact(capacity));
+                add(out, "受灵上限", compact(inRate) + " /秒");
+                add(out, "单瓶耗灵", compact(unitCost));
+                add(out, "满台耗灵", compact(SunakoScaling.batchCost(slots, L)));
+                add(out, "满缓存可炼", compact(capacity / Math.max(1L, unitCost)) + " 瓶");
+                add(out, "祭品台", slots + " 台");
             }
             case "nichirin_circle" -> {
                 add(out, "峰值产灵", secs(GensokyouConfig.NICHIRIN_BASE_RATE_PER_SECOND.get() * pow(4, L)));

@@ -215,6 +215,21 @@ public final class DebugCommands {
                                 .executes(context -> probeWatatsumi(context.getSource(),
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument
                                                 .getLoadedBlockPos(context, "core")))))
+                .then(Commands.literal("sunako")
+                        .then(Commands.literal("brew")
+                                .then(Commands.argument("core",
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                        .executes(context -> probeSunako(context.getSource(),
+                                                net.minecraft.commands.arguments.coordinates
+                                                        .BlockPosArgument.getLoadedBlockPos(context, "core"),
+                                                false))))
+                        .then(Commands.literal("force")
+                                .then(Commands.argument("core",
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                        .executes(context -> probeSunako(context.getSource(),
+                                                net.minecraft.commands.arguments.coordinates
+                                                        .BlockPosArgument.getLoadedBlockPos(context, "core"),
+                                                true)))))
                 .then(Commands.literal("shujou")
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
@@ -422,6 +437,105 @@ public final class DebugCommands {
     }
 
     /** 献祭仪式权重表探针：单行 [GS-AUTO] SACRIFICE，含材质/条件/成本/总数/池（权重+约%）。 */
+    /**
+     * 少名探针：把批次结算的<b>每一道关卡</b>逐项打成一行机读输出。
+     *
+     * <p>存在的理由：批次链有 4 个静默失败点（无试剂 / 无有效台 / 缓存不足一瓶 / 写回复验全灭），
+     * 且它们<b>全都不报错、不扣费</b>——实机只表现为"点了没反应"。光看代码无法判断卡在哪一关，
+     * 故把中间量全部导出。
+     *
+     * @param force true = 先给核心灌满缓存再跑，用于把"灵力不足"从变量列表里摘出去
+     */
+    private static int probeSunako(net.minecraft.commands.CommandSourceStack source,
+                                   net.minecraft.core.BlockPos pos, boolean force) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        if (!(serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core)) {
+            source.sendFailure(net.minecraft.network.chat.Component.literal(
+                    "[GS-AUTO] SUNAKO NO-CORE at " + pos));
+            return 0;
+        }
+        var am = core.activeMatch();
+        if (am == null || !am.patternId().equals(com.bitsson.gensokyou.ritual.RitualBehaviors.SUNAKO)) {
+            source.sendFailure(net.minecraft.network.chat.Component.literal(
+                    "[GS-AUTO] SUNAKO NO-MATCH active="
+                            + (am == null ? "null" : am.patternId().toString())));
+            return 0;
+        }
+        if (force) {
+            core.receive(core.getCapacity());
+        }
+        net.minecraft.world.item.ItemStack reagent = core.extraSlot(
+                com.bitsson.gensokyou.ritual.behavior.SunakoBrewing.REAGENT_SLOT);
+        var resolution = com.bitsson.gensokyou.ritual.behavior.SunakoBrewing
+                .reagent(serverLevel, core);
+        var scan = com.bitsson.gensokyou.ritual.behavior.SunakoBrewing
+                .scanPedestals(serverLevel, am);
+        int valid = com.bitsson.gensokyou.ritual.behavior.SunakoBrewing
+                .validPedestals(serverLevel, am).size();
+        long stored = core.getStored();
+        int level = am.level();
+        long unit = com.bitsson.gensokyou.ritual.behavior.SunakoScaling.unitCostOf(level);
+        int affordable = com.bitsson.gensokyou.ritual.behavior.SunakoScaling
+                .affordableBottles(valid, stored, level);
+        var outcome = com.bitsson.gensokyou.ritual.behavior.SunakoBrewing
+                .brew(serverLevel, pos, am, core);
+        String msg = "[GS-AUTO] SUNAKO level=" + level
+                + " capacity=" + core.getCapacity()
+                + " reagent=" + (reagent.isEmpty() ? "-"
+                        : net.minecraft.core.registries.BuiltInRegistries.ITEM
+                                .getKey(reagent.getItem()).toString())
+                + " resolved=" + resolution.isPresent()
+                + (resolution.isPresent()
+                        ? "(" + resolution.get().base().unwrapKey().orElseThrow().location()
+                                + ")" : "")
+                + " pedestals=" + scan.pedestals()
+                + " water=" + scan.water()
+                + " other=" + scan.other()
+                + " valid=" + valid
+                + " stored=" + stored
+                + " unit=" + unit
+                + " affordable=" + affordable
+                + " brewed=" + outcome.brewed()
+                + " spent=" + outcome.spent()
+                + " storedAfter=" + outcome.storedAfter()
+                + " battery=" + (core.batteryStack().isEmpty() ? "-"
+                        : net.minecraft.core.registries.BuiltInRegistries.ITEM
+                                .getKey(core.batteryStack().getItem()).toString())
+                + " held=[" + pedestalContents(serverLevel, am) + "]";
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(msg), false);
+        return 1;
+    }
+
+    /**
+     * 逐台列出祭品台台面物品 id（空台记为 {@code -}）。
+     *
+     * <p>{@code water=0} 这类聚合数字只告诉你"没有三途川水"，不告诉你"摆了些什么"。
+     * 本实机反馈正是如此：玩家把原料放进了 GUI 的试剂槽，而三途川水该放<b>祭品台</b>。
+     */
+    private static String pedestalContents(net.minecraft.server.level.ServerLevel level,
+                                           com.bitsson.gensokyou.ritual.RitualMatch match) {
+        StringBuilder sb = new StringBuilder();
+        for (net.minecraft.core.BlockPos p
+                : com.bitsson.gensokyou.ritual.RitualPedestals.positions(match)) {
+            if (sb.length() > 0) {
+                sb.append(',');
+            }
+            if (level.getBlockEntity(p)
+                    instanceof com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity ped) {
+                net.minecraft.world.item.ItemStack held = ped.getHeld();
+                sb.append(held.isEmpty() ? "-"
+                        : net.minecraft.core.registries.BuiltInRegistries.ITEM
+                                .getKey(held.getItem()).toString());
+            } else {
+                sb.append("?");
+            }
+        }
+        return sb.toString();
+    }
+
     private static int probeSacrifice(net.minecraft.commands.CommandSourceStack source,
                                       net.minecraft.core.BlockPos pos) {
         if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {

@@ -84,6 +84,21 @@ public record RitualRenderState(int kind, boolean enabled, int tier, int minY, i
      * 64 根零余量且 bit0 已被 {@link #forgeBurnMask} 一类构造占用。
      */
     public static final int KIND_BOUSEN = 10;
+    /**
+     * 少名渡汤：<b>池水常驻</b>——结构合法（成型）即有特效，与启停、缓存、祭品台上有无瓶子
+     * <b>均无关</b>；{@code tier} = 结构等级（客户端据此取该阶 pattern 切片本地推导池面占地）。
+     *
+     * <p>本 kind 同时承载<b>产出瞬间的献祭光柱</b>，故复用辅助字段：
+     * {@code minY} = 光柱高度（格）、{@code maxY} = 光柱剩余刻（{@code 0} = 无光柱）、
+     * {@code period} = 光柱色索引。
+     *
+     * <p>之所以把两者合进一个 kind 而非让献祭分支抢占：本核心的池水是<b>常驻</b>的，若光柱
+     * 走独立 kind，产出那 30 刻内 kind 会整体切换到光柱、池水随之消失（特效闪断）。
+     *
+     * <p>{@code linkPos}/{@code inCount}/{@code movingMask} <b>不使用</b>：池面占地 MUST NOT
+     * 经本通道承载（同 {@link #KIND_REIYOKU} 的理由），改由客户端读同一份 pattern 推导。
+     */
+    public static final int KIND_SUNAKO = 11;
 
     /** 位掩码通道上限（当前 L5 配额合计 40 < 64）。注意 {@link #KIND_BOUSEN} 恰好用满 1~6 位，
      * 但占的是 {@code movingMask} 而非 {@code linkPos}，故不占本上限。 */

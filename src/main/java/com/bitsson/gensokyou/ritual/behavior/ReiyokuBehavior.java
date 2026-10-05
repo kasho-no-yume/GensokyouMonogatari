@@ -263,13 +263,8 @@ public final class ReiyokuBehavior implements RitualBehavior {
 
     // ================================================================== RitualBehavior
 
-    /**
-     * 纯消费者：能量入口为「槽核 → 缓存」。与 {@code tickBatteryAutoFill()}（缓存→电池）互斥。
-     */
-    @Override
-    public boolean refillsCacheFromSocket() {
-        return true;
-    }
+    // 能量入口为「槽核 → 缓存」，即 RitualBehavior 的默认口径，无需覆写；
+    // 与 tickBatteryAutoFill()（缓存→电池）互斥，本仪式是纯消费者。
 
     /** 受灵汇速率：可被万象共鸣连接。仅随结构等级变化，不随时刻/缓存/在场与否变化。 */
     @Override

@@ -9,6 +9,8 @@ import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import com.bitsson.gensokyou.ritual.RitualSmeltRule;
 import com.bitsson.gensokyou.ritual.RitualSmeltRuleLoader;
+import com.bitsson.gensokyou.ritual.brew.RitualBrewRule;
+import com.bitsson.gensokyou.ritual.brew.RitualBrewRuleLoader;
 import com.bitsson.gensokyou.ritual.WatatsumiSpecialLoot;
 import com.bitsson.gensokyou.ritual.WatatsumiSpecialLootLoader;
 import com.google.gson.JsonElement;
@@ -44,6 +46,7 @@ public final class ClientRitualData {
     private static volatile Map<ResourceLocation, RitualPattern> patterns = Map.of();
     private static volatile List<RitualRecipe> recipes = List.of();
     private static volatile List<RitualSmeltRule> smeltRules = List.of();
+    private static volatile List<RitualBrewRule> brewRules = List.of();
     private static volatile List<RitualLootTable> lootTables = List.of();
     private static volatile WatatsumiSpecialLoot watatsumi = WatatsumiSpecialLoot.EMPTY;
     private static volatile boolean diskChecked = false;
@@ -80,6 +83,17 @@ public final class ClientRitualData {
         return smeltRules;
     }
 
+    /** 炼药试剂映射（JEI 炼药页签用；书内走 brew 专用页，二者同源于本快照）。 */
+    public static List<RitualBrewRule> brewsFor(ResourceLocation patternId) {
+        ensureLoaded();
+        return brewRules.stream().filter(rule -> rule.patternId().equals(patternId)).toList();
+    }
+
+    public static List<RitualBrewRule> brewsAll() {
+        ensureLoaded();
+        return brewRules;
+    }
+
     /** 全体仪式配方（JEI 配方页签用）。 */
     public static List<RitualRecipe> recipesAll() {
         ensureLoaded();
@@ -113,6 +127,7 @@ public final class ClientRitualData {
         Map<ResourceLocation, RitualPattern> parsedPatterns = new LinkedHashMap<>();
         List<RitualRecipe> parsedRecipes = new ArrayList<>();
         List<RitualSmeltRule> parsedSmelts = new ArrayList<>();
+        List<RitualBrewRule> parsedBrews = new ArrayList<>();
         List<RitualLootTable> parsedLoots = new ArrayList<>();
         WatatsumiSpecialLoot parsedWatatsumi = WatatsumiSpecialLoot.EMPTY;
         try {
@@ -163,6 +178,22 @@ public final class ClientRitualData {
                     }
                 }
             }
+            if (root.has("brew_rules")) {
+                for (Map.Entry<String, JsonElement> entry
+                        : root.getAsJsonObject("brew_rules").entrySet()) {
+                    ResourceLocation fileId = ResourceLocation.tryParse(entry.getKey());
+                    if (fileId == null) {
+                        continue;
+                    }
+                    try {
+                        parsedBrews.addAll(RitualBrewRuleLoader.parseFile(fileId,
+                                entry.getValue().getAsJsonObject()));
+                    } catch (Exception ex) {
+                        Gensokyou.LOGGER.warn("Client rejected ritual brew rule file {}: {}",
+                                fileId, ex.getMessage());
+                    }
+                }
+            }
             if (root.has("ritual_loot")) {
                 for (Map.Entry<String, JsonElement> entry
                         : root.getAsJsonObject("ritual_loot").entrySet()) {
@@ -193,6 +224,7 @@ public final class ClientRitualData {
         patterns = Map.copyOf(parsedPatterns);
         recipes = List.copyOf(parsedRecipes);
         smeltRules = List.copyOf(parsedSmelts);
+        brewRules = List.copyOf(parsedBrews);
         lootTables = List.copyOf(parsedLoots);
         watatsumi = parsedWatatsumi;
         diskChecked = true;

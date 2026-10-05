@@ -43,12 +43,15 @@ metadata:
 |---|---|---|---|
 | `uiActions(viewer?)` | 组装快照 | — | 注入自定义按钮（id 必须 ≥ 10；0/1 为启停保留） |
 | `uiInfo(viewer?)` | 快照推送 | — | 信息行；`defaultUiInfo` 给通用祭品/配方清单 |
-| `onUiAction` | 点击注入的按钮/行 | — | 服务端权威执行，返回 FAIL=未处理 |
+| `onUiAction` | 点击注入的按钮/行 | — | 服务端权威执行，返回 FAIL=未处理。**player 可能为 null**（红石代管路径） |
 | `usesCoreSocket` | 菜单构建 | — | 默认 true；false=隐藏灵力核心槽（路由/托管型豁免） |
+| `refillsCacheFromSocket` | 声明 | **仅声明，无框架读者** | 默认 **true** = 电池→缓存；发电仪式显式 false。见 §3.1 |
+| `redstoneTriggersUiAction` | 红石上升沿分派 | — | 默认 = `handlesStartViaUiAction()`；框架代管点第一个 enabled 按钮。已有 `onRedstonePulse` 覆写者优先 |
+| `RitualExtraSlots` | 菜单构建 | — | 实现即声明 0..N 格核心 GUI 物品槽（取代旧 `usesTargetSlot`）。见 §3.2 |
 | `spiritInRatePerSecond` | 端点声明/路由 | — | 受灵汇上限/s，默认 0 |
 | `spiritOutRatePerSecond` | 端点声明/路由 | — | 供灵源上限/s，默认 0（**0 就进不了候选**） |
 | `serverTick` | 每 tick | **enabled 才跑** | 启停型运转逻辑（自行按 `ageTicks % 20` 控频） |
-| `serverPassiveTick` | 每 tick | **无门控** | 成型即跑的被动（如梦渡注灵） |
+| `serverPassiveTick` | 每 tick | **无门控** | 成型即跑的被动（如梦渡注灵、**非发电仪式的电池→缓存灌注**） |
 | `onStart` | 点启动 | — | 前置校验/收费，FAIL 阻止置位 |
 | `handlesStartViaUiAction` | 启停通道 | — | 会话型（造化/神恩）独占启停 |
 | `onRecipeExecuted` | 启动配方执行后 | — | effect 解释权在行为侧 |
@@ -57,7 +60,81 @@ metadata:
 | `onFormed` | 首次成型 | — | 当前空实现占位（未来大 tileblock 替换点） |
 | `onUseItem` / `onUseEmptyHand` | 潜行右键核心 | — | 潜行保留的旧直连链路 |
 
-`SpiritBank`（`ritual/behavior/SpiritBank.java`）：托管型仪式（八方归元）实现它——`stored/capacity/receive/extract` 四件套整体转发到"祭品台物品"而非核心自身。
+`SpiritBank`（`ritual/behavior/SpiritBank.java`）：托管型仪式（八方归元）实现它——`stored/capacity/receive/extract` 四件套整体转发到"祭品台物品"（即摆在祭品台上的**灵力核物品**）而非核心自身。
+
+### 3.1 灵力核心槽的两个方向（默认值 true）
+
+```
+refillsCacheFromSocket() == true（默认）  电池 → 缓存   非发电仪式
+refillsCacheFromSocket() == false        缓存 → 电池   发电仪式
+```
+
+- **默认语义已反转为 `true`**："非发电仪式一律电池→缓存"，不必逐个 override。
+- **真搬数据的是行为自己**：本方法**没有任何框架代码读它**，只是声明。行为 MUST 在
+  `serverPassiveTick` 里调 `core.tickBatteryToCacheFill()`（受核 `fillRatePerSecond` 限速），
+  且**先补电、后扣费**，使同 tick 净值不出现负一档。反向则调 `core.tickBatteryAutoFill()`
+  或自有推送路径（迦具土炎祭是手写 `SpiritCoreItem.receive`，不走 `tickBatteryAutoFill`）。
+- **必须显式覆写 `false` 的 7 个**：
+
+  | 行为 | 理由 |
+  |---|---|
+  | `KagutsuchiFlameBehavior` | 产灵仪式，方向相反 |
+  | `YumewatariBehavior` | 同上 |
+  | `DayCycleGeneratorBehavior` | 日轮天台 / 月影水镜共用基类 |
+  | `BousenBehavior` | 产灵仪式 |
+  | `SairEnergyBehavior` | 无限供灵源 |
+  | `ResonanceRelayBehavior` | 缓存恒 0，方向无意义（防御性标注） |
+  | `BafangGuiyuanBehavior` | 托管池储灵转发到台面灵力核物品，自身无缓存；再灌注等于填一个没人读的字段 |
+
+- **反转默认值时运行时行为未变的那 8 个**（原本 default false，改动前后都**不调**灌注方法，
+  只是声明从 false 变 true）：金屋彦、星移、埴山姬、久久能智、草野姬、大山祇、绵津见、众生余录。
+  引擎官方的 `BafangGuiyuanBehavior` 同理——**别把这批仪式误读成"已接通电池"**。
+- **"只认自身缓存"的仪式**：扣费走 `core.getStored()` / `core.extract()`，**不用**
+  `SpiritPowerHelper.available/collect`（三段式会把半径 3 内其他核心的灵力计入，含八方归元
+  那类托管在台面灵力核上的 `SpiritBank`）。少名即此口径。
+- **非托管核心的 `getStored()` 不含 `batteryStack`** —— 不做灌注的话，插核心与不插核心的
+  玩家看到的可产出量完全一样，仪式就成了只能靠路由充能的死仪式。
+
+### 3.2 核心 GUI 的额外物品槽（`RitualExtraSlots`）
+
+任一行为实现 `RitualExtraSlots` 即可声明 0..N 格面板物品槽，**无需改菜单类或客户端屏幕**：
+
+```java
+int slotCount();                                  // 0 = 不声明
+boolean isSlotValid(int slot, ItemStack stack);  // 服务端权威校验
+default String labelKey();                        // 槽标注 lang 键
+default int slotX(int index); default int slotY(int index);   // 缺省横排一行
+```
+
+- **BE 侧**：`RitualCoreBlockEntity` 持有 `ItemStack[MAX_EXTRA_SLOTS]`（=4）与通用
+  `extraSlotsHandler()`（每格恒 1 个）。落盘键 `ExtraSlots`（ListTag），**读回兼容旧键
+  `SeiiTargetCore` → `extraSlots[0]`**，旧世界的星移增幅核不会被吞。
+- **菜单两侧按固定上限注册**，可见子集由 `slotCount()` 经同步载荷收敛。
+  **MUST NOT 按各侧真实数量注册**：菜单在 `ClientboundOpenScreenPacket` 之后构造，
+  而该包附加数据**只有 `BlockPos`**，客户端拿不到"本仪式有几格"；两侧数量不一致 →
+  `ContainerSetContent` 抛 `Slot N not in valid range` → **玩家被踢下线**。
+- **`functionEnd = 1 + MAX_EXTRA_SLOTS`** 是算出来的，`quickMoveStack` 三条路径全部改读它。
+- **客户端不校验物品类型**（dummy handler 一律放行），由服务端权威拒收。客户端拿不到
+  服务端行为实例与数据包映射表，硬编码校验器（历史 `TargetSlot` 写死 `AmpCoreItem`）
+  在每加一个仪式时都会成为必须同步维护的缺陷源。
+- 槽坐标 `(9 + 20i, 61)`；**第 0 格与迁移前的"目标槽"完全重合**，星移迁移后位置不变。
+- 单槽时标注画在槽右侧；多槽时行内放不下，改由信息区 `InfoLine` 说明。
+- 与祭品台**分离**：祭品台一台一件且是催化剂载体（1 阶常只有 4 台），槽占台会挤掉催化剂。
+
+### 3.3 红石代管触发
+
+`redstoneTriggersUiAction()` 缺省 = `handlesStartViaUiAction()`，框架在红石上升沿时代管触发
+该行为的**第一个 enabled** 按钮。分派优先级（`RitualCoreBlock.dispatchRedstoneRise`）：
+
+```
+1) 行为自行覆写了 onRedstonePulse（反射比对"声明类"）  → 只调它
+2) 否则 redstoneTriggersUiAction() 为真                → 代管触发首个按钮
+3) 否则                                                → 不响应
+```
+
+- 代管路径传入的 `player` 恒为 `null`，实现 `handlesStartViaUiAction` 的行为**不得无条件解引用**。
+- **必须显式 opt-out 的**：`YaoyorozuGraceBehavior`（需 initiator 在场）、
+  `HyakkiYagyoBehavior`（召唤是起手式，红石脉冲会凭空蒸发玩家存货）。两者的既有论证注释 MUST 保留。
 
 ## 3. 灵力四件套与端点（`block/entity/RitualCoreBlockEntity.java`）
 
@@ -109,16 +186,24 @@ metadata:
 | 整除截断丢量 | 小数速率用 ×1000 定点 carry（`rateCarry`/`fillCarry`），禁止直接整除归零 | `ritual-power-attributes` |
 | 产灵白产 | `serverTick` 内若依赖激活/燃烧态，必须门控（`KagutsuchiFlameBehavior` 曾缺 `isBurning` 门控白产） | 代码注释 |
 | 服务端持续粒子 | `level.sendParticles` 在服务端 = 逐追踪玩家网络包；持续表现必须客户端 BER（只同步最小渲染态） | neoforge skill |
+| **静默零产出** | 批次链（`SunakoBrewing.brew`）有 4 个**都不报错、不扣费**的早退点：无试剂 / 无有效台 / 缓存不足一瓶 / 写回复验全灭。实机一律表现为"点了没反应"，光看代码无法分辨卡在哪一关 → 这类链 MUST 有 `/gs_debug` 探针把每关中间量打成单行 | `DebugCommands.probeSunako` |
+| **空 `ItemStack` 写盘抛异常** | `ItemStack.save(registries)` 对空栈**抛** `IllegalStateException("Cannot encode empty ItemStack")`，不是返回空标签。定长数组式存盘（额外槽恒 4 格、实际声明 1 格） MUST 写空 `CompoundTag` 占位保住下标对应，读回侧跳过 `copyWithCount`。**杀伤面远不止存盘**：`getUpdateTag()` 与 `saveAdditional()` 同路径，它一抛 → `sendBlockUpdated` 发不出方块实体数据 → 客户端永远收不到渲染态 → **所有特效静默消失**。先例：`RitualCoreBlockEntity.writeExtraSlots` / `ExtraSlotNbtRoundTripTest` | `RitualCoreBlockEntity.writeExtraSlots` |
+| **空物品格画不出来** | `RitualCoreScreen.layoutRow` 的图标预留曾判 `if (!iconItemId().isEmpty())`，而 `CONTROL_ITEM` 空槽的 `iconItemId` 恰恰是空串 → 整行退化成纯文本，玩家看不见这里能放东西。凡"空态也要画出容器"的行，判据 MUST 是 `framed \|\| !iconItemId().isEmpty()` | `RitualCoreScreen.layoutRow` |
+| **只描边不填底的槽等于隐形** | 固定槽（电池槽）的槽底是 GUI 贴图里**烘焙**的；动态槽（额外槽）落在贴图空白处。`paintSlotFrame` 照抄"1px 描边、无填充"后，空槽在深色面板上几乎不可见——玩家要等东西放进去才注意到（实机反馈）。动态槽 MUST 自绘暗色凹底 | `RitualCoreScreen.paintSlotFrame` |
+| **不要用"聚合数字"替玩家下结论** | 探针报 `water=0` 只说明"此刻没有三途川水"，不能推断"玩家从没摆过"——实机反馈是探针在仪式**执行完之后**跑的，台面本就该空。**先问清探针的时机**（执行前/后、reload 前/后）再解读，否则会把猜测当结论写进任务文档 | `DebugCommands.probeSunako` |
 | 数值硬编码 | 可调数值一律进 `GensokyouConfig`（COMMON） | neoforge skill |
 | 注册表冻结 | 内建 worldgen 注册表（biome_source/density_function_type 等）mod 期不可写，只能数据包 | neoforge skill |
 | lang 漏键 | `translatableWithFallback` 的回退裸路径 = 玩家看到没翻译的英文 | neoforge skill |
 | 潜行让行 | 核心成型让位必须 `useItemOn` 与 `useWithoutItem` **两处都放行**，否则被 `openOrHint` 抢回开 GUI | neoforge skill |
+| **光柱静默失效** | `buildRenderState` 的献祭光柱分支是**仪式 id 白名单**（`isToolSacrifice(SHUJOU/HOUJOUNO)`）。新仪式调了 `core.triggerSacrificeFx(...)` 但没进白名单 → 剩余刻写进了 BE 却从不下发，客户端永远收不到 `KIND_SACRIFICE`，现象是"光柱完全没出现"且**无任何报错** | `RitualCoreBlockEntity.buildRenderState` |
+| **常驻特效与一次性特效抢同一个 kind** | 一个 kind 只能有一个语义。若常驻特效（池水）与瞬时特效（光柱）各占一个 kind，瞬时的那 30 刻里 kind 会整体切换、常驻特效随之消失（闪断）。正解：合进**同一个** kind，用辅助字段并存（少名：`KIND_SUNAKO` 里 `minY`=光柱高 / `maxY`=剩余刻 / `period`=色索引，客户端 `if (maxY > 0)` 叠加光柱） | `RitualRenderState.KIND_SUNAKO` |
+| **水面布局锚错层 → 水"不见了"** | `RitualFxLayout.bathSurface` 把池锚在「**最低层**的顶面」并把最低层里被包围的空块当下沉院子。灵浴成立是因为它最低层就是实心平台；少名的最低层只是一圈滴水石、其上 y=-1 才是实心圆台，于是该函数产出的 81 格院子被实心圆台 81/81 **全盖死**，水全埋方块里。几何不同时 MUST 新写推导（`brewPool`），判据用「**脚下有地板 + 本格为空**」而非「本层未声明」——后者会把水铺到结构破洞上 | `RitualFxLayout.brewPool` / `SunakoBrewPoolTest` |
 
 ## 6. 调试与验证工具链
 
 | 手段 | 命令 / 位置 |
 |---|---|
-| 结构化调试 | `/gs_debug` 子命令：`spirit` / `kagutsuchi` / `bafang` / `yumewatari` / `settle` / `beds` / `temp` / `grace` …（`ritual/command/DebugCommands.java`） |
+| 结构化调试 | `/gs_debug` 子命令：`spirit` / `kagutsuchi` / `bafang` / `yumewatari` / `settle` / `beds` / `temp` / `grace` / `sunako brew|force` …（`ritual/command/DebugCommands.java`） |
 | 结构采集 | `/gs_ritual_capture <name> <r> <h>` |
 | 自检 | `/gs_ritual_selftest` |
 | pattern 离线校验 | `tools/validate_ritual_pattern.py`（`--test-out` 生成 e2e 数据包，测**成型/负查**，不测 behavior；见 `ritual-e2e-test-pack`） |
@@ -138,15 +223,25 @@ metadata:
 | 托管池 + 加权水位分配 + 实测吞吐 + 内存账本 | `ritual/behavior/BafangGuiyuanBehavior.java`（+ `SpiritBank`、`TickRateLedger`） |
 | 路由 + 候选/链接 + 端点账本 | `ritual/behavior/ResonanceRelayBehavior.java` |
 | 会话型（付费→演出）启停 | `ritual/behavior/ZaohuaCraftingBehavior` / `YaoyorozuGraceBehavior` |
+| **一次性批次 + 尽力产出 + 原位替换祭品台** | `ritual/behavior/SunakoBrewing.java`（+ `SunakoBehavior`、`SunakoScaling`） |
+| **注册表驱动的产物构造（品质/时效变换）** | `ritual/potion/PotionTierTransform.java`（世界无关纯静态，可单测） |
+| **数据包声明优先 + 向游戏注册表反查回落** | `ritual/brew/RitualBrewRuleLoader` + `BrewReagentIndex` |
+| 分阶数值口径（几何 vs 显式表 vs 阶偏移） | `ritual/behavior/SunakoScaling.java`（每个公式带"显式传参"重载供无 ModConfig 的单测） |
+| **常驻池水 + 产出光柱（一个 kind 两件事）** | `RitualCoreRenderer.renderSunako` + `KIND_SUNAKO` + `RitualFxLayout.brewPool`（发射几何 `emitBathWater` 与灵浴共用，仅配色/LOD 参数分仪式独立） |
 | 时间驱动型产灵（昼夜发电机） | 见进行中变更 `add-daycycle-generator-rituals`（日轮天台/月影水镜） |
 
 ## 8. 现有仪式清单与状态
 
-> 全部 17 个已注册行为均**已实现**（`RitualBehaviors` 静态块）。「占位/未实现」= **无 pattern 数据文件**，不可被玩家搭建、也不补指导书章节。
+> 全部 25 个已注册行为均**已实现**（`RitualBehaviors` 静态块）。「占位/未实现」= **无 pattern 数据文件**，不可被玩家搭建、也不补指导书章节。
+>
+> ⚠️ **反向陷阱：有 pattern 但未注册行为的仪式**——能成型、能开界面，但缓存回落到
+> `DEFAULT_CORE_CAPACITY=10000`、零产出、不可被路由选中，也**没有指导书条目**（生成器按行为跳过）。
+> `data/gensokyou/rituals/` 里目前只有 `shiken_circle` 属于这一类（无行为、无常量）。
 
 | patternId | 名称 | 行为 | 备注 |
 |---|---|---|---|
 | `kagutsuchi_flame_circle` | 迦具土炎祭 | `KagutsuchiFlameBehavior` | 启停吞燃料产灵，tiers 0-3 |
+| `sunako_circle` | 少名 | `SunakoBehavior` + `SunakoBrewing` + `SunakoScaling` | **一次性批次炼药**，tiers 1-3。祭品台摆瓶装三途川水（每台 1 瓶 → 1 瓶药水，原位替换），核心额外槽放试剂。数据源 `brew_recipes`。**常驻汤池 + 产出光柱**（`KIND_SUNAKO`），另有 `item.gensokyou.sanzu_flask` |
 | `yumewatari_circle` | 梦渡之座 | `YumewatariBehavior` | 跳夜产灵 + out 声明，tiers 0-2 |
 | `haniyasu_circle` | 埴山姬神之壤 | `HaniyasuBehavior` | 工具献祭（铲），继承 `ToolSacrificeBehavior` |
 | `kukunochi_circle` | 久久能智神庭 | `KukunochiBehavior` | 工具献祭（斧） |
@@ -164,6 +259,7 @@ metadata:
 | `resonance_relay` | 万象共鸣之仪 | `ResonanceRelayBehavior` | 路由塔，tiers 2-5，缓存 0 |
 | ⚠️ `barrier_break_circle` | 结界破碎 | `BarrierBreakBehavior` | **占位**：有行为，但无 pattern JSON，不可搭建 |
 | ⚠️ `summon_circle` | 召唤 | 仅 `RitualBehaviors.SUMMON` 常量 | **占位**：无行为、无 pattern |
+| ⚠️ `shiken_circle` | 獅子堂 | **无** | **有 pattern（1790 格）但未注册行为** → 空壳，见本节开头的反向陷阱 |
 
 ## 9. 指导书补充规范（新增/修改仪式后必做）
 

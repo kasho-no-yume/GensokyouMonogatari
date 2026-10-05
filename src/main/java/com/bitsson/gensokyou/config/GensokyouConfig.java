@@ -209,6 +209,23 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_CYCLE_TICKS;
     public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_FAILURE_RETRY_TICKS;
 
+    // ---- sunako-brew-ritual：少名（祭品台瓶装三途川水 + 核心试剂槽的批量炼药仪式）----
+    // 三档数值刻意**不是** base × 4^L 几何序列：容量 2e5/1e6/8e6、单价 4e4/1.5e5/5e5。
+    // getCapacity() 必须显式分派，漏分支会静默回落 DEFAULT_CORE_CAPACITY=10000。
+    public static final ModConfigSpec.IntValue SUNAKO_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue SUNAKO_CAPACITY_MULTIPLIER;
+    public static final ModConfigSpec.IntValue SUNAKO_CAPACITY_OVERRIDE_LEVEL3;
+    public static final ModConfigSpec.IntValue SUNAKO_BASE_IN_RATE_PER_SECOND;
+    public static final ModConfigSpec.IntValue SUNAKO_IN_RATE_MULTIPLIER;
+    public static final ModConfigSpec.IntValue SUNAKO_IN_RATE_OVERRIDE_LEVEL3;
+    public static final ModConfigSpec.IntValue SUNAKO_UNIT_COST_LEVEL1;
+    public static final ModConfigSpec.IntValue SUNAKO_UNIT_COST_LEVEL2;
+    public static final ModConfigSpec.IntValue SUNAKO_UNIT_COST_LEVEL3;
+    /** 缺 LONG_ 兄弟时的时效放大倍率，默认 8/3（对齐绝大多数原版 long 比例）。 */
+    public static final ModConfigSpec.DoubleValue SUNAKO_LONG_DURATION_MULTIPLIER;
+    /** 缺 STRONG_ 兄弟时的时效缩放倍率，默认 1.0（只升品质、不动时长）。 */
+    public static final ModConfigSpec.DoubleValue SUNAKO_STRONG_DURATION_MULTIPLIER;
+
     // ---- 忘川灯坛（bousen-lantern-ritual）----
     // 四张分阶表（索引 = 结构等级 - 1）+ 六个标量/周期 + 11 个 FX 参数。
     public static final ModConfigSpec.ConfigValue<List<? extends Double>> BOUSEN_PRODUCE_RATE_PER_SECOND;
@@ -604,6 +621,18 @@ public class GensokyouConfig {
      * 世界若写死会在柱顶被截断。&lt;1 可缩短到屋顶附近。
      */
     public static final ModConfigSpec.DoubleValue FX_REIYOKU_QI_HEIGHT_RATIO;
+    public static final ModConfigSpec.DoubleValue FX_SUNAKO_WATER_RADIUS;
+    public static final ModConfigSpec.DoubleValue FX_SUNAKO_WATER_HEIGHT;
+    public static final ModConfigSpec.IntValue FX_SUNAKO_WATER_R;
+    public static final ModConfigSpec.IntValue FX_SUNAKO_WATER_G;
+    public static final ModConfigSpec.IntValue FX_SUNAKO_WATER_B;
+    public static final ModConfigSpec.DoubleValue FX_SUNAKO_WATER_SCROLL_SPEED;
+    public static final ModConfigSpec.DoubleValue FX_SUNAKO_WATER_BREATH_AMP;
+    public static final ModConfigSpec.IntValue FX_SUNAKO_WATER_BREATH_PERIOD_TICKS;
+    public static final ModConfigSpec.DoubleValue FX_SUNAKO_WATER_ALPHA;
+    public static final ModConfigSpec.DoubleValue FX_SUNAKO_WATER_RIM_FADE;
+    public static final ModConfigSpec.DoubleValue FX_SUNAKO_WATER_LOD_DISTANCE;
+    public static final ModConfigSpec.DoubleValue FX_SUNAKO_WATER_LOD_RATIO;
 
     // ---- add-hyakki-yagyo-summon-ritual：百鬼夜行召唤仪式 ----
 
@@ -944,6 +973,34 @@ public class GensokyouConfig {
         HOUJOUNO_TEIHOU_SAMPLE_COUNT_MULTIPLIER = BUILDER.defineInRange("sampleCountMultiplier", 4, 1, 8);
         HOUJOUNO_TEIHOU_CYCLE_TICKS = BUILDER.defineInRange("cycleTicks", 1200, 1, 72000);
         HOUJOUNO_TEIHOU_FAILURE_RETRY_TICKS = BUILDER.defineInRange("failureRetryTicks", 20, 1, 1200);
+        BUILDER.pop();
+
+        BUILDER.push("sunako").comment("Sunako (Potion Brewing): pedestals hold bottled Sanzu River water, one brewed"
+                + " potion each, consumed in place. A batch is ONE manual press; it yields as many bottles as the"
+                + " stored spirit can pay for (partial batches allowed). The three tiers are hand-tuned and NOT"
+                + " geometric -- RitualCoreBlockEntity.getCapacity() MUST dispatch explicitly or every tier silently"
+                + " falls back to DEFAULT_CORE_CAPACITY=10000.");
+        SUNAKO_BASE_CAPACITY = BUILDER.comment("Spirit buffer capacity at tier 1 (200000). Tier 2 = base*capacityMultiplier;"
+                + " tier 3 = capacityOverrideLevel3").defineInRange("baseCapacity", 200000, 1, Integer.MAX_VALUE);
+        SUNAKO_CAPACITY_MULTIPLIER = BUILDER.defineInRange("capacityMultiplier", 5, 1, 1000);
+        SUNAKO_CAPACITY_OVERRIDE_LEVEL3 = BUILDER.comment("Spirit buffer capacity at tier 3 (8000000 = exactly two full"
+                + " batches of 8 pedestals x 500000). MUST stay far above DEFAULT_CORE_CAPACITY=10000")
+                .defineInRange("capacityOverrideLevel3", 8000000, 1, Integer.MAX_VALUE);
+        SUNAKO_BASE_IN_RATE_PER_SECOND = BUILDER.comment("Routed spirit intake rate per second at tier 1. Being >0 is what"
+                + " makes the relay treat this ritual as a valid sink").defineInRange("baseInRatePerSecond", 10000, 0, Integer.MAX_VALUE);
+        SUNAKO_IN_RATE_MULTIPLIER = BUILDER.defineInRange("inRateMultiplier", 5, 1, 1000);
+        SUNAKO_IN_RATE_OVERRIDE_LEVEL3 = BUILDER.comment("Routed spirit intake rate per second at tier 3 (200000)."
+                + " Tier 3 is x4 of tier 2, NOT x5 — so it needs an explicit value just like the capacity")
+                .defineInRange("inRateOverrideLevel3", 200000, 0, Integer.MAX_VALUE);
+        SUNAKO_UNIT_COST_LEVEL1 = BUILDER.comment("Spirit spent per brewed bottle, tier 1 (40000)").defineInRange("unitCostLevel1", 40000, 1, Integer.MAX_VALUE);
+        SUNAKO_UNIT_COST_LEVEL2 = BUILDER.comment("Spirit spent per brewed bottle, tier 2 (150000)").defineInRange("unitCostLevel2", 150000, 1, Integer.MAX_VALUE);
+        SUNAKO_UNIT_COST_LEVEL3 = BUILDER.comment("Spirit spent per brewed bottle, tier 3 (500000)").defineInRange("unitCostLevel3", 500000, 1, Integer.MAX_VALUE);
+        SUNAKO_LONG_DURATION_MULTIPLIER = BUILDER.comment("Fallback duration multiplier when a potion has no LONG_ sibling"
+                + " (8/3 matches the ratio vanilla uses for most long variants)")
+                .defineInRange("longDurationMultiplier", 8.0D / 3.0D, 0.01D, 100.0D);
+        SUNAKO_STRONG_DURATION_MULTIPLIER = BUILDER.comment("Fallback duration multiplier when a potion has no STRONG_ sibling"
+                + " (1.0 = raise quality only, keep the base duration)")
+                .defineInRange("strongDurationMultiplier", 1.0D, 0.01D, 100.0D);
         BUILDER.pop();
 
         BUILDER.push("bousen").comment("Bousen (Altar of the Lethe): candle-gated generator. Production requires EVERY"
@@ -1383,6 +1440,30 @@ public class GensokyouConfig {
                 .defineInRange("fxReiyokuQiTopAlpha", 0.25D, 0.0D, 1.0D);
         FX_REIYOKU_QI_HEIGHT_RATIO = BUILDER.comment("Reiyoku FX: column height as a fraction of the span from the water surface to the world's build height limit (1.0 = rises all the way to the world top). The top is read from the client level's getMaxBuildHeight, never hardcoded, so taller worlds are not clipped")
                 .defineInRange("fxReiyokuQiHeightRatio", 1.0D, 0.05D, 3.0D);
+        BUILDER.pop();
+
+        BUILDER.push("fxSunako").comment("Sunako FX: a persistent shallow pool of river water filling the solid floor ring around the core. Rendered WHENEVER the structure is legal (no toggle, no buffer/pedestal condition), using the same water-surface look as Reiyoku but with its own palette so the two can be tuned independently");
+        FX_SUNAKO_WATER_RADIUS = BUILDER.comment("Sunako FX: pool radius in blocks, measured as hypot(x,z) in GRID coordinates from the core. MUST stay >= 8.5 to cover the whole ring channel (it spans radius 5.10-8.49); anything smaller clips it into disconnected short arcs")
+                .defineInRange("fxSunakoWaterRadius", 9.0D, 0.5D, 16.0D);
+        FX_SUNAKO_WATER_HEIGHT = BUILDER.comment("Sunako FX: water column height in blocks, measured UP from the top face of the layer below the core (0.8 reads as a shallow pool the shrine stands in)")
+                .defineInRange("fxSunakoWaterHeight", 0.8D, 0.05D, 2.0D);
+        FX_SUNAKO_WATER_R = BUILDER.comment("Sunako FX: water tint red 0..255").defineInRange("fxSunakoWaterR", 105, 0, 255);
+        FX_SUNAKO_WATER_G = BUILDER.comment("Sunako FX: water tint green 0..255").defineInRange("fxSunakoWaterG", 200, 0, 255);
+        FX_SUNAKO_WATER_B = BUILDER.comment("Sunako FX: water tint blue 0..255").defineInRange("fxSunakoWaterB", 185, 0, 255);
+        FX_SUNAKO_WATER_SCROLL_SPEED = BUILDER.comment("Sunako FX: water texture V-scroll speed (uv per tick) -> the flowing look")
+                .defineInRange("fxSunakoWaterScrollSpeed", 0.04D, 0.0D, 0.5D);
+        FX_SUNAKO_WATER_BREATH_AMP = BUILDER.comment("Sunako FX: water breathing amplitude (fraction, 0.08 = +/-8%)")
+                .defineInRange("fxSunakoWaterBreathAmp", 0.06D, 0.0D, 0.5D);
+        FX_SUNAKO_WATER_BREATH_PERIOD_TICKS = BUILDER.comment("Sunako FX: water breathing full-cycle period in ticks")
+                .defineInRange("fxSunakoWaterBreathPeriodTicks", 70, 4, 400);
+        FX_SUNAKO_WATER_ALPHA = BUILDER.comment("Sunako FX: water opacity (0..1; multiplied by 255 for the vertex alpha)")
+                .defineInRange("fxSunakoWaterAlpha", 0.40D, 0.0D, 1.0D);
+        FX_SUNAKO_WATER_RIM_FADE = BUILDER.comment("Sunako FX: how much the outermost 1-2 cell rings dim (0..1). ONLY the rim fades -- the pool interior stays uniform")
+                .defineInRange("fxSunakoWaterRimFade", 0.55D, 0.0D, 1.0D);
+        FX_SUNAKO_WATER_LOD_DISTANCE = BUILDER.comment("Sunako FX: distance in blocks beyond which the water drops to low LOD")
+                .defineInRange("fxSunakoWaterLodDistance", 64.0D, 8.0D, 512.0D);
+        FX_SUNAKO_WATER_LOD_RATIO = BUILDER.comment("Sunako FX: fraction of water cells kept beyond the LOD distance (0 = skip water entirely)")
+                .defineInRange("fxSunakoWaterLodRatio", 0.35D, 0.0D, 1.0D);
         BUILDER.pop();
 
         BUILDER.push("summon").comment("Hyakki Yagyo: offering-driven summon rite. NO entry fee -- a recipe's spCost is the session CAPACITY, charged by routing/socket over ~inRateDivisor seconds");

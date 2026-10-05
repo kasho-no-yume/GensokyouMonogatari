@@ -1,0 +1,87 @@
+{
+  "pattern": "gensokyou:sunako_circle",
+  "entries": [
+    {
+      "reagent": "minecraft:blaze_powder",
+      "potion": "minecraft:strength",
+      "long_potion": "minecraft:long_strength",
+      "strong_potion": "minecraft:strong_strength"
+    },
+    {
+      "reagent": "minecraft:phantom_membrane",
+      "potion": "minecraft:slow_falling",
+      "long_potion": "minecraft:long_slow_falling"
+    },
+    {
+      "reagent": "minecraft:spider_eye",
+      "potion": "minecraft:poison",
+      "long_potion": "minecraft:long_poison",
+      "strong_potion": "minecraft:strong_poison"
+    },
+    {
+      "reagent": "minecraft:ghast_tear",
+      "potion": "minecraft:regeneration",
+      "long_potion": "minecraft:long_regeneration",
+      "strong_potion": "minecraft:strong_regeneration"
+    },
+    {
+      "reagent": "minecraft:glistering_melon_slice",
+      "potion": "minecraft:healing",
+      "strong_potion": "minecraft:strong_healing"
+    },
+    {
+      "reagent": "minecraft:golden_carrot",
+      "potion": "minecraft:night_vision",
+      "long_potion": "minecraft:long_night_vision"
+    },
+    {
+      "reagent": "minecraft:magma_cream",
+      "potion": "minecraft:fire_resistance",
+      "long_potion": "minecraft:long_fire_resistance"
+    },
+    {
+      "reagent": "minecraft:pufferfish",
+      "potion": "minecraft:water_breathing",
+      "long_potion": "minecraft:long_water_breathing"
+    },
+    {
+      "reagent": "minecraft:sugar",
+      "potion": "minecraft:swiftness",
+      "long_potion": "minecraft:long_swiftness",
+      "strong_potion": "minecraft:strong_swiftness"
+    },
+    {
+      "reagent": "minecraft:rabbit_foot",
+      "potion": "minecraft:leaping",
+      "long_potion": "minecraft:long_leaping",
+      "strong_potion": "minecraft:strong_leaping"
+    },
+    {
+      "reagent": "minecraft:turtle_helmet",
+      "potion": "minecraft:turtle_master",
+      "long_potion": "minecraft:long_turtle_master",
+      "strong_potion": "minecraft:strong_turtle_master"
+    },
+    {
+      "reagent": "minecraft:breeze_rod",
+      "potion": "minecraft:wind_charged"
+    },
+    {
+      "reagent": "minecraft:slime_block",
+      "potion": "minecraft:oozing"
+    },
+    {
+      "reagent": "minecraft:stone",
+      "potion": "minecraft:infested"
+    },
+    {
+      "reagent": "minecraft:cobweb",
+      "potion": "minecraft:weaving"
+    },
+    {
+      "reagent": "minecraft:fermented_spider_eye",
+      "potion": "minecraft:weakness",
+      "long_potion": "minecraft:long_weakness"
+    }
+  ]
+}

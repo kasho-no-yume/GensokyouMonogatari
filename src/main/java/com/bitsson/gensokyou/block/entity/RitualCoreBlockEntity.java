@@ -7,6 +7,7 @@ import com.bitsson.gensokyou.registry.ModBlockEntities;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
+import com.bitsson.gensokyou.ritual.RitualExtraSlots;
 import com.bitsson.gensokyou.ritual.RitualMatch;
 import com.bitsson.gensokyou.ritual.RitualMatcher;
 import com.bitsson.gensokyou.ritual.RitualCoreRegistry;
@@ -68,6 +69,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private static final String TAG_BATTERY = "SpiritCoreBattery";
     /** 星移之仪的增幅核目标槽（与祭品台分开，避免占用催化剂台位）。 */
     private static final String TAG_SEII_TARGET = "SeiiTargetCore";
+
+    /** 泛化额外槽的落盘键（ListTag，每项一个 ItemStack）。 */
+    private static final String TAG_EXTRA_SLOTS = "ExtraSlots";
     private static final String TAG_BURN = "KagutsuchiBurn";
     private static final String TAG_BURN_FUEL = "Fuel";
     private static final String TAG_BURN_TOTAL = "TotalTicks";
@@ -459,6 +463,13 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 // 百鬼夜行：空闲零缓存（因而对供灵网络完全隐身），会话期容量 = 锁定配方 spCost。
                 // 与造化/神恩同口径，但本仪式用缓存<b>本身</b>当进度，无独立累计量。
                 return summon.phase == SummonPhase.IDLE ? 0L : summon.cost;
+            }
+            if (activeMatch.patternId().equals(RitualBehaviors.SUNAKO)) {
+                // 少名：2e5 / 1e6 / 8e6，三档既非 base×4^L 也非几何外推（1→2 是 ×5，
+                // 2→3 是 ×8）。必须在此显式分派——缺此分支时三档全部静默回落
+                // DEFAULT_CORE_CAPACITY=10000，不报错，只是 1 阶连一瓶都炼不出。
+                return com.bitsson.gensokyou.ritual.behavior.SunakoScaling
+                        .capacityOf(activeMatch.level());
             }
         }
         return DEFAULT_CORE_CAPACITY;
@@ -1404,30 +1415,113 @@ public class RitualCoreBlockEntity extends BlockEntity {
         setChanged();
     }
 
-    // ---- 仪式专用物品槽（星移之仪的增幅核目标槽） ----
+    // ---- 仪式专用额外物品槽（泛化机制，见 ritual/RitualExtraSlots） ----
     //
-    // 刻意与「祭品台」分开：祭品台是配方催化剂的载体且一台一件，若核也占台位会挤掉催化剂
-    // （1 阶只有 4 台）。核有自己的 GUI 槽位，祭品台全部留给催化剂。
+    // 刻意与「祭品台」分开：祭品台是配方催化剂的载体且一台一件，若额外槽也占台位会挤掉催化剂
+    // （1 阶只有 4 台）。额外槽有自己的 GUI 槽位，祭品台全部留给催化剂。
+    //
+    // 存储固定 MAX_EXTRA_SLOTS 格、实际可见格数由行为的 slotCount() 决定：菜单在
+    // ClientboundOpenScreenPacket 之后构造，该包附加数据只有 BlockPos，客户端拿不到
+    // "本仪式有几格"，故两侧必须注册同样数量的槽，否则 ContainerSetContent 会抛
+    // "Slot N not in valid range" 把玩家踢下线。
 
-    private ItemStack seiiTargetStack = ItemStack.EMPTY;
+    /** 额外槽格数上限（菜单两侧都按此数注册）。 */
+    public static final int MAX_EXTRA_SLOTS = 4;
+    /** 额外槽物品原点坐标（与既有目标槽同位，迁移后星移的核位置不变）。 */
+    public static final int EXTRA_SLOT_X = 9;
+    public static final int EXTRA_SLOT_Y = 61;
+    public static final int EXTRA_SLOT_SPACING = 20;
 
-    /** 槽内增幅核（空栈表示无）。 */
-    public ItemStack seiiTargetStack() {
-        return seiiTargetStack;
+    private final ItemStack[] extraSlotStacks = createEmptyExtraSlots();
+
+    private static ItemStack[] createEmptyExtraSlots() {
+        ItemStack[] stacks = new ItemStack[MAX_EXTRA_SLOTS];
+        java.util.Arrays.fill(stacks, ItemStack.EMPTY);
+        return stacks;
     }
 
-    /** 写入槽内增幅核（自动归一为 1 个；空栈写空）。 */
-    public void setSeiiTargetStack(ItemStack stack) {
-        this.seiiTargetStack = (stack == null || stack.isEmpty())
+    public ItemStack extraSlot(int slot) {
+        return slot >= 0 && slot < MAX_EXTRA_SLOTS ? extraSlotStacks[slot] : ItemStack.EMPTY;
+    }
+
+    /** 写入额外槽（自动归一为 1 个；空栈写空）。 */
+    public void setExtraSlot(int slot, ItemStack stack) {
+        if (slot < 0 || slot >= MAX_EXTRA_SLOTS) {
+            return;
+        }
+        extraSlotStacks[slot] = (stack == null || stack.isEmpty())
                 ? ItemStack.EMPTY : stack.copyWithCount(1);
         setChanged();
     }
 
-    private final IItemHandler seiiTargetHandler = new SeiiTargetHandler();
+    public boolean anyExtraSlotOccupied() {
+        for (ItemStack stack : extraSlotStacks) {
+            if (!stack.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
 
-    /** 目标槽的 item handler 视图（供 RitualCoreMenu 的 TargetSlot 绑定）。 */
-    public IItemHandler seiiTargetHandler() {
-        return seiiTargetHandler;
+    private final IItemHandler extraSlotsHandler = new ExtraSlotsHandler();
+
+    /** 额外槽的 item handler 视图（供 RitualCoreMenu 的 ExtraSlot 绑定）。 */
+    public IItemHandler extraSlotsHandler() {
+        return extraSlotsHandler;
+    }
+
+    private ListTag writeExtraSlots(HolderLookup.Provider registries) {
+        ListTag list = new ListTag();
+        for (ItemStack stack : extraSlotStacks) {
+            // ⚠️ MUST NOT 无条件 save：{@link ItemStack#save} 对空栈**抛异常**
+            //    （"Cannot encode empty ItemStack"）。而本数组恒为 MAX_EXTRA_SLOTS=4 格，
+            //    少名只声明 1 格 → 剩下 3 格永远是 EMPTY → 每次存盘必抛。
+            //
+            //    后果不只是"存盘失败"：{@code getUpdateTag()} 走同一条 saveAdditional 路径，
+            //    它一抛，{@code sendBlockUpdated} 就发不出方块实体数据 → 客户端永远收不到
+            //    渲染态 → **所有特效静默消失**（实机反馈：特效全没了 + LevelChunk 报错）。
+            //
+            //    空槽写空 CompoundTag 而非跳过，保持**下标与格位一一对应**；
+            //    读回侧 {@link ItemStack#parseOptional} 对空 CompoundTag 返回 EMPTY，正好还原。
+            list.add(stack.isEmpty() ? new CompoundTag() : stack.save(registries));
+        }
+        return list;
+    }
+
+    /**
+     * 读回额外槽，并兼容旧存档的 {@code SeiiTargetCore} 单值键。
+     *
+     * <p>旧键只对应第 0 格（当年的星移增幅核槽），迁移后落到 {@code extraSlots[0]}，
+     * 因此旧世界里的核不会被吞掉。
+     */
+    private void readExtraSlots(CompoundTag tag, HolderLookup.Provider registries) {
+        java.util.Arrays.fill(extraSlotStacks, ItemStack.EMPTY);
+        if (tag.contains(TAG_EXTRA_SLOTS, Tag.TAG_LIST)) {
+            ListTag list = tag.getList(TAG_EXTRA_SLOTS, Tag.TAG_COMPOUND);
+            for (int i = 0; i < Math.min(MAX_EXTRA_SLOTS, list.size()); i++) {
+                // 空 CompoundTag 是"该格为空"的合法编码（见 writeExtraSlots），必须跳过
+                // setCount，否则会对 ItemStack.EMPTY 调 copyWithCount
+                ItemStack parsed = ItemStack.parseOptional(registries, list.getCompound(i));
+                extraSlotStacks[i] = parsed.isEmpty() ? ItemStack.EMPTY : parsed.copyWithCount(1);
+            }
+        } else if (tag.contains(TAG_SEII_TARGET)) {
+            ItemStack legacy = ItemStack.parseOptional(registries, tag.getCompound(TAG_SEII_TARGET));
+            extraSlotStacks[0] = legacy.isEmpty() ? ItemStack.EMPTY : legacy.copyWithCount(1);
+        }
+    }
+
+    /** 当前仪式行为声明的额外槽格数（无匹配仪式/行为未声明时为 0）。 */
+    public int extraSlotCount() {
+        RitualMatch match = activeMatch;
+        if (match == null || level == null) {
+            return 0;
+        }
+        return RitualBehaviors.get(match.patternId())
+                .filter(RitualExtraSlots.class::isInstance)
+                .map(RitualExtraSlots.class::cast)
+                .map(RitualExtraSlots::slotCount)
+                .map(count -> Math.max(0, Math.min(MAX_EXTRA_SLOTS, count)))
+                .orElse(0);
     }
 
     /**
@@ -1688,6 +1782,19 @@ public class RitualCoreBlockEntity extends BlockEntity {
                     com.bitsson.gensokyou.ritual.behavior.WujinzangStorage
                             .laserAnchors(this, activeMatch),
                     0, 0L);
+        }
+        if (id.equals(RitualBehaviors.SUNAKO)) {
+            // 池水常驻（结构合法即渲染，故 enabled 恒真）+ 产出瞬间的献祭光柱。
+            // MUST 排在下面的献祭分支之前：光柱一旦抢占 kind，池水会整段闪断。
+            //
+            // 辅助字段：tier=结构等级（客户端据此取该阶 pattern 切片推导池面占地）；
+            // minY=光柱高度(格)、maxY=光柱剩余刻(0=无光柱)、period=色索引。
+            // 池面占地不进本通道：与灵浴同理，读同一份 pattern JSON 本地推导即可。
+            return new RitualRenderState(RitualRenderState.KIND_SUNAKO, true,
+                    activeMatch.level(),
+                    (int) Math.round(GensokyouConfig.FX_PILLAR_HEIGHT.get()),
+                    sacrificeFxTicks, RitualBehaviors.sacrificeColorIndex(id),
+                    new long[0], 0, 0L);
         }
         if (RitualBehaviors.isToolSacrifice(id) || id.equals(RitualBehaviors.SHUJOU)
                 || id.equals(RitualBehaviors.HOUJOUNO_TEIHOU)) {
@@ -2126,49 +2233,56 @@ public class RitualCoreBlockEntity extends BlockEntity {
 
     /** 电池槽单槽代理：仅收灵力核心物品，直读直写 BE 字段（SlotItemHandler.set 要求可写接口）。 */
     /**
-     * 星移之仪的增幅核目标槽 handler：只收增幅核，永远 1 个（与祭品台的一台一件同理）。
-     * 允许取出（玩家要把核拿回去），但取出前若有待决洗练，服务侧复验会发现核已不在而拒绝写入。
+     * 额外槽的通用 handler：每格恒为 1 个（与祭品台的一台一件同理），物品合法性
+     * 由行为的 {@link RitualExtraSlots#isSlotValid} 裁决。
+     *
+     * <p>允许取出（玩家要把东西拿回去）；若有待决会话，服务侧在采纳时会复验物品是否仍在槽内。
      */
-    private final class SeiiTargetHandler implements net.neoforged.neoforge.items.IItemHandlerModifiable {
+    private final class ExtraSlotsHandler implements net.neoforged.neoforge.items.IItemHandlerModifiable {
 
         @Override
         public void setStackInSlot(int slot, ItemStack stack) {
-            if (slot == 0) {
-                setSeiiTargetStack(stack);
+            if (validIndex(slot)) {
+                setExtraSlot(slot, stack);
             }
         }
 
         @Override
         public int getSlots() {
-            return 1;
+            return MAX_EXTRA_SLOTS;
         }
 
         @Override
         public ItemStack getStackInSlot(int slot) {
-            return slot == 0 ? seiiTargetStack : ItemStack.EMPTY;
+            return validIndex(slot) ? extraSlotStacks[slot] : ItemStack.EMPTY;
         }
 
         @Override
         public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            if (slot != 0 || !isItemValid(slot, stack)) {
+            if (!validIndex(slot) || !isItemValid(slot, stack)) {
                 return stack;
             }
-            if (!simulate && seiiTargetStack.isEmpty()) {
-                setSeiiTargetStack(stack);
+            ItemStack current = extraSlotStacks[slot];
+            if (current.isEmpty()) {
+                if (!simulate) {
+                    setExtraSlot(slot, stack);
+                }
                 return stack.copyWithCount(stack.getCount() - 1);
             }
-            return simulate ? stack : stack.copyWithCount(0);
+            // 单格不变量：槽内已有物即拒绝，余量原样退回。
+            // 非模拟时绝不能返回 copyWithCount(0)——那等于声称全部扣完，调用方不再持有余量，物品凭空消失。
+            return stack;
         }
 
         @Override
         public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            if (slot != 0 || seiiTargetStack.isEmpty()) {
+            if (!validIndex(slot) || extraSlotStacks[slot].isEmpty()) {
                 return ItemStack.EMPTY;
             }
-            int n = Math.min(amount, seiiTargetStack.getCount());
-            ItemStack out = seiiTargetStack.copyWithCount(n);
+            ItemStack out = extraSlotStacks[slot].copyWithCount(Math.min(amount,
+                    extraSlotStacks[slot].getCount()));
             if (!simulate) {
-                setSeiiTargetStack(ItemStack.EMPTY);
+                setExtraSlot(slot, ItemStack.EMPTY);
             }
             return out;
         }
@@ -2180,7 +2294,22 @@ public class RitualCoreBlockEntity extends BlockEntity {
 
         @Override
         public boolean isItemValid(int slot, ItemStack stack) {
-            return slot == 0 && stack.getItem() instanceof com.bitsson.gensokyou.item.weapon.AmpCoreItem;
+            if (!validIndex(slot) || stack == null || stack.isEmpty()) {
+                return false;
+            }
+            RitualMatch match = activeMatch;
+            if (match == null) {
+                return false;
+            }
+            return RitualBehaviors.get(match.patternId())
+                    .filter(RitualExtraSlots.class::isInstance)
+                    .map(RitualExtraSlots.class::cast)
+                    .map(slots -> slot < slots.slotCount() && slots.isSlotValid(slot, stack))
+                    .orElse(false);
+        }
+
+        private boolean validIndex(int slot) {
+            return slot >= 0 && slot < MAX_EXTRA_SLOTS;
         }
     }
 
@@ -2406,8 +2535,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (!batteryStack.isEmpty()) {
             tag.put(TAG_BATTERY, batteryStack.save(registries));
         }
-        if (!seiiTargetStack.isEmpty()) {
-            tag.put(TAG_SEII_TARGET, seiiTargetStack.save(registries));
+        if (anyExtraSlotOccupied()) {
+            tag.put(TAG_EXTRA_SLOTS, writeExtraSlots(registries));
         }
         if (burnTotalTicks > 0) {
             CompoundTag burn = new CompoundTag();
@@ -2473,9 +2602,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
         batteryStack = tag.contains(TAG_BATTERY)
                 ? ItemStack.parseOptional(registries, tag.getCompound(TAG_BATTERY))
                 : ItemStack.EMPTY;
-        seiiTargetStack = tag.contains(TAG_SEII_TARGET)
-                ? ItemStack.parseOptional(registries, tag.getCompound(TAG_SEII_TARGET))
-                : ItemStack.EMPTY;
+        readExtraSlots(tag, registries);
         if (tag.contains(TAG_BURN)) {
             CompoundTag burn = tag.getCompound(TAG_BURN);
             burnFuelIcon = burn.contains(TAG_BURN_FUEL)

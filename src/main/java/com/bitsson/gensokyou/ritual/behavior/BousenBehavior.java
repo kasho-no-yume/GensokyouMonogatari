@@ -206,6 +206,12 @@ public class BousenBehavior implements RitualBehavior {
 
     // ================================================================= tick 通道
 
+    /** 发电仪式：能量方向是缓存 → 电池，显式豁免默认的"电池 → 缓存"。 */
+    @Override
+    public boolean refillsCacheFromSocket() {
+        return false;
+    }
+
     /**
      * 被动通道（成型即跑，<b>无 enabled 门控</b>）：蜡烛重扫 + 缓存回流。
      *

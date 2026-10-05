@@ -167,12 +167,15 @@ public final class SeiiService {
 
     @Nullable
     private static Target findTarget(RitualCoreBlockEntity core) {
-        ItemStack held = core.seiiTargetStack();
+        ItemStack held = core.extraSlot(SEII_CORE_SLOT);
         if (held.getItem() instanceof AmpCoreItem amp) {
             return new Target(amp.tier(), held.copy());
         }
         return null;
     }
+
+    /** 增幅核占据的额外槽下标（与 {@code SeiiBehavior#slotCount()} 的第 0 格一致）。 */
+    public static final int SEII_CORE_SLOT = 0;
 
     // ---- 推进 ----
 
@@ -322,7 +325,7 @@ public final class SeiiService {
                 || !viewer.getUUID().equals(session.initiator())) {
             return false;
         }
-        ItemStack held = core.seiiTargetStack();
+        ItemStack held = core.extraSlot(SEII_CORE_SLOT);
         boolean intact = held.getItem() instanceof AmpCoreItem amp
                 && amp.tier() == pending.coreTier()
                 && List.copyOf(held.getOrDefault(ModDataComponents.RUNE_AFFIXES.get(), List.of()))
@@ -331,7 +334,7 @@ public final class SeiiService {
             if (intact) {
                 held.set(ModDataComponents.RUNE_AFFIXES.get(), pending.after());
                 RuneGenerator.bumpRerollAccept(held);
-                core.setSeiiTargetStack(held);
+                core.setExtraSlot(SEII_CORE_SLOT, held);
                 feedback(viewer, "msg.gensokyou.seii_applied");
             } else {
                 feedback(viewer, "msg.gensokyou.seii_core_changed");
@@ -339,7 +342,7 @@ public final class SeiiService {
         } else {
             if (intact) {
                 RuneGenerator.bumpRerollKeep(held);
-                core.setSeiiTargetStack(held);
+                core.setExtraSlot(SEII_CORE_SLOT, held);
             }
             feedback(viewer, "msg.gensokyou.seii_kept");
         }

@@ -306,6 +306,126 @@ public final class RitualFxLayout {
             }
         }
 
+        return finishPool(water, yHigh, minY + 1, courtyardBaseY, seedBase, x0, z0, w, h);
+    }
+
+/**
+     * 少名渡汤：该阶的<b>环形汤池</b>水面布局 —— 核心四周那道环形凹槽里的积水。
+     *
+     * <p><b>为何不能直接复用 {@link #bathSurface}</b>：该函数把池锚在「<b>最低层</b>的顶面」
+     * 并把最低层里被结构包围的空块当作下沉院子。少名的最低层（y=-2）只是半径 5~6 的一圈
+     * 滴水石，其上方 y=-1 是<b>实心的仪式圆台</b>——于是「院子」那 81 格全部被实心圆台
+     * 盖死，渲染上完全看不见（实测三阶均 81/81 被覆盖）。本函数改为锚在
+     * {@code anchorY - 1}：判据是「<b>本格为空、脚下有地板</b>」，取到的正是 y=-1 层那圈
+     * 被方块分隔的环形凹槽（实测三阶各 80 格 / 4 段弧 / 半径 5.10~8.49）。
+     *
+     * <p>「脚下有地板」这一半并非装饰：它挡掉了结构破洞（不铺水到悬空处），同时把
+     * 半径外的空地排除干净。
+     *
+     * @param poolRadius 池半径（格，按格坐标距 {@code hypot(x, z)} 算，同 {@link #bathSurface}）。
+     *                   MUST ≥ 8.5 才覆盖整圈凹槽（默认 9.0）；调小会截成一截一截的短弧
+     * @return 空 {@code cells} 表示该阶无池面，调用方 MUST 视为「不绘制」
+     */
+    public static BathSurface brewPool(RitualPattern pattern, int level, double poolRadius) {
+        RitualPattern.LevelSlice slice = sliceOf(pattern, level);
+        if (slice == null || slice.blocks().isEmpty() || poolRadius <= 0.0D) {
+            return new BathSurface(List.of(), 0);
+        }
+        int minY = Integer.MAX_VALUE;
+        int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
+        int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
+        for (RitualPattern.BlockEntry block : slice.blocks()) {
+            minY = Math.min(minY, block.y());
+            minX = Math.min(minX, block.x());
+            maxX = Math.max(maxX, block.x());
+            minZ = Math.min(minZ, block.z());
+            maxZ = Math.max(maxZ, block.z());
+        }
+        // 池底 = 锚点（核心）所在层之下那层。锚点按构造恒在 y=0。
+        //
+        // ⚠️ 少名的池水是**环形凹槽**，不是中央平台：y=-1 层在半径 5.1~8.5 处被一圈方块
+        // 分成 4 段弧（轴向 x=0 / z=0 处 y=-1 实心，故环不闭合），槽底是 y=-2 那圈滴水石。
+        // 故底面取 anchorY-1（= -1，即 y=-2 方块的顶面），而非核心所在层——后者会把水
+        // 铺在中央平台顶面上（实机反馈："水的特效高度高了"）。
+        int baseY = anchorY(slice, pattern) - 1;
+        int floorY = baseY - 1;
+        long seedBase = pattern.id().hashCode() * 0x9E3779B97F4A7C15L + floorY * 0x2545F491L;
+        final int margin = 1;
+        int x0 = minX - margin, x1 = maxX + margin;
+        int z0 = minZ - margin, z1 = maxZ + margin;
+        int w = x1 - x0 + 1;
+        int h = z1 - z0 + 1;
+        double r2 = poolRadius * poolRadius;
+        int reach = (int) Math.ceil(poolRadius);
+        // 逐格查表 MUST NOT 走 List.contains（O(n) → 整函数退化为 O(n²)）。
+        java.util.Set<Long> solid = new java.util.HashSet<>(slice.blocks().size() * 2);
+        for (RitualPattern.BlockEntry block : slice.blocks()) {
+            solid.add(cellKey(block.x(), block.y(), block.z()));
+        }
+        List<int[]> water = new ArrayList<>();
+        boolean[][] yHigh = new boolean[h][w];
+        for (int z = -reach; z <= reach; z++) {
+            for (int x = -reach; x <= reach; x++) {
+                // ⚠️ 半径 MUST 按格坐标距算（hypot(x, z)），按格心算会让整数半径下偏心，
+                //    与 bathSurface 同坑，见该函数内的说明。
+                if (x * x + z * z > r2) {
+                    continue;
+                }
+                int lx = x - x0, lz = z - z0;
+                if (lx < 0 || lz < 0 || lx >= w || lz >= h) {
+                    continue;
+                }
+                if (!solid.contains(cellKey(x, floorY, z))
+                        || solid.contains(cellKey(x, baseY, z))) {
+                    continue;
+                }
+                yHigh[lz][lx] = true;
+                water.add(new int[]{lx, lz});
+            }
+        }
+        // 全部格都是主池（无下沉院子）：两个底面 Y 取同值即可。
+        return finishPool(water, yHigh, baseY, baseY, seedBase, x0, z0, w, h);
+    }
+
+    /** 格坐标打包成单 long 键（XZ 各 21 位、Y 11 位，够覆盖任何合法仪式结构）。 */
+    private static long cellKey(int x, int y, int z) {
+        return ((long) (x & 0x1FFFFF) << 32) | ((long) (z & 0x1FFFFF) << 11) | (y & 0x7FFL);
+    }
+
+    private static RitualPattern.LevelSlice sliceOf(RitualPattern pattern, int level) {
+        for (RitualPattern.LevelSlice candidate : pattern.levels()) {
+            if (candidate.level() == level) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    /** 锚点（核心方块）所在层；pattern 缺该键时回落到最低层。 */
+    private static int anchorY(RitualPattern.LevelSlice slice, RitualPattern pattern) {
+        char anchor = pattern.anchorKey();
+        for (RitualPattern.BlockEntry block : slice.blocks()) {
+            if (block.key() == anchor) {
+                return block.y();
+            }
+        }
+        int minY = Integer.MAX_VALUE;
+        for (RitualPattern.BlockEntry block : slice.blocks()) {
+            minY = Math.min(minY, block.y());
+        }
+        return minY;
+    }
+
+    /**
+     * 水面格集合 → {@link BathSurface}：chamfer 两遍距离变换求边缘衰减 + 逐格播种。
+     *
+     * <p>距离源 MUST 是<b>非水面格</b>（含图外补的一圈）。反过来初始化会让每格都读成「贴边」，
+     * 整池等亮度衰减。两类底面 Y（{@code mainBaseY} 主池 / {@code courtyardBaseY} 院子）由
+     * {@code yHigh} 逐格区分。
+     */
+    private static BathSurface finishPool(List<int[]> water, boolean[][] yHigh,
+                                          int mainBaseY, int courtyardBaseY, long seedBase,
+                                          int x0, int z0, int w, int h) {
         if (water.isEmpty()) {
             return new BathSurface(List.of(), 0);
         }
@@ -335,7 +455,7 @@ public final class RitualFxLayout {
             int wx = c[0] + x0, wz = c[1] + z0;
             maxCheb = Math.max(maxCheb, Math.max(Math.abs(wx), Math.abs(wz)));
             // 底面 Y：主池坐在最低层的顶面（minY+1）；院子低一格（minY）。
-            int baseY = yHigh[c[1]][c[0]] ? minY + 1 : courtyardBaseY;
+            int baseY = yHigh[c[1]][c[0]] ? mainBaseY : courtyardBaseY;
             cells.add(new WaterCell(wx + 0.5D, baseY, wz + 0.5D, edge,
                     seedBase + cells.size() * 131071L));
         }

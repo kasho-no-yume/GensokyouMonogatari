@@ -44,6 +44,15 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
         return true; // 会话是唯一启动路径；红石通道整体不响应（不覆写 onRedstonePulse）
     }
 
+    /**
+     * 退出红石代管触发：神恩会话需要 initiator 在场（属性面板按查看者点对点组装，
+     * 采纳/保留还要核 initiator UUID），玩家不在场时自动开打既无界面也无意义。
+     */
+    @Override
+    public boolean redstoneTriggersUiAction() {
+        return false;
+    }
+
     // ---- 按钮（按查看者注入） ----
 
     @Override

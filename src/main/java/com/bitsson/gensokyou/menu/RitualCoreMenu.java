@@ -33,37 +33,33 @@ public class RitualCoreMenu extends AbstractContainerMenu {
     private static final int BATTERY_SLOT_INDEX = 0;
 
     /**
-     * 星移之仪的增幅核目标槽（紧邻灵力核心槽右侧）。
+     * 泛化额外物品槽（{@link com.bitsson.gensokyou.ritual.RitualExtraSlots}）的槽原点坐标。
      *
-     * <p>刻意<b>不</b>放在祭品台上：祭品台一台一件且是配方催化剂的载体，1 阶只有 4 台，
-     * 核若占一台就只剩 3 个催化剂位。核有自己的 GUI 槽位，祭品台全部留给催化剂。
-     * 显隐由行为的 {@code usesTargetSlot} 决定（与 usesCoreSocket 同一套机制）。
+     * <p>槽体由原版 {@code renderSlot} 画在此处，故 18px 见方；坐标与迁移前的"星移目标槽"
+     * 完全一致，迁移后玩家看到的核位置不变。
      */
-    /**
-     * 星移之仪的增幅核目标槽 —— 放在<b>信息区首行</b>，不与灵力核心槽争头部那一行
-     * （两个槽并排时，灵力核的右侧标签会横跨到第二个槽上）。
-     *
-     * <p>显隐由行为的 {@code usesTargetSlot} 决定（与 usesCoreSocket 同一套机制）；
-     * 可见时客户端把信息区整体下移一行（见 {@code RitualCoreScreen} 的 infoTop）。
-     */
-    /**
-     * 目标槽的<b>槽坐标</b>（= 物品与命中框原点，物品由原版 {@code renderSlot} 画在此处）。
-     * 槽框画在其 −1 处，故 18px 框实际占 x∈[8,26)、y∈[60,78) —— 贴着信息框内壁
-     * （框自身在 x=7 的分隔线上），物品自然内缩 1px 居中。
-     */
-    public static final int TARGET_SLOT_X = 9;
-    public static final int TARGET_SLOT_Y = 61;
-    /**
-     * 目标槽的 <b>menu 索引</b>（= addSlot 的调用序）。注意与 {@link #TARGET_HANDLER_INDEX} 区分：
-     * {@code SlotItemHandler} 的构造参数是 handler <b>内部</b>索引，不是 menu 索引。两者相等纯属巧合
-     * （电池槽恰好都是 0）；传错会让客户端在收 {@code ContainerSetContent} 时抛
-     * "Slot N not in valid range" 并被踢。
-     */
-    private static final int TARGET_SLOT_INDEX = 1;
-    /** 目标 handler 只有 1 格，故其内部索引恒为 0。 */
-    private static final int TARGET_HANDLER_INDEX = 0;
-    /** 核心功能槽（灵力核 + 目标物）区间的右开界，背包从 SLOT_FUNCTION_END 起。 */
-    private static final int SLOT_FUNCTION_END = TARGET_SLOT_INDEX + 1;
+    public static int extraSlotX(int index) {
+        return RitualCoreBlockEntity.EXTRA_SLOT_X
+                + index * RitualCoreBlockEntity.EXTRA_SLOT_SPACING;
+    }
+
+    public static int extraSlotY() {
+        return RitualCoreBlockEntity.EXTRA_SLOT_Y;
+    }
+
+    /** 缺省布局把全部额外槽排在同一行；重载保留接口的多行自定义可能。 */
+    public static int extraSlotY(int index) {
+        return RitualCoreBlockEntity.EXTRA_SLOT_Y;
+    }
+
+    /** 额外槽 handler 只有 MAX_EXTRA_SLOTS 格，故其内部索引 = menu 索引。 */
+    private static int extraHandlerIndex(int index) {
+        return index;
+    }
+
+    /** 功能槽区（灵力核 + 全部额外槽）的右开界，背包从 SLOT_FUNCTION_END 起。 */
+    private static final int SLOT_FUNCTION_END =
+            1 + RitualCoreBlockEntity.MAX_EXTRA_SLOTS;
 
     /** 背包区起始 y：信息区 150px + 4px 间隔。 */
     private static final int INVENTORY_TOP_Y = 158;
@@ -72,7 +68,7 @@ public class RitualCoreMenu extends AbstractContainerMenu {
     private final DataSlot burnRemaining;
     private final DataSlot burnTotal;
     private final BatterySlot batterySlot;
-    private final TargetSlot targetSlot;
+    private final ExtraSlot[] extraSlots;
     private final boolean clientSide;
 
     public RitualCoreMenu(int windowId, Inventory inventory, RegistryFriendlyByteBuf data) {
@@ -87,22 +83,23 @@ public class RitualCoreMenu extends AbstractContainerMenu {
         super(ModMenus.RITUAL_CORE.get(), windowId);
         this.pos = pos.immutable();
         // 电池槽与燃烧倒计时通道：服务端直读核心 BE，客户端持占位、值随菜单协议收敛
+        this.extraSlots = new ExtraSlot[RitualCoreBlockEntity.MAX_EXTRA_SLOTS];
         if (player.level() instanceof ServerLevel serverLevel
                 && serverLevel.getBlockEntity(this.pos) instanceof RitualCoreBlockEntity core) {
             this.clientSide = false;
             addSlot(new BatterySlot(core.batteryHandler(), BATTERY_SLOT_INDEX,
                     BATTERY_SLOT_X, BATTERY_SLOT_Y));
             this.batterySlot = (BatterySlot) this.slots.get(BATTERY_SLOT_INDEX);
-            addSlot(new TargetSlot(core.seiiTargetHandler(), TARGET_HANDLER_INDEX,
-                    TARGET_SLOT_X, TARGET_SLOT_Y));
-            this.targetSlot = (TargetSlot) this.slots.get(TARGET_SLOT_INDEX);
-            // 槽显隐由行为声明（默认关闭，仅星移之仪这类"核是洗练目标"的仪式开启）；
-            // 隐藏槽 mayPlace 同步拒收；槽内已有核时强制可见——结构拆解失配也要能取出（防吞件）
-            this.targetSlot.setShown(!core.seiiTargetStack().isEmpty()
-                    || (core.activeMatch() != null
-                            && RitualBehaviors.get(core.activeMatch().patternId())
-                                    .map(com.bitsson.gensokyou.ritual.RitualBehavior::usesTargetSlot)
-                                    .orElse(false)));
+            int declared = core.extraSlotCount();
+            for (int i = 0; i < RitualCoreBlockEntity.MAX_EXTRA_SLOTS; i++) {
+                ExtraSlot slot = new ExtraSlot(core.extraSlotsHandler(), extraHandlerIndex(i),
+                        extraSlotX(i), extraSlotY());
+                addSlot(slot);
+                this.extraSlots[i] = slot;
+                // 槽显隐由行为声明（默认 0 格）；隐藏槽 mayPlace 同步拒收；
+                // 槽内已有物时强制可见 —— 结构拆解失配也要能取出（防吞件）
+                slot.setShown(i < declared || !core.extraSlot(i).isEmpty());
+            }
             // 槽显隐由行为声明（默认开放，仅路由/托管仪式豁免）；隐藏槽 mayPlace 同步拒收；
             // 槽内已有电池时强制可见——结构拆解失配也要能取出（防吞件）
             this.batterySlot.setShown(!core.batteryStack().isEmpty()
@@ -143,17 +140,22 @@ public class RitualCoreMenu extends AbstractContainerMenu {
             this.batterySlot = (BatterySlot) this.slots.get(BATTERY_SLOT_INDEX);
             // 首帧即隐藏：显隐唯一由 containerTick 按服务端 payload 收敛（与启停按钮同范式）
             this.batterySlot.setShown(false);
-            net.neoforged.neoforge.items.ItemStackHandler dummyTarget =
-                    new net.neoforged.neoforge.items.ItemStackHandler(1) {
+            // 客户端 dummy 一律放行：合法性由服务端 IItemHandler 权威拒收
+            net.neoforged.neoforge.items.ItemStackHandler dummyExtra =
+                    new net.neoforged.neoforge.items.ItemStackHandler(
+                            RitualCoreBlockEntity.MAX_EXTRA_SLOTS) {
                         @Override
                         public boolean isItemValid(int slot, net.minecraft.world.item.ItemStack stack) {
-                            return stack.getItem()
-                                    instanceof com.bitsson.gensokyou.item.weapon.AmpCoreItem;
+                            return true;
                         }
                     };
-            addSlot(new TargetSlot(dummyTarget, TARGET_HANDLER_INDEX, TARGET_SLOT_X, TARGET_SLOT_Y));
-            this.targetSlot = (TargetSlot) this.slots.get(TARGET_SLOT_INDEX);
-            this.targetSlot.setShown(false);
+            for (int i = 0; i < RitualCoreBlockEntity.MAX_EXTRA_SLOTS; i++) {
+                ExtraSlot slot = new ExtraSlot(dummyExtra, extraHandlerIndex(i),
+                        extraSlotX(i), extraSlotY());
+                addSlot(slot);
+                this.extraSlots[i] = slot;
+                slot.setShown(false);
+            }
             this.burnRemaining = addDataSlot(DataSlot.standalone());
             this.burnTotal = addDataSlot(DataSlot.standalone());
         }
@@ -190,15 +192,41 @@ public class RitualCoreMenu extends AbstractContainerMenu {
      * 目标物品槽显隐收敛（客户端由 containerTick 按服务端 payload 驱动）。
      * 槽内仍有物时保持可见，防结构拆解失配吞件。
      */
-    public void syncTargetSocketVisible(boolean declaredByBehavior) {
+    public void syncExtraSlotsVisible(int declaredCount) {
         if (clientSide) {
-            targetSlot.setShown(declaredByBehavior || !targetSlot.getItem().isEmpty());
+            for (int i = 0; i < extraSlots.length; i++) {
+                extraSlots[i].setShown(i < declaredCount || !extraSlots[i].getItem().isEmpty());
+            }
         }
     }
 
-    /** 目标物品槽当前是否可见（客户端渲染标注用）。 */
-    public boolean targetSocketShown() {
-        return targetSlot.isActive();
+    /** 当前是否至少有一个额外槽可见（客户端渲染标注与信息区下移用）。 */
+    public boolean anyExtraSlotShown() {
+        for (ExtraSlot slot : extraSlots) {
+            if (slot.isActive()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 当前可见的额外槽数量（客户端画标注用）。 */
+    public int extraSlotsShown() {
+        int shown = 0;
+        for (ExtraSlot slot : extraSlots) {
+            if (slot.isActive()) {
+                shown++;
+            }
+        }
+        return shown;
+    }
+
+    /** 该仪式额外槽的标注 lang 键（无标注时返回空串）。 */
+    public static String extraSlotLabelKey(com.bitsson.gensokyou.ritual.RitualBehavior behavior) {
+        if (behavior instanceof com.bitsson.gensokyou.ritual.RitualExtraSlots slots) {
+            return slots.labelKey();
+        }
+        return "";
     }
 
     public int burnTotal() {
@@ -209,7 +237,13 @@ public class RitualCoreMenu extends AbstractContainerMenu {
         return pos;
     }
 
-    /** shift 转移：背包 → 核心功能槽（灵力核 0 / 目标物 1，类型校验经 mayPlace 收敛）→ 兜底在背包内堆叠；功能槽 → 背包。 */
+    /**
+     * shift 转移：功能槽（灵力核 + 全部额外槽，menu 索引 {@code [0, SLOT_FUNCTION_END)}）
+     * → 背包；背包 → 功能槽（类型校验经各槽 {@code mayPlace} 收敛）→ 兜底在背包内堆叠。
+     *
+     * <p>功能槽区右开界由 {@link RitualCoreBlockEntity#MAX_EXTRA_SLOTS} 动态算出，
+     * MUST NOT 依赖固定索引常量——否则额外槽数量一变，转移区间就会把物品送错槽或漏送。
+     */
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
         Slot slot = this.slots.get(index);
@@ -218,17 +252,15 @@ public class RitualCoreMenu extends AbstractContainerMenu {
         }
         ItemStack stack = slot.getItem();
         ItemStack original = stack.copy();
-        if (index == BATTERY_SLOT_INDEX || index == TARGET_SLOT_INDEX) {
+        if (index < SLOT_FUNCTION_END) {
             if (!this.moveItemStackTo(stack, SLOT_FUNCTION_END, this.slots.size(), false)) {
                 return ItemStack.EMPTY;
             }
-        } else if (!this.moveItemStackTo(stack, BATTERY_SLOT_INDEX, SLOT_FUNCTION_END, false)) {
-            if (!this.moveItemStackTo(stack, this.slots.size() - 9, this.slots.size(), false)) {
-                if (!this.moveItemStackTo(stack, SLOT_FUNCTION_END,
-                        this.slots.size() - 9, true)) {
-                    return ItemStack.EMPTY;
-                }
-            }
+        } else if (!this.moveItemStackTo(stack, 0, SLOT_FUNCTION_END, false)) {
+            // MUST NOT 在背包内部再 merge：源槽本身就在该区间里，merge 循环会把源栈与自身
+            // 合并（j = count + count），数量翻倍。vanilla 的各类 ContainerMenu 也从不
+            // 让快捷移动在同一背包内 merge —— 移不动就直接失败。
+            return ItemStack.EMPTY;
         }
         if (stack.isEmpty()) {
             slot.setByPlayer(ItemStack.EMPTY);

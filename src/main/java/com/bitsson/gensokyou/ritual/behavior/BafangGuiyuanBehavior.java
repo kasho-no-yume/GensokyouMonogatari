@@ -44,6 +44,16 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
         return false;
     }
 
+    /**
+     * 托管池的灵力四件套整体转发到<b>祭品台上的灵力核物品</b>（见 {@code SpiritBank}），
+     * 自身不持有缓存。再走「电池 → 缓存」推路径等于用槽核去填一个没人读的字段，
+     * 故显式标注为 false 保持既有行为。
+     */
+    @Override
+    public boolean refillsCacheFromSocket() {
+        return false;
+    }
+
     /** 逐核每 tick 锁存的进/出剩余额度账本（收/发分道）：corePos → (pedestalPos → ledger)，不持久化。 */
     private static final Map<BlockPos, Map<BlockPos, TickRateLedger>> IN_LEDGER = new ConcurrentHashMap<>();
     private static final Map<BlockPos, Map<BlockPos, TickRateLedger>> OUT_LEDGER = new ConcurrentHashMap<>();

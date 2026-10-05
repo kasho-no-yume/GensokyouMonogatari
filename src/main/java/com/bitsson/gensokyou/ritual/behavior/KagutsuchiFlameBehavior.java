@@ -160,6 +160,12 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
         return (long) Math.floor(maxOutputRatePerSecond(match.level()));
     }
 
+    /** 发电仪式：能量方向是缓存 → 电池（见 {@code settlePerSecond} 的注灵段），显式豁免默认方向。 */
+    @Override
+    public boolean refillsCacheFromSocket() {
+        return false;
+    }
+
     /** 每秒一次的产灵/注灵结算（速率 ×1000 定点进位，避免整除截断）。 */
     private static void settlePerSecond(RitualMatch match, RitualCoreBlockEntity core) {
         // 产灵：20 × 4^等级 每秒，仅燃烧期入账（含空烧——receive 天然截到上限，超出作废）；

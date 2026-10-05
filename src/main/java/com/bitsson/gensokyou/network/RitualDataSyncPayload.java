@@ -5,6 +5,7 @@ import com.bitsson.gensokyou.ritual.RitualLootLoader;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import com.bitsson.gensokyou.ritual.RitualSmeltRuleLoader;
+import com.bitsson.gensokyou.ritual.brew.RitualBrewRuleLoader;
 import com.bitsson.gensokyou.ritual.WatatsumiSpecialLootLoader;
 import com.google.gson.JsonObject;
 import net.minecraft.network.FriendlyByteBuf;
@@ -37,7 +38,7 @@ public record RitualDataSyncPayload(byte[] data) implements CustomPacketPayload 
                     ByteBufCodecs.byteArray(1_048_576), RitualDataSyncPayload::data,
                     RitualDataSyncPayload::new);
 
-    /** 服务端组装：五类数据以 id → 原始 JSON 对象打包并 GZIP。 */
+    /** 服务端组装：六类数据以 id → 原始 JSON 对象打包并 GZIP。 */
     public static RitualDataSyncPayload snapshot() {
         JsonObject patterns = new JsonObject();
         RitualPatternLoader.rawAll().forEach((id, json) -> patterns.add(id.toString(), json));
@@ -47,11 +48,15 @@ public record RitualDataSyncPayload(byte[] data) implements CustomPacketPayload 
         RitualSmeltRuleLoader.rawAll().forEach((id, json) -> smeltRules.add(id.toString(), json));
         JsonObject lootTables = new JsonObject();
         RitualLootLoader.rawAll().forEach((id, json) -> lootTables.add(id.toString(), json));
+        JsonObject brewRules = new JsonObject();
+        RitualBrewRuleLoader.rawAll().forEach((id, json) -> brewRules.add(id.toString(), json));
         JsonObject root = new JsonObject();
         root.add("patterns", patterns);
         root.add("recipes", recipes);
         root.add("smelt_rules", smeltRules);
         root.add("ritual_loot", lootTables);
+        // 炼药试剂映射：客户端据此现算三个阶的产物图标（变换内核世界无关，客户端可独立跑）
+        root.add("brew_rules", brewRules);
         JsonObject special = WatatsumiSpecialLootLoader.rawAll();
         if (special != null) {
             // 单表 loader：形态为单个对象而非 id→对象 map

@@ -169,6 +169,14 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
      * <p>key 是小整数 boxed，用 ConcurrentHashMap 而非 WeakHashMap：无需也不应回收。
      */
     private static final Map<Integer, RitualFxLayout.BathSurface> REIYOKU_SURFACE =            new ConcurrentHashMap<>();
+    /**
+     * 少名汤池水面布局缓存：结构等级 → 该阶池面格位（相对核心）。与 {@link #REIYOKU_SURFACE}
+     * 同理，是 {@code (patternId, level)} 的纯函数，pattern JSON 登录时一次性下发。
+     *
+     * <p>与灵浴<b>刻意不共用</b> {@link RitualFxLayout#bathSurface}：少名的最低层只是一圈
+     * 滴水石，其上的实心圆台会把该函数认定的「下沉院子」全部盖死（水完全不可见）。
+     */
+    private static final Map<Integer, RitualFxLayout.BathSurface> SUNAKO_SURFACE = new ConcurrentHashMap<>();
 
     /**
      * 忘川灯坛逐阶蜡烛偏移（相对锚点，规范序）。与 {@link #bafangPedestalOffsets} 同源同法：
@@ -230,6 +238,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                     renderReiyoku(blockEntity, state, now, poseStack, bufferSource);
             case RitualRenderState.KIND_BOUSEN ->
                     renderLanterns(blockEntity, state, now, poseStack, bufferSource);
+            case RitualRenderState.KIND_SUNAKO ->
+                    renderSunako(blockEntity, state, now, poseStack, bufferSource);
             default -> {
             }
         }
@@ -305,6 +315,17 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             return new AABB(p.getX() - reach, p.getY() - drop, p.getZ() - reach,
                     p.getX() + reach, p.getY() + Math.max(8.0D, qiTop),
                     p.getZ() + reach);
+        }
+        if (kind == RitualRenderState.KIND_SUNAKO) {
+            // 汤池只在核心脚下，但产出光柱高 FX_PILLAR_HEIGHT 格、竖直向上，两轴都得放得下。
+            // 水平取池面切比雪夫半径（含 +2 余量），垂直上界取光柱高（+2），下界取结构最低点
+            // （须减 coreY 换成偏移，同 KIND_REIYOKU：渲染态的 Y 是绝对世界 Y）。
+            double reach = sunakoPool(blockEntity.renderState().tier()).radiusXZ() + 2.0D;
+            double top = Math.max(8.0D, blockEntity.renderState().minY() + 2.0D);
+            double minOffset = blockEntity.structureMinY() - p.getY();
+            double drop = Math.max(8.0D, -minOffset + 2.0D);
+            return new AABB(p.getX() - reach, p.getY() - drop, p.getZ() - reach,
+                    p.getX() + reach, p.getY() + top, p.getZ() + reach);
         }
         return new AABB(p.getX() - radius, p.getY() - 16.0D, p.getZ() - radius,
                 p.getX() + radius, p.getY() + up, p.getZ() + radius);
@@ -942,6 +963,20 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                 .orElseGet(() -> new RitualFxLayout.BathSurface(List.of(), 0)));
     }
 
+    /**
+     * 少名该阶的汤池布局，纯客户端推导（同 {@link #bathSurface} 的数据源与理由）。
+     *
+     * <p>占地 = 核心脚下那层<b>实心</b>地板上、半径内且<b>本格为空</b>的格位：既挡掉结构孔洞
+     * （水不会悬在空洞上），也天然绕开核心与祭品台（水从它们脚下流过、被它们顶出水面）。
+     */
+    private static RitualFxLayout.BathSurface sunakoPool(int level) {
+        return SUNAKO_SURFACE.computeIfAbsent(level, lv -> ClientRitualData
+                .pattern(RitualBehaviors.SUNAKO)
+                .map(pattern -> RitualFxLayout.brewPool(pattern, lv,
+                        GensokyouConfig.FX_SUNAKO_WATER_RADIUS.get()))
+                .orElseGet(() -> new RitualFxLayout.BathSurface(List.of(), 0)));
+    }
+
     private static float[] bafangBeamEnvelopes(BlockPos core, int channels) {
         float[] envs = BAFANG_BEAM_ENVELOPES.get(core);
         if (envs == null || envs.length != channels) {
@@ -1011,7 +1046,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         poseStack.popPose();
     }
 
-    /** 献祭光柱色（0=石 1=木 2=土 3=草 4=绵津见水蓝 5=众生余录灵魂紫 6=丰穰神金穗）。 */
+    /** 献祭光柱色（0=石 1=木 2=土 3=草 4=绵津见水蓝 5=众生余录灵魂紫 6=丰穰神金穗 7=少名汤青）。 */
     private static int[] pillarColor(int index) {
         return switch (index) {
             case 1 -> new int[]{141, 110, 99};
@@ -1020,6 +1055,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             case 4 -> new int[]{90, 180, 200};
             case 5 -> new int[]{156, 111, 214};
             case 6 -> new int[]{232, 190, 96};
+            // 少名：汤青。与 4 号（绵津见纯蓝）刻意拉开色相，避免两个"水"仪式撞色。
+            case 7 -> new int[]{130, 216, 196};
             default -> new int[]{176, 190, 197};
         };
     }
@@ -1299,13 +1336,78 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             int stride = waterStride(core, surface.cells().size());
             // 底面 Y 由 WaterCell 自带：主池 = minY+1，院子低一格（见 RitualFxLayout.bathSurface）
             emitBathWater(poseStack, buffers, core, surface, stride, waterH,
-                    scroll, r, g, b, opacity);
+                    scroll, r, g, b, opacity,
+                    GensokyouConfig.FX_REIYOKU_WATER_RIM_FADE.get().floatValue());
             // 池底辉光：紧贴各自底面的一层暗面，给 0.8 格水深以体积感（不滚动）。
             emitBathWater(poseStack, buffers, core, surface, stride, 0.02F,
-                    0F, r, g, b, opacity * 0.35F);
+                    0F, r, g, b, opacity * 0.35F,
+                    GensokyouConfig.FX_REIYOKU_WATER_RIM_FADE.get().floatValue());
         }
 
         renderBathQi(be, poseStack, buffers, minOffset, env, now);
+    }
+
+    // ============================================================ 少名渡汤
+
+    /**
+     * 少名渡汤：①<b>常驻</b>的汤池水面 + ②产出瞬间的献祭光柱。
+     *
+     * <p><b>门控只有 {@code enabled}</b>（服务端恒为真 = 结构合法），与缓存、祭品台上有无瓶子、
+     * 是否启停<b>均无关</b>——用户要求「仪式合法就渲染」。
+     *
+     * <p>光柱复用 {@link #renderPillar} 的几何与配色，仅在 {@code maxY > 0}（服务端剩余刻未归零）
+     * 时叠加；两者共用一个 kind，故产出那 30 刻里池水<b>不会</b>像"独立 kind 抢占"那样闪断。
+     */
+    private void renderSunako(RitualCoreBlockEntity be, RitualRenderState state, double now,
+                              PoseStack poseStack, MultiBufferSource buffers) {
+        float env = advanceEnvelope(be.getBlockPos(), 6, state.enabled() ? 1F : 0F, now);
+        if (env <= 0F) {
+            return;
+        }
+        RitualFxLayout.BathSurface pool = sunakoPool(state.tier());
+        if (!pool.cells().isEmpty()) {
+            // 呼吸：整片水面同步起伏，幅度极小（读作"水面在动"而非"整块在缩放"）。
+            float period = Math.max(1, GensokyouConfig.FX_SUNAKO_WATER_BREATH_PERIOD_TICKS.get());
+            float breath = 1.0F + GensokyouConfig.FX_SUNAKO_WATER_BREATH_AMP.get().floatValue()
+                    * (float) Mth.sin((float) (now * (Math.PI * 2.0D / period)));
+            int r = GensokyouConfig.FX_SUNAKO_WATER_R.get();
+            int g = GensokyouConfig.FX_SUNAKO_WATER_G.get();
+            int b = GensokyouConfig.FX_SUNAKO_WATER_B.get();
+            // ⚠️ 配置项是 0..1 不透明度，vertex alpha 要 0..255 —— 必须先乘 255 再截断。
+            float opacity = GensokyouConfig.FX_SUNAKO_WATER_ALPHA.get().floatValue() * env;
+            float rim = GensokyouConfig.FX_SUNAKO_WATER_RIM_FADE.get().floatValue();
+            float scroll = (float) (now * GensokyouConfig.FX_SUNAKO_WATER_SCROLL_SPEED.get());
+            float waterH = GensokyouConfig.FX_SUNAKO_WATER_HEIGHT.get().floatValue() * breath;
+            int stride = sunakoWaterStride(be.getBlockPos(), pool.cells().size());
+            emitBathWater(poseStack, buffers, be.getBlockPos(), pool, stride, waterH,
+                    scroll, r, g, b, opacity, rim);
+            // 池底辉光：紧贴底面的一层暗面，给 0.8 格水深以体积感（不滚动）。
+            emitBathWater(poseStack, buffers, be.getBlockPos(), pool, stride, 0.02F,
+                    0F, r, g, b, opacity * 0.35F, rim);
+        }
+        if (state.maxY() > 0) {
+            renderPillar(be, state, now, poseStack, buffers);
+        }
+    }
+
+    /** 远距 LOD：返回抽样步长（1 = 全画）。 */
+    private static int sunakoWaterStride(BlockPos core, int cells) {
+        net.minecraft.client.player.LocalPlayer player =
+                net.minecraft.client.Minecraft.getInstance().player;
+        if (player == null) {
+            return 1;
+        }
+        double limit = GensokyouConfig.FX_SUNAKO_WATER_LOD_DISTANCE.get();
+        double distSq = player.distanceToSqr(core.getX() + 0.5D, core.getY() + 0.5D,
+                core.getZ() + 0.5D);
+        if (distSq <= limit * limit) {
+            return 1;
+        }
+        double keep = GensokyouConfig.FX_SUNAKO_WATER_LOD_RATIO.get();
+        if (keep >= 1.0D || cells <= 0) {
+            return 1;
+        }
+        return Math.max(1, (int) Math.round(1.0D / Math.max(0.01D, keep)));
     }
 
     /** 远距 LOD：返回抽样步长（1 = 全画）。 */
@@ -1342,11 +1444,10 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
     private void emitBathWater(PoseStack poseStack, MultiBufferSource buffers, BlockPos core,
                                RitualFxLayout.BathSurface surface, int stride,
                                float yLift, float scroll,
-                               int r, int g, int b, float opacity) {
+                               int r, int g, int b, float opacity, float rim) {
         if (opacity <= 0.001F) {
             return;
         }
-        float rim = GensokyouConfig.FX_REIYOKU_WATER_RIM_FADE.get().floatValue();
         VertexConsumer c = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(BATH_WATER_TEXTURE));
         PoseStack.Pose pose = poseStack.last();
         List<RitualFxLayout.WaterCell> cells = surface.cells();

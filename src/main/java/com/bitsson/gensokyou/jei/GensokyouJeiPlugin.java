@@ -2,6 +2,7 @@ package com.bitsson.gensokyou.jei;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.ritual.ClientRitualData;
+import com.bitsson.gensokyou.ritual.brew.RitualBrewRule;
 import com.bitsson.gensokyou.registry.ModItems;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualLootTable;
@@ -63,6 +64,10 @@ public class GensokyouJeiPlugin implements IModPlugin {
     /** 煅炉仪式：各自一页签，卡面直接列出「矿石 + 灵炭配比 → 矿物」（数据源 ritual_smelt_recipes）。 */
     private static final List<ResourceLocation> SMELT_TABS = List.of(
             RitualBehaviors.KANAYAMAHIKO);
+
+    /** 炼药仪式：各自一页签，一张卡 = 一个「试剂 → 药水」并平铺三个阶的产物（数据源 brew_recipes）。 */
+    private static final List<ResourceLocation> BREW_TABS = List.of(
+            RitualBehaviors.SUNAKO);
     private static final RecipeType<RitualRecipeCardWrapper> FALLBACK_TYPE =
             RitualRecipeCategory.typeFor(null);
 
@@ -77,6 +82,7 @@ public class GensokyouJeiPlugin implements IModPlugin {
     private static volatile int syncedLootSignature = Integer.MIN_VALUE;
     private static volatile List<WatatsumiLootCardWrapper> syncedWatatsumi = List.of();
     private static volatile Map<ResourceLocation, List<RitualSmeltCardWrapper>> syncedSmelt = Map.of();
+    private static volatile Map<ResourceLocation, List<BrewRecipeCardWrapper>> syncedBrew = Map.of();
 
     /**
      * 丢弃全部同步基线。基线只在单个 JEI 运行时内有效——JEI 每次进入世界、资源重载或重连都会
@@ -144,6 +150,14 @@ public class GensokyouJeiPlugin implements IModPlugin {
                             new ItemStack(Items.FURNACE))));
         }
         registration.addRecipeCategories(smeltCategories.toArray(new RitualSmeltCategory[0]));
+
+        List<RitualBrewCategory> brewCategories = new ArrayList<>();
+        for (ResourceLocation patternId : BREW_TABS) {
+            brewCategories.add(new RitualBrewCategory(guiHelper, patternId,
+                    guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK,
+                            new ItemStack(Items.BREWING_STAND))));
+        }
+        registration.addRecipeCategories(brewCategories.toArray(new RitualBrewCategory[0]));
     }
 
     private static IDrawable tabIcon(IGuiHelper guiHelper, @Nullable ResourceLocation patternId) {
@@ -178,6 +192,7 @@ public class GensokyouJeiPlugin implements IModPlugin {
         syncLoot(ClientRitualData.lootsAll());
         syncWatatsumi();
         syncSmelt(ClientRitualData.smeltsAll());
+        syncBrew(ClientRitualData.brewsAll());
     }
 
     /**
@@ -244,6 +259,57 @@ public class GensokyouJeiPlugin implements IModPlugin {
             }
         }
         syncedSmelt = Map.copyOf(desired);
+    }
+
+    /**
+     * 炼药配方卡同步：按页签增删卡片；无内容（数据未载入）时隐藏页签。
+     *
+     * <p>与煅炉同步同构（差分增删 + 身份闩锁），区别只在数据源为
+     * {@link com.bitsson.gensokyou.client.ritual.ClientRitualData#brewsAll()}——
+     * 客户端 MUST NOT 直读 loader（专用服务器客户端上恒为空）。
+     */
+    static void syncBrew(List<RitualBrewRule> rules) {
+        IJeiRuntime rt = checkRuntime();
+        if (rt == null) {
+            return;
+        }
+        Map<ResourceLocation, List<BrewRecipeCardWrapper>> desired = new LinkedHashMap<>();
+        for (ResourceLocation patternId : BREW_TABS) {
+            List<BrewRecipeCardWrapper> cards = new ArrayList<>();
+            for (RitualBrewRule rule : rules) {
+                if (!rule.patternId().equals(patternId)) {
+                    continue;
+                }
+                BrewRecipeCardWrapper card = BrewRecipeCardWrapper.of(rule);
+                // 空卡 = 目标药水不可产出（指向了无效果的废招条目），宁可不展示也不显示错图标
+                if (!card.results().isEmpty()) {
+                    cards.add(card);
+                }
+            }
+            desired.put(patternId, List.copyOf(cards));
+        }
+        if (desired.equals(syncedBrew)) {
+            return;
+        }
+        IRecipeManager manager = rt.getRecipeManager();
+        for (ResourceLocation patternId : BREW_TABS) {
+            RecipeType<BrewRecipeCardWrapper> type = RitualBrewCategory.typeFor(patternId);
+            List<BrewRecipeCardWrapper> old = syncedBrew.getOrDefault(patternId, List.of());
+            List<BrewRecipeCardWrapper> neu = desired.getOrDefault(patternId, List.of());
+            if (old.equals(neu)) {
+                continue;
+            }
+            if (!old.isEmpty()) {
+                manager.hideRecipes(type, old);
+            }
+            if (neu.isEmpty()) {
+                manager.hideRecipeCategory(type);
+            } else {
+                manager.unhideRecipeCategory(type);
+                manager.addRecipes(type, neu);
+            }
+        }
+        syncedBrew = Map.copyOf(desired);
     }
 
     /** 献祭权重卡同步：按仪式增删卡片；无内容（数据未载入）时隐藏页签。 */

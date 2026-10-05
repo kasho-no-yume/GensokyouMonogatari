@@ -217,16 +217,9 @@ public class BarrierBreakBehavior implements RitualBehavior {
         return true;
     }
 
-    /**
-     * 电池→缓存方向：槽内灵核每 tick 按其 {@code fillRatePerSecond} 补入缓存。
-     *
-     * <p>与 {@code tickBatteryAutoFill()}（缓存→电池）互斥——二者只应取一。本行为选前者，
-     * 故本核心不会把缓存倒回槽核，不存在「缓存↔槽核」闭环空转。
-     */
-    @Override
-    public boolean refillsCacheFromSocket() {
-        return true;
-    }
+    // 电池→缓存方向（即 RitualBehavior 的默认口径，无需覆写）：槽内灵核每 tick 按其
+    // fillRatePerSecond 补入缓存。与 tickBatteryAutoFill()（缓存→电池）互斥——二者只应取一。
+    // 本行为选前者，故本核心不会把缓存倒回槽核，不存在「缓存↔槽核」闭环空转。
 
     // ------------------------------------------------------------------ 主循环
 

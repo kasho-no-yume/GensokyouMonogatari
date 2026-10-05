@@ -48,6 +48,12 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         return false;
     }
 
+    /** 缓存恒为 0（见 getCapacity 分派），方向无意义：显式标注以免被默认的 true 误读为"电池→缓存"。 */
+    @Override
+    public boolean refillsCacheFromSocket() {
+        return false;
+    }
+
     private static final long FIXED = 1000L; // 定点倍率：每 tick 预算 ×20 秒化
     private static final int COLOR_IN = 0xFF4FC3F7;
     private static final int COLOR_OUT = 0xFF66BB6A;

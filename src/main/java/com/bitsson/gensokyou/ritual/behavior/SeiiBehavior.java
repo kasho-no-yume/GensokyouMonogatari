@@ -2,11 +2,13 @@ package com.bitsson.gensokyou.ritual.behavior;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.item.weapon.AmpCoreItem;
 import com.bitsson.gensokyou.item.weapon.RuneAffix;
 import com.bitsson.gensokyou.item.weapon.RuneSummary;
 import com.bitsson.gensokyou.item.weapon.SeiiNumbers;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
+import com.bitsson.gensokyou.ritual.RitualExtraSlots;
 import com.bitsson.gensokyou.ritual.RitualMatch;
 import com.bitsson.gensokyou.spirit.attr.AttributeKey;
 import net.minecraft.core.BlockPos;
@@ -28,7 +30,11 @@ import java.util.Map;
  * 与按查看者组装的信息区——REVIEW 期把两个决策行<b>置于信息行首位</b>（信息区视口只有
  * 68px ≈ 6 行，按钮排在逐条对比之后会落在折线以下），且只对绑定 initiator 可见。
  */
-public class SeiiBehavior implements RitualBehavior {
+/**
+ * 星移之仪的增幅核占**核心 GUI 的泛化额外槽第 0 格**，祭品台全部留给催化剂
+ * （1 阶只有 4 台，核若占一台就只剩 3 个催化剂位）。
+ */
+public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
 
     private static final int COLOR_OK_ACTION = 0xFF66BB6A;
     private static final int COLOR_KEEP_ACTION = 0xFFFFB74D;
@@ -47,8 +53,18 @@ public class SeiiBehavior implements RitualBehavior {
     }
 
     @Override
-    public boolean usesTargetSlot() {
-        return true; // 增幅核走核心 GUI 专用槽，祭品台全部留给催化剂
+    public int slotCount() {
+        return 1; // 增幅核走核心 GUI 专用槽，祭品台全部留给催化剂
+    }
+
+    @Override
+    public boolean isSlotValid(int slot, ItemStack stack) {
+        return slot == 0 && stack.getItem() instanceof AmpCoreItem;
+    }
+
+    @Override
+    public String labelKey() {
+        return "gui.gensokyou.ritual.target_slot";
     }
 
     // ---- 按钮 ----

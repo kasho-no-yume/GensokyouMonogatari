@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.menu;
 
+import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,6 +32,8 @@ class RitualCoreSlotGeometryTest {
     private static final int INFO_FIRST_ROW_Y = 60;
     /** 目标槽占用的首行高度，与 {@code RitualCoreScreen.INFO_TARGET_ROW_H} 一致。 */
     private static final int INFO_TARGET_ROW_H = 20;
+    /** 信息盒右钳界，与 {@code RitualCoreScreen.INFO_BOX_RIGHT} 一致（按钮列从 x=120 起）。 */
+    private static final int INFO_BOX_RIGHT = 112;
 
     @Test
     void batterySlotConfirmsFrameIsDrawnAtSlotMinusOne() {
@@ -41,9 +44,9 @@ class RitualCoreSlotGeometryTest {
     }
 
     @Test
-    void targetSlotFrameStaysInsideInfoBoxAndAboveBody() {
-        int frameX = RitualCoreMenu.TARGET_SLOT_X - 1;
-        int frameY = RitualCoreMenu.TARGET_SLOT_Y - 1;
+    void extraSlotFrameStaysInsideInfoBoxAndAboveBody() {
+        int frameX = RitualCoreMenu.extraSlotX(0) - 1;
+        int frameY = RitualCoreMenu.extraSlotY() - 1;
 
         assertTrue(frameX >= INFO_BOX_WALL_X + 1,
                 "槽框左沿 x=" + frameX + " 压到了信息框竖向分隔线 x=" + INFO_BOX_WALL_X);
@@ -57,19 +60,41 @@ class RitualCoreSlotGeometryTest {
     }
 
     @Test
-    void targetSlotHitBoxMatchesItemOriginNotFrame() {
+    void extraSlotHitBoxMatchesItemOriginNotFrame() {
         // 命中框与物品同源于槽坐标（原版 renderSlot / findSlot 都用 slot.x/slot.y）
-        assertEquals(RitualCoreMenu.TARGET_SLOT_X, RitualCoreMenu.TARGET_SLOT_X);
-        // 物品 16px 落在 [9,25)×[61,77)，框 18px 落在 [8,26)×[60,78)：四边各留 1px
-        assertEquals(1, RitualCoreMenu.TARGET_SLOT_X - frameLeft());
-        assertEquals(1, RitualCoreMenu.TARGET_SLOT_Y - frameTop());
+        assertEquals(RitualCoreMenu.extraSlotX(0), frameLeft() + 1);
+        assertEquals(RitualCoreMenu.extraSlotY(), frameTop() + 1);
+    }
+
+    @Test
+    void everyExtraSlotFitsInTheReservedRow() {
+        int last = RitualCoreBlockEntity.MAX_EXTRA_SLOTS - 1;
+        int lastFrameRight = RitualCoreMenu.extraSlotX(last) - 1 + FRAME;
+        assertTrue(lastFrameRight + FRAME <= INFO_BOX_RIGHT,
+                "第 " + last + " 格槽框右沿 " + lastFrameRight
+                        + " 越过了信息盒右钳界 " + INFO_BOX_RIGHT
+                        + "（面板 176 宽，按钮列从 x=120 起）");
+        for (int i = 0; i <= last; i++) {
+            assertEquals(INFO_FIRST_ROW_Y, RitualCoreMenu.extraSlotY(i) - 1,
+                    "缺省布局把所有额外槽放在信息区首行");
+        }
+    }
+
+    @Test
+    void slotsDoNotOverlapEachOther() {
+        for (int i = 1; i < RitualCoreBlockEntity.MAX_EXTRA_SLOTS; i++) {
+            int previousRight = RitualCoreMenu.extraSlotX(i - 1) + 16;
+            assertTrue(RitualCoreMenu.extraSlotX(i) > previousRight,
+                    "第 " + i + " 格与第 " + (i - 1) + " 格重叠（间距 " +
+                            RitualCoreBlockEntity.EXTRA_SLOT_SPACING + "px，物品 16px）");
+        }
     }
 
     private static int frameLeft() {
-        return RitualCoreMenu.TARGET_SLOT_X - 1;
+        return RitualCoreMenu.extraSlotX(0) - 1;
     }
 
     private static int frameTop() {
-        return RitualCoreMenu.TARGET_SLOT_Y - 1;
+        return RitualCoreMenu.extraSlotY() - 1;
     }
 }

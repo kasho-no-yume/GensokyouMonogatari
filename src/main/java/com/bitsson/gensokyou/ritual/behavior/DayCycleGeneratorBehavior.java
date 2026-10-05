@@ -110,6 +110,12 @@ public abstract class DayCycleGeneratorBehavior implements RitualBehavior {
         }
     }
 
+    /** 发电仪式（日轮天台 / 月影水镜共用）：能量方向是缓存 → 电池，显式豁免默认方向。 */
+    @Override
+    public boolean refillsCacheFromSocket() {
+        return false;
+    }
+
     /** 缓存回流（无门控）：成型即每秒把缓存搬入未满核心，停机也继续。 */
     @Override
     public void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,
