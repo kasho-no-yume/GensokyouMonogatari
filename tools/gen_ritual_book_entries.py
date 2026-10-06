@@ -113,6 +113,9 @@ ENTRIES = [
     # 是"开放式"配方而非封闭配方表），故 no_recipes=True —— 标准阶页只算数值，
     # 配方展示归 JEI 炼药页签（一卡三阶平铺，正是本仪式的卖点）
     ("sunako_circle", "minecraft:brewing_stand", True),
+    # 思兼神封：附魔合并/随机打造仪式。**无任何配方**（随机池是全注册表等概率，开放式），
+    # 故 no_recipes=True。阶级参数页现算缓存/受灵上限/单条耗灵/词条等级口径。
+    ("shiken_circle", "minecraft:enchanted_book", True),
 ]
 
 ITEM_RECIPE_ENTRIES = [

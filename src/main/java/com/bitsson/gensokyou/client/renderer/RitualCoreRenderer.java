@@ -1046,7 +1046,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         poseStack.popPose();
     }
 
-    /** 献祭光柱色（0=石 1=木 2=土 3=草 4=绵津见水蓝 5=众生余录灵魂紫 6=丰穰神金穗 7=少名汤青）。 */
+    /** 献祭光柱色（0=石 1=木 2=土 3=草 4=绵津见水蓝 5=众生余录灵魂紫 6=丰穰神金穗 7=少名汤青 8=思兼神靛青）。 */
     private static int[] pillarColor(int index) {
         return switch (index) {
             case 1 -> new int[]{141, 110, 99};
@@ -1057,6 +1057,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             case 6 -> new int[]{232, 190, 96};
             // 少名：汤青。与 4 号（绵津见纯蓝）刻意拉开色相，避免两个"水"仪式撞色。
             case 7 -> new int[]{130, 216, 196};
+            // 思兼神：靛青（智慧之神）。与 5 号（灵魂紫）拉开——偏蓝不偏红。
+            case 8 -> new int[]{96, 110, 220};
             default -> new int[]{176, 190, 197};
         };
     }

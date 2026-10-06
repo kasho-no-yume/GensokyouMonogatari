@@ -471,6 +471,13 @@ public class RitualCoreBlockEntity extends BlockEntity {
                 return com.bitsson.gensokyou.ritual.behavior.SunakoScaling
                         .capacityOf(activeMatch.level());
             }
+            if (activeMatch.patternId().equals(RitualBehaviors.OMOIKANE)) {
+                // 思兼神封：1e6 / 1e7 / 1e8，三档为显式表（×10 外推不到 3 阶）。
+                // 必须在此显式分派——缺此分支时三档全部静默回落
+                // DEFAULT_CORE_CAPACITY=10000，不报错，只是 1 阶连一条词条都付不起。
+                return com.bitsson.gensokyou.ritual.behavior.OmoikaneScaling
+                        .capacityOf(activeMatch.level());
+            }
         }
         return DEFAULT_CORE_CAPACITY;
     }
@@ -1797,7 +1804,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
                     new long[0], 0, 0L);
         }
         if (RitualBehaviors.isToolSacrifice(id) || id.equals(RitualBehaviors.SHUJOU)
-                || id.equals(RitualBehaviors.HOUJOUNO_TEIHOU)) {
+                || id.equals(RitualBehaviors.HOUJOUNO_TEIHOU) || id.equals(RitualBehaviors.OMOIKANE)) {
             if (sacrificeFxTicks <= 0) {
                 return null;
             }

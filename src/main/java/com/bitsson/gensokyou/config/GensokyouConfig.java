@@ -226,6 +226,19 @@ public class GensokyouConfig {
     /** 缺 STRONG_ 兄弟时的时效缩放倍率，默认 1.0（只升品质、不动时长）。 */
     public static final ModConfigSpec.DoubleValue SUNAKO_STRONG_DURATION_MULTIPLIER;
 
+    // ---- omoikane-enchant-ritual：思兼神封（附魔书合并打造 + 青金石随机附魔书仪式）----
+    // 三档显式表（容量 1e6/1e7/1e8、受灵 1e5/1e6/5e6、单价 5e4/3e5/2e6），×10 外推不到 3 阶。
+    // getCapacity() 必须显式分派，漏分支会静默回落 DEFAULT_CORE_CAPACITY=10000。
+    public static final ModConfigSpec.IntValue OMOIKANE_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue OMOIKANE_CAPACITY_MULTIPLIER;
+    public static final ModConfigSpec.IntValue OMOIKANE_CAPACITY_OVERRIDE_LEVEL3;
+    public static final ModConfigSpec.IntValue OMOIKANE_BASE_IN_RATE_PER_SECOND;
+    public static final ModConfigSpec.IntValue OMOIKANE_IN_RATE_MULTIPLIER;
+    public static final ModConfigSpec.IntValue OMOIKANE_IN_RATE_OVERRIDE_LEVEL3;
+    public static final ModConfigSpec.IntValue OMOIKANE_UNIT_COST_LEVEL1;
+    public static final ModConfigSpec.IntValue OMOIKANE_UNIT_COST_LEVEL2;
+    public static final ModConfigSpec.IntValue OMOIKANE_UNIT_COST_LEVEL3;
+
     // ---- 忘川灯坛（bousen-lantern-ritual）----
     // 四张分阶表（索引 = 结构等级 - 1）+ 六个标量/周期 + 11 个 FX 参数。
     public static final ModConfigSpec.ConfigValue<List<? extends Double>> BOUSEN_PRODUCE_RATE_PER_SECOND;
@@ -1001,6 +1014,34 @@ public class GensokyouConfig {
         SUNAKO_STRONG_DURATION_MULTIPLIER = BUILDER.comment("Fallback duration multiplier when a potion has no STRONG_ sibling"
                 + " (1.0 = raise quality only, keep the base duration)")
                 .defineInRange("strongDurationMultiplier", 1.0D, 0.01D, 100.0D);
+        BUILDER.pop();
+
+        BUILDER.push("omoikane").comment("Omoikane (Enchantment Forging): pedestals hold enchanted books (gear mode)"
+                + " or lapis lazuli blocks (blank-book mode); the core extra slot holds the enchantable gear or a"
+                + " plain book. A batch is ONE manual press and requires FULL prepayment -- insufficient spirit fails"
+                + " the whole batch with zero consumption (deliberately unlike Sunako's partial batches). The three"
+                + " tiers are hand-tuned and NOT geometric -- RitualCoreBlockEntity.getCapacity() MUST dispatch"
+                + " explicitly or every tier silently falls back to DEFAULT_CORE_CAPACITY=10000.");
+        OMOIKANE_BASE_CAPACITY = BUILDER.comment("Spirit buffer capacity at tier 1 (1000000). Tier 2 = base*capacityMultiplier;"
+                + " tier 3 = capacityOverrideLevel3").defineInRange("baseCapacity", 1000000, 1, Integer.MAX_VALUE);
+        OMOIKANE_CAPACITY_MULTIPLIER = BUILDER.defineInRange("capacityMultiplier", 10, 1, 1000);
+        OMOIKANE_CAPACITY_OVERRIDE_LEVEL3 = BUILDER.comment("Spirit buffer capacity at tier 3 (100000000). Deliberately"
+                + " dwarfs a single batch cost (8 entries x 2000000 = 1.6e7): the pool is meant for chained forging"
+                + " via routed charging. MUST stay far above DEFAULT_CORE_CAPACITY=10000")
+                .defineInRange("capacityOverrideLevel3", 100000000, 1, Integer.MAX_VALUE);
+        OMOIKANE_BASE_IN_RATE_PER_SECOND = BUILDER.comment("Routed spirit intake rate per second at tier 1. Being >0 is what"
+                + " makes the relay treat this ritual as a valid sink").defineInRange("baseInRatePerSecond", 100000, 0, Integer.MAX_VALUE);
+        OMOIKANE_IN_RATE_MULTIPLIER = BUILDER.defineInRange("inRateMultiplier", 10, 1, 1000);
+        OMOIKANE_IN_RATE_OVERRIDE_LEVEL3 = BUILDER.comment("Routed spirit intake rate per second at tier 3 (5000000 ="
+                + " x5 of tier 2, NOT x10 — hand-tuned, needs an explicit value just like the capacity)")
+                .defineInRange("inRateOverrideLevel3", 5000000, 0, Integer.MAX_VALUE);
+        OMOIKANE_UNIT_COST_LEVEL1 = BUILDER.comment("Spirit spent per effective enchant entry applied, tier 1 (50000)."
+                + " Entries are counted AFTER merging (4 protection books merging into one entry = 1 unit)")
+                .defineInRange("unitCostLevel1", 50000, 1, Integer.MAX_VALUE);
+        OMOIKANE_UNIT_COST_LEVEL2 = BUILDER.comment("Spirit spent per effective enchant entry applied, tier 2 (300000)")
+                .defineInRange("unitCostLevel2", 300000, 1, Integer.MAX_VALUE);
+        OMOIKANE_UNIT_COST_LEVEL3 = BUILDER.comment("Spirit spent per effective enchant entry applied, tier 3 (2000000)")
+                .defineInRange("unitCostLevel3", 2000000, 1, Integer.MAX_VALUE);
         BUILDER.pop();
 
         BUILDER.push("bousen").comment("Bousen (Altar of the Lethe): candle-gated generator. Production requires EVERY"

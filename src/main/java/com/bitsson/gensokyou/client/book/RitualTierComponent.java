@@ -231,6 +231,23 @@ public class RitualTierComponent implements ICustomComponent {
                 add(out, "满缓存可炼", compact(capacity / Math.max(1L, unitCost)) + " 瓶");
                 add(out, "祭品台", slots + " 台");
             }
+            case "shiken_circle" -> {
+                // 思兼神封：祭品台恒 4（pattern 1 阶声明 1 个 P、四重展开，2/3 阶增量继承）。
+                // 数值一律走 OmoikaneScaling（3 阶容量与受灵都是显式值，不能外推）。
+                long capacity = com.bitsson.gensokyou.ritual.behavior.OmoikaneScaling.capacityOf(L);
+                long inRate = com.bitsson.gensokyou.ritual.behavior.OmoikaneScaling.inRateOf(L);
+                long unitCost = com.bitsson.gensokyou.ritual.behavior.OmoikaneScaling.unitCostOf(L);
+                add(out, "缓存", compact(capacity));
+                add(out, "受灵上限", compact(inRate) + " /秒");
+                add(out, "单条耗灵", compact(unitCost));
+                add(out, "满批耗灵", compact(unitCost * 8L) + "（8 条）");
+                add(out, "祭品台", "4 台");
+                add(out, "词条等级", switch (L) {
+                    case 1 -> "合并 ≤ 上限；随机全 1 级";
+                    case 2 -> "合并 ≤ 上限；随机 1~上限";
+                    default -> "全词条超限为上限+1";
+                });
+            }
             case "nichirin_circle" -> {
                 add(out, "峰值产灵", secs(GensokyouConfig.NICHIRIN_BASE_RATE_PER_SECOND.get() * pow(4, L)));
                 add(out, "输出上限", compact(GensokyouConfig.NICHIRIN_OUT_RATE_PER_SECOND.get()) + " /秒");

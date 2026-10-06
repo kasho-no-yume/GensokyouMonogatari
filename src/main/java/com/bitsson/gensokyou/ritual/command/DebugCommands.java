@@ -230,6 +230,28 @@ public final class DebugCommands {
                                                 net.minecraft.commands.arguments.coordinates
                                                         .BlockPosArgument.getLoadedBlockPos(context, "core"),
                                                 true)))))
+                .then(Commands.literal("omoikane")
+                        .then(Commands.literal("scan")
+                                .then(Commands.argument("core",
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                        .executes(context -> probeOmoikane(context.getSource(),
+                                                net.minecraft.commands.arguments.coordinates
+                                                        .BlockPosArgument.getLoadedBlockPos(context, "core"),
+                                                false, false))))
+                        .then(Commands.literal("forge")
+                                .then(Commands.argument("core",
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                        .executes(context -> probeOmoikane(context.getSource(),
+                                                net.minecraft.commands.arguments.coordinates
+                                                        .BlockPosArgument.getLoadedBlockPos(context, "core"),
+                                                true, false))))
+                        .then(Commands.literal("force")
+                                .then(Commands.argument("core",
+                                                net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                        .executes(context -> probeOmoikane(context.getSource(),
+                                                net.minecraft.commands.arguments.coordinates
+                                                        .BlockPosArgument.getLoadedBlockPos(context, "core"),
+                                                true, true)))))
                 .then(Commands.literal("shujou")
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
@@ -506,6 +528,111 @@ public final class DebugCommands {
                                 .getKey(core.batteryStack().getItem()).toString())
                 + " held=[" + pedestalContents(serverLevel, am) + "]";
         source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(msg), false);
+        return 1;
+    }
+
+    /**
+     * 思兼神封探针：把批次结算的<b>每一道关卡</b>逐项打成一行机读输出。
+     *
+     * <p>存在的理由同少名：批次链有 5 个静默失败点（无槽物 / 无有效祭品 / 装备模式无有效
+     * 词条 / 灵力不足 / 随机池为空），且它们<b>全都不报错、不扣费</b>——实机只表现为
+     * "点了没反应"。
+     *
+     * @param execute true = 真的跑一个批次（会消耗祭品与灵力）
+     * @param force   true = 先给核心灌满缓存，把"灵力不足"从变量列表里摘出去
+     */
+    private static int probeOmoikane(net.minecraft.commands.CommandSourceStack source,
+                                     net.minecraft.core.BlockPos pos, boolean execute,
+                                     boolean force) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        if (!(serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core)) {
+            source.sendFailure(net.minecraft.network.chat.Component.literal(
+                    "[GS-AUTO] OMOIKANE NO-CORE at " + pos));
+            return 0;
+        }
+        var am = core.activeMatch();
+        if (am == null || !am.patternId().equals(com.bitsson.gensokyou.ritual.RitualBehaviors.OMOIKANE)) {
+            source.sendFailure(net.minecraft.network.chat.Component.literal(
+                    "[GS-AUTO] OMOIKANE NO-MATCH active="
+                            + (am == null ? "null" : am.patternId().toString())));
+            return 0;
+        }
+        if (force) {
+            core.receive(core.getCapacity());
+        }
+        int level = am.level();
+        var mode = com.bitsson.gensokyou.ritual.behavior.OmoikaneForging.modeOf(core);
+        net.minecraft.world.item.ItemStack slot = core.extraSlot(
+                com.bitsson.gensokyou.ritual.behavior.OmoikaneForging.GEAR_SLOT);
+        var scan = com.bitsson.gensokyou.ritual.behavior.OmoikaneForging
+                .scanPedestals(serverLevel, am);
+        long stored = core.getStored();
+        long unit = com.bitsson.gensokyou.ritual.behavior.OmoikaneScaling.unitCostOf(level);
+        int entries = 0;
+        String entryList = "-";
+        if (mode == com.bitsson.gensokyou.ritual.behavior.OmoikaneForging.Mode.GEAR) {
+            java.util.List<net.minecraft.world.item.ItemStack> books = new java.util.ArrayList<>();
+            for (net.minecraft.core.BlockPos p : com.bitsson.gensokyou.ritual.RitualPedestals
+                    .positions(am)) {
+                if (serverLevel.getBlockEntity(p)
+                        instanceof com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity ped
+                        && ped.getHeld().is(net.minecraft.world.item.Items.ENCHANTED_BOOK)) {
+                    books.add(ped.getHeld().copy());
+                }
+            }
+            var plan = com.bitsson.gensokyou.ritual.behavior.OmoikaneForging
+                    .planGear(core, books, level);
+            entries = plan.entryCount();
+            StringBuilder sb = new StringBuilder();
+            for (var e : plan.levels().entrySet()) {
+                if (sb.length() > 0) {
+                    sb.append(';');
+                }
+                sb.append(e.getKey().unwrapKey().map(k -> k.location().toString()).orElse("?"))
+                        .append('=').append(e.getValue());
+            }
+            entryList = sb.length() > 0 ? sb.toString() : "-";
+        } else if (mode == com.bitsson.gensokyou.ritual.behavior.OmoikaneForging.Mode.BOOK) {
+            entries = scan.lapis();
+        }
+        long cost = com.bitsson.gensokyou.ritual.behavior.OmoikaneScaling.batchCost(entries, level);
+        boolean affordable = com.bitsson.gensokyou.ritual.behavior.OmoikaneScaling
+                .canAfford(stored, entries, level);
+        String msg = "[GS-AUTO] OMOIKANE level=" + level
+                + " capacity=" + core.getCapacity()
+                + " mode=" + mode
+                + " slot=" + (slot.isEmpty() ? "-"
+                        : net.minecraft.core.registries.BuiltInRegistries.ITEM
+                                .getKey(slot.getItem()).toString())
+                + " pedestals=" + scan.pedestals()
+                + " books=" + scan.books()
+                + " lapis=" + scan.lapis()
+                + " other=" + scan.other()
+                + " entries=" + entries
+                + " entryList=[" + entryList + "]"
+                + " unit=" + unit
+                + " cost=" + cost
+                + " stored=" + stored
+                + " affordable=" + affordable;
+        if (execute) {
+            var outcome = com.bitsson.gensokyou.ritual.behavior.OmoikaneForging
+                    .forge(serverLevel, pos, am, core);
+            msg += " outcome={mode=" + outcome.mode()
+                    + " entries=" + outcome.entries()
+                    + " spent=" + outcome.spent()
+                    + " storedAfter=" + outcome.storedAfter()
+                    + " fail=" + outcome.failReason() + "}";
+        } else {
+            var last = com.bitsson.gensokyou.ritual.behavior.OmoikaneForging.lastOutcome();
+            msg += " lastOutcome={mode=" + last.mode() + " entries=" + last.entries()
+                    + " spent=" + last.spent() + " fail=" + last.failReason() + "}";
+        }
+        msg += " held=[" + pedestalContents(serverLevel, am) + "]";
+        final String out = msg;
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(out), false);
         return 1;
     }
 

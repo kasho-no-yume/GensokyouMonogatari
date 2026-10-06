@@ -12,6 +12,7 @@ import com.bitsson.gensokyou.ritual.behavior.HaniyasuBehavior;
 import com.bitsson.gensokyou.ritual.behavior.HoujounoTeihouBehavior;
 import com.bitsson.gensokyou.ritual.behavior.HyakkiYagyoBehavior;
 import com.bitsson.gensokyou.ritual.behavior.NichirinBehavior;
+import com.bitsson.gensokyou.ritual.behavior.OmoikaneBehavior;
 import com.bitsson.gensokyou.ritual.behavior.OyamatsumiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ReiyokuBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ResonanceRelayBehavior;
@@ -77,6 +78,16 @@ public final class RitualBehaviors {
      * 一次性而非启停型；缓存常驻故可被万象共鸣选为下游目标。
      */
     public static final ResourceLocation SUNAKO = Gensokyou.id("sunako_circle");
+    /**
+     * 思兼神封：附魔打造仪式。核心额外槽按内容分双模式——可附魔装备（祭品台放附魔书，
+     * 升序折叠合并入装备，全阶无视冲突）或普通书（祭品台放青金石块，每块换一个随机
+     * 词条）。一次性批次、足额预检整批失败；缓存常驻故可被万象共鸣选为下游目标。
+     *
+     * <p>patternId 用既有 {@code shiken_circle}（"思兼"的另一种罗马音）：该 pattern
+     * 早已入库（1/2/3 阶、祭品台×4、toggleable:false），此前是无行为空壳，本仪式
+     * 即为其补行为。行为/配置类名仍用 Omoikane（思兼神）——命名分两层，别混。
+     */
+    public static final ResourceLocation OMOIKANE = Gensokyou.id("shiken_circle");
 
     static {
         register(RESONANCE, new ResonanceRelayBehavior());
@@ -103,6 +114,7 @@ public final class RitualBehaviors {
         register(REIYOKU, new ReiyokuBehavior());
         register(BOUSEN, new BousenBehavior());
         register(SUNAKO, new SunakoBehavior());
+        register(OMOIKANE, new OmoikaneBehavior());
     }
 
     private RitualBehaviors() {
@@ -119,7 +131,7 @@ public final class RitualBehaviors {
                 || patternId.equals(WATATSUMI);
     }
 
-    /** 献祭光柱色索引（服务端写入渲染态；客户端映射 RGB）：石0/木1/土2/草3/绵津见4水蓝/众生余录5紫/丰穰神6金穗/少名7汤青。 */
+    /** 献祭光柱色索引（服务端写入渲染态；客户端映射 RGB）：石0/木1/土2/草3/绵津见4水蓝/众生余录5紫/丰穰神6金穗/少名7汤青/思兼8靛青。 */
     public static int sacrificeColorIndex(ResourceLocation patternId) {
         if (patternId.equals(KUKUNOCHI)) {
             return 1;
@@ -141,6 +153,9 @@ public final class RitualBehaviors {
         }
         if (patternId.equals(SUNAKO)) {
             return 7;
+        }
+        if (patternId.equals(OMOIKANE)) {
+            return 8;
         }
         return 0;
     }
