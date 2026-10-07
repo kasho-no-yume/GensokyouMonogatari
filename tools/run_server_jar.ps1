@@ -28,6 +28,20 @@ param(
     [int]$ProxyPort = 7897,
     [switch]$NoProxy,
 
+    # ---- Optional client<->server latency injection ----
+    # Base delay in ms; 0 = disabled (no proxy started).
+    [int]$LatencyMs = 200,
+    # Per-chunk jitter in +- ms.
+    [int]$JitterMs = 50,
+    # Port the jitter proxy listens on (clients connect here).
+    [int]$LagPort = 25566,
+    # Delay only the server->client direction.
+    [switch]$LagDownstreamOnly,
+    # Stop any existing jitter proxy and exit (no build, no launch).
+    [switch]$LagOff,
+    # Hot-update a running proxy's parameters (no build, no launch).
+    [switch]$SetLag,
+
     # Extra args passed through to the server (e.g. -ServerArg nogui).
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ServerArg
@@ -96,6 +110,49 @@ function Download-File {
         Write-Host "[deps] direct failed, retrying via proxy ${ProxyHost}:${ProxyPort}"
         Invoke-WebRequest -Uri $Url -OutFile $Dest -UseBasicParsing -Proxy "http://${ProxyHost}:${ProxyPort}"
     }
+}
+
+# Kill whatever listens on the given port (the jitter proxy, if any).
+function Stop-LagProxy {
+    param([int]$Port)
+    $pids = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($procId in $pids) {
+        Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue
+        Write-Host "[lag] stopped proxy pid $procId on port $Port"
+    }
+}
+
+# ---- -LagOff: stop the proxy and exit (no build, no launch) ----
+if ($LagOff) {
+    Stop-LagProxy -Port $LagPort
+    Write-Host "[lag] port $LagPort is now free"
+    return
+}
+
+# ---- -SetLag: hot-update the running proxy via the control file ----
+if ($SetLag) {
+    $proxyUp = Get-NetTCPConnection -LocalPort $LagPort -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if (-not $proxyUp) {
+        throw "no lag proxy listening on port $LagPort; start one with -LatencyMs/-JitterMs first"
+    }
+    $controlPath = Join-Path $serverDir 'lag_control.json'
+    $cfg = @{ latency = $LatencyMs; jitter = $JitterMs; downstream_only = [bool]$LagDownstreamOnly }
+    if (Test-Path $controlPath) {
+        try {
+            $existing = Get-Content $controlPath -Raw | ConvertFrom-Json
+            foreach ($p in $existing.PSObject.Properties) { $cfg[$p.Name] = $p.Value }
+        } catch {
+            Write-Warning "[lag] existing control file unreadable; rewriting"
+        }
+    }
+    if ($PSBoundParameters.ContainsKey('LatencyMs')) { $cfg['latency'] = $LatencyMs }
+    if ($PSBoundParameters.ContainsKey('JitterMs')) { $cfg['jitter'] = $JitterMs }
+    if ($PSBoundParameters.ContainsKey('LagDownstreamOnly')) { $cfg['downstream_only'] = [bool]$LagDownstreamOnly }
+    ($cfg | ConvertTo-Json -Compress) | Set-Content -LiteralPath $controlPath -Encoding Ascii
+    Write-Host "[lag] updated ${controlPath}: latency=$($cfg['latency'])ms jitter=+-$($cfg['jitter'])ms downstream_only=$($cfg['downstream_only'])"
+    return
 }
 
 # ---- Step 1: incremental build ----
@@ -191,3 +248,49 @@ if ($created.ReturnValue -ne 0) { throw "WMI spawn failed: $($created.ReturnValu
 Write-Host "[launch] server pid: $($created.ProcessId)"
 Write-Host "[launch] log: $logFile"
 Write-Host "[launch] detached; follow with: Get-Content -Wait '$logFile'"
+
+# ---- Step 6: optional client<->server latency injection ----
+if ($LatencyMs -gt 0 -or $JitterMs -gt 0) {
+    # Idempotent: replace any existing proxy on the lag port.
+    Stop-LagProxy -Port $LagPort
+
+    $pythonExe = (Get-Command python -ErrorAction SilentlyContinue).Source
+    if (-not $pythonExe) { throw "python not found on PATH; required for latency injection" }
+    $proxyScript = Join-Path $projectDir 'tools\net_jitter_proxy.py'
+    if (-not (Test-Path $proxyScript)) { throw "Proxy script not found at $proxyScript" }
+
+    # Control file is the runtime source of truth; write the initial values.
+    $controlPath = Join-Path $serverDir 'lag_control.json'
+    @{
+        latency         = $LatencyMs
+        jitter          = $JitterMs
+        downstream_only = [bool]$LagDownstreamOnly
+    } | ConvertTo-Json -Compress | Set-Content -LiteralPath $controlPath -Encoding Ascii
+
+    $lagArgs = "--listen $LagPort --target 25565 --latency $LatencyMs --jitter $JitterMs --control $controlPath"
+    if ($LagDownstreamOnly) { $lagArgs += ' --downstream-only' }
+
+    $lagLog = Join-Path $serverDir 'lag_proxy.log'
+    $quotedPy     = '"{0}"' -f $pythonExe
+    $quotedScript = '"{0}"' -f $proxyScript
+    $quotedLagLog = '"{0}"' -f $lagLog
+    $lagInner = 'cmd /v:on /c "cd /d ""' + $projectDir + '"" & ' + $quotedPy + ' ' + $quotedScript + ' ' + $lagArgs + ' > ' + $quotedLagLog + ' 2>&1"'
+    $lagStartup = ([wmiclass]'Win32_ProcessStartup').CreateInstance()
+    $lagStartup.ShowWindow = 0
+    $lagCreated = ([wmiclass]'Win32_Process').Create($lagInner, $projectDir, $lagStartup)
+    if ($lagCreated.ReturnValue -ne 0) { throw "WMI spawn of lag proxy failed: $($lagCreated.ReturnValue)" }
+
+    Start-Sleep -Seconds 1
+    $lagUp = Get-NetTCPConnection -LocalPort $LagPort -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($lagUp) {
+        Write-Host "[lag] proxy pid: $($lagCreated.ProcessId) (port $LagPort -> 25565)"
+        Write-Host "[lag] connect your client to 127.0.0.1:$LagPort to get ${LatencyMs}ms +/-${JitterMs}ms"
+        Write-Host "[lag] hot-update later: .\tools\run_server_jar.ps1 -SetLag -LatencyMs <n> -JitterMs <n>"
+    } else {
+        Write-Warning "[lag] proxy did not come up on port $LagPort; see $lagLog"
+        if (Test-Path $lagLog) { Get-Content $lagLog -Tail 10 | ForEach-Object { Write-Host "  $_" } }
+    }
+} elseif ($LagPort -and (Get-NetTCPConnection -LocalPort $LagPort -State Listen -ErrorAction SilentlyContinue)) {
+    Write-Host "[lag] note: a proxy is listening on port $LagPort (use -LagOff to stop it)"
+}
