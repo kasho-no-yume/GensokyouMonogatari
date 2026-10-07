@@ -206,7 +206,7 @@ default int slotX(int index); default int slotY(int index);   // 缺省横排一
 | 结构化调试 | `/gs_debug` 子命令：`spirit` / `kagutsuchi` / `bafang` / `yumewatari` / `settle` / `beds` / `temp` / `grace` / `sunako brew|force` …（`ritual/command/DebugCommands.java`） |
 | 结构采集 | `/gs_ritual_capture <name> <r> <h>` |
 | 自检 | `/gs_ritual_selftest` |
-| pattern 离线校验 | `tools/validate_ritual_pattern.py`（`--test-out` 生成 e2e 数据包，测**成型/负查**，不测 behavior；见 `ritual-e2e-test-pack`） |
+| pattern 离线校验 | `tools/validate_ritual_pattern.py`（`--test-out run-test/world/datapacks/gs_ritual_test` 生成隔离测试世界的 e2e 数据包，测**成型/负查**，不测 behavior；不自触发，由 `tools/_run_ritual_test.ps1` 经 RCON 显式触发；见 `ritual-e2e-test-pack`） |
 | 加载期验证 | `runServer --console=plain` → 看 `Done (` 与 `Errors in registry` 区块；详情常在 debug.log |
 | 机读单行 | 行为导出 `debugSummary` 风格单行（如 `BafangGuiyuanBehavior.debugSummary`）供外部 harness 解析 |
 | lang 审计 | `python tools/lang_audit.py`（退出码 0） |

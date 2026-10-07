@@ -4,13 +4,15 @@
 展开后落三个 mcfunction：setup_guiyuan（建结构）/ seed_guiyuan（埋 3 识别核 + 1 超阶核）/
 check_guiyuan（成型断言 + gs_debug bafang 探针，[GS-AUTO] 行由 _run_ritual_test.ps1 抓取）。
 锚点 (168,100,100)。重跑即覆写，pattern 变更后须重新生成。
+输出到隔离测试世界 run-test/，MUST NOT 常驻共享 run/world；触发用显式入口
+`function gs_autotest:run_all`（该入口由 harness/开发者提供，勿写 load 自触发标签）。
 """
 import io
 import json
 
 ANCHOR = (168, 100, 100)
 PATTERN = "src/main/resources/data/gensokyou/rituals/bafang_guiyuan_circle.json"
-OUT = "run/world/datapacks/gs_autotest/data/gs_autotest/function"
+OUT = "run-test/world/datapacks/gs_autotest/data/gs_autotest/function"
 
 TAG_BLOCK = {
     "#gensokyou:ritual_pedestals": "gensokyou:ritual_pedestal",

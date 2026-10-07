@@ -96,7 +96,34 @@ import java.util.Set;
  * bullet.configureCurve(new Vec3(0, 1, 0), 90.0D);
  * }</pre>
  */
-public abstract class AbstractDanmakuProjectile extends Projectile {
+    public abstract class AbstractDanmakuProjectile extends Projectile {
+
+    /**
+     * 弹幕渲染距离上限：直接跟随客户端视距，而不是原版公式里的
+     * 「AABB 平均 × 64 × viewScale」——那把弹幕的 38~60 格和玩家视距彻底脱钩，
+     * 是「远处的弹忽然就消失了」的根因。
+     */
+    @Override
+    public boolean shouldRenderAtSqrDistance(double distanceSqr) {
+        double viewDist = renderViewDistanceBlocks();
+        if (viewDist <= 0.0) {
+            return super.shouldRenderAtSqrDistance(distanceSqr);
+        }
+        return distanceSqr < viewDist * viewDist;
+    }
+
+    /**
+     * 客户端视距对应格数；客户端状态未就绪时返回非正数，调用方退回原版公式。
+     */
+    protected double renderViewDistanceBlocks() {
+        var mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc == null || mc.options == null) {
+            return 0.0;
+        }
+        int chunks = mc.options.renderDistance().get();
+        return Math.max(1, chunks) * 16.0;
+    }
+
     /** 最大存活时间：60 秒。 */
     /**
      * 弹丸存活上限（tick）。{@code FirePattern.lifetimeSeconds <= 0} 表示"不覆盖"，

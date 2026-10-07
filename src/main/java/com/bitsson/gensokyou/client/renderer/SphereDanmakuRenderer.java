@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.client.renderer;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.danmaku.render.DanmakuRenderProbe;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuColorMode;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuGeometry;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile;
@@ -43,6 +44,10 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
      */
     private static final float LEGACY_CORE_SCALE = 0.55F;
 
+    /** 密集模式 LOD texture：halo + core 烧入单张，只走 body。 */
+    private static final ResourceLocation LOD_TEXTURE = ResourceLocation.fromNamespaceAndPath(
+            Gensokyou.MODID, "textures/entity/sphere_danmaku_lod.png");
+
     /**
      * 亮核层沿 billboard 局部 +Z 的推离量（格）。
      *
@@ -69,6 +74,14 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
     @Override
     protected RenderType baseRenderType() {
         return DanmakuRenderTypes.translucentDepth(this.texture);
+    }
+
+    /** 密集模式优先烧好 LOD 贴图，避免额外 glow/core 层开销；只有 DEFAULT(=QUAD) 使用。 */
+    private RenderType bodyRenderType(DanmakuVisualProfile.Profile profile) {
+        if (DanmakuRenderProbe.dense && profile.geometry() == DanmakuGeometry.QUAD) {
+            return DanmakuRenderTypes.translucentDepth(LOD_TEXTURE);
+        }
+        return this.baseRenderType();
     }
 
     @Override
@@ -105,9 +118,17 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         // （暗态仍须可辨认出颜色，否则「隐藏」会读作「换成另一种弹」）。
         float dim = hidden ? profile.hiddenAlpha() / 255.0F : 1.0F;
         int bodyAlpha = hidden ? profile.hiddenAlpha() : 255;
-        VertexConsumer consumer = bufferSource.getBuffer(this.baseRenderType());
-        this.renderShape(entity, profile, poseStack, consumer,
-                red(color), green(color), blue(color), bodyAlpha, FULL_BRIGHT);
+        if (DanmakuRenderProbe.effectiveBody()) {
+            DanmakuRenderProbe.countBody();
+            VertexConsumer consumer = this.getBuffer(bufferSource, this.bodyRenderType(profile));
+            DanmakuRenderProbe.pushBody();
+            try {
+                this.renderShape(entity, profile, poseStack, consumer,
+                        red(color), green(color), blue(color), bodyAlpha, FULL_BRIGHT);
+            } finally {
+                DanmakuRenderProbe.pop();
+            }
+        }
 
         // 外发光（默认 1.35×，实体色，加法）沿局部 +Z 推离，与本体不共面。
         // 加法层：alpha 与 RGB 同时压暗，贡献按 dim² 下降。
@@ -121,15 +142,21 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         //
         // 隐藏态 MUST 一并压暗，且与辉光同理 MUST 同时压暗 RGB：该层是纯白加法片，
         // 是三层里视觉最强的一层。曾只压暗 alpha，结果隐藏态【比常态更亮】。
-        if (profile.hasCore()) {
+        if (profile.hasCore() && DanmakuRenderProbe.effectiveCore()) {
+            DanmakuRenderProbe.countCore();
             poseStack.pushPose();
             poseStack.translate(0.0D, 0.0D, CORE_OFFSET);
             poseStack.scale(profile.coreScale(), profile.coreScale(), profile.coreScale());
-            VertexConsumer core = bufferSource.getBuffer(this.decorativeRenderType());
-            int coreValue = (int) Math.round(255 * dim);
-            this.renderShape(entity, profile, poseStack, core,
-                    coreValue, coreValue, coreValue,
-                    (int) Math.round(profile.coreAlpha() * dim), FULL_BRIGHT);
+            VertexConsumer core = this.getBuffer(bufferSource, this.decorativeRenderType());
+            DanmakuRenderProbe.pushCore();
+            try {
+                int coreValue = (int) Math.round(255 * dim);
+                this.renderShape(entity, profile, poseStack, core,
+                        coreValue, coreValue, coreValue,
+                        (int) Math.round(profile.coreAlpha() * dim), FULL_BRIGHT);
+            } finally {
+                DanmakuRenderProbe.pop();
+            }
             poseStack.popPose();
         }
 

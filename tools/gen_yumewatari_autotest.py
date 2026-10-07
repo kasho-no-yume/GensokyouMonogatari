@@ -5,8 +5,9 @@
 锚点隔离在 z=44（gs_ritual_test 带 z<=26）；探针链 schedule 驱动：
 build L0 → beds/settle(4) → build L1 → settle(3) → build L2 → settle(4) →
 装灵力核心 → settle(1) → say [GS-AUTO] YUME-DONE。
-触发方式：tick 标签一次性哨兵（Done 后 15s schedule yume_a），不依赖 stdin。
-仅测试专用：验证完成后删除本包（run/world/datapacks/gs_yume_autotest），避免常驻 tick。
+触发方式：**显式入口** `function gs_yume:kick`（MUST NOT 写 load/tick 自触发标签，
+否则任意世界加载都会自动造结构、刷 [GS-AUTO]）。
+仅测试专用：输出到隔离测试世界 run-test/，不常驻共享 run/world。
 """
 import io
 import json
@@ -17,7 +18,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import validate_ritual_pattern as v  # noqa: E402
 
-OUT = "run/world/datapacks/gs_yume_autotest"
+OUT = "run-test/world/datapacks/gs_yume_autotest"
 AX, AY, AZ = 228, 100, 44  # 隔离锚点（x 与 suite 同列但 z 带不重叠）
 
 
@@ -34,32 +35,19 @@ def main():
     if os.path.isdir(OUT):
         shutil.rmtree(OUT)
     fdir = os.path.join(OUT, "data", "gs_yume", "function")
-    tdir = os.path.join(OUT, "data", "minecraft", "tags", "function")
     os.makedirs(fdir, exist_ok=True)
-    os.makedirs(tdir, exist_ok=True)
     io.open(os.path.join(OUT, "pack.mcmeta"), "w", encoding="utf-8",
             newline="\n").write(json.dumps({"pack": {
-        "pack_format": 48, "description": "Yumewatari settlement autotest"}},
+        "pack_format": 48, "description": "Yumewatari settlement autotest (dev-only, explicit trigger)"}},
         indent=2))
-    # 触发：load 标签每次开档重置哨兵（scoreboard 持久化跨运行），tick 首个守卫触发 kick
-    io.open(os.path.join(tdir, "load.json"), "w", encoding="utf-8",
-            newline="\n").write(json.dumps({"values": ["gs_yume:load_reset"]}, indent=2))
-    io.open(os.path.join(tdir, "tick.json"), "w", encoding="utf-8",
-            newline="\n").write(json.dumps({"values": ["gs_yume:tick"]}, indent=2))
+    # 显式触发：MUST NOT 写 minecraft:tags/function/load.json 或 tick.json。
+    # 入口 = `function gs_yume:kick`（由 harness/开发者显式调用）。
     core = f"{AX} {AY} {AZ}"
     funcs = {
-        "load_reset": [
-            "scoreboard objectives add gs_yume dummy",
-            "scoreboard players set #once gs_yume 0",
-        ],
-        "tick": [
-            "scoreboard objectives add gs_yume dummy",
-            "scoreboard players add #once gs_yume 0",
-            "execute if score #once gs_yume matches 0 run function gs_yume:kick",
-        ],
         "kick": [
-            "scoreboard players set #once gs_yume 1",
-            "schedule function gs_yume:yume_a 15s",
+            "scoreboard objectives add gs_yume dummy",
+            "say [GS-AUTO] YUME-KICK",
+            "schedule function gs_yume:yume_a 2s",
         ],
         "yume_a": [
             "forceload add 200 24 292 70",

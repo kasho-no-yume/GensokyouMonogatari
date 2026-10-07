@@ -543,19 +543,19 @@ def expected_tier(pattern, level_no, tier):
 
 def emit_test_pack(patterns, out_dir):
     """为全部多级 pattern 生成端到端测试包：逐级全量搭建 + 核心 tier 断言 +
-    高阶级低品阶负查（禁虚高匹配），链式 schedule 串行，末行 ALL_DONE。"""
+    高阶级低品阶负查（禁虚高匹配），链式 schedule 串行，末行 ALL_DONE。
+
+    显式触发：MUST NOT 写 `data/minecraft/tags/function/load.json`
+    （否则任意世界/服务器加载都会自动造结构、刷 [GS-TEST]）。由 harness
+    通过控制台/stdin 显式调用 `function gs_test:run_all` 启动。"""
     if out_dir.exists():
         shutil.rmtree(out_dir)  # 重建=全量替换，绝不留旧代残留文件
     functions = out_dir / 'data' / 'gs_test' / 'function'
     functions.mkdir(parents=True, exist_ok=True)
-    tag_dir = out_dir / 'data' / 'minecraft' / 'tags' / 'function'
-    tag_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / 'pack.mcmeta').write_text(
         json.dumps({'pack': {'pack_format': 48,
-                             'description': 'Gensokyou ritual structure test'}},
+                             'description': 'Gensokyou ritual structure test (dev-only, explicit trigger)'}},
                    indent=2), encoding='utf-8')
-    (tag_dir / 'load.json').write_text(
-        json.dumps({'values': ['gs_test:run_all']}, indent=2), encoding='utf-8')
 
     funcs = {}
     targets = [p for p in sorted(patterns, key=lambda p: p['id']) if len(p['levels']) >= 2]

@@ -130,10 +130,10 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
    - **为保美感逐方块手写坐标是完全正当的路径**——装饰细节、标志性轮廓、不对称点缀等直接手写 JSON 条目，不必为了"用上工具"而扭曲设计；
    - 两法可混用：脚本出骨架、手写补细节。
    - 无论哪条路径，落盘的 levels 只含**每级新增**（低级格位不再复制进高级增量）；脚本骨架的累积字典照旧自检，输出段已内置差分，见 §1。
-5. 校验：`python tools/validate_ritual_pattern.py --test-out run/world/datapacks/gs_ritual_test`——新 pattern 要求 0 ERROR、0 WARN；每次改 pattern 后必须重建测试包。存量占位仪式是 1 基编号的历史产物，勿效仿。如果有问题建议让用户检查。
+5. 校验：`python tools/validate_ritual_pattern.py --test-out run-test/world/datapacks/gs_ritual_test`——新 pattern 要求 0 ERROR、0 WARN；每次改 pattern 后必须重建测试包（**落隔离测试世界 `run-test/`，勿写共享 `run/world`**）。测试包**不再自触发**：不写 `load.json`/`tick.json`，由 harness 经 RCON 显式调用 `function gs_test:run_all`。存量占位仪式是 1 基编号的历史产物，勿效仿。如果有问题建议让用户检查。
    **已存在仪式的迭代改走编辑杖闭环**（§6）：进游戏锚定→力建→实地改块→捕获存阶→仪式保存（游戏内校验+直接覆写文件+/reload 秒生效），不再"改 JSON→重启→看"；首稿仍按本流程落文件。编辑杖产出的 adds 与手搓同格式，python 校验兜底不变。
 6. **补语言文件（设计者顺手做）**：pattern 落盘后，在 `src/main/resources/assets/gensokyou/lang/zh_cn.json` 与 `en_us.json` 各补一行 `jei.gensokyou.ritual.<pattern 文件名主干>`（`gensokyou:oyamatsumi_circle` → `jei.gensokyou.ritual.oyamatsumi_circle`）；zh 写仪式本名、en 写意译。漏写则 JEI/核心界面直接裸露原始 key。其余配方/贴图仍归程序侧。
-7. 实机验证由用户运行 `powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1`（agent 不启动服务器）。美观评审进游戏实地看。现有测试 harness 只认 generator_circle 形状的仪式——新仪式的自动化实机测试需程序侧扩展 harness，需求说明中写清测试锚点坐标与期望输出。
+7. 实机验证由用户运行 `powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1`（agent 不启动服务器）。该脚本启动隔离测试服务器 `runServerTest`（`run-test/`），经 **RCON**（`tools/rcon_cmd.py`）显式发送 `function gs_test:run_all`，再抓取 `[GS-TEST]` 输出。美观评审进游戏实地看。现有测试 harness 只认 generator_circle 形状的仪式——新仪式的自动化实机测试需程序侧扩展 harness，需求说明中写清测试锚点坐标与期望输出。
 
 ## 6. 工具清单
 
@@ -142,8 +142,9 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
 | `tools/validate_ritual_pattern.py`   | 离线校验全部 pattern（锚点/展开冲突/纯增量/品阶下限/劫持）；`--test-out DIR` 重建服务器测试数据包。**与 Java 校验器对表（`RitualPatternValidatorParityTest`），仍是 CI 权威** |
 | 仪式编辑杖（`ritual_wand`，仅创造）   | **迭代已存在仪式的主工具**：右键核心锚定 → 菜单选仪式/阶级/工作区 → 右键核心两段式力建（覆盖+sweep 工作区）→ 手改方块 → "捕获存阶"（diff 补丁，低级地基不可碰）→ "仪式保存"（游戏内全量合规校验，通过即覆写 `world/datapacks/gs_dev/...` + dev 环境回声源码树）→ `/reload` 秒生效。闭环替代"手改 JSON→重启"循环 |
 | `tools/gen_generator_circle.py`      | 生成脚本骨架（canon/put/slab/pillar + 冲突自检），照抄骨架改蓝图。**输出已是 v5 增量格式（逐级差分），重跑即可直接落盘** |
-| `run/world/datapacks/gs_ritual_test` | `--test-out` 生成的测试包，每次改 pattern 后必须重建                                                                     |
-| `tools/_run_ritual_test.ps1`         | 实机端到端测试启动器（**由用户运行**，agent 不启动服务器）                                                               |
+| `run-test/world/datapacks/gs_ritual_test` | `--test-out` 生成的测试包（隔离测试世界），每次改 pattern 后必须重建；不自触发，由 RCON 显式触发 |
+| `tools/_run_ritual_test.ps1`         | 实机端到端测试启动器（**由用户运行**，agent 不启动服务器；WMI 分离启动 + RCON 显式触发）                                 |
+| `tools/rcon_cmd.py`                  | 最小 RCON 客户端（stdlib），向隔离测试服务器发送 `function gs_test:run_all` 等命令                                      |
 | `tools/gen_tex.py`                   | 像素贴图生成（仅当用户批准新方块时用，见 gen-textures skill）                                                            |
 | 本目录 `BLOCKS.md` / `PATTERNS.md`   | 机器生成的方块目录 / 现有 pattern 一览（后者仅当清单，勿模仿其结构）；重生成 `python tools/gen_catalog.py`               |
 
@@ -155,15 +156,15 @@ pattern 文件位于 `src/main/resources/data/gensokyou/rituals/*.json`，服务
 
 | 工具                             | 用途                                                                |
 |----------------------------------|---------------------------------------------------------------------|
-| `tools/struct_compile.py`        | 建筑编译：`put/slab/box` + `save_structure` → .nbt + 游戏内预览函数 |
+| `tools/struct_compile.py`        | 建筑编译：`put/slab/box` + `save_structure` → `.nbt`（默认落开发目录 `run/structures/`）+ 隔离测试世界的预览函数；`publish=True` 才拷入分发资源 |
 | `tools/gen_building_template.py` | 建筑 gen 脚本骨架（照抄）                                           |
 | `design/astra/min_test/`         | struct_compile 最小可运行示例                                       |
 
 流程与实测坑：
 1. `blueprint.md` 逐段增量描述（体块/材料/开口/装饰）。**确认关口不在文字蓝图**（实测：纯文字用户无法评审）——写完直接进第 2 步，真正确认在第 4 步实机预览。
 2. 写 `gen_<name>.py`（抄 `tools/gen_building_template.py`）：全 XYZ 直接放（**建筑不需要对称**）；`minecraft:air` = 挖空（/place 会清地形）。
-3. `save_structure(name, cells)` 一次产出 `.nbt`（原点=包围盒最小角）与测试函数。
-4. 编译器把 `.nbt` 副本写入测试包 + 单人存档 `generated/gensokyou/structures/`（存档回退目录用**复数** structures/），并把 gs_ritual_test 数据包同步进存档 datapacks/。用户重进存档（或 /reload）后 `/place template gensokyou:<name>` 实地评审；看效果先传测试区 (104,100,20)。定稿 `.nbt` 交程序侧接 worldgen。
+3. `save_structure(name, cells)` 一次产出 `.nbt`（原点=包围盒最小角，**默认落开发目录 `run/structures/`**）与隔离测试世界的预览函数。仅当结构被登记为**可达内容**（worldgen/仪式/创造页可触达）时才 `save_structure(..., publish=True)` 拷入 `src/main/resources/data/gensokyou/structure/` 分发。
+4. 存档分发 `.nbt` 回退（`generated/gensokyou/structures/`，**复数**）仍幂等写入已存在的单人存档；测试数据包同步进存档 `datapacks/` 现**默认关闭**（仅 `GS_SYNC_TEST_DATAPACK=1` 开启）。用户重进存档（或 /reload）后 `/place template gensokyou:<name>` 实地评审；看效果先传测试区 (104,100,20)。零引用设计产物不进 jar。
 
 红线坑（都真实踩过）：
 - **nbtlib 写 .nbt 必须 `File(root, gzipped=True)`**：`File({"": root})` 会把 payload 再包一层空名 compound → 原版解析后根里无 palette/blocks，`/place` 只报"放置模板失败"且**零日志**。gen 脚本只调 save_structure，不直接碰 nbtlib。

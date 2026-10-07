@@ -300,8 +300,13 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
 
     @Override
     public boolean shouldRenderAtSqrDistance(double distanceSqr) {
-        // 长激光即使中心点很远也应该渲染
+        // 长激光即使中心点很远也应该渲染；上限同时不低于客户端视距
+        // （弹幕渲染上限 MUST 与视距一致，见 AbstractDanmakuProjectile）
         double range = this.getMaxLength() + 64.0D;
+        double viewDist = this.renderViewDistanceBlocks();
+        if (viewDist > 0.0) {
+            range = Math.max(range, viewDist);
+        }
         return distanceSqr < range * range;
     }
 

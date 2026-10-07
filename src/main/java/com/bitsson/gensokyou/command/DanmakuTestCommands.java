@@ -23,6 +23,7 @@ import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.bitsson.gensokyou.danmaku.render.DanmakuRenderProbe;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -129,6 +130,17 @@ public final class DanmakuTestCommands {
                                 .executes(context -> spawnLegMotion(
                                         context.getSource().getPlayerOrException(),
                                         IntegerArgumentType.getInteger(context, "segments")))))
+
+                // /danmaku layers <body|glow|core|all> - 剖针开关：渲染层按层关断
+                .then(Commands.literal("layers")
+                        .then(Commands.literal("body")
+                                .executes(context -> setLayer(context.getSource(), "body")))
+                        .then(Commands.literal("glow")
+                                .executes(context -> setLayer(context.getSource(), "glow")))
+                        .then(Commands.literal("core")
+                                .executes(context -> setLayer(context.getSource(), "core")))
+                        .then(Commands.literal("all")
+                                .executes(context -> setLayer(context.getSource(), "all"))))
 
                 // /danmaku ring [数量] - 环形弹幕测试
                 .then(Commands.literal("ring")
@@ -311,6 +323,23 @@ public final class DanmakuTestCommands {
         player.sendSystemMessage(Component.literal(
                 "§7等约 10 秒后执行 /gs_boss danmaku，读 live 与 tickTime 的 avg"));
         return spawned;
+    }
+
+    /** /danmaku layers：按层切断剖针。 */
+    private static int setLayer(CommandSourceStack source, String mode) {
+        switch (mode) {
+            case "body" -> DanmakuRenderProbe.enableBody(false);
+            case "glow" -> DanmakuRenderProbe.enableGlow(false);
+            case "core" -> DanmakuRenderProbe.enableCore(false);
+            case "all" -> {
+                DanmakuRenderProbe.enableBody(true);
+                DanmakuRenderProbe.enableGlow(true);
+                DanmakuRenderProbe.enableCore(true);
+            }
+        }
+        source.sendSuccess(() -> Component.literal(
+                "§b[GS-DANMAKU] 剖针层: " + DanmakuRenderProbe.summary()), false);
+        return 1;
     }
 
     /**

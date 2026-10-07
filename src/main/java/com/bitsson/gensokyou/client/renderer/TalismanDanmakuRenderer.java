@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client.renderer;
 
+import com.bitsson.gensokyou.danmaku.render.DanmakuRenderProbe;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -56,9 +57,17 @@ public class TalismanDanmakuRenderer extends AbstractDanmakuRenderer<TalismanDan
         poseStack.mulPose(Axis.XP.rotationDegrees(-pitch));
 
         int color = entity.getColor();
-        VertexConsumer consumer = bufferSource.getBuffer(this.baseRenderType());
-        this.renderShape(entity, poseStack, consumer,
-                red(color), green(color), blue(color), 255, FULL_BRIGHT);
+        if (DanmakuRenderProbe.effectiveBody()) {
+            DanmakuRenderProbe.countBody();
+            VertexConsumer consumer = this.getBuffer(bufferSource, this.baseRenderType());
+            DanmakuRenderProbe.pushBody();
+            try {
+                this.renderShape(entity, poseStack, consumer,
+                        red(color), green(color), blue(color), 255, FULL_BRIGHT);
+            } finally {
+                DanmakuRenderProbe.pop();
+            }
+        }
 
         // 灵符不参与视觉档案体系（它是纸片几何，与球弹的档案语义不同），
         // 故此处传默认档案，只为取其发光层的 1.35× / alpha 110——与改前逐位相同。

@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client.renderer;
 
+import com.bitsson.gensokyou.danmaku.render.DanmakuRenderProbe;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile;
 import com.bitsson.gensokyou.entity.AbstractDanmakuProjectile;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -159,7 +160,16 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
                 .setUv(u, v)
                 .setOverlay(OverlayTexture.NO_OVERLAY)
                 .setLight(light)
-                .setNormal(pose, 0.0F, 1.0F, 0.0F);
+                // 不再走 Pose 重载：那会每顶点 new 一个 Vector3f。
+                // 弹幕全是 emissive 材质 + 满亮度光照，法线是常量（0,1,0），用常量就行。
+                .setNormal(0.0F, 1.0F, 0.0F);
+        DanmakuRenderProbe.countVertex();
+    }
+
+    /** getBuffer 计数包装，优于直接调用 {@code bufferSource.getBuffer}。 */
+    protected VertexConsumer getBuffer(MultiBufferSource bufferSource, RenderType type) {
+        DanmakuRenderProbe.countBuffer();
+        return bufferSource.getBuffer(type);
     }
 
     /**
@@ -204,6 +214,10 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
         if (!entity.hasGlowEffect()) {
             return;
         }
+        if (!DanmakuRenderProbe.effectiveGlow()) {
+            return;
+        }
+        DanmakuRenderProbe.countGlow();
         int alpha = (int) Math.round(profile.glowAlpha() * dim);
         int dimmed = dimColor(color, dim);
 
@@ -212,9 +226,14 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
         float scale = profile.glowScale();
         poseStack.scale(scale, scale, scale);
 
-        VertexConsumer consumer = bufferSource.getBuffer(this.glowRenderType());
-        this.renderShape(entity, poseStack, consumer,
-                red(dimmed), green(dimmed), blue(dimmed), alpha, FULL_BRIGHT);
+        VertexConsumer consumer = this.getBuffer(bufferSource, this.glowRenderType());
+        DanmakuRenderProbe.pushGlow();
+        try {
+            this.renderShape(entity, poseStack, consumer,
+                    red(dimmed), green(dimmed), blue(dimmed), alpha, FULL_BRIGHT);
+        } finally {
+            DanmakuRenderProbe.pop();
+        }
 
         poseStack.popPose();
     }

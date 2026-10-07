@@ -92,9 +92,10 @@ JEI 配方卡由 ritual_recipes JSON 自动派生，无需改动任何集成代�
 
 - `python tools/validate_ritual_pattern.py`：全部 pattern 离线校验
   （锚点 / 展开冲突 / 纯增量 / 品阶下限 / 跨 pattern 劫持）
-- `--test-out run/world/datapacks/gs_ritual_test`：重建服务器测试数据包，每次改 pattern 后必须重建
-- 实机端到端测试由用户运行 `powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1`
-  （agent 不启动服务器；现有 harness 只认 generator_circle，新仪式需程序侧扩展 harness）
+- `--test-out run-test/world/datapacks/gs_ritual_test`：重建隔离测试世界的测试数据包，每次改 pattern 后必须重建（勿写共享 `run/world`）
+- 测试包**不自触发**（不写 `load.json`/`tick.json`）；实机端到端测试由用户运行
+  `powershell -ExecutionPolicy Bypass -File tools\_run_ritual_test.ps1`（隔离服务器经 RCON 显式触发
+  `function gs_test:run_all`；agent 不启动服务器；现有 harness 只认 generator_circle，新仪式需程序侧扩展 harness）
 
 ## 9. 程序侧待办（0 基阶级对齐）
 

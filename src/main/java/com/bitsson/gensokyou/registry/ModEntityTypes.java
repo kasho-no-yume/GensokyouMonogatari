@@ -21,6 +21,9 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ModEntityTypes {
 
+    /** 弹幕类型的客户端跟踪范围（区块）。→ 32 区块 = 512 格，不再成为渲染上限的上游帽子。 */
+    private static final int DANMAKU_TRACKING_RANGE = 32;
+
     /**
      * 弹幕实体的位置包间隔（tick）。
      *
@@ -51,7 +54,7 @@ public final class ModEntityTypes {
             ENTITY_TYPES.register("danmaku", () -> EntityType.Builder
                     .<DanmakuProjectile>of(DanmakuProjectile::new, MobCategory.MISC)
                     .sized(0.4F, 0.4F)
-                    .clientTrackingRange(4)
+                    .clientTrackingRange(DANMAKU_TRACKING_RANGE)
                     .updateInterval(DANMAKU_UPDATE_INTERVAL)
                     .build("danmaku"));
 
@@ -59,7 +62,7 @@ public final class ModEntityTypes {
             ENTITY_TYPES.register("sphere_danmaku", () -> EntityType.Builder
                     .<SphereDanmaku>of(SphereDanmaku::new, MobCategory.MISC)
                     .sized(0.4F, 0.4F)
-                    .clientTrackingRange(8)
+                    .clientTrackingRange(DANMAKU_TRACKING_RANGE)
                     .updateInterval(DANMAKU_UPDATE_INTERVAL)
                     .fireImmune()
                     .build("sphere_danmaku"));
@@ -68,7 +71,7 @@ public final class ModEntityTypes {
             ENTITY_TYPES.register("knife_danmaku", () -> EntityType.Builder
                     .<KnifeDanmaku>of(KnifeDanmaku::new, MobCategory.MISC)
                     .sized(0.2F, 1.5F)
-                    .clientTrackingRange(8)
+                    .clientTrackingRange(DANMAKU_TRACKING_RANGE)
                     .updateInterval(DANMAKU_UPDATE_INTERVAL)
                     .fireImmune()
                     .build("knife_danmaku"));
@@ -77,7 +80,7 @@ public final class ModEntityTypes {
             ENTITY_TYPES.register("talisman_danmaku", () -> EntityType.Builder
                     .<TalismanDanmaku>of(TalismanDanmaku::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F)
-                    .clientTrackingRange(8)
+                    .clientTrackingRange(DANMAKU_TRACKING_RANGE)
                     .updateInterval(DANMAKU_UPDATE_INTERVAL)
                     .fireImmune()
                     .build("talisman_danmaku"));
@@ -97,7 +100,7 @@ public final class ModEntityTypes {
             ENTITY_TYPES.register("laser_danmaku", () -> EntityType.Builder
                     .<LaserDanmaku>of(LaserDanmaku::new, MobCategory.MISC)
                     .sized(0.5F, 0.5F)
-                    .clientTrackingRange(10)
+                    .clientTrackingRange(DANMAKU_TRACKING_RANGE)
                     .updateInterval(1)
                     .fireImmune()
                     .build("laser_danmaku"));

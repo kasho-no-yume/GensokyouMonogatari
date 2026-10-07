@@ -18,6 +18,7 @@ Astra 的建筑 gen 脚本照此写（完整示例见 design/astra/min_test/gen_
 - 结构原点 = 所有格位包围盒的最小角（负坐标合法，只是撑大包围盒）；
 - 错误一律单行 `ERROR ...`，冲突自检在 put() 内。
 """
+import os
 import re
 import shutil
 import sys
@@ -27,11 +28,19 @@ import nbtlib
 from nbtlib import tag
 
 ROOT = Path(__file__).resolve().parents[1]
-NBT_DIR = ROOT / "src" / "main" / "resources" / "data" / "gensokyou" / "structure"
-TEST_FN_DIR = (ROOT / "run" / "world" / "datapacks" / "gs_ritual_test" /
+# 分发包结构目录（只有被显式 publish=True 登记为「可达内容」的结构才写入）
+PUBLISH_NBT_DIR = ROOT / "src" / "main" / "resources" / "data" / "gensokyou" / "structure"
+# 默认产出：开发目录（不进 jar）
+DEV_NBT_DIR = ROOT / "run" / "structures"
+# 建筑预览函数落隔离测试世界（不走共享 run/world）
+TEST_FN_DIR = (ROOT / "run-test" / "world" / "datapacks" / "gs_ritual_test" /
                "data" / "gensokyou" / "function" / "building")
 DATAVERSION = 3955          # 1.21.1（勿改；升级版本时随游戏版本更新）
 TEST_ANCHOR = (104, 100, 20)
+
+# 存档同步默认关：仅显式设 GS_SYNC_TEST_DATAPACK=1 时才把测试包写进单人存档 datapacks/
+SYNC_TEST_DATAPACK = os.environ.get("GS_SYNC_TEST_DATAPACK", "").lower() in (
+    "1", "true", "yes", "on")
 
 _STATE_RE = re.compile(r"^([a-z0-9_]+:[a-z0-9_/.]+)\s*(?:\[(.*)\])?$")
 
@@ -140,12 +149,14 @@ def _save_copies(name, src_bytes):
 
 
 def _sync_test_datapack():
-    """把 gs_ritual_test 数据包整树镜像进已存在的单人存档 datapacks/。
+    """把 dev 测试数据包整树镜像进已存在的单人存档 datapacks/。
 
-    /function gensokyou:building/* 在单人存档生效的前提是存档里装了数据包。
-    幂等整树覆盖；新存档首次进入时自动启用，已在运行中的会话 /reload 生效。
+    **默认关闭**（`GS_SYNC_TEST_DATAPACK=1` 才执行）：测试包属于开发产物，
+    不得默认写进玩家存档。开启后幂等整树覆盖，不创建新存档。
     """
-    src = ROOT / "run" / "world" / "datapacks" / "gs_ritual_test"
+    if not SYNC_TEST_DATAPACK:
+        return []
+    src = ROOT / "run-test" / "world" / "datapacks" / "gs_ritual_test"
     if not (src / "pack.mcmeta").is_file():
         return []
     saves = ROOT / "run" / "saves"
@@ -160,39 +171,49 @@ def _sync_test_datapack():
     return outs
 
 
-def save_structure(name, cells):
-    """编译产物：gensokyou:structure/<name>.nbt + gs_ritual_test 预览函数
-    + 单人存档 generated/ 回退与 datapacks/ 数据包同步（游戏内 /reload 生效）。"""
+def save_structure(name, cells, publish=False):
+    """编译产物：结构模板 .nbt（默认落开发目录 `run/structures/`）+
+    隔离测试世界的建筑预览函数。
+
+    `publish=True` 时**额外**拷入 `src/main/resources/data/gensokyou/structure/` 分发；
+    仅当该结构被登记为「可达内容」（worldgen/仪式/创造页/掉落可触达）才应 publish。
+    """
     if not re.match(r"^[a-z0-9_]+$", name):
         raise SystemExit("ERROR: 结构名 '%s' 非法（只允许 [a-z0-9_]）" % name)
     if not cells:
         raise SystemExit("ERROR: <name> 没有任何格位，检查 gen 脚本")
     root, n = _build_nbt(name, cells)
-    NBT_DIR.mkdir(parents=True, exist_ok=True)
+    DEV_NBT_DIR.mkdir(parents=True, exist_ok=True)
     TEST_FN_DIR.mkdir(parents=True, exist_ok=True)
 
-    nbt_path = NBT_DIR / (name + ".nbt")
+    nbt_path = DEV_NBT_DIR / (name + ".nbt")
     # 注意：必须 File(root) 而非 File({"": root})——nbtlib 的 File 本身就是 Compound 子类，
     # {"": root} 会把 payload 再包一层空名 compound：原版解析后根里没有 palette/blocks，
     # /place 报"放置模板失败"且零日志（已踩坑）。
     nbtlib.File(root, gzipped=True).save(nbt_path)
-    # 副本落测试数据包：运行中的游戏 /reload 必定重读世界数据包（mod 内建数据不一定重扫）
+    nbt_bytes = nbt_path.read_bytes()
+    if publish:
+        PUBLISH_NBT_DIR.mkdir(parents=True, exist_ok=True)
+        (PUBLISH_NBT_DIR / (name + ".nbt")).write_bytes(nbt_bytes)
+    # 副本落隔离测试数据包：运行中的游戏 /reload 必定重读世界数据包
     test_nbt = TEST_FN_DIR.parents[2] / "gensokyou" / "structure" / (name + ".nbt")
     test_nbt.parent.mkdir(parents=True, exist_ok=True)
-    test_nbt.write_bytes(nbt_path.read_bytes())
-    saves = _save_copies(name, nbt_path.read_bytes())
+    test_nbt.write_bytes(nbt_bytes)
+    saves = _save_copies(name, nbt_bytes)
 
     ax, ay, az = TEST_ANCHOR
     lines = ["# 由 tools/struct_compile.py 生成（勿手改）：building %s，原点 (%d,%d,%d)"
              % (name, ax, ay, az)]
     for (x, y, z) in sorted(cells, key=lambda c: (c[1], c[2], c[0])):
         lines.append("setblock %d %d %d %s" % (ax + x, ay + y, az + z, cells[(x, y, z)]))
-    lines.append('tellraw @a "[building] %s OK (%d 格) 原点 (%d,%d,%d)"' % (name, n, ax, ay, az))
+    # 不再 tellraw @a 广播（避免刷屏/穿帮）；建筑落地即预览
     fn_path = TEST_FN_DIR / (name + ".mcfunction")
     fn_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     synced = _sync_test_datapack()
-    print("save_structure %s: %d 格 -> %s + %s + %d 存档 generated/ 回退 + %d 存档数据包同步"
-          % (name, n, nbt_path.relative_to(ROOT), fn_path.relative_to(ROOT), len(saves), len(synced)))
+    print("save_structure %s: %d 格 -> %s%s + %s + %d 存档 generated/ 回退 + %d 存档数据包同步"
+          % (name, n, nbt_path.relative_to(ROOT),
+             (" + published" if publish else " (dev-only)"),
+             fn_path.relative_to(ROOT), len(saves), len(synced)))
 
 
 if __name__ == "__main__":

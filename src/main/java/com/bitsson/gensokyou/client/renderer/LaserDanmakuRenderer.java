@@ -6,6 +6,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
+import com.bitsson.gensokyou.danmaku.render.DanmakuRenderProbe;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
@@ -145,10 +146,18 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         int alpha = (int) Mth.lerp(pulse * (0.4F + 0.6F * urgency),
                 INDICATOR_ALPHA_MIN, INDICATOR_ALPHA_MAX);
 
-        VertexConsumer consumer = bufferSource.getBuffer(this.glowRenderType());
-        this.emitBeam(poseStack, consumer, length, radius,
-                red(INDICATOR_COLOR), green(INDICATOR_COLOR), blue(INDICATOR_COLOR),
-                alpha, FULL_BRIGHT);
+        VertexConsumer consumer = this.getBuffer(bufferSource, this.glowRenderType());
+        if (DanmakuRenderProbe.effectiveGlow()) {
+            DanmakuRenderProbe.countGlow();
+            DanmakuRenderProbe.pushGlow();
+            try {
+                this.emitBeam(poseStack, consumer, length, radius,
+                        red(INDICATOR_COLOR), green(INDICATOR_COLOR), blue(INDICATOR_COLOR),
+                        alpha, FULL_BRIGHT);
+            } finally {
+                DanmakuRenderProbe.pop();
+            }
+        }
     }
 
     /**
@@ -167,32 +176,49 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         if (envelope <= 0.0F) {
             return;
         }
+        int coreR = (int) Mth.lerp(CORE_WHITE_MIX, r, 255);
+        int coreG = (int) Mth.lerp(CORE_WHITE_MIX, g, 255);
+        int coreB = (int) Mth.lerp(CORE_WHITE_MIX, b, 255);
 
         // 外发光同样写深度：不被身后（更远）的水/云覆盖。shader discard alpha<0.1，
         // 只按发光可见轮廓写深度，不会凿出整块方形洞。
         // 注意 immediate 缓冲的别名规则：请求不同 RenderType 会立刻结束上一批，
         // 因此必须按「外发光 → 法阵 → 主体/亮核 → 端盖」整层连续写入，禁止交叉。
-        VertexConsumer glow = bufferSource.getBuffer(DanmakuRenderTypes.additiveSolid(BEAM_TEXTURE));
-        this.emitBeam(poseStack, glow, length, radius * OUTER_GLOW_RADIUS_RATIO * envelope,
-                r, g, b, (int) (OUTER_GLOW_ALPHA * envelope), FULL_BRIGHT);
+        if (DanmakuRenderProbe.effectiveGlow()) {
+            VertexConsumer glow = this.getBuffer(bufferSource, DanmakuRenderTypes.additiveSolid(BEAM_TEXTURE));
+            DanmakuRenderProbe.countGlow();
+            DanmakuRenderProbe.pushGlow();
+            try {
+                this.emitBeam(poseStack, glow, length, radius * OUTER_GLOW_RADIUS_RATIO * envelope,
+                        r, g, b, (int) (OUTER_GLOW_ALPHA * envelope), FULL_BRIGHT);
+            } finally {
+                DanmakuRenderProbe.pop();
+            }
+        }
 
         // 法阵：发射端五芒星，取激光色的反色（与光束形成对比又同源），随包络展开/收起并自旋
         this.renderMagicCircle(entity, poseStack, bufferSource,
                 radius * envelope, 255 - r, 255 - g, 255 - b,
                 (int) (MAGIC_CIRCLE_ALPHA * envelope), partialTick);
 
-        VertexConsumer emissive = bufferSource.getBuffer(this.glowRenderType());
+        if (DanmakuRenderProbe.effectiveBody()) {
+            VertexConsumer emissive = this.getBuffer(bufferSource, this.glowRenderType());
+            DanmakuRenderProbe.countBody();
+            DanmakuRenderProbe.pushBody();
+            try {
+                // 主体
+                this.emitBeam(poseStack, emissive, length, radius * envelope,
+                        r, g, b, (int) (235 * envelope), FULL_BRIGHT);
 
-        // 主体
-        this.emitBeam(poseStack, emissive, length, radius * envelope,
-                r, g, b, (int) (235 * envelope), FULL_BRIGHT);
-
-        // 亮核：向白色混合，制造过曝感
-        int coreR = (int) Mth.lerp(CORE_WHITE_MIX, r, 255);
-        int coreG = (int) Mth.lerp(CORE_WHITE_MIX, g, 255);
-        int coreB = (int) Mth.lerp(CORE_WHITE_MIX, b, 255);
-        this.emitBeam(poseStack, emissive, length, radius * CORE_RADIUS_RATIO * envelope,
-                coreR, coreG, coreB, (int) (255 * envelope), FULL_BRIGHT);
+                if (DanmakuRenderProbe.effectiveCore()) {
+                    // 亮核：向白色混合，制造过曝感
+                    this.emitBeam(poseStack, emissive, length, radius * CORE_RADIUS_RATIO * envelope,
+                            coreR, coreG, coreB, (int) (255 * envelope), FULL_BRIGHT);
+                }
+            } finally {
+                DanmakuRenderProbe.pop();
+            }
+        }
 
         // 端盖：面向摄像机的圆片，模拟半球末端
         this.renderCaps(poseStack, bufferSource, length, radius * envelope,
@@ -218,11 +244,19 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         poseStack.mulPose(Axis.ZP.rotationDegrees(angle));
 
         PoseStack.Pose pose = poseStack.last();
-        VertexConsumer consumer = bufferSource.getBuffer(DanmakuRenderTypes.additiveSolid(MAGIC_CIRCLE_TEXTURE));
-        this.vertex(consumer, pose, -radius, -radius, 0.0F, 0.0F, 1.0F, r, g, b, a, FULL_BRIGHT);
-        this.vertex(consumer, pose, radius, -radius, 0.0F, 1.0F, 1.0F, r, g, b, a, FULL_BRIGHT);
-        this.vertex(consumer, pose, radius, radius, 0.0F, 1.0F, 0.0F, r, g, b, a, FULL_BRIGHT);
-        this.vertex(consumer, pose, -radius, radius, 0.0F, 0.0F, 0.0F, r, g, b, a, FULL_BRIGHT);
+        if (DanmakuRenderProbe.effectiveGlow()) {
+            VertexConsumer consumer = this.getBuffer(bufferSource, DanmakuRenderTypes.additiveSolid(MAGIC_CIRCLE_TEXTURE));
+            DanmakuRenderProbe.countGlow();
+            DanmakuRenderProbe.pushGlow();
+            try {
+                this.vertex(consumer, pose, -radius, -radius, 0.0F, 0.0F, 1.0F, r, g, b, a, FULL_BRIGHT);
+                this.vertex(consumer, pose, radius, -radius, 0.0F, 1.0F, 1.0F, r, g, b, a, FULL_BRIGHT);
+                this.vertex(consumer, pose, radius, radius, 0.0F, 1.0F, 0.0F, r, g, b, a, FULL_BRIGHT);
+                this.vertex(consumer, pose, -radius, radius, 0.0F, 0.0F, 0.0F, r, g, b, a, FULL_BRIGHT);
+            } finally {
+                DanmakuRenderProbe.pop();
+            }
+        }
 
         poseStack.popPose();
     }
@@ -286,10 +320,17 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         if (radius <= 0.0F || a <= 0) {
             return;
         }
-        VertexConsumer consumer = bufferSource.getBuffer(DanmakuRenderTypes.additiveSolid(CAP_TEXTURE));
-
-        this.emitCap(poseStack, consumer, 0.0F, radius, r, g, b, a);
-        this.emitCap(poseStack, consumer, length, radius, r, g, b, a);
+        if (DanmakuRenderProbe.effectiveGlow()) {
+            VertexConsumer consumer = this.getBuffer(bufferSource, DanmakuRenderTypes.additiveSolid(CAP_TEXTURE));
+            DanmakuRenderProbe.countGlow();
+            DanmakuRenderProbe.pushGlow();
+            try {
+                this.emitCap(poseStack, consumer, 0.0F, radius, r, g, b, a);
+                this.emitCap(poseStack, consumer, length, radius, r, g, b, a);
+            } finally {
+                DanmakuRenderProbe.pop();
+            }
+        }
     }
 
     private void emitCap(PoseStack poseStack, VertexConsumer consumer,

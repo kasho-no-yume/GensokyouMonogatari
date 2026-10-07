@@ -125,6 +125,8 @@ public final class BossDebugCommands {
         source.sendSuccess(() -> Component.literal("[GS-DANMAKU] clock "
                 + com.bitsson.gensokyou.danmaku.render.DanmakuClientClock.summary()), false);
         source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
+                + com.bitsson.gensokyou.danmaku.render.DanmakuRenderProbe.summary()), false);
+        source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
                 + legMotionStats(source)), false);
         return 1;
     }

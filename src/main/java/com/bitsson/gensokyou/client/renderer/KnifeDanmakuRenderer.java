@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.client.renderer;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.danmaku.render.DanmakuRenderProbe;
 import com.bitsson.gensokyou.entity.KnifeDanmaku;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -76,9 +77,17 @@ public class KnifeDanmakuRenderer extends AbstractDanmakuRenderer<KnifeDanmaku> 
         poseStack.mulPose(Axis.XP.rotationDegrees(-pitch));
 
         int color = entity.getColor();
-        VertexConsumer consumer = bufferSource.getBuffer(this.baseRenderType());
-        this.renderShape(entity, poseStack, consumer,
-                red(color), green(color), blue(color), 255, packedLight);
+        if (DanmakuRenderProbe.effectiveBody()) {
+            DanmakuRenderProbe.countBody();
+            VertexConsumer consumer = this.getBuffer(bufferSource, this.baseRenderType());
+            DanmakuRenderProbe.pushBody();
+            try {
+                this.renderShape(entity, poseStack, consumer,
+                        red(color), green(color), blue(color), 255, packedLight);
+            } finally {
+                DanmakuRenderProbe.pop();
+            }
+        }
 
         // 飞刀不加发光层
 

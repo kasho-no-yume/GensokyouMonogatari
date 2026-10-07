@@ -25,6 +25,14 @@ sourceSets.main.resources {
     exclude("**/*.bbmodel") // BlockBench project files
 
     exclude("src/generated/**/.cache") // datagen cache files
+
+    // Dev/test artifacts MUST NOT ship in the mod jar
+    // (openspec change: isolate-ritual-test-harness).
+    exclude("data/gs_test/**")
+    exclude("data/gs_autotest/**")
+    exclude("data/gs_yume/**")
+    exclude("data/gensokyou/structure/haiden.nbt")   // 零引用设计产物
+    exclude("data/gensokyou/structure/min_test.nbt") // 零引用设计样例
 }
 
 repositories {
@@ -76,6 +84,14 @@ neoForge {
         server {
             server()
             programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        // 隔离测试世界：dev 测试数据包只装进 run-test/，绝不污染共享 run/world
+        // （openspec: isolate-ritual-test-harness）。任务名 = runServerTest。
+        serverTest {
+            server()
+            programArgument '--nogui'
+            gameDirectory = project.file('run-test')
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
         // This run config launches GameTestServer and runs all registered gametests, then exits.
@@ -211,6 +227,46 @@ sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
     systemProperty 'file.encoding', 'UTF-8'
+}
+
+// 打包守卫：断言最终 jar 内不含任何测试/开发产物（openspec: isolate-ritual-test-harness）。
+tasks.register('verifyNoTestContent') {
+    dependsOn tasks.named('jar')
+    def jarProvider = tasks.named('jar', Jar).flatMap { it.archiveFile }
+    inputs.file(jarProvider)
+    doLast {
+        def jarPath = jarProvider.get().asFile
+        def forbiddenPrefixes = ['data/gs_test/', 'data/gs_autotest/', 'data/gs_yume/']
+        def forbiddenExact = [
+                'data/gensokyou/structure/haiden.nbt',
+                'data/gensokyou/structure/min_test.nbt',
+        ]
+        def violations = []
+        new java.util.zip.ZipFile(jarPath).withCloseable { zf ->
+            zf.entries().each { e ->
+                def name = e.name
+                if (forbiddenPrefixes.any { name.startsWith(it) } || forbiddenExact.contains(name)) {
+                    violations << name
+                }
+                if (name == 'data/minecraft/tags/function/load.json'
+                        || name == 'data/minecraft/tags/function/tick.json') {
+                    def txt = zf.getInputStream(e).getText('UTF-8')
+                    if (txt.contains('gs_test') || txt.contains('gs_autotest') || txt.contains('gs_yume')) {
+                        violations << (name + ' (references test namespace)')
+                    }
+                }
+            }
+        }
+        if (!violations.isEmpty()) {
+            throw new GradleException(
+                    'verifyNoTestContent FAILED: 测试/开发产物混入 jar:\n  ' + violations.join('\n  '))
+        }
+        println "verifyNoTestContent: OK (${jarPath.name} has no test artifacts)"
+    }
+}
+
+tasks.named('check') {
+    dependsOn 'verifyNoTestContent'
 }
 
 // IDEA no longer automatically downloads sources/javadoc jars for dependencies, so we need to explicitly enable the behavior.
