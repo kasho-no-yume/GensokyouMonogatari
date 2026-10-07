@@ -73,3 +73,7 @@ __pycache__/
 
 # Dedicated server install for the jar-server toolchain (~176MB, do not track)
 server/
+
+# Performance profiling dumps (JFR records environment variables; keep local only)
+*.jfr
+logs/wall*
