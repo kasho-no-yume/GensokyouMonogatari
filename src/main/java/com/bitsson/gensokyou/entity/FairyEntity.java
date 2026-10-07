@@ -227,11 +227,6 @@ public class FairyEntity extends FlyingMob implements Enemy, TouhouMonster, GeoE
     protected void dropCustomDeathLoot(ServerLevel level, DamageSource damageSource, boolean recentlyHit) {
         super.dropCustomDeathLoot(level, damageSource, recentlyHit);
         this.spawnAtLocation(new ItemStack(ModItems.MEMORY_FRAGMENT.get()));
-        if (this.getRandom().nextFloat() < GensokyouConfig.FAIRY_PPOINT_CHANCE.get().floatValue()) {
-            this.spawnAtLocation(new ItemStack(ModItems.PPOINT.get()));
-        }
-        if (this.getRandom().nextFloat() < GensokyouConfig.FAIRY_BPOINT_CHANCE.get().floatValue()) {
-            this.spawnAtLocation(new ItemStack(ModItems.BPOINT.get()));
-        }
+        this.spawnAtLocation(new ItemStack(ModItems.PPOINT.get()));
     }
 }
