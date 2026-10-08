@@ -74,7 +74,7 @@ consumeOne(inv, block):
 - 服务端周期任务（间隔进 config，默认 20t）：对每个 `ServerPlayer`，收集其**背包内所有带绑定组件的构建器**的选择图案 + 当前预览图案，求所需方块集合 `relevant`（`RitualBuilderPlacement.resolveState` 口径），再从绑定无尽藏聚合里仅取 `relevant` 的 `Item→count`。
 - 与上次推送不同才发 S2C `BoundSupplyCounts{ pos, Map<Item,int> }`；不可用时发空（客户端据此把绑定标为不可用）。
 - 客户端缓存按 `pos` 索引；tooltip/菜单/HUD 渲染时取对应条目，`持有 = 背包 + cache`。
-- 菜单另在**开屏握手数据**里带一份快照（菜单打开期间不需实时刷新——菜单内不能搭建）。
+- 三处共用同一缓存：菜单打开期间也读它（菜单内选择变更经 C2S 立即写回组件，服务端下一次同步周期即反映新选择）。
 - 备选：整发全仓储条目——被否，条目规模不可控且逐秒发送过重。
 
 **tooltip 缓存时效性**：背包内悬停的 tooltip 用的是最近一次推送，最坏延迟一个推送周期（~1s）；预览 HUD 会在下个周期刷新。可接受，写入文档。

@@ -124,6 +124,12 @@ public final class GensokyouClient {
     }
 
     @SubscribeEvent
+    public static void onLoggingOut(
+            net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
+        ClientBoundSupplyState.clear();
+    }
+
+    @SubscribeEvent
     public static void onRegisterMenuScreens(RegisterMenuScreensEvent event) {
         event.register(ModMenus.RITUAL_CORE.get(), RitualCoreScreen::new);
         event.register(ModMenus.DANMAKU_ASSEMBLY_BENCH.get(), DanmakuAssemblyBenchScreen::new);

@@ -193,6 +193,10 @@ public class RitualCoreBlock extends Block implements EntityBlock {
                         ? ItemInteractionResult.SUCCESS
                         : ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
             }
+            // 潜行 + 手持构建器：让位物品链路（构建器在成型无尽藏核心上做绑定/解绑，见 RitualBuilderItem）
+            if (holdsBuilder(player)) {
+                return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+            }
             // 潜行：保留旧行为直连链路
             InteractionResult result = dispatchUse((ServerLevel) level, pos, player, stack);
             return switch (result) {
@@ -220,6 +224,10 @@ public class RitualCoreBlock extends Block implements EntityBlock {
                 return openOrHint(serverPlayer, (ServerLevel) level, pos, player)
                         ? InteractionResult.SUCCESS
                         : InteractionResult.PASS;
+            }
+            // 潜行 + 手持构建器：让位物品链路（主手空、副手持构建器时由 vanilla 落到副手 useOn）
+            if (holdsBuilder(player)) {
+                return InteractionResult.PASS;
             }
             return dispatchUse((ServerLevel) level, pos, player, ItemStack.EMPTY);
         }

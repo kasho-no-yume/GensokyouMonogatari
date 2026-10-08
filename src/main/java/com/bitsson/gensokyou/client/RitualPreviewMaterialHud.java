@@ -1,8 +1,10 @@
 package com.bitsson.gensokyou.client;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.item.BuilderBind;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
 import com.bitsson.gensokyou.registry.ModBlocks;
+import com.bitsson.gensokyou.ritual.BoundSupply;
 import com.bitsson.gensokyou.ritual.RitualBuilderPlacement;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
@@ -17,6 +19,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -32,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.ToLongFunction;
 
 /**
  * 预览材料缺口 HUD：预览态在场且手持构建杖时，屏幕右缘竖直居中显示
@@ -82,8 +86,10 @@ public final class RitualPreviewMaterialHud {
         RitualPattern pattern = patternOpt.get();
         RitualBuilderPlacement.Classification classification = RitualBuilderPlacement
                 .classify(minecraft.level, preview.corePos(), pattern, preview.tier());
+        BuilderBind bind = heldBind(minecraft.player);
         List<Shortage> shortages = shortages(classification, pattern, preview.tier(),
-                minecraft.player.getInventory());
+                minecraft.player.getInventory(),
+                item -> storedCount(minecraft, bind, item));
         if (shortages.isEmpty()) {
             return; // 材料全齐：整块消失，不留占位
         }
@@ -97,7 +103,8 @@ public final class RitualPreviewMaterialHud {
      * 排序 = 缺口降序 → 需求降序 → 注册名，取前 {@value #MAX_ROWS}。
      */
     static List<Shortage> shortages(RitualBuilderPlacement.Classification classification,
-                                    RitualPattern pattern, int tier, Inventory inventory) {
+                                    RitualPattern pattern, int tier, Inventory inventory,
+                                    ToLongFunction<Item> storage) {
         Map<Block, Integer> need = new LinkedHashMap<>();
         for (RitualPattern.BlockEntry entry : classification.pending()) {
             accumulate(need, pattern, entry, tier);
@@ -110,9 +117,9 @@ public final class RitualPreviewMaterialHud {
             if (RitualBuilderPlacement.itemLess(block)) {
                 return; // 无物品形态的方块（盆栽等）不可作为物品获得，不计缺口、不点亮 HUD
             }
-            int have = inventory.countItem(block.asItem());
+            long have = inventory.countItem(block.asItem()) + storage.applyAsLong(block.asItem());
             if (count > have) {
-                out.add(new Shortage(block, count, count - have));
+                out.add(new Shortage(block, count, (int) (count - have)));
             }
         });
         out.sort(Comparator.comparingInt(Shortage::missing).reversed()
@@ -145,6 +152,25 @@ public final class RitualPreviewMaterialHud {
             graphics.drawString(font, line, textX, y + (SLOT - font.lineHeight) / 2 + 1,
                     ChatFormatting.WHITE.getColor(), true);
         }
+    }
+
+    /** 手上构建器（主手优先）绑定的无尽藏核心；无则 null。 */
+    private static BuilderBind heldBind(Player player) {
+        BuilderBind bind = RitualBuilderItem.bind(player.getMainHandItem());
+        return bind != null ? bind : RitualBuilderItem.bind(player.getOffhandItem());
+    }
+
+    /** 绑定仓储中某物品的可用数量（不可用/异维度返回 0）。 */
+    private static long storedCount(Minecraft minecraft, BuilderBind bind, Item item) {
+        if (bind == null || minecraft.level == null
+                || !minecraft.level.dimension().location().equals(bind.dimension())) {
+            return 0L;
+        }
+        ClientBoundSupplyState.Snapshot snap = ClientBoundSupplyState.get(bind.pos());
+        if (snap == null || snap.status() != BoundSupply.STATUS_AVAILABLE) {
+            return 0L;
+        }
+        return snap.count(item);
     }
 
     private static boolean isHoldingBuilder(Player player) {

@@ -245,6 +245,7 @@ public final class WujinzangStorage {
         vault.putBoolean(TAG_CONCEALED, concealed);
         wujinzang(core).setVault(vault); core.markDirty();
         forceChunks(level, seg, true);
+        forceCoreChunk(level, core.getBlockPos(), true);
     }
 
     /** 不成型：导出各晶块内容为孤儿段后移除晶块，释放强制加载。 */
@@ -267,6 +268,7 @@ public final class WujinzangStorage {
         vault.put(TAG_ORPHANS, orphans);
         wujinzang(core).setVault(vault); core.markDirty();
         forceChunks(level, seg, false);
+        forceCoreChunk(level, core.getBlockPos(), false);
     }
 
     /** 核心被移除时释放强制加载（内容随 BE 消亡）。 */
@@ -276,6 +278,7 @@ public final class WujinzangStorage {
             return;
         }
         forceChunks(level, vault.getLongArray(TAG_SEGMENTS), false);
+        forceCoreChunk(level, core.getBlockPos(), false);
     }
 
     /** 每 tick（成型即跑）：等级迁移、隐藏态同步、电池→缓存补料。 */
@@ -456,6 +459,14 @@ public final class WujinzangStorage {
                 level.setChunkForced(cx, cz, forced);
             }
         }
+    }
+
+    /**
+     * 强制加载核心自身区块：晶位区块未必覆盖核心所在区块，而异地向构建器扣料时
+     * 需要核心 BE 在线（{@code getBlockEntity} 对未加载区块返回 null）。
+     */
+    private static void forceCoreChunk(ServerLevel level, BlockPos corePos, boolean forced) {
+        level.setChunkForced(corePos.getX() >> 4, corePos.getZ() >> 4, forced);
     }
 
     /** 核心 IItemHandler 代理：跨晶块合并箱（忽略槽号，按分类分区写入）。 */

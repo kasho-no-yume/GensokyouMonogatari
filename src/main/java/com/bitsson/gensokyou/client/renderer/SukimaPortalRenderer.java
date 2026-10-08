@@ -93,14 +93,14 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
      * 用加法混合只会把它读成"白色光球"（实测），必须配常规 alpha 混合才读得出烟。
      */
     private static final ResourceLocation[] SMOKE_FRAMES = {
-            ResourceLocation.withDefaultNamespace("particle/generic_0"),
-            ResourceLocation.withDefaultNamespace("particle/generic_1"),
-            ResourceLocation.withDefaultNamespace("particle/generic_2"),
-            ResourceLocation.withDefaultNamespace("particle/generic_3"),
-            ResourceLocation.withDefaultNamespace("particle/generic_4"),
-            ResourceLocation.withDefaultNamespace("particle/generic_5"),
-            ResourceLocation.withDefaultNamespace("particle/generic_6"),
-            ResourceLocation.withDefaultNamespace("particle/generic_7")};
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_0.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_1.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_2.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_3.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_4.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_5.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_6.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_7.png")};
 
     /** 黄金角（度）——在球面/圆周上取均匀点。 */
     private static final double GOLDEN_ANGLE = 137.50776405003785D;

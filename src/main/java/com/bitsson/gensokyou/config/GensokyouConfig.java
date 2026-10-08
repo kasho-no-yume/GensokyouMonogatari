@@ -136,6 +136,7 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue WAND_MAX_DIMENSION;
     public static final ModConfigSpec.IntValue EDITOR_MAX_DIMENSION;
     public static final ModConfigSpec.IntValue RITUAL_BUILDER_OUTLINE_SECONDS;
+    public static final ModConfigSpec.IntValue BUILDER_BIND_SYNC_INTERVAL_TICKS;
     public static final ModConfigSpec.IntValue PASSIVE_CYCLE_TICKS;
     public static final ModConfigSpec.IntValue RITUAL_OUTPUT_DROP_RADIUS;
     public static final ModConfigSpec.IntValue KANAYAMAHIKO_BASE_DURATION_SECONDS;
@@ -924,6 +925,7 @@ public class GensokyouConfig {
         WAND_MAX_DIMENSION = BUILDER.comment("Max AABB dimension (blocks) the ritual wand can capture").defineInRange("wandMaxDimension", 16, 1, 64);
         EDITOR_MAX_DIMENSION = BUILDER.comment("Max per-axis size (blocks) of an editor-wand workspace").defineInRange("editorMaxDimension", 48, 4, 128);
         RITUAL_BUILDER_OUTLINE_SECONDS = BUILDER.comment("How long the red conflict outline lingers after a blocked ritual build (seconds)").defineInRange("ritualBuilderOutlineSeconds", 15, 1, 60);
+        BUILDER_BIND_SYNC_INTERVAL_TICKS = BUILDER.comment("Builder bound-Wujinzang material count sync interval (ticks); 0 disables syncing").defineInRange("builderBindSyncIntervalTicks", 20, 0, 600);
         PASSIVE_CYCLE_TICKS = BUILDER.comment("Cycle ticks for passive ritual recipe processing").defineInRange("passiveCycleTicks", 40, 1, 12000);
         RITUAL_OUTPUT_DROP_RADIUS = BUILDER.comment("Horizontal spawn radius (blocks, uniform over disc) around the ritual core for passive recipe output drops").defineInRange("ritualOutputDropRadius", 3, 0, 16);
         KANAYAMAHIKO_BASE_DURATION_SECONDS = BUILDER.defineInRange("kanayamahikoBaseDurationSeconds", 8, 1, 3600);

@@ -6,6 +6,7 @@ import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.registry.ModDataComponents;
 import com.bitsson.gensokyou.registry.ModMenus;
 import com.bitsson.gensokyou.registry.TierPalette;
+import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualBuilderPlacement;
 import com.bitsson.gensokyou.ritual.RitualMatch;
 import com.bitsson.gensokyou.ritual.RitualMatcher;
@@ -33,6 +34,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.List;
 import java.util.Optional;
 
+import javax.annotation.Nullable;
+
 /**
  * 仪式构建器：潜行右键（对空或对方块）打开选择菜单；右键仪式核心一键搭建所选多方块结构。
  * 走物品 {@link #useOn} 路径——核心未成型时 {@code useItemOn} 返回 PASS 让位（与召唤催化剂同链路），
@@ -54,8 +57,7 @@ public class RitualBuilderItem extends Item {
             return InteractionResult.PASS;
         }
         if (player.isShiftKeyDown()) {
-            openMenu(player, context.getHand());
-            return InteractionResult.SUCCESS;
+            return handleBindGesture(player, context);
         }
         BlockState state = level.getBlockState(context.getClickedPos());
         if (!state.is(ModBlocks.RITUAL_CORE.get())) {
@@ -64,6 +66,56 @@ public class RitualBuilderItem extends Item {
             return InteractionResult.FAIL;
         }
         return handleBuild(player, context.getHand(), context.getClickedPos());
+    }
+
+    /**
+     * 潜行右键手势：点击仪式核心时绑定/解绑无尽藏；否则开菜单。
+     * 逻辑集中在此，核心方块侧只负责让位（见 {@code RitualCoreBlock} 潜行分支）。
+     */
+    private InteractionResult handleBindGesture(ServerPlayer player, UseOnContext context) {
+        Level level = context.getLevel();
+        ItemStack stack = context.getItemInHand();
+        BlockPos clicked = context.getClickedPos();
+        if (!level.getBlockState(clicked).is(ModBlocks.RITUAL_CORE.get())) {
+            openMenu(player, context.getHand());
+            return InteractionResult.SUCCESS;
+        }
+        BuilderBind current = bind(stack);
+        boolean boundHere = current != null
+                && current.dimension().equals(level.dimension().location())
+                && current.pos().equals(clicked);
+        if (boundHere) {
+            clearBind(stack);
+            player.displayClientMessage(
+                    Component.translatable("msg.gensokyou.builder_unbound"), true);
+            return InteractionResult.SUCCESS;
+        }
+        boolean formedWujinzang = RitualMatcher.matchAt(level, clicked)
+                .map(m -> RitualBehaviors.WUJINZANG.equals(m.patternId()))
+                .orElse(false);
+        if (formedWujinzang) {
+            setBind(stack, new BuilderBind(level.dimension().location(), clicked.immutable()));
+            player.displayClientMessage(Component.translatable(
+                    "msg.gensokyou.builder_bound", clicked.toShortString()), true);
+            return InteractionResult.SUCCESS;
+        }
+        player.displayClientMessage(
+                Component.translatable("msg.gensokyou.builder_bind_not_wujinzang"), true);
+        return InteractionResult.SUCCESS;
+    }
+
+    /** 读侧：绑定的无尽藏核心，缺失即未绑定。 */
+    @Nullable
+    public static BuilderBind bind(ItemStack stack) {
+        return stack.get(ModDataComponents.RITUAL_BUILDER_BIND.get());
+    }
+
+    public static void setBind(ItemStack stack, BuilderBind bind) {
+        stack.set(ModDataComponents.RITUAL_BUILDER_BIND.get(), bind);
+    }
+
+    public static void clearBind(ItemStack stack) {
+        stack.remove(ModDataComponents.RITUAL_BUILDER_BIND.get());
     }
 
     @Override
@@ -169,7 +221,8 @@ public class RitualBuilderItem extends Item {
             return InteractionResult.FAIL;
         }
         RitualBuilderPlacement.Result result =
-                RitualBuilderPlacement.build((ServerLevel) player.level(), corePos, player, selection);
+                RitualBuilderPlacement.build((ServerLevel) player.level(), corePos, player,
+                        selection, bind(stack));
         if (result.blocked()) {
             com.bitsson.gensokyou.network.ModNetworking.sendRitualConflicts(player, result.conflicts());
             player.displayClientMessage(
@@ -193,6 +246,15 @@ public class RitualBuilderItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
+        Level level = context.level();
+        Player holder = null;
+        if (level != null && level.isClientSide) {
+            holder = ClientProbe.player();
+        }
+        BuilderBind bind = bind(stack);
+        if (bind != null) {
+            tooltip.add(bindingLine(bind, level));
+        }
         BuilderSelection selection = stack.get(ModDataComponents.RITUAL_BUILDER_SELECTION.get());
         if (selection == null) {
             tooltip.add(Component.translatable("gui.gensokyou.builder.none")
@@ -212,15 +274,14 @@ public class RitualBuilderItem extends Item {
                     .append(Component.literal(" " + selection.tier()))
                     .withStyle(style -> style.withColor(TierPalette.textColor(selection.tier()))));
         }
-        Player holder = null;
-        Level level = context.level();
-        if (level != null && level.isClientSide) {
-            holder = ClientProbe.player();
-        }
+        boolean client = level != null && level.isClientSide;
         for (RitualBuilderPlacement.Requirement req : RitualBuilderPlacement.requirements(pattern, selection.tier())) {
             boolean itemLess = req.itemLess();
-            int have = (itemLess || holder == null)
-                    ? 0 : holder.getInventory().countItem(req.block().asItem());
+            long have = (itemLess || holder == null)
+                    ? 0L : holder.getInventory().countItem(req.block().asItem());
+            if (!itemLess && client && bind != null) {
+                have += ClientProbe.storedCount(level, bind, req.block().asItem());
+            }
             boolean enough = itemLess || have >= req.count();
             Component line = itemLess
                     ? Component.translatable("gui.gensokyou.builder.material_line_itemless",
@@ -231,6 +292,27 @@ public class RitualBuilderItem extends Item {
                     ? ChatFormatting.GRAY
                     : (enough ? ChatFormatting.GREEN : ChatFormatting.RED)));
         }
+    }
+
+    /** 绑定信息行：坐标 + 维度 + 可用状态。 */
+    private static Component bindingLine(BuilderBind bind, @Nullable Level level) {
+        Component status;
+        if (level == null || !level.isClientSide) {
+            status = Component.translatable("gui.gensokyou.builder.bind_unknown");
+        } else if (!level.dimension().location().equals(bind.dimension())) {
+            status = Component.translatable("gui.gensokyou.builder.bind_other_dim");
+        } else {
+            status = Component.translatable(switch (ClientProbe.status(bind)) {
+                case com.bitsson.gensokyou.ritual.BoundSupply.STATUS_AVAILABLE ->
+                        "gui.gensokyou.builder.bind_ok";
+                case com.bitsson.gensokyou.ritual.BoundSupply.STATUS_STOPPED ->
+                        "gui.gensokyou.builder.bind_stopped";
+                default -> "gui.gensokyou.builder.bind_unformed";
+            });
+        }
+        return Component.translatable("gui.gensokyou.builder.bind_line",
+                bind.pos().toShortString(), bind.dimension().getPath(), status)
+                .withStyle(ChatFormatting.AQUA);
     }
 
     /** 所选品阶是否在玩家世界进度上限内（创造由 {@code worldTier} 归入满阶）。 */
@@ -257,6 +339,26 @@ public class RitualBuilderItem extends Item {
     private static final class ClientProbe {
         static Player player() {
             return net.minecraft.client.Minecraft.getInstance().player;
+        }
+
+        static int status(BuilderBind bind) {
+            com.bitsson.gensokyou.client.ClientBoundSupplyState.Snapshot snap =
+                    com.bitsson.gensokyou.client.ClientBoundSupplyState.get(bind.pos());
+            return snap == null
+                    ? com.bitsson.gensokyou.ritual.BoundSupply.STATUS_UNFORMED : snap.status();
+        }
+
+        static long storedCount(Level level, BuilderBind bind, net.minecraft.world.item.Item item) {
+            if (!level.isClientSide || !level.dimension().location().equals(bind.dimension())) {
+                return 0L;
+            }
+            com.bitsson.gensokyou.client.ClientBoundSupplyState.Snapshot snap =
+                    com.bitsson.gensokyou.client.ClientBoundSupplyState.get(bind.pos());
+            if (snap == null
+                    || snap.status() != com.bitsson.gensokyou.ritual.BoundSupply.STATUS_AVAILABLE) {
+                return 0L;
+            }
+            return snap.count(item);
         }
     }
 }

@@ -2110,16 +2110,16 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
 
     // ================================================================ 付丧之冢
 
-    /** 冒烟帧：复用原版 large_smoke 的 8 帧软边真烟贴图（particle/generic_0..7）。 */
+    /** 冒烟帧：复用原版 large_smoke 的 8 帧软边真烟贴图（assets/minecraft/textures/particle/generic_0..7）。 */
     private static final ResourceLocation[] SMOKE_FRAMES = {
-            ResourceLocation.withDefaultNamespace("particle/generic_0"),
-            ResourceLocation.withDefaultNamespace("particle/generic_1"),
-            ResourceLocation.withDefaultNamespace("particle/generic_2"),
-            ResourceLocation.withDefaultNamespace("particle/generic_3"),
-            ResourceLocation.withDefaultNamespace("particle/generic_4"),
-            ResourceLocation.withDefaultNamespace("particle/generic_5"),
-            ResourceLocation.withDefaultNamespace("particle/generic_6"),
-            ResourceLocation.withDefaultNamespace("particle/generic_7")};
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_0.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_1.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_2.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_3.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_4.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_5.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_6.png"),
+            ResourceLocation.withDefaultNamespace("textures/particle/generic_7.png")};
 
     /** 付丧之冢的烟色：近黑灰（alpha 混合会让它压底背景、读作烟，而不是实心深色面片）。 */
     private static final int TSUKU_R = 28, TSUKU_G = 28, TSUKU_B = 34;

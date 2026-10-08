@@ -57,6 +57,8 @@ public final class ModNetworking {
                 ClientPayloadHandler::handleRitualConflict);
         registrar.playToClient(RitualPreviewPayload.TYPE, RitualPreviewPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleRitualPreview);
+        registrar.playToClient(BoundSupplyCountsPayload.TYPE, BoundSupplyCountsPayload.STREAM_CODEC,
+                ClientPayloadHandler::handleBoundSupplyCounts);
         registrar.playToClient(EditorPreviewPayload.TYPE, EditorPreviewPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleEditorPreview);
         registrar.playToClient(RitualDataSyncPayload.TYPE, RitualDataSyncPayload.STREAM_CODEC,

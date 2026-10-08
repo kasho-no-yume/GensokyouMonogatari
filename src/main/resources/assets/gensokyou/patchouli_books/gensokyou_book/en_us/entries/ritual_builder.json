@@ -7,6 +7,10 @@
       "type": "patchouli:spotlight",
       "item": "gensokyou:ritual_builder",
       "text": "gensokyou.book.entry.ritual_builder.p1"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.ritual_builder.p2"
     }
   ]
 }

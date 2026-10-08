@@ -85,6 +85,8 @@ public final class DebugCommands {
                                 .executes(context -> probeWujinzang(context.getSource(),
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument
                                                 .getLoadedBlockPos(context, "core")))))
+                .then(Commands.literal("builderbind")
+                        .executes(context -> probeBuilderBind(context.getSource())))
                 .then(Commands.literal("kanayamahiko")
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
@@ -923,6 +925,43 @@ public final class DebugCommands {
                     + " enabled=" + core.isEnabled();
         } else {
             msg = "[GS-AUTO] WUJINZANG NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
+    /** 构建器绑定探针：手上构建器的绑定坐标/维度/闸门状态与仓储聚合计数（机读单行）。 */
+    private static int probeBuilderBind(net.minecraft.commands.CommandSourceStack source)
+            throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+        ServerPlayer player = source.getPlayerOrException();
+        net.minecraft.world.item.ItemStack stack = player.getMainHandItem();
+        if (!(stack.getItem() instanceof com.bitsson.gensokyou.item.RitualBuilderItem)) {
+            stack = player.getOffhandItem();
+        }
+        com.bitsson.gensokyou.item.BuilderBind bind =
+                com.bitsson.gensokyou.item.RitualBuilderItem.bind(stack);
+        String msg;
+        if (bind == null) {
+            msg = "[GS-AUTO] BUILDERBIND none";
+        } else if (!(player.level() instanceof net.minecraft.server.level.ServerLevel level)) {
+            return 0;
+        } else {
+            int status = com.bitsson.gensokyou.ritual.BoundSupply.status(level, bind);
+            com.bitsson.gensokyou.ritual.RitualMatch match =
+                    com.bitsson.gensokyou.ritual.BoundSupply.wujinzangMatch(level, bind);
+            int entries = 0;
+            long total = 0L;
+            if (match != null) {
+                for (com.bitsson.gensokyou.ritual.behavior.WujinzangStorage.Agg agg
+                        : com.bitsson.gensokyou.ritual.behavior.WujinzangStorage.aggregate(level, match)) {
+                    entries++;
+                    total += agg.count();
+                }
+            }
+            msg = "[GS-AUTO] BUILDERBIND pos=" + bind.pos().toShortString()
+                    + " dim=" + bind.dimension() + " status=" + status
+                    + " entries=" + entries + " total=" + total;
         }
         Gensokyou.LOGGER.info(msg);
         source.sendSystemMessage(Component.literal(msg));

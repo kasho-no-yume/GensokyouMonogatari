@@ -159,6 +159,18 @@ public final class RitualBuilderPlacement {
      */
     public static Result build(ServerLevel level, BlockPos anchorPos,
                                ServerPlayer player, BuilderSelection selection) {
+        return build(level, anchorPos, player, selection, null);
+    }
+
+    /**
+     * 执行一键搭建（带绑定无尽藏兜底）。背包不足时若 {@code bind} 闸门满足，从绑定仓储补料。
+     *
+     * @param anchorPos 仪式核心坐标（图案锚点/原点）
+     * @param bind      绑定的无尽藏核心（null = 不补料，仅用背包）
+     */
+    public static Result build(ServerLevel level, BlockPos anchorPos, ServerPlayer player,
+                               BuilderSelection selection,
+                               @Nullable com.bitsson.gensokyou.item.BuilderBind bind) {
         Optional<RitualPattern> patternOpt = RitualPatternLoader.byId(selection.patternId());
         if (patternOpt.isEmpty()) {
             return Result.empty();
@@ -186,7 +198,7 @@ public final class RitualBuilderPlacement {
                 continue; // 无法实例化（非品阶标签或方块不支持朝向常量），跳过该格
             }
             BlockPos target = anchorPos.offset(entry.x(), entry.y(), entry.z());
-            if (!infinite && !consumeOne(inventory, desired.getBlock())) {
+            if (!infinite && !consumeOne(inventory, desired.getBlock(), level, bind)) {
                 continue; // 缺料，跳过该格
             }
             level.setBlockAndUpdate(target, desired);
@@ -281,5 +293,17 @@ public final class RitualBuilderPlacement {
             }
         }
         return false;
+    }
+
+    /**
+     * 供应一格所需方块：背包优先，不足时从绑定无尽藏仓储兜底（真实消耗）。
+     * 无物品形态的方块恒成功（直接放置、不扣料）。
+     */
+    private static boolean consumeOne(Inventory inventory, Block block, ServerLevel level,
+                                      @Nullable com.bitsson.gensokyou.item.BuilderBind bind) {
+        if (consumeOne(inventory, block)) {
+            return true;
+        }
+        return BoundSupply.tryConsumeOne(level, bind, block);
     }
 }

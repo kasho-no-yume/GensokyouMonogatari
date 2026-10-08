@@ -1,11 +1,15 @@
 package com.bitsson.gensokyou.client.screen;
 
+import com.bitsson.gensokyou.client.ClientBoundSupplyState;
 import com.bitsson.gensokyou.client.MaterialIcons;
+import com.bitsson.gensokyou.item.BuilderBind;
 import com.bitsson.gensokyou.item.BuilderSelection;
+import com.bitsson.gensokyou.item.RitualBuilderItem;
 import com.bitsson.gensokyou.menu.RitualBuilderMenu;
 import com.bitsson.gensokyou.network.RitualSelectPayload;
 import com.bitsson.gensokyou.registry.ModDataComponents;
 import com.bitsson.gensokyou.registry.TierPalette;
+import com.bitsson.gensokyou.ritual.BoundSupply;
 import com.bitsson.gensokyou.ritual.RitualBuilderPlacement;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
@@ -210,8 +214,7 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
         for (int i = 0; i < MAT_ROWS && i + matScroll < reqs.size(); i++) {
             RitualBuilderPlacement.Requirement req = reqs.get(i + matScroll);
             boolean itemLess = req.itemLess();
-            int have = itemLess ? 0
-                    : this.minecraft.player.getInventory().countItem(req.block().asItem());
+            long have = itemLess ? 0L : combinedHave(req.block().asItem());
             boolean enough = itemLess || have >= req.count();
             int y = MAT_Y + i * 18;
             MaterialIcons.render(graphics, req.block(), RIGHT_X, y);
@@ -228,6 +231,29 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
             }
         }
         renderScrollbar(graphics, MAT_BAR_X, MAT_Y, MAT_ROWS * 18, reqs.size(), MAT_ROWS, matScroll);
+    }
+
+    /** 合并持有数：本地背包 + 绑定无尽藏库存（可用时）。 */
+    private long combinedHave(net.minecraft.world.item.Item item) {
+        long have = this.minecraft.player == null
+                ? 0L : this.minecraft.player.getInventory().countItem(item);
+        BuilderBind bind = heldBind();
+        if (bind != null && this.minecraft.level != null
+                && this.minecraft.level.dimension().location().equals(bind.dimension())) {
+            ClientBoundSupplyState.Snapshot snap = ClientBoundSupplyState.get(bind.pos());
+            if (snap != null && snap.status() == BoundSupply.STATUS_AVAILABLE) {
+                have += snap.count(item);
+            }
+        }
+        return have;
+    }
+
+    /** 当前打开菜单的构建器（手上）的绑定；无则 null。 */
+    private BuilderBind heldBind() {
+        if (this.minecraft.player == null) {
+            return null;
+        }
+        return RitualBuilderItem.bind(this.minecraft.player.getItemInHand(this.getMenu().hand()));
     }
 
     @Override

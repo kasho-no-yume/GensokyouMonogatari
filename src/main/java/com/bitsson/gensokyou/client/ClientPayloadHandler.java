@@ -133,6 +133,12 @@ public final class ClientPayloadHandler {
         context.enqueueWork(() -> ClientRitualPreviewState.update(payload.preview()));
     }
 
+    /** 绑定无尽藏仓储计数快照：写入按核心坐标索引的客户端缓存。 */
+    public static void handleBoundSupplyCounts(
+            com.bitsson.gensokyou.network.BoundSupplyCountsPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> ClientBoundSupplyState.update(payload));
+    }
+
     public static void handleEditorPreview(com.bitsson.gensokyou.network.EditorPreviewPayload payload,
                                            IPayloadContext context) {
         context.enqueueWork(() -> ClientRitualEditorState.update(payload));

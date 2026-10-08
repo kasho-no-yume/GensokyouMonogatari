@@ -55,6 +55,13 @@ public final class ModDataComponents {
                     .networkSynchronized(BuilderSelection.STREAM_CODEC)
                     .build());
 
+    /** 仪式构建器绑定的无尽藏核心（维度 + 坐标），缺失即未绑定；随物品持久化并同步客户端。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.bitsson.gensokyou.item.BuilderBind>> RITUAL_BUILDER_BIND =
+            DATA_COMPONENTS.register("ritual_builder_bind", () -> DataComponentType.<com.bitsson.gensokyou.item.BuilderBind>builder()
+                    .persistent(com.bitsson.gensokyou.item.BuilderBind.CODEC)
+                    .networkSynchronized(com.bitsson.gensokyou.item.BuilderBind.STREAM_CODEC)
+                    .build());
+
     /** 编辑杖会话态（锚点/维度/选择/按阶级工作区），随物品持久化并同步客户端。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.bitsson.gensokyou.ritual.editor.EditorState>> RITUAL_EDITOR_STATE =
             DATA_COMPONENTS.register("ritual_editor_state",
