@@ -1078,13 +1078,13 @@ public final class DebugCommands {
         core.setEnabled(true);
         if (back < 0) {
             core.setSummonPhase(
-                    com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity.SummonPhase.CHARGING);
+                    com.bitsson.gensokyou.ritual.SummonPhase.CHARGING);
             core.clearSummonFxStart();
         } else {
             core.markSummonBurst((int) (serverLevel.getGameTime() - back));
             if (back > burst) {
                 core.setSummonPhase(
-                        com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity.SummonPhase.PILLAR);
+                        com.bitsson.gensokyou.ritual.SummonPhase.PILLAR);
             }
         }
         emitGs(source, "[GS-AUTO] SUMMON PHASE " + want

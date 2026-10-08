@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -100,7 +102,7 @@ public abstract class DayCycleGeneratorBehavior implements RitualBehavior {
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
+                           SpiritPowerAccess core) {
         if (core.ageTicks() % 20L != 0L) {
             return;
         }
@@ -119,14 +121,14 @@ public abstract class DayCycleGeneratorBehavior implements RitualBehavior {
     /** 缓存回流（无门控）：成型即每秒把缓存搬入未满核心，停机也继续。 */
     @Override
     public void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                  RitualCoreBlockEntity core) {
+                                  SpiritPowerAccess core) {
         if (core.ageTicks() % 20L == 0L) {
             core.tickBatteryAutoFill();
         }
     }
 
     /** 核优先（不限速直注）→ 溢出进缓存（截断到上限，余量作废）。 */
-    private static void deposit(RitualCoreBlockEntity core, long amount) {
+    private static void deposit(SpiritPowerAccess core, long amount) {
         long rest = amount;
         ItemStack battery = core.batteryStack();
         if (battery.getItem() instanceof SpiritCoreItem) {
@@ -143,7 +145,7 @@ public abstract class DayCycleGeneratorBehavior implements RitualBehavior {
 
     @Override
     public long spiritOutRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                       RitualCoreBlockEntity core) {
+                                       SpiritPowerAccess core) {
         return outRatePerSecond();
     }
 
@@ -154,7 +156,7 @@ public abstract class DayCycleGeneratorBehavior implements RitualBehavior {
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         long dayTime = dayTimeOf(level);
         long produced = producedPerSecond(dayTime, match.level(), baseRatePerSecond(), solar());
         long peak = Math.round(baseRatePerSecond() * (double) pow4(match.level()));

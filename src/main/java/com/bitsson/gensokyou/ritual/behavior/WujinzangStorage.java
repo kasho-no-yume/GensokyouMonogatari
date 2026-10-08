@@ -1,5 +1,9 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.WujinzangState;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.CrystalBlock;
 import com.bitsson.gensokyou.block.entity.CrystalBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
@@ -31,6 +35,10 @@ import java.util.Set;
  * <p>分段键：祭品台规范序下标 0..n-1；晶位 = 祭品台正上方一格。
  */
 public final class WujinzangStorage {
+
+    private static WujinzangState wujinzang(SpiritPowerAccess core) {
+        return (WujinzangState) core.behaviorState();
+    }
 
     /** 未分区（空闲晶块）。 */
     public static final int GROUP_NONE = 0;
@@ -199,8 +207,8 @@ public final class WujinzangStorage {
     // ---- 生命周期 ----
 
     /** 成型/升级：补齐晶位晶块（幂等），恢复孤儿段，写回段位坐标与分组，申请强制加载。 */
-    public static void ensureCrystals(RitualCoreBlockEntity core, ServerLevel level, RitualMatch match) {
-        CompoundTag vault = core.wujinzangVault();
+    public static void ensureCrystals(SpiritPowerAccess core, ServerLevel level, RitualMatch match) {
+        CompoundTag vault = wujinzang(core).vault();
         List<BlockPos> peds = RitualPedestals.positions(match);
         int n = peds.size();
         int[] grp = groups(vault, n);
@@ -235,13 +243,13 @@ public final class WujinzangStorage {
         vault.putLongArray(TAG_SEGMENTS, seg);
         vault.putInt(TAG_LEVEL, match.level());
         vault.putBoolean(TAG_CONCEALED, concealed);
-        core.setWujinzangVault(vault);
+        wujinzang(core).setVault(vault); core.markDirty();
         forceChunks(level, seg, true);
     }
 
     /** 不成型：导出各晶块内容为孤儿段后移除晶块，释放强制加载。 */
-    public static void onStructureLost(RitualCoreBlockEntity core, ServerLevel level) {
-        CompoundTag vault = core.getWujinzangVault();
+    public static void onStructureLost(SpiritPowerAccess core, ServerLevel level) {
+        CompoundTag vault = wujinzang(core).rawVault();
         if (vault == null) {
             return;
         }
@@ -257,13 +265,13 @@ public final class WujinzangStorage {
             }
         }
         vault.put(TAG_ORPHANS, orphans);
-        core.setWujinzangVault(vault);
+        wujinzang(core).setVault(vault); core.markDirty();
         forceChunks(level, seg, false);
     }
 
     /** 核心被移除时释放强制加载（内容随 BE 消亡）。 */
-    public static void releaseForceLoads(RitualCoreBlockEntity core, ServerLevel level) {
-        CompoundTag vault = core.getWujinzangVault();
+    public static void releaseForceLoads(SpiritPowerAccess core, ServerLevel level) {
+        CompoundTag vault = wujinzang(core).rawVault();
         if (vault == null || !vault.contains(TAG_SEGMENTS)) {
             return;
         }
@@ -271,8 +279,8 @@ public final class WujinzangStorage {
     }
 
     /** 每 tick（成型即跑）：等级迁移、隐藏态同步、电池→缓存补料。 */
-    public static void passiveTick(RitualCoreBlockEntity core, ServerLevel level, RitualMatch match) {
-        CompoundTag vault = core.wujinzangVault();
+    public static void passiveTick(SpiritPowerAccess core, ServerLevel level, RitualMatch match) {
+        CompoundTag vault = wujinzang(core).vault();
         int storedLevel = vault.contains(TAG_LEVEL) ? vault.getInt(TAG_LEVEL) : match.level();
         if (storedLevel != match.level()) {
             if (match.level() < storedLevel) {
@@ -287,7 +295,7 @@ public final class WujinzangStorage {
                 setConcealed(level, BlockPos.of(p), wantConcealed);
             }
             vault.putBoolean(TAG_CONCEALED, wantConcealed);
-            core.setWujinzangVault(vault);
+            wujinzang(core).setVault(vault); core.markDirty();
         }
         if (core.isEnabled()) {
             core.tickBatteryToCacheFill();
@@ -295,8 +303,8 @@ public final class WujinzangStorage {
     }
 
     /** 降级：撤下超出当前等级的晶位，内容存为孤儿段（升级时恢复）。 */
-    private static void trimToLevel(RitualCoreBlockEntity core, ServerLevel level, RitualMatch match) {
-        CompoundTag vault = core.wujinzangVault();
+    private static void trimToLevel(SpiritPowerAccess core, ServerLevel level, RitualMatch match) {
+        CompoundTag vault = wujinzang(core).vault();
         long[] seg = vault.contains(TAG_SEGMENTS) ? vault.getLongArray(TAG_SEGMENTS) : new long[0];
         int keep = RitualPedestals.positions(match).size();
         CompoundTag orphans = orphans(vault);
@@ -320,7 +328,7 @@ public final class WujinzangStorage {
         }
         vault.put(TAG_ORPHANS, orphans);
         vault.putLongArray(TAG_SEGMENTS, newSeg);
-        core.setWujinzangVault(vault);
+        wujinzang(core).setVault(vault); core.markDirty();
     }
 
     /**
@@ -376,7 +384,7 @@ public final class WujinzangStorage {
     // ---- 端点 / 渲染辅助 ----
 
     /** 底座 8 个中心对称激光锚点（绝对坐标，y = 结构最低层）。 */
-    public static long[] laserAnchors(RitualCoreBlockEntity core, RitualMatch match) {
+    public static long[] laserAnchors(SpiritPowerAccess core, RitualMatch match) {
         BlockPos c = core.getBlockPos();
         int minY = Integer.MAX_VALUE;
         int radius = 0;
@@ -453,10 +461,10 @@ public final class WujinzangStorage {
     /** 核心 IItemHandler 代理：跨晶块合并箱（忽略槽号，按分类分区写入）。 */
     public static final class ProxyHandler implements IItemHandler {
 
-        private final RitualCoreBlockEntity core;
+        private final SpiritPowerAccess core;
         private List<Agg> cache;
 
-        public ProxyHandler(RitualCoreBlockEntity core) {
+        public ProxyHandler(SpiritPowerAccess core) {
             this.core = core;
         }
 
@@ -514,7 +522,7 @@ public final class WujinzangStorage {
             }
             int accepted = simulate
                     ? simulateInsert(level, match, stack)
-                    : insert(level, match, stack, core.wujinzangVault());
+                    : insert(level, match, stack, wujinzang(core).vault());
             if (accepted > 0) {
                 cache = null;
             }

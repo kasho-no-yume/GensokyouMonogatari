@@ -1,5 +1,10 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.CraftSession;
+import com.bitsson.gensokyou.ritual.CraftPhase;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
@@ -37,6 +42,10 @@ import java.util.Optional;
  */
 public final class ZaohuaCraftingService {
 
+    private static CraftSession craft(SpiritPowerAccess core) {
+        return (CraftSession) core.behaviorState();
+    }
+
     /** uiActions 注入的「开始合成」按钮：本仪式唯一动作，列表位 0（回传 id=位置，与框架启停 0/1 通道隔离）。 */
     public static final int ACTION_CRAFT = 0;
 
@@ -52,7 +61,7 @@ public final class ZaohuaCraftingService {
     /** 触发决策（纯表）：空闲=启动、聚灵中=取消、飞行中=无响应。 */
     public enum TriggerDecision { START, CANCEL, IGNORE }
 
-    public static TriggerDecision decisionFor(RitualCoreBlockEntity.CraftPhase phase) {
+    public static TriggerDecision decisionFor(CraftPhase phase) {
         return switch (phase) {
             case IDLE -> TriggerDecision.START;
             case PAYING -> TriggerDecision.CANCEL;
@@ -63,11 +72,11 @@ public final class ZaohuaCraftingService {
     /** 会话唯一入口。返回 false = 本次触发无任何效果。 */
     public static boolean trigger(ServerLevel level, BlockPos corePos, TriggerSource source,
                                   @Nullable ServerPlayer player) {
-        if (!(level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core)
+        if (!(level.getBlockEntity(corePos) instanceof SpiritPowerAccess core)
                 || !core.isPattern(RitualBehaviors.ZAOHUA) || core.activeMatch() == null) {
             return false;
         }
-        return switch (decisionFor(core.craftPhase())) {
+        return switch (decisionFor(craft(core).phase())) {
             case IGNORE -> false;
             case CANCEL -> {
                 abortSession(level, corePos, core, player, "msg.gensokyou.zaohua_cancelled");
@@ -79,8 +88,8 @@ public final class ZaohuaCraftingService {
 
     /** 核心 BE tick / 触发同 tick 共用推进。 */
     public static void advanceSession(ServerLevel level, BlockPos corePos,
-                                      RitualCoreBlockEntity core) {
-        switch (core.craftPhase()) {
+                                      SpiritPowerAccess core) {
+        switch (craft(core).phase()) {
             case PAYING -> tickPaying(level, corePos, core);
             case FLIGHT -> tickFlight(level, corePos, core);
             default -> core.setEnabled(false);
@@ -88,7 +97,7 @@ public final class ZaohuaCraftingService {
     }
 
     private static boolean startSession(ServerLevel level, BlockPos corePos,
-                                        RitualCoreBlockEntity core, @Nullable ServerPlayer player) {
+                                        SpiritPowerAccess core, @Nullable ServerPlayer player) {
         RitualMatch match = core.activeMatch();
         List<RitualRecipe> candidates = RitualRecipeLoader.forPattern(match.patternId()).stream()
                 .filter(RitualRecipe::activation)
@@ -110,7 +119,7 @@ public final class ZaohuaCraftingService {
         // 不要求触发瞬间灵力足额：会话容量 = spCost，聚灵逐 tick 从
         // 槽核→自身储（万象共鸣注灵落点，随注入增长）→周围兜底 累积；
         // 凑不齐时会话驻留 PAYING 等待供灵（再触发可取消、配方被破坏自动中止）
-        core.beginCraftSession(recipe.id(), recipe.spCost());
+        craft(core).begin(recipe.id(), recipe.spCost()); core.setActiveRecipeId(recipe.id()); core.markDirty();
         core.setEnabled(true);
         core.broadcastPedestalsActive(true);
         feedback(player, "msg.gensokyou.zaohua_started");
@@ -121,9 +130,9 @@ public final class ZaohuaCraftingService {
     }
 
     private static void tickPaying(ServerLevel level, BlockPos corePos,
-                                   RitualCoreBlockEntity core) {
-        Optional<RitualRecipe> recipeOpt = core.craftRecipeId() == null
-                ? Optional.empty() : RitualRecipeLoader.byId(core.craftRecipeId());
+                                   SpiritPowerAccess core) {
+        Optional<RitualRecipe> recipeOpt = craft(core).recipeId() == null
+                ? Optional.empty() : RitualRecipeLoader.byId(craft(core).recipeId());
         if (recipeOpt.isEmpty() || core.activeMatch() == null) {
             abortSession(level, corePos, core, null, "msg.gensokyou.zaohua_recipe_lost");
             return;
@@ -136,10 +145,10 @@ public final class ZaohuaCraftingService {
             abortSession(level, corePos, core, null, "msg.gensokyou.zaohua_recipe_lost");
             return;
         }
-        long remaining = core.craftCost() - core.craftCollected();
+        long remaining = craft(core).cost() - craft(core).collected();
         if (remaining > 0L) {
-            core.addCraftCollected(SpiritPowerHelper.collect(level, corePos, core, remaining));
-            if (core.craftCollected() < core.craftCost()) {
+            craft(core).addCollected(SpiritPowerHelper.collect(level, corePos, core, remaining)); core.markDirty();
+            if (craft(core).collected() < craft(core).cost()) {
                 return; // 逐 tick 等待槽核装入 / 万象共鸣注入等后续来源
             }
         }
@@ -147,7 +156,7 @@ public final class ZaohuaCraftingService {
     }
 
     private static void beginFlight(ServerLevel level, BlockPos corePos,
-                                    RitualCoreBlockEntity core, RitualRecipe recipe,
+                                    SpiritPowerAccess core, RitualRecipe recipe,
                                     List<RitualRecipeMatcher.Take> takes,
                                     List<RitualRecipeMatcher.Pool> pools) {
         int duration = GensokyouConfig.ZAOHUA_CRAFT_DURATION_TICKS.get();
@@ -161,36 +170,36 @@ public final class ZaohuaCraftingService {
                 continue;
             }
             ZaohuaFlightItem fly = new ZaohuaFlightItem(level, take.pos(), index, takes.size(),
-                    corePos, core.craftSessionId(), duration, now, held.copyWithCount(count));
+                    corePos, craft(core).sessionId(), duration, now, held.copyWithCount(count));
             level.addFreshEntity(fly);
             ids.add(fly.getId());
             index++;
         }
         RitualRecipeMatcher.apply(level, takes);
-        core.enterCraftFlight(ids);
+        craft(core).enterFlight(ids); core.markDirty();
         ModNetworking.sendRitualCraftFx(level, corePos, core, duration);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
     }
 
     private static void tickFlight(ServerLevel level, BlockPos corePos,
-                                   RitualCoreBlockEntity core) {
-        core.advanceCraftFlightTick();
-        if (core.craftTicks() >= GensokyouConfig.ZAOHUA_CRAFT_DURATION_TICKS.get()) {
+                                   SpiritPowerAccess core) {
+        craft(core).advanceFlight();
+        if (craft(core).ticks() >= GensokyouConfig.ZAOHUA_CRAFT_DURATION_TICKS.get()) {
             finishFlight(level, corePos, core);
         }
     }
 
     private static void finishFlight(ServerLevel level, BlockPos corePos,
-                                     RitualCoreBlockEntity core) {
-        Optional<RitualRecipe> recipeOpt = core.craftRecipeId() == null
-                ? Optional.empty() : RitualRecipeLoader.byId(core.craftRecipeId());
+                                     SpiritPowerAccess core) {
+        Optional<RitualRecipe> recipeOpt = craft(core).recipeId() == null
+                ? Optional.empty() : RitualRecipeLoader.byId(craft(core).recipeId());
         Vec3 burst = ZaohuaFlightItem.convergencePoint(corePos);
-        for (int id : core.craftFlightIds()) {
+        for (int id : craft(core).flightIds()) {
             if (level.getEntity(id) instanceof ItemEntity flying) {
                 flying.discard();
             }
         }
-        core.clearCraftSession();
+        craft(core).clear(); core.setActiveRecipeId(null); core.markDirty();
         core.setEnabled(false);
         core.broadcastPedestalsActive(false);
         // 汇聚烟花爆炸：火花爆散 + 爆炸闪光 + 音效
@@ -210,9 +219,9 @@ public final class ZaohuaCraftingService {
     }
 
     private static void abortSession(ServerLevel level, BlockPos corePos,
-                                     RitualCoreBlockEntity core, @Nullable ServerPlayer player,
+                                     SpiritPowerAccess core, @Nullable ServerPlayer player,
                                      String msgKey, Object... args) {
-        core.clearCraftSession();
+        craft(core).clear(); core.setActiveRecipeId(null); core.markDirty();
         core.setEnabled(false);
         core.broadcastPedestalsActive(false);
         if (player != null) {

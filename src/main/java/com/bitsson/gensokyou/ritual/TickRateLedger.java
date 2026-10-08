@@ -1,4 +1,4 @@
-package com.bitsson.gensokyou.ritual.behavior;
+package com.bitsson.gensokyou.ritual;
 
 /**
  * 端点每结算周期速率账本：单方向（收或发）速率的唯一权威。

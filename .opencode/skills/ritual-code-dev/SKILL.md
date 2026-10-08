@@ -1,9 +1,9 @@
 ---
 name: ritual-code-dev
-description: 仪式代码开发手册（Java 侧）。需要新增或修改任何仪式行为（RitualBehavior 子类）、注册到 RitualBehaviors、实现产灵/储灵/托管或路由端点、给仪式加 GUI 信息行、config 基项、lang 键或调试命令时必读——含三件套结构、钩子全表、灵力四件套与端点账本、"新增一个仪式"逐步骤 checklist、红线陷阱、调试与验证工具链、参考实现地图。与 ritual-design（只设计 pattern JSON、不读码）互补；NeoForge 通用坑另见 neoforge-1211-dev。
+description: 仪式代码开发手册（Java 侧）。需要新增或修改任何仪式行为（RitualBehavior 子类）、注册到 RitualBehaviors、实现产灵/储灵/托管或路由端点、给仪式加 GUI 信息行、config 基项、lang 键或调试命令时必读——含 SpiritPowerAccess 通用宿主接口、per-core RitualBehaviorState、钩子全表（capacity/buildRenderState/startAchievement/onDisabled…）、灵力四件套与端点账本、"新增一个仪式"逐步骤 checklist、红线陷阱、调试与验证工具链、参考实现地图。与 ritual-design（只设计 pattern JSON、不读码）互补；NeoForge 通用坑另见 neoforge-1211-dev。
 metadata:
   author: bitsson
-  version: "1.0"
+  version: "2.0"
 ---
 
 # 仪式代码开发（Java 侧）
@@ -39,8 +39,20 @@ metadata:
 
 ## 2. `RitualBehavior` 钩子全表（`ritual/RitualBehavior.java`）
 
+> **架构（重构后，务必先懂）**
+> - 行为**参数类型是 `SpiritPowerAccess`**（`ritual/SpiritPowerAccess.java`），不再是 `RitualCoreBlockEntity`。它只暴露**通用宿主能力**：灵力四件套/路由、启停生命周期、灵力核心槽、祭品台与额外槽、定点进位器、per-core 状态取用口 `behaviorState()`、`markDirty()`、结构几何查询。
+> - 行为是**per-pattern 单例**（`RitualBehaviors` 一个 `new XBehavior()` 服务所有同 pattern 的核）。**per-core 状态 MUST NOT 存在行为字段上**——行为用 `newState()` 工厂声明状态类，核心持有 `Map<patternId, RitualBehaviorState>`，行为经 `core.behaviorState()` 强转取自己的状态。
+> - 仪式专属的东西（**会话推进、渲染态/逐帧表现、灯坛/灵浴/无尽藏/献祭/结界等**）MUST NOT 进 `SpiritPowerAccess`——各自实现。渲染态走 `buildRenderState()`，容量走 `capacity()`，成就走 `startAchievement()`。
+
 | 钩子 | 何时调用 | 门控 | 用途 |
 |---|---|---|---|
+| `newState()` | 状态取用/读档 | — | 声明 per-core 状态类（`RitualBehaviorState` 子类）；无状态返回 null |
+| `capacity(level, core)` | `getCapacity()` | — | 缓存上限；未覆写=哨兵→默认值+告警。**取代旧的 BE patternId 分支** |
+| `buildRenderState(match, core)` | 渲染态同步 | — | 本仪式渲染态；null=无。逐帧表现各行为自实现 |
+| `startAchievement(level,pos,match,core)` | 启动成功 | — | 发放的成就 id；null=无 |
+| `itemHandler(core)` | capability 查询 | — | 自定义物品接入面（无尽藏）；null=默认祭品台代理箱 |
+| `onDisabled(level,pos,match,core)` | enabled true→false | — | 停机清理（覆盖手动/失效/断供全部路径） |
+| `onRemoved` / `onCoreRemoved` | BE 移除 / 方块拆除 | — | 释放跨核资源（强制加载、孪生门等） |
 | `uiActions(viewer?)` | 组装快照 | — | 注入自定义按钮（id 必须 ≥ 10；0/1 为启停保留） |
 | `uiInfo(viewer?)` | 快照推送 | — | 信息行；`defaultUiInfo` 给通用祭品/配方清单 |
 | `onUiAction` | 点击注入的按钮/行 | — | 服务端权威执行，返回 FAIL=未处理。**player 可能为 null**（红石代管路径） |
@@ -74,7 +86,7 @@ refillsCacheFromSocket() == false        缓存 → 电池   发电仪式
   `serverPassiveTick` 里调 `core.tickBatteryToCacheFill()`（受核 `fillRatePerSecond` 限速），
   且**先补电、后扣费**，使同 tick 净值不出现负一档。反向则调 `core.tickBatteryAutoFill()`
   或自有推送路径（迦具土炎祭是手写 `SpiritCoreItem.receive`，不走 `tickBatteryAutoFill`）。
-- **必须显式覆写 `false` 的 7 个**：
+- **必须显式覆写 `false` 的 8 个**：
 
   | 行为 | 理由 |
   |---|---|
@@ -85,6 +97,9 @@ refillsCacheFromSocket() == false        缓存 → 电池   发电仪式
   | `SairEnergyBehavior` | 无限供灵源 |
   | `ResonanceRelayBehavior` | 缓存恒 0，方向无意义（防御性标注） |
   | `BafangGuiyuanBehavior` | 托管池储灵转发到台面灵力核物品，自身无缓存；再灌注等于填一个没人读的字段 |
+  | `HyakkiYagyoBehavior` | 会话型，用缓存本身当进度，走主动抽取而非回灌（声明与实际一致，防误读） |
+
+- **本方法只是描述性声明，框架不集中执行**（框架读它会改变"停机时是否补缓存"的时序：献祭族/金谷/少名在**无门控** `serverPassiveTick` 里补，灵浴/无尽藏在**门控**分支里补）。真搬运由行为自己调 `core.tickBatteryToCacheFill()`。
 
 - **反转默认值时运行时行为未变的那 8 个**（原本 default false，改动前后都**不调**灌注方法，
   只是声明从 false 变 true）：金屋彦、星移、埴山姬、久久能智、草野姬、大山祇、绵津见、众生余录。
@@ -150,7 +165,7 @@ default int slotX(int index); default int slotY(int index);   // 缺省横排一
                    （先经 TickRateLedger 端点账本按 gameTime 幂等限速，再走普通通道）
 ```
 
-- `getCapacity()` 是**按 patternId 一串 if 分派**：`RESONANCE=0`、`KAGUTSUICHI=base×4^L`、`YUMEWATARI=base×4^L`、`ZAOHUA/KAMI_NO_MEGUMI` 会话态、**兜底 `DEFAULT_CORE_CAPACITY=10000`**。新仪式必须在此加分支，否则不随阶。
+- `getCapacity()` **委托当前行为的 `capacity(level, core)` 钩子**（不再是 BE 里的 patternId if 链）：`RESONANCE` 返回 0、`KAGUTSUICHI=base×4^L`、会话型按会话态（空闲 0、会话期=spCost）、工具献祭族=base×4^L……**未覆写的 patternId 回落 `DEFAULT_CORE_CAPACITY=10000` 并对该 patternId 打一次告警**（不再静默）。新仪式 MUST 覆写 `capacity()`，否则不随阶且日志告警。
 - `getStored()` 对非托管核心**只返回缓存**（不含 `batteryStack`）。这点会决定"路由能看到什么"（见 §5）。
 - 速率账本：端点自持、按 `gameTime/周期` 幂等锁存，调用方预算只是建议（`ritual-power-attributes`）。**内部产灵走普通 `receive`，不得走 `extractRouted/receiveRouted`**（否则被自身 inRate=0 误截）。
 - 缓存的"发电机遇袭"入口：`core.receive(n)`（截到容量）/ `core.extract(n)`；槽核读改：`batteryStack()` / `setBatteryStack(...)`；"缓存→槽核"复用 `core.tickBatteryAutoFill()`（按核 `fillRatePerSecond` 每秒 carry 进位，即"缓存自然回流核心"）。
@@ -162,7 +177,7 @@ default int slotX(int index); default int slotY(int index);   // 缺省横排一
  1. pattern JSON           data/gensokyou/rituals/<name>.json      （ritual-design 负责）
  2. Behavior 类            ritual/behavior/<Name>Behavior.java
  3. 注册                   ritual/RitualBehaviors.java（+常量 +register）
- 4. 缓存分派               RitualCoreBlockEntity.getCapacity()（仿 kagutsuchiCapacity）
+ 4. 容量钩子              覆写 capacity(level, core)（**不再改 BE 分派链**）
  5. config 基项            config/GensokyouConfig.java（声明块 + defineInRange）
  6. tick 通道选型          启停型→serverTick + pattern "toggleable": true
                           被动型→serverPassiveTick + pattern 不写 toggleable
@@ -195,7 +210,7 @@ default int slotX(int index); default int slotY(int index);   // 缺省横排一
 | 注册表冻结 | 内建 worldgen 注册表（biome_source/density_function_type 等）mod 期不可写，只能数据包 | neoforge skill |
 | lang 漏键 | `translatableWithFallback` 的回退裸路径 = 玩家看到没翻译的英文 | neoforge skill |
 | 潜行让行 | 核心成型让位必须 `useItemOn` 与 `useWithoutItem` **两处都放行**，否则被 `openOrHint` 抢回开 GUI | neoforge skill |
-| **光柱静默失效** | `buildRenderState` 的献祭光柱分支是**仪式 id 白名单**（`isToolSacrifice(SHUJOU/HOUJOUNO)`）。新仪式调了 `core.triggerSacrificeFx(...)` 但没进白名单 → 剩余刻写进了 BE 却从不下发，客户端永远收不到 `KIND_SACRIFICE`，现象是"光柱完全没出现"且**无任何报错** | `RitualCoreBlockEntity.buildRenderState` |
+| **光柱静默失效** | 献祭光柱的渲染态现在由行为自己的 `buildRenderState()` 产出（`KIND_SACRIFICE` + `core.sacrificeFxTicks()`）。新仪式调了 `core.triggerSacrificeFx(...)` 却**没在 `buildRenderState()` 返回 `KIND_SACRIFICE`** → 剩余刻写进了 BE 却从不下发，客户端永远收不到光柱，现象是"光柱完全没出现"且**无任何报错** | `RitualBehavior.buildRenderState` / `ToolSacrificeBehavior` |
 | **常驻特效与一次性特效抢同一个 kind** | 一个 kind 只能有一个语义。若常驻特效（池水）与瞬时特效（光柱）各占一个 kind，瞬时的那 30 刻里 kind 会整体切换、常驻特效随之消失（闪断）。正解：合进**同一个** kind，用辅助字段并存（少名：`KIND_SUNAKO` 里 `minY`=光柱高 / `maxY`=剩余刻 / `period`=色索引，客户端 `if (maxY > 0)` 叠加光柱） | `RitualRenderState.KIND_SUNAKO` |
 | **水面布局锚错层 → 水"不见了"** | `RitualFxLayout.bathSurface` 把池锚在「**最低层**的顶面」并把最低层里被包围的空块当下沉院子。灵浴成立是因为它最低层就是实心平台；少名的最低层只是一圈滴水石、其上 y=-1 才是实心圆台，于是该函数产出的 81 格院子被实心圆台 81/81 **全盖死**，水全埋方块里。几何不同时 MUST 新写推导（`brewPool`），判据用「**脚下有地板 + 本格为空**」而非「本层未声明」——后者会把水铺到结构破洞上 | `RitualFxLayout.brewPool` / `SunakoBrewPoolTest` |
 

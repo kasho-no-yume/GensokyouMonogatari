@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.block.entity;
 
 import com.bitsson.gensokyou.block.RitualPedestalBlock;
+import com.bitsson.gensokyou.event.AchievementAwards;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
@@ -20,10 +21,18 @@ import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipeMatcher;
 import com.bitsson.gensokyou.ritual.RitualRenderState;
-import com.bitsson.gensokyou.ritual.behavior.HoujounoTeihouBehavior;
-import com.bitsson.gensokyou.ritual.behavior.SpiritBank;
-import com.bitsson.gensokyou.ritual.behavior.TickRateLedger;
-import com.bitsson.gensokyou.ritual.behavior.KanayamahikoSmeltSession;
+import com.bitsson.gensokyou.ritual.SpiritBank;
+import com.bitsson.gensokyou.ritual.TickRateLedger;
+import com.bitsson.gensokyou.ritual.KanayamahikoSmeltSession;
+import com.bitsson.gensokyou.ritual.CraftSession;
+import com.bitsson.gensokyou.ritual.SummonSession;
+import com.bitsson.gensokyou.ritual.GraceSession;
+import com.bitsson.gensokyou.ritual.CraftPhase;
+import com.bitsson.gensokyou.ritual.SummonPhase;
+import com.bitsson.gensokyou.ritual.GracePhase;
+import com.bitsson.gensokyou.ritual.BousenState;
+import com.bitsson.gensokyou.ritual.ReiyokuState;
+import com.bitsson.gensokyou.ritual.WujinzangState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -52,7 +61,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public class RitualCoreBlockEntity extends BlockEntity {
+public class RitualCoreBlockEntity extends BlockEntity
+        implements com.bitsson.gensokyou.ritual.SpiritPowerAccess {
     private static final String TAG_STORED = "StoredSpiritPower";
     private static final String TAG_RESO_IN = "ResoInLinks";
     private static final String TAG_RESO_OUT = "ResoOutLinks";
@@ -78,58 +88,17 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private static final String TAG_BURN_REMAINING = "RemainingTicks";
     private static final String TAG_RATE_ACCUM = "RateAccum";
     private static final String TAG_FILL_ACCUM = "FillAccum";
-    private static final String TAG_CRAFT_PHASE = "CraftPhase";
-    private static final String TAG_CRAFT_COLLECTED = "CraftCollected";
-    private static final String TAG_CRAFT_COST = "CraftCost";
-    private static final String TAG_CRAFT_FLIGHT_AGE = "CraftFlightAge";
-    private static final String TAG_CRAFT_SESSION = "CraftSession";
-    private static final String TAG_CRAFT_FLIGHT_IDS = "CraftFlightIds";
-    private static final String TAG_CRAFT_RECIPE = "CraftRecipe";
-    private static final String TAG_CRAFT_ID = "Id";
     private static final String TAG_LAST_POWERED = "LastPowered";
-    private static final String TAG_GRACE_PHASE = "GracePhase";
-    private static final String TAG_GRACE_SESSION = "GraceSession";
-    private static final String TAG_GRACE_COLLECTED = "GraceCollected";
-    private static final String TAG_GRACE_COST = "GraceCost";
-    private static final String TAG_GRACE_TICKS = "GraceTicks";
-    private static final String TAG_GRACE_TIER = "GraceTier";
-    private static final String TAG_GRACE_REFINE = "GraceRefine";
-    private static final String TAG_GRACE_RECIPE = "GraceRecipe";
-    private static final String TAG_GRACE_INITIATOR = "GraceInitiator";
-    private static final String TAG_GRACE_PENDING = "GracePending";
     /** 献祭仪式：结算后强制冷却剩余 tick（通用字段，仅该行为族使用）。 */
     private static final String TAG_ACTION_COOLDOWN = "ActionCooldown";
 
     // ---- 百鬼夜行召唤会话（hyakki-yagyo-summon）----
 
-    private static final String TAG_SUMMON_PHASE = "SummonPhase";
-    private static final String TAG_SUMMON_COST = "SummonCost";
-    private static final String TAG_SUMMON_RECIPE = "SummonRecipe";
-    private static final String TAG_SUMMON_TIER = "SummonTier";
-    /**
-     * 召唤演出的<b>绝对</b> gameTime 锚点（充能段起点）。
-     *
-     * <p>持久化是必须的：它让「充能 → 爆散 → 降临」三段演出在区块卸载 / 重连之后仍能由
-     * 服务端与客户端各自自算出同一相位，而不必逐 tick 同步。参考
-     * {@code SukimaBlockEntity#fxStartGameTime} 的同款教训——用 transient 标记判重播会在方块
-     * 实体重建后失效，导致整段演出重播；缺锚点则会让演出永远停在第 0 tick。
-     */
-    private static final String TAG_SUMMON_FX_START = "SummonFxStart";
 
     /** 无尽藏之仪托管数据段键：分区组表 + 孤儿段 + 段位坐标（由 {@code WujinzangStorage} 读写）。 */
     public static final String TAG_WUJINZANG_VAULT = "WujinzangVault";
 
-    /** 造化合成会话阶段（一次性合成型仪式共用存储；推进逻辑在行为侧）。 */
-    public enum CraftPhase { IDLE, PAYING, FLIGHT }
 
-    /**
-     * 百鬼夜行召唤会话阶段。
-     *
-     * <p>{@code IDLE} 之外的三段合起来是一次<b>一次性</b>演出，全部由
-     * {@code gameTime − 演出锚点} 推进，MUST NOT 逐 tick 同步渲染态。
-     * 非 {@code IDLE} 时 {@code enabled} 恒为真——「会话进行中」正是启停位的语义。
-     */
-    public enum SummonPhase { IDLE, CHARGING, BURST, PILLAR }
 
     private RitualMatch activeMatch;
     private long ageTicks;
@@ -163,8 +132,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private int burnTotalTicks;
     private int burnRemainingTicks;
     /** 产灵/注灵速率的小数进位累加器（tick 级折算，避免整除截断）。 */
-    private long rateCarry;
-    private long fillCarry;
+    private final com.bitsson.gensokyou.ritual.FixedPointAccumulator rateCarry = new com.bitsson.gensokyou.ritual.FixedPointAccumulator();
+    private final com.bitsson.gensokyou.ritual.FixedPointAccumulator fillCarry = new com.bitsson.gensokyou.ritual.FixedPointAccumulator();
     /** 路由面向（万象共鸣）的端点每 tick 速率账本：唯一权威，gameTime 锁存；运行时态不持久化。 */
     private final TickRateLedger routedInLedger = new TickRateLedger();
     private final TickRateLedger routedOutLedger = new TickRateLedger();
@@ -173,48 +142,18 @@ public class RitualCoreBlockEntity extends BlockEntity {
     private long routedOutTotal;
 
     // ---- 造化合成会话（一次性合成型仪式的每核状态；推进逻辑在行为侧）----
-    /** 会话存储（换代/锁配方/聚灵进度/飞行计时/在飞实体 id；世界无关纯逻辑，可单测）。 */
-    private final CraftSession craft = new CraftSession();
+    /** per-core 行为状态容器（键 = patternId；惰性创建，见各 *State() 访问器）。 */
+    private final java.util.Map<ResourceLocation, com.bitsson.gensokyou.ritual.RitualBehaviorState> behaviorStates = new java.util.HashMap<>();
 
-    /** 百鬼夜行召唤会话（无门票：spCost 即容量，故与 CraftSession 独立存储）。 */
-    private final SummonSession summon = new SummonSession();
     /** 红石上升沿检测：上一拍邻居信号是否 >0（持久化，防重载后常亮信号误触发）。 */
     private boolean lastPowered;
     /** 献祭仪式：结算后强制冷却剩余 tick（每 tick 递减；持久化防重载连发）。 */
     private int actionCooldown;
     /** 献祭仪式：产出光柱剩余渲染刻（瞬态，仅驱动客户端 BER，不持久化）。 */
     private int sacrificeFxTicks;
-    /** 无尽藏之仪托管数据段（键 {@link #TAG_WUJINZANG_VAULT}）：分区组表 + 孤儿段 + 段位坐标。 */
-    private CompoundTag wujinzangVault;
     /** 无尽藏：电池核心→缓存的定点进位累加器（与产能方向的 fillCarry 分道）。 */
-    private long cacheFillCarry;
-    /**
-     * 灵浴的两个进位累加器（<b>MUST 分道</b>，单位不同）：
-     * ① {@code reiyokuRateCarry}：每 tick 缓存消耗的定点余数（×1000 口径），
-     *    把分数份额累积成整数缓存点数；
-     * ② {@code reiyokuSplitCarry}：整数点数在 N 名浴者间的均分余数（&lt; N）。
-     * 混用会静默丢量（见 {@code ReiyokuBehavior#splitShare}）。
-     */
-    private long reiyokuRateCarry;
-    private long reiyokuSplitCarry;
-    /**
-     * 灵浴：在浴人数与名单文本（<b>瞬态</b>，不持久化——每 tick 由行为侧按主循环同一判据
-     * 重算，写档只会存下一份早已过期的快照）。供 GUI「谁在充灵」行零重扫读取。
-     */
-    private int reiyokuBatherCount;
-    private String reiyokuRoster = "";
-    /**
-     * 忘川灯坛的蜡烛点亮态（<b>瞬态，MUST NOT 持久化</b>）。
-     *
-     * <p>{@code bousenLitMask} 第 i 位 = 该阶蜡烛规范序第 i 根点亮，与客户端
-     * {@code RitualRenderState.movingMask} 位序一一对应（两侧位序不变量见 {@code BousenLanterns}）。
-     * 三者每 1 Hz 由 {@code BousenBehavior} 按世界真值整体重算，故存进 NBT 只会写下一份早已过期的
-     * 快照——与 {@link #reiyokuBatherCount} 同一处置，区块重载后自然收敛。
-     */
-    private long bousenLitMask;
-    private int bousenLitCount;
-    private int bousenLanternTotal;
-    private final KanayamahikoSmeltSession kanayamahikoSession = new KanayamahikoSmeltSession();
+    private final com.bitsson.gensokyou.ritual.FixedPointAccumulator cacheFillCarry = new com.bitsson.gensokyou.ritual.FixedPointAccumulator();
+    // 无尽藏 vault、灵浴 roster 与两级进位、忘川灯坛点亮态已下沉至各行为 state（见 *State() 访问器）。
 
     public RitualCoreBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.RITUAL_CORE.get(), pos, state);
@@ -225,9 +164,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
     public void setRemoved() {
         clearRoutedLedgers();
         if (activeMatch != null && level instanceof ServerLevel serverLevel) {
-            if (activeMatch.patternId().equals(RitualBehaviors.HOUJOUNO_TEIHOU)) {
-                HoujounoTeihouBehavior.clearRuntimeFailures(serverLevel, getBlockPos());
-            }
+            RitualBehaviors.get(activeMatch.patternId()).ifPresent(behavior ->
+                    behavior.onRemoved(serverLevel, getBlockPos(), activeMatch, this));
             RitualCoreRegistry registry = RitualCoreRegistry.peek(serverLevel);
             if (registry != null) {
                 registry.unregister(getBlockPos(), activeMatch.patternId());
@@ -258,99 +196,123 @@ public class RitualCoreBlockEntity extends BlockEntity {
         }
     }
 
+    /** 无尽藏 per-core 状态（惰性创建；工厂由 WujinzangBehavior.newState 定义）。 */
+    private WujinzangState wujinzangState() {
+        return (WujinzangState) behaviorStates.computeIfAbsent(
+                RitualBehaviors.WUJINZANG,
+                key -> new WujinzangState());
+    }
+
     /** 无尽藏之仪 vault 段（可为 null）；由 WujinzangStorage 读写。 */
     public CompoundTag getWujinzangVault() {
-        return wujinzangVault;
+        return wujinzangState().rawVault();
     }
 
     /** 设置无尽藏 vault 段；null 清除。 */
     public void setWujinzangVault(CompoundTag vault) {
-        this.wujinzangVault = vault;
+        wujinzangState().setVault(vault);
         setChanged();
     }
 
     /** 取 vault（不存在则新建并挂上）。 */
     public CompoundTag wujinzangVault() {
-        if (wujinzangVault == null) {
-            wujinzangVault = new CompoundTag();
-        }
-        return wujinzangVault;
+        return wujinzangState().vault();
     }
 
-    /** 无尽藏：电池核心→缓存的定点进位余额（供 Vault 与持久化）。 */
+    /** 无尽藏：电池核心→缓存的定点进位余额（供 Vault 与持久化；通用设施，留 BE）。 */
     public long cacheFillCarry() {
-        return cacheFillCarry;
+        return cacheFillCarry.carry();
     }
 
     public void setCacheFillCarry(long value) {
-        this.cacheFillCarry = value;
+        this.cacheFillCarry.setCarry(value);
     }
 
-    /** 灵浴：速率定点余数（×1000 口径）与整数点数均分余（见字段注释，二者 MUST 分道）。 */
+    /** 灵浴 per-core 状态（惰性创建；工厂由 ReiyokuBehavior.newState 定义）。 */
+    private ReiyokuState reiyokuState() {
+        return (ReiyokuState) behaviorStates.computeIfAbsent(
+                RitualBehaviors.REIYOKU,
+                key -> new ReiyokuState());
+    }
+
+    /** 灵浴：速率定点余数（×1000 口径）。 */
     public long reiyokuRateCarry() {
-        return reiyokuRateCarry;
+        return reiyokuState().rateCarry();
     }
 
     public void setReiyokuRateCarry(long value) {
-        this.reiyokuRateCarry = value;
+        reiyokuState().setRateCarry(value);
     }
 
+    /** 灵浴：整数点数在 N 名浴者间的均分余（与速率余数 MUST 分道）。 */
     public long reiyokuSplitCarry() {
-        return reiyokuSplitCarry;
+        return reiyokuState().splitCarry();
     }
 
     public void setReiyokuSplitCarry(long value) {
-        this.reiyokuSplitCarry = value;
+        reiyokuState().setSplitCarry(value);
     }
 
     /** 灵浴：在浴人数（瞬态，由行为侧每 tick 重算）。 */
     public int reiyokuBatherCount() {
-        return reiyokuBatherCount;
+        return reiyokuState().batherCount();
     }
 
     public void setReiyokuBatherCount(int value) {
-        this.reiyokuBatherCount = value;
+        reiyokuState().setBatherCount(value);
     }
 
     // ---- 忘川灯坛：蜡烛点亮态（瞬态，不进 NBT）----
 
+    /** 忘川灯坛 per-core 状态（惰性创建；工厂由 BousenBehavior.newState 定义）。 */
+    private BousenState bousenState() {
+        return (BousenState) behaviorStates.computeIfAbsent(
+                RitualBehaviors.BOUSEN,
+                key -> new BousenState());
+    }
+
     /** 蜡烛点亮位掩码（bit i = 规范序第 i 根点亮）；0 = 尚未重扫或无蜡烛。 */
     public long bousenLitMask() {
-        return bousenLitMask;
+        return bousenState().litMask();
     }
 
     /** 当前点亮根数。 */
     public int bousenLitCount() {
-        return bousenLitCount;
+        return bousenState().litCount();
     }
 
     /** 该阶蜡烛总数（16 / 32 / 64；0 = 尚未重扫或无蜡烛）。 */
     public int bousenLanternTotal() {
-        return bousenLanternTotal;
+        return bousenState().lanternTotal();
     }
 
     /** 一次落定三件瞬态态（行为侧每秒重扫时整体写入）。 */
     public void setBousenLanterns(long mask, int litCount, int total) {
-        this.bousenLitMask = mask;
-        this.bousenLitCount = Math.max(0, litCount);
-        this.bousenLanternTotal = Math.max(0, total);
+        bousenState().setLanterns(mask, litCount, total);
     }
 
     /** 灵浴：在浴名单文本（瞬态，供 GUI tooltip 零重扫读取）。 */
     public String reiyokuRosterText() {
-        return reiyokuRoster;
+        return reiyokuState().rosterText();
     }
 
     public void setReiyokuRosterText(String value) {
-        this.reiyokuRoster = value == null ? "" : value;
+        reiyokuState().setRosterText(value);
+    }
+
+    /** 金谷冶炼 per-core 状态（惰性创建；工厂由 KanayamahikoBehavior.newState 定义）。 */
+    private KanayamahikoSmeltSession kanayamahikoState() {
+        return (KanayamahikoSmeltSession) behaviorStates.computeIfAbsent(
+                RitualBehaviors.KANAYAMAHIKO,
+                key -> new KanayamahikoSmeltSession());
     }
 
     public KanayamahikoSmeltSession kanayamahikoSession() {
-        return kanayamahikoSession;
+        return kanayamahikoState();
     }
 
     public void clearKanayamahikoSession() {
-        kanayamahikoSession.clear();
+        kanayamahikoState().clear();
         setChanged();
     }
 
@@ -373,6 +335,30 @@ public class RitualCoreBlockEntity extends BlockEntity {
         return activeRecipeId;
     }
 
+    @Override
+    public void setActiveRecipeId(ResourceLocation recipeId) {
+        this.activeRecipeId = recipeId;
+    }
+
+    /** 当前激活行为的 per-core 状态（无状态行为返回 null）；惰性创建。 */
+    @Override
+    public com.bitsson.gensokyou.ritual.RitualBehaviorState behaviorState() {
+        if (activeMatch == null) {
+            return null;
+        }
+        RitualBehavior behavior = RitualBehaviors.get(activeMatch.patternId()).orElse(null);
+        if (behavior == null || behavior.newState() == null) {
+            return null;
+        }
+        return behaviorStates.computeIfAbsent(activeMatch.patternId(), key -> behavior.newState());
+    }
+
+    /** 标记核心数据已变。 */
+    @Override
+    public void markDirty() {
+        setChanged();
+    }
+
     public boolean isPattern(ResourceLocation id) {
         return activeMatch != null && activeMatch.patternId().equals(id);
     }
@@ -385,98 +371,22 @@ public class RitualCoreBlockEntity extends BlockEntity {
         return storedSpiritPower;
     }
 
-    /** 缓存上限按图案分派：托管型行为整体转发，共鸣塔零缓存，加具土命随等级指数放大，其余仪式常量兜底。 */
+    /** 缓存上限委托当前行为的 {@link RitualBehavior#capacity} 钩子；缺覆写回落默认并告警。 */
     public long getCapacity() {
         SpiritBank bank = bank();
         if (bank != null && level instanceof ServerLevel serverLevel && activeMatch != null) {
             return bank.capacity(serverLevel, worldPosition, activeMatch);
         }
         if (activeMatch != null) {
-            if (activeMatch.patternId().equals(RitualBehaviors.RESONANCE)) {
-                return 0L;
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.KAGUTSUICHI)) {
-                return kagutsuchiCapacity(activeMatch.level());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.YUMEWATARI)) {
-                return yumewatariCapacity(activeMatch.level());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.SHUJOU)) {
-                return shujouCapacity(activeMatch.level());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.WUJINZANG)) {
-                return wujinzangCapacity(activeMatch.level());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.SAIR_ENERGY)) {
-                return GensokyouConfig.SAIR_ENERGY_BASE_CAPACITY.get();
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.REIYOKU)) {
-                // 必须在此显式分派：DEFAULT_CORE_CAPACITY 恰好等于灵浴 1 阶目标值，
-                // 缺此分支时 1 阶表现正确、2~5 阶静默偏差最高 12^4 倍。
-                return com.bitsson.gensokyou.ritual.behavior.ReiyokuBehavior
-                        .capacity(activeMatch.level());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.BARRIER_BREAK)) {
-                return barrierCapacity();
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.KANAYAMAHIKO)) {
-                return kanayamahikoCapacity(activeMatch.level());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.HOUJOUNO_TEIHOU)) {
-                return HoujounoTeihouBehavior.capacity(activeMatch.level());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.NICHIRIN)) {
-                return daycycleCapacity(activeMatch.level(),
-                        GensokyouConfig.NICHIRIN_BASE_CAPACITY.get());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.TSUKIKAGE)) {
-                return daycycleCapacity(activeMatch.level(),
-                        GensokyouConfig.TSUKIKAGE_BASE_CAPACITY.get());
-            }
-            if (RitualBehaviors.isToolSacrifice(activeMatch.patternId())) {
-                return sacrificeCapacity(activeMatch.level());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.ZAOHUA)) {
-                // 不启动不缓存灵力：空闲容量 0（路由选不中、注不进）；
-                // 会话期容量 = 锁定配方 spCost（受灵缓冲上界恰为本次所需）
-                return craft.phase() == CraftPhase.IDLE ? 0L : craft.cost();
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.KAMI_NO_MEGUMI)) {
-                // 神恩同造化口径：不启动不缓存；会话（聚灵/演出）容量 = 锁定配方 spCost
-                GracePhase phase = grace.phase();
-                return phase == GracePhase.PAYING || phase == GracePhase.PERFORM
-                        ? grace.cost() : 0L;
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.SEII)) {
-                // 星移刻意不做会话态覆盖：缓存是跨洗练持久的真实蓄水池，
-                // 一次洗练只抽本次花费量，剩余(阶梯值 - 花费) 结转下一次。
-                return com.bitsson.gensokyou.item.weapon.SeiiNumbers.capacity(activeMatch.level());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.BOUSEN)) {
-                // 忘川：分阶表 50000 / 1000000 / 10000000。必须在此显式分派——三档均非
-                // base × 4^L 几何序列，且 1 阶的 50000 已是 DEFAULT_CORE_CAPACITY 的 5 倍，
-                // 缺此分支时全部三档静默回落 10000（不报错，只是永远攒不满）。
-                return com.bitsson.gensokyou.ritual.behavior.BousenBehavior
-                        .capacityOf(activeMatch.level());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.HYAKKI_YAGYO)) {
-                // 百鬼夜行：空闲零缓存（因而对供灵网络完全隐身），会话期容量 = 锁定配方 spCost。
-                // 与造化/神恩同口径，但本仪式用缓存<b>本身</b>当进度，无独立累计量。
-                return summon.phase == SummonPhase.IDLE ? 0L : summon.cost;
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.SUNAKO)) {
-                // 少名：2e5 / 1e6 / 8e6，三档既非 base×4^L 也非几何外推（1→2 是 ×5，
-                // 2→3 是 ×8）。必须在此显式分派——缺此分支时三档全部静默回落
-                // DEFAULT_CORE_CAPACITY=10000，不报错，只是 1 阶连一瓶都炼不出。
-                return com.bitsson.gensokyou.ritual.behavior.SunakoScaling
-                        .capacityOf(activeMatch.level());
-            }
-            if (activeMatch.patternId().equals(RitualBehaviors.OMOIKANE)) {
-                // 思兼神封：1e6 / 1e7 / 1e8，三档为显式表（×10 外推不到 3 阶）。
-                // 必须在此显式分派——缺此分支时三档全部静默回落
-                // DEFAULT_CORE_CAPACITY=10000，不报错，只是 1 阶连一条词条都付不起。
-                return com.bitsson.gensokyou.ritual.behavior.OmoikaneScaling
-                        .capacityOf(activeMatch.level());
+            RitualBehavior behavior = RitualBehaviors.get(activeMatch.patternId()).orElse(null);
+            if (behavior != null) {
+                long cap = behavior.capacity(activeMatch.level(), this);
+                if (cap != RitualBehavior.CAPACITY_NOT_SET) {
+                    return cap;
+                }
+                if (!(behavior instanceof SpiritBank)) {
+                    warnMissingCapacity(activeMatch.patternId());
+                }
             }
         }
         return DEFAULT_CORE_CAPACITY;
@@ -484,6 +394,18 @@ public class RitualCoreBlockEntity extends BlockEntity {
 
     /** 杂项仪式（无专属缓存语义）的兜底缓存上限。 */
     public static final long DEFAULT_CORE_CAPACITY = 10_000L;
+
+    private static final java.util.Set<ResourceLocation> WARNED_MISSING_CAPACITY =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** 行为未覆写 capacity 钩子时每 patternId 告警一次（不再静默回落）。 */
+    private static void warnMissingCapacity(ResourceLocation patternId) {
+        if (WARNED_MISSING_CAPACITY.add(patternId)) {
+            com.bitsson.gensokyou.Gensokyou.LOGGER.warn(
+                    "Ritual behavior for {} does not override capacity(); using default {}",
+                    patternId, DEFAULT_CORE_CAPACITY);
+        }
+    }
 
     /**
      * 结界破坏仪式缓存上限。单一阶级（tiers [2]），故不随 level 缩放。
@@ -500,48 +422,30 @@ public class RitualCoreBlockEntity extends BlockEntity {
 
     /** 加具土命缓存上限 = 基础值 × 4^等级。 */
     public static long kagutsuchiCapacity(int level) {
-        long cap = GensokyouConfig.KAGUTSUICHI_BASE_CAPACITY.get();
-        for (int i = 0; i < level; i++) {
-            cap *= 4L;
-        }
-        return cap;
+        return com.bitsson.gensokyou.ritual.SpiritCapacityScaling.scaled(
+                GensokyouConfig.KAGUTSUICHI_BASE_CAPACITY.get(), 4L, level);
     }
 
     /** 梦渡之座缓存上限 = 基础值 × 4^等级（溢出直注槽内灵力核心，见 YumewatariBehavior）。 */
     public static long yumewatariCapacity(int level) {
-        long cap = GensokyouConfig.YUMEWATARI_BASE_CAPACITY.get();
-        for (int i = 0; i < level; i++) {
-            cap *= 4L;
-        }
-        return cap;
+        return com.bitsson.gensokyou.ritual.SpiritCapacityScaling.scaled(
+                GensokyouConfig.YUMEWATARI_BASE_CAPACITY.get(), 4L, level);
     }
 
     /** 昼夜发电机（日轮天台/月影水镜）缓存上限 = 基值 × 4^等级。 */
     public static long daycycleCapacity(int level, long base) {
-        long cap = base;
-        for (int i = 0; i < level; i++) {
-            cap *= 4L;
-        }
-        return cap;
+        return com.bitsson.gensokyou.ritual.SpiritCapacityScaling.scaled(base, 4L, level);
     }
 
     /** 众生余录缓存上限 = 基值 × 容量倍率^等级（默认 40000 × 20^L）。 */
     public static long shujouCapacity(int level) {
-        long cap = GensokyouConfig.SHUJOU_BASE_CAPACITY.get();
-        long mult = GensokyouConfig.SHUJOU_CAPACITY_MULT.get();
-        for (int i = 0; i < level; i++) {
-            cap *= mult;
-        }
-        return cap;
+        return com.bitsson.gensokyou.ritual.SpiritCapacityScaling.scaled(
+                GensokyouConfig.SHUJOU_BASE_CAPACITY.get(), GensokyouConfig.SHUJOU_CAPACITY_MULT.get(), level);
     }
 
     /** 献祭工具仪式缓存上限 = 基值 × 4^等级。 */
     public static long sacrificeCapacity(int level) {
         return daycycleCapacity(level, GensokyouConfig.SACRIFICE_BASE_CAPACITY.get());
-    }
-
-    public static long kanayamahikoCapacity(int level) {
-        return com.bitsson.gensokyou.ritual.behavior.KanayamahikoSmelting.capacity(level);
     }
 
     /** 无尽藏之仪缓存上限 = 基值 × mult^等级。 */
@@ -555,20 +459,13 @@ public class RitualCoreBlockEntity extends BlockEntity {
     }
 
     private static long scaledWujinzang(long base, int level) {
-        long mult = GensokyouConfig.WUJINZANG_MULT.get();
-        long value = base;
-        for (int i = 0; i < level; i++) {
-            if (value > Long.MAX_VALUE / Math.max(1L, mult)) {
-                return Long.MAX_VALUE;
-            }
-            value *= mult;
-        }
-        return value;
+        return com.bitsson.gensokyou.ritual.SpiritCapacityScaling.scaledSaturating(
+                base, GensokyouConfig.WUJINZANG_MULT.get(), level);
     }
 
     /** 托管型储灵行为（如八方归元）：图案命中且行为实现 SpiritBank 时灵力四件套整体转发。 */
     @Nullable
-    private SpiritBank bank() {
+    public SpiritBank bank() {
         if (activeMatch == null) {
             return null;
         }
@@ -681,233 +578,63 @@ public class RitualCoreBlockEntity extends BlockEntity {
      * 另有一个与缓存解耦的累计量 {@code collected}（因为它要在足额那一刻把原料发射出去）；
      * 百鬼夜行<b>没有产物飞行</b>，缓存本身就是进度，故只需一个 {@code cost}。
      */
-    public static final class SummonSession {
-        private SummonPhase phase = SummonPhase.IDLE;
-        /** 会话容量口径：锁定配方的 spCost；空闲为 0（不启动不缓存灵力）。 */
-        private long cost;
-        private @Nullable ResourceLocation recipeId;
-        private int tier;
-        /** 演出起始 gameTime（绝对锚点，持久化）；{@code < 0} = 从未播放过演出。 */
-        private int fxStart = -1;
-
-        public boolean isIdle() {
-            return phase == SummonPhase.IDLE;
-        }
-
-        public void save(CompoundTag tag) {
-            if (isIdle() && cost == 0L && recipeId == null && fxStart < 0) {
-                return;
-            }
-            tag.putString(TAG_SUMMON_PHASE, phase.name());
-            tag.putLong(TAG_SUMMON_COST, cost);
-            tag.putByte(TAG_SUMMON_TIER, (byte) Math.min(127, Math.max(0, tier)));
-            tag.putInt(TAG_SUMMON_FX_START, fxStart);
-            if (recipeId != null) {
-                tag.putString(TAG_SUMMON_RECIPE, recipeId.toString());
-            }
-        }
-
-        public void load(CompoundTag tag) {
-            if (!tag.contains(TAG_SUMMON_PHASE)) {
-                return;
-            }
-            try {
-                phase = SummonPhase.valueOf(tag.getString(TAG_SUMMON_PHASE));
-            } catch (IllegalArgumentException exception) {
-                phase = SummonPhase.IDLE;
-            }
-            cost = Math.max(0L, tag.getLong(TAG_SUMMON_COST));
-            recipeId = tag.contains(TAG_SUMMON_RECIPE)
-                    ? ResourceLocation.tryParse(tag.getString(TAG_SUMMON_RECIPE)) : null;
-            tier = tag.getByte(TAG_SUMMON_TIER) & 0xFF;
-            fxStart = tag.contains(TAG_SUMMON_FX_START) ? tag.getInt(TAG_SUMMON_FX_START) : -1;
-            // 旧档迁移：非 IDLE 却缺锚点有两种成因，处置不同。
-            //  ① 旧格式（锚点曾打在启动瞬间）：值 < 0 ⇒ 演出段根本没开始过 → 退回充能态，
-            //     重新吸满时由 markSummonBurst 落新锚点。
-            //  ② 荒谬的负 gameTime（时钟回拨/数据损坏）：同样退回充能态，绝不拿它当演出计时。
-            // 无论哪种，MUST NOT 保留一个无锚点的 BURST/PILLAR 态——那会让客户端拿到
-            // elapsed=0 反复重播爆散段。
-            if (!isIdle() && fxStart < 0) {
-                phase = SummonPhase.CHARGING;
-            }
-        }
-    }
 
     // ---- 造化合成会话（zaohua-crafting）：存储与跃迁，推进逻辑在行为侧 ----
 
     /** 会话存储（世界无关纯逻辑，可单测）；推进逻辑在 ZaohuaCraftingService。 */
-    public static final class CraftSession {
-        private CraftPhase phase = CraftPhase.IDLE;
-        private long sessionId;
-        private @Nullable ResourceLocation recipeId;
-        private long collected;
-        /** 会话容量口径：锁定配方的 spCost；空闲为 0（不启动不缓存灵力）。 */
-        private long cost;
-        private int ticks;
-        private final List<Integer> flightIds = new ArrayList<>();
 
-        public CraftPhase phase() {
-            return phase;
-        }
-
-        public long sessionId() {
-            return sessionId;
-        }
-
-        public @Nullable ResourceLocation recipeId() {
-            return recipeId;
-        }
-
-        public long collected() {
-            return collected;
-        }
-
-        public long cost() {
-            return cost;
-        }
-
-        public int ticks() {
-            return ticks;
-        }
-
-        public List<Integer> flightIds() {
-            return List.copyOf(flightIds);
-        }
-
-        /** 启动新会话：换代、锁配方、进聚灵；返回新会话 id。 */
-        public long begin(ResourceLocation recipe, long spCost) {
-            sessionId++;
-            recipeId = recipe;
-            cost = spCost;
-            collected = 0L;
-            ticks = 0;
-            phase = CraftPhase.PAYING;
-            flightIds.clear();
-            return sessionId;
-        }
-
-        public void addCollected(long amount) {
-            collected += amount;
-        }
-
-        /** 聚灵足额 → 进入飞行阶段。 */
-        public void enterFlight(List<Integer> entities) {
-            flightIds.clear();
-            flightIds.addAll(entities);
-            phase = CraftPhase.FLIGHT;
-            ticks = 0;
-        }
-
-        /** 飞行计时推进一格。 */
-        public void advanceFlight() {
-            ticks++;
-        }
-
-        /** 清退回空闲（正常收尾/中止/取消共用；已抽灵力不退）。 */
-        public void clear() {
-            phase = CraftPhase.IDLE;
-            recipeId = null;
-            collected = 0L;
-            cost = 0L;
-            ticks = 0;
-            flightIds.clear();
-        }
-
-        /** 该代飞行实体是否仍在会话保护下（实体服务端自弃判据）。 */
-        public boolean holdsFlight(long id) {
-            return phase == CraftPhase.FLIGHT && sessionId == id;
-        }
-
-        public void save(CompoundTag tag) {
-            if (phase == CraftPhase.IDLE && flightIds.isEmpty() && collected == 0L && cost == 0L) {
-                return;
-            }
-            tag.putString(TAG_CRAFT_PHASE, phase.name());
-            tag.putLong(TAG_CRAFT_SESSION, sessionId);
-            tag.putLong(TAG_CRAFT_COLLECTED, collected);
-            tag.putLong(TAG_CRAFT_COST, cost);
-            tag.putInt(TAG_CRAFT_FLIGHT_AGE, ticks);
-            if (recipeId != null) {
-                tag.putString(TAG_CRAFT_RECIPE, recipeId.toString());
-            }
-            if (!flightIds.isEmpty()) {
-                ListTag ids = new ListTag();
-                for (int id : flightIds) {
-                    CompoundTag entry = new CompoundTag();
-                    entry.putInt(TAG_CRAFT_ID, id);
-                    ids.add(entry);
-                }
-                tag.put(TAG_CRAFT_FLIGHT_IDS, ids);
-            }
-        }
-
-        public void load(CompoundTag tag) {
-            if (!tag.contains(TAG_CRAFT_PHASE)) {
-                return;
-            }
-            try {
-                phase = CraftPhase.valueOf(tag.getString(TAG_CRAFT_PHASE));
-            } catch (IllegalArgumentException exception) {
-                phase = CraftPhase.IDLE;
-            }
-            sessionId = tag.getLong(TAG_CRAFT_SESSION);
-            collected = tag.getLong(TAG_CRAFT_COLLECTED);
-            cost = tag.getLong(TAG_CRAFT_COST);
-            ticks = tag.getInt(TAG_CRAFT_FLIGHT_AGE);
-            recipeId = tag.contains(TAG_CRAFT_RECIPE)
-                    ? ResourceLocation.tryParse(tag.getString(TAG_CRAFT_RECIPE)) : null;
-            flightIds.clear();
-            for (var item : tag.getList(TAG_CRAFT_FLIGHT_IDS, CompoundTag.TAG_COMPOUND)) {
-                flightIds.add(((CompoundTag) item).getInt(TAG_CRAFT_ID));
-            }
-        }
+    /** 造化合成 per-core 状态（惰性创建；工厂由 ZaohuaCraftingBehavior.newState 定义）。 */
+    private CraftSession craftState() {
+        return (CraftSession) behaviorStates.computeIfAbsent(
+                RitualBehaviors.ZAOHUA,
+                key -> new CraftSession());
     }
 
     public CraftPhase craftPhase() {
-        return craft.phase();
+        return craftState().phase();
     }
 
     public long craftSessionId() {
-        return craft.sessionId();
+        return craftState().sessionId();
     }
 
     @Nullable
     public ResourceLocation craftRecipeId() {
-        return craft.recipeId();
+        return craftState().recipeId();
     }
 
     public long craftCollected() {
-        return craft.collected();
+        return craftState().collected();
     }
 
     /** 本会话锁定配方的 spCost（= 会话期容量；IDLE 为 0）。 */
     public long craftCost() {
-        return craft.cost();
+        return craftState().cost();
     }
 
     public int craftTicks() {
-        return craft.ticks();
+        return craftState().ticks();
     }
 
     /** 本会话在飞实体 id（正常收尾时由行为逐个移除）。 */
     public List<Integer> craftFlightIds() {
-        return craft.flightIds();
+        return craftState().flightIds();
     }
 
     /** 聚灵入账一笔（抽取即消耗，不退）。 */
     public void addCraftCollected(long amount) {
-        craft.addCollected(amount);
+        craftState().addCollected(amount);
         setChanged();
     }
 
     /** 该代飞行实体是否仍在会话保护下（实体服务端自弃判据）。 */
     public boolean holdsFlightSession(long sessionId) {
-        return craft.holdsFlight(sessionId);
+        return craftState().holdsFlight(sessionId);
     }
 
     /** 启动新合成会话：换代、锁配方（含 spCost 容量）、进聚灵；返回新会话 id。 */
     public long beginCraftSession(ResourceLocation recipeId, long spCost) {
-        long id = craft.begin(recipeId, spCost);
+        long id = craftState().begin(recipeId, spCost);
         activeRecipeId = recipeId;
         setChanged();
         return id;
@@ -915,68 +642,75 @@ public class RitualCoreBlockEntity extends BlockEntity {
 
     /** 聚灵足额 → 进入飞行阶段（扣料与飞行实体生成由行为同 tick 完成）。 */
     public void enterCraftFlight(List<Integer> flightEntityIds) {
-        craft.enterFlight(flightEntityIds);
+        craftState().enterFlight(flightEntityIds);
         setChanged();
     }
 
     /** 飞行阶段计时推进一格。 */
     public void advanceCraftFlightTick() {
-        craft.advanceFlight();
+        craftState().advanceFlight();
     }
 
     /** 会话清退回 IDLE（正常收尾/中止/取消共用；已抽灵力不退）。 */
     public void clearCraftSession() {
-        craft.clear();
+        craftState().clear();
         activeRecipeId = null;
         setChanged();
     }
 
     // ---- 百鬼夜行召唤会话 ----
 
+    /** 百鬼夜行 per-core 状态（惰性创建；工厂由 HyakkiYagyoBehavior.newState 定义）。 */
+    private SummonSession summonState() {
+        return (SummonSession) behaviorStates.computeIfAbsent(
+                RitualBehaviors.HYAKKI_YAGYO,
+                key -> new SummonSession());
+    }
+
     /**
      * 召唤会话阶段。{@code IDLE} 时缓存容量与受灵汇速率双双为 0（本核心对供灵网络完全隐身）。
      */
     public SummonPhase summonPhase() {
-        return summon.phase;
+        return summonState().phase();
     }
 
     /** 会话锁定配方的 spCost（= 会话期容量）；{@code IDLE} 为 0。 */
     public long summonCost() {
-        return summon.cost;
+        return summonState().cost();
     }
 
     /** 相位序号，供渲染态携带（{@link SummonPhase#ordinal()}）。 */
     public int summonPhaseIndex() {
-        return summon.phase.ordinal();
+        return summonState().phase().ordinal();
     }
 
     /** 会话锁定的配方 id（{@code effect` 的解释权在行为侧）。 */
     @Nullable
     public ResourceLocation summonRecipeId() {
-        return summon.recipeId;
+        return summonState().recipeId();
     }
 
     /** 演出开始时的结构层号（1/2/3）——一切特效规模标量的唯一来源。 */
     public int summonTier() {
-        return summon.tier;
+        return summonState().tier();
     }
 
     /** 演出起始 gameTime（绝对锚点，<b>爆散那一刻</b>）；{@code < 0} = 尚未进入演出段。 */
     public int summonFxStart() {
-        return summon.fxStart;
+        return summonState().fxStart();
     }
 
     /** 演出已进行 tick（服务端与客户端同口径，均取 {@code level.getGameTime()}）。 */
     public int summonElapsed() {
-        if (summon.fxStart < 0 || level == null) {
+        if (summonState().fxStart() < 0 || level == null) {
             return 0;
         }
-        return Math.max(0, (int) level.getGameTime() - summon.fxStart);
+        return Math.max(0, (int) level.getGameTime() - summonState().fxStart());
     }
 
     /** 会话是否进行中（供 GUI「取消」按钮显隐与 {@code enabled} 门控用）。 */
     public boolean summonActive() {
-        return summon.phase != SummonPhase.IDLE;
+        return summonState().phase() != SummonPhase.IDLE;
     }
 
     /**
@@ -990,12 +724,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
      * @param tier 结构层号（{@code RitualMatch.level()}），特效规模全部由它派生
      */
     public void beginSummonSession(ResourceLocation recipeId, long spCost, int tier) {
-        summon.phase = SummonPhase.CHARGING;
-        summon.cost = Math.max(0L, spCost);
-        summon.recipeId = recipeId;
-        summon.tier = Math.max(1, tier);
-        summon.fxStart = -1;
-        activeRecipeId = recipeId;
+        summonState().begin(recipeId, spCost, tier);
         setChanged();
     }
 
@@ -1005,26 +734,22 @@ public class RitualCoreBlockEntity extends BlockEntity {
      * <p>这一刻是"球消失、爆散开始"的分界，也是整段一次性演出的计时零点。
      */
     public void markSummonBurst(int gameTime) {
-        summon.fxStart = gameTime;
-        summon.phase = SummonPhase.BURST;
+        summonState().markBurst(gameTime);
         setChanged();
     }
 
     /** 清掉演出锚点（退回"演出段未开始"）。仅调试命令与旧档迁移用。 */
     public void clearSummonFxStart() {
-        if (summon.fxStart < 0) {
-            return;
-        }
-        summon.fxStart = -1;
+        summonState().clearFxStart();
         setChanged();
     }
 
     /** 会话阶段推进（行为侧按锚点自算后调用）。 */
     public void setSummonPhase(SummonPhase phase) {
-        if (summon.phase == phase) {
+        if (summonState().phase() == phase) {
             return;
         }
-        summon.phase = phase;
+        summonState().setPhase(phase);
         setChanged();
     }
 
@@ -1036,11 +761,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
      * 需求是"取消不退还"，故直接丢弃（不是返还给玩家，也不是白送进下一次）。
      */
     public void clearSummonSession() {
-        summon.phase = SummonPhase.IDLE;
-        summon.cost = 0L;
-        summon.recipeId = null;
-        summon.tier = 0;
-        summon.fxStart = -1;
+        summonState().clear();
         storedSpiritPower = 0L;
         activeRecipeId = null;
         setChanged();
@@ -1061,326 +782,103 @@ public class RitualCoreBlockEntity extends BlockEntity {
 
     // ---- 八百万神恩会话（yaoyorozu-grace-ritual）：存储与跃迁，推进逻辑在行为侧 ----
 
-    /** 神恩会话阶段：IDLE→PAYING（聚灵）→PERFORM（演出，效果已入账）→[REVIEW（洗练预览待决）]→IDLE。 */
-    public enum GracePhase { IDLE, PAYING, PERFORM, REVIEW }
 
-    /** 会话存储（世界无关纯逻辑，可单测）；推进逻辑在 YaoyorozuGraceService。 */
-    public static final class GraceSession {
-        private GracePhase phase = GracePhase.IDLE;
-        private long sessionId;
-        private @Nullable ResourceLocation recipeId;
-        private @Nullable java.util.UUID initiator;
-        /** 配方阶级（effect 的 N；1..5）。 */
-        private int tier;
-        /** true=洗练配方；false=进阶配方。 */
-        private boolean refine;
-        private long collected;
-        /** 会话容量口径：锁定配方的 spCost；空闲为 0（不启动不缓存灵力）。 */
-        private long cost;
-        private int ticks;
-        /** 洗练预览（当场制：不入 NBT，重启/清退即作废）。 */
-        private @Nullable com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll pendingRefine;
-
-        public GracePhase phase() {
-            return phase;
-        }
-
-        public long sessionId() {
-            return sessionId;
-        }
-
-        public @Nullable ResourceLocation recipeId() {
-            return recipeId;
-        }
-
-        public @Nullable java.util.UUID initiator() {
-            return initiator;
-        }
-
-        public int tier() {
-            return tier;
-        }
-
-        public boolean refine() {
-            return refine;
-        }
-
-        public long collected() {
-            return collected;
-        }
-
-        public long cost() {
-            return cost;
-        }
-
-        public int ticks() {
-            return ticks;
-        }
-
-        public @Nullable com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll pendingRefine() {
-            return pendingRefine;
-        }
-
-        /** 启动新会话：换代、锁配方/阶级/类型与 initiator，进聚灵；返回新会话 id。 */
-        public long begin(ResourceLocation recipe, long spCost, java.util.UUID who,
-                          int recipeTier, boolean isRefine) {
-            sessionId++;
-            recipeId = recipe;
-            cost = spCost;
-            initiator = who;
-            tier = recipeTier;
-            refine = isRefine;
-            collected = 0L;
-            ticks = 0;
-            phase = GracePhase.PAYING;
-            pendingRefine = null;
-            return sessionId;
-        }
-
-        public void addCollected(long amount) {
-            collected += amount;
-        }
-
-        /** 聚灵足额 → 效果已 apply，进入演出。 */
-        public void enterPerform() {
-            phase = GracePhase.PERFORM;
-            ticks = 0;
-        }
-
-        public void advancePerform() {
-            ticks++;
-        }
-
-        /** 演出结束（洗练线）：预览挂会话等待当场决策。 */
-        public void enterReview(com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll roll) {
-            pendingRefine = roll;
-            phase = GracePhase.REVIEW;
-            ticks = 0;
-        }
-
-        /** 洗练 roll 在 apply 瞬间挂上（跨演出期携带；REVIEW 提升时转正）。 */
-        public void stageRefine(com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll roll) {
-            pendingRefine = roll;
-        }
-
-        /** 演出结束升为待决策态（保留 staged 预览）。 */
-        public void promoteReview() {
-            phase = GracePhase.REVIEW;
-            ticks = 0;
-        }
-
-        public void clearPendingRefine() {
-            pendingRefine = null;
-            if (phase == GracePhase.REVIEW) {
-                phase = GracePhase.IDLE;
-            }
-        }
-
-        /** 清退回空闲（正常收尾/中止/取消共用）。 */
-        public void clear() {
-            phase = GracePhase.IDLE;
-            recipeId = null;
-            initiator = null;
-            tier = 0;
-            refine = false;
-            collected = 0L;
-            cost = 0L;
-            ticks = 0;
-            pendingRefine = null;
-        }
-
-        public void save(CompoundTag tag) {
-            if (phase == GracePhase.IDLE) {
-                return;
-            }
-            // REVIEW 也写盘：待决预览永久存续（跨区块卸载 / 服务器重启），
-            // 决策权绑定 initiator，不会被他人关闭界面或掉线吞掉。
-            tag.putString(TAG_GRACE_PHASE, phase.name());
-            tag.putLong(TAG_GRACE_SESSION, sessionId);
-            tag.putLong(TAG_GRACE_COLLECTED, collected);
-            tag.putLong(TAG_GRACE_COST, cost);
-            tag.putInt(TAG_GRACE_TICKS, ticks);
-            tag.putInt(TAG_GRACE_TIER, tier);
-            tag.putBoolean(TAG_GRACE_REFINE, refine);
-            if (recipeId != null) {
-                tag.putString(TAG_GRACE_RECIPE, recipeId.toString());
-            }
-            if (initiator != null) {
-                tag.putUUID(TAG_GRACE_INITIATOR, initiator);
-            }
-            // REVIEW 的待决 roll 必须落盘：否则重启后 REVIEW 回来了但没有可决策的 roll，
-            // 玩家既看不到结果也无法"全收 / 保留"，等于待决预览丢失。
-            if (phase == GracePhase.REVIEW && pendingRefine != null) {
-                tag.put(TAG_GRACE_PENDING, writeGraceRoll(pendingRefine));
-            }
-        }
-
-        private static CompoundTag writeGraceRoll(
-                com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll roll) {
-            CompoundTag t = new CompoundTag();
-            t.putInt("tier", roll.tier());
-            t.putFloat("maxGain", roll.maxGain());
-            t.putFloat("powerGain", roll.powerGain());
-            ListTag list = new ListTag();
-            for (var entry : roll.contributions().entrySet()) {
-                CompoundTag one = new CompoundTag();
-                one.putString("k", entry.getKey().id());
-                one.putFloat("v", entry.getValue());
-                list.add(one);
-            }
-            t.put("contrib", list);
-            return t;
-        }
-
-        private static @Nullable com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll
-        readGraceRoll(CompoundTag t) {
-            if (!t.contains("contrib", Tag.TAG_LIST)) {
-                return null;
-            }
-            Map<com.bitsson.gensokyou.spirit.attr.AttributeKey, Float> contrib = new LinkedHashMap<>();
-            ListTag list = t.getList("contrib", Tag.TAG_COMPOUND);
-            for (int i = 0; i < list.size(); i++) {
-                CompoundTag one = list.getCompound(i);
-                var key = com.bitsson.gensokyou.spirit.attr.AttributeKey.byId(one.getString("k"));
-                if (key != null) {
-                    contrib.put(key, one.getFloat("v"));
-                }
-            }
-            return new com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll(
-                    t.getInt("tier"), t.getFloat("maxGain"), t.getFloat("powerGain"),
-                    Map.copyOf(contrib));
-        }
-
-        /**
-         * 读档：PAYING 复活（initiator 离线时由服务侧首 tick 取消退还）；REVIEW 复活为待决态
-         * （暂存的 roll 不写盘而是按 tier 重新 roll —— 精确复现需要额外持久化，收益不匹配）；
-         * PERFORM 视为不可续作，清退。
-         */
-        public void load(CompoundTag tag) {
-            if (!tag.contains(TAG_GRACE_PHASE)) {
-                return;
-            }
-            try {
-                phase = GracePhase.valueOf(tag.getString(TAG_GRACE_PHASE));
-            } catch (IllegalArgumentException exception) {
-                phase = GracePhase.IDLE;
-            }
-            if (phase == GracePhase.IDLE) {
-                return;
-            }
-            if (phase == GracePhase.PERFORM) {
-                clear(); // 演出不可续作：效果已入账，清态不重演
-                return;
-            }
-            sessionId = tag.getLong(TAG_GRACE_SESSION);
-            collected = tag.getLong(TAG_GRACE_COLLECTED);
-            cost = tag.getLong(TAG_GRACE_COST);
-            ticks = tag.getInt(TAG_GRACE_TICKS);
-            tier = tag.getInt(TAG_GRACE_TIER);
-            refine = tag.getBoolean(TAG_GRACE_REFINE);
-            recipeId = tag.contains(TAG_GRACE_RECIPE)
-                    ? ResourceLocation.tryParse(tag.getString(TAG_GRACE_RECIPE)) : null;
-            initiator = tag.hasUUID(TAG_GRACE_INITIATOR) ? tag.getUUID(TAG_GRACE_INITIATOR) : null;
-            pendingRefine = null;
-            if (phase == GracePhase.REVIEW && tag.contains(TAG_GRACE_PENDING, Tag.TAG_COMPOUND)) {
-                pendingRefine = readGraceRoll(tag.getCompound(TAG_GRACE_PENDING));
-            }
-            // REVIEW 却读不出待决 roll（老存档 / 词条键已退役）→ 退回 IDLE，
-            // 绝不停在一个"有 REVIEW 相位、无可决策内容"的死状态。
-            if (phase == GracePhase.REVIEW && pendingRefine == null) {
-                phase = GracePhase.IDLE;
-            }
-        }
+    /** 星移之仪 per-core 状态（惰性创建；工厂由 SeiiBehavior.newState 定义）。 */
+    private com.bitsson.gensokyou.ritual.SeiiSession seiiState() {
+        return (com.bitsson.gensokyou.ritual.SeiiSession) behaviorStates.computeIfAbsent(
+                RitualBehaviors.SEII,
+                key -> new com.bitsson.gensokyou.ritual.SeiiSession());
     }
 
-    private final GraceSession grace = new GraceSession();
-
-    /** 星移之仪会话态（第三份会话持有者，对照 craft / grace 的既有范式）。 */
-    private final com.bitsson.gensokyou.ritual.behavior.SeiiSession seii =
-            new com.bitsson.gensokyou.ritual.behavior.SeiiSession();
-
-    public com.bitsson.gensokyou.ritual.behavior.SeiiSession seiiSession() {
-        return seii;
+    public com.bitsson.gensokyou.ritual.SeiiSession seiiSession() {
+        return seiiState();
     }
 
     /** 开始星移会话：锁定配方、记花费与目标核阶、进 PAYING。 */
     public long beginSeiiSession(ResourceLocation recipeId, long spCost,
                                  int coreTier, java.util.UUID who) {
-        long id = seii.begin(recipeId, spCost, coreTier, who);
+        long id = seiiState().begin(recipeId, spCost, coreTier, who);
         activeRecipeId = recipeId;
         setChanged();
         return id;
     }
 
     public void addSeiiCollected(long amount) {
-        seii.addCollected(amount);
+        seiiState().addCollected(amount);
         setChanged();
     }
 
-    public void enterSeiiPerform(com.bitsson.gensokyou.ritual.behavior.SeiiSession.Pending staged) {
-        seii.stage(staged);
+    public void enterSeiiPerform(com.bitsson.gensokyou.ritual.SeiiSession.Pending staged) {
+        seiiState().stage(staged);
         setChanged();
     }
 
     public void tickSeiiPerform() {
-        seii.tickPerform();
+        seiiState().tickPerform();
     }
 
     public void promoteSeiiReview() {
-        seii.promoteReview();
+        seiiState().promoteReview();
         setChanged();
     }
 
     public void clearSeiiSession() {
-        seii.clear();
+        seiiState().clear();
         activeRecipeId = null;
         setChanged();
     }
 
+    /** 八百万神恩 per-core 状态（惰性创建；工厂由 YaoyorozuGraceBehavior.newState 定义）。 */
+    private GraceSession graceState() {
+        return (GraceSession) behaviorStates.computeIfAbsent(
+                RitualBehaviors.KAMI_NO_MEGUMI,
+                key -> new GraceSession());
+    }
+
     public GraceSession graceSession() {
-        return grace;
+        return graceState();
     }
 
     public GracePhase gracePhase() {
-        return grace.phase();
+        return graceState().phase();
     }
 
     public long beginGraceSession(ResourceLocation recipeId, long spCost, java.util.UUID who,
                                   int tier, boolean refine) {
-        long id = grace.begin(recipeId, spCost, who, tier, refine);
+        long id = graceState().begin(recipeId, spCost, who, tier, refine);
         activeRecipeId = recipeId;
         setChanged();
         return id;
     }
 
     public void addGraceCollected(long amount) {
-        grace.addCollected(amount);
+        graceState().addCollected(amount);
         setChanged();
     }
 
     public void enterGracePerform() {
-        grace.enterPerform();
+        graceState().enterPerform();
         setChanged();
     }
 
     public void advanceGracePerformTick() {
-        grace.advancePerform();
+        graceState().advancePerform();
     }
 
     public void enterGraceReview(com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll roll) {
-        grace.enterReview(roll);
+        graceState().enterReview(roll);
         setChanged();
     }
 
     /** 演出收尾升 REVIEW（staged 预览已在会话内，无需再传）。 */
     public void promoteGraceReview() {
-        grace.promoteReview();
+        graceState().promoteReview();
         setChanged();
     }
 
     /** 神恩会话清退（收尾/中止/取消/预览作废共用）。 */
     public void clearGraceSession() {
-        grace.clear();
+        graceState().clear();
         activeRecipeId = null;
         setChanged();
     }
@@ -1470,7 +968,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
         return false;
     }
 
-    private final IItemHandler extraSlotsHandler = new ExtraSlotsHandler();
+    private final IItemHandler extraSlotsHandler = new RitualCoreExtraSlotsHandler(this);
 
     /** 额外槽的 item handler 视图（供 RitualCoreMenu 的 ExtraSlot 绑定）。 */
     public IItemHandler extraSlotsHandler() {
@@ -1544,9 +1042,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (stored <= 0L) {
             return 0L;
         }
-        long carry = fillCarry + (long) spiritCore.fillRatePerSecond() * 1000L;
-        fillCarry = carry % 1000L;
-        long want = Math.min(carry / 1000L, stored);
+        long want = fillCarry.accumulate((long) spiritCore.fillRatePerSecond() * 1000L, 1000L);
+        want = Math.min(want, stored);
         if (want <= 0L) {
             return 0L;
         }
@@ -1558,7 +1055,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
     }
 
     /** 电池槽活代理（服务端菜单用；单槽，仅收灵力核心）。 */
-    private final IItemHandler batteryHandler = new BatteryHandler();
+    private final IItemHandler batteryHandler = new RitualCoreBatteryHandler(this);
 
     public IItemHandler batteryHandler() {
         return batteryHandler;
@@ -1581,19 +1078,31 @@ public class RitualCoreBlockEntity extends BlockEntity {
     }
 
     public long rateCarry() {
-        return rateCarry;
+        return rateCarry.carry();
     }
 
     public void setRateCarry(long value) {
-        rateCarry = value;
+        rateCarry.setCarry(value);
     }
 
     public long fillCarry() {
-        return fillCarry;
+        return fillCarry.carry();
     }
 
     public void setFillCarry(long value) {
-        fillCarry = value;
+        fillCarry.setCarry(value);
+    }
+
+    public com.bitsson.gensokyou.ritual.FixedPointAccumulator rateCarryAccumulator() {
+        return rateCarry;
+    }
+
+    public com.bitsson.gensokyou.ritual.FixedPointAccumulator fillCarryAccumulator() {
+        return fillCarry;
+    }
+
+    public com.bitsson.gensokyou.ritual.FixedPointAccumulator cacheFillCarryAccumulator() {
+        return cacheFillCarry;
     }
 
     /** 点火新批次：仅记录显示图标与时长——燃料实体已在台侧销毁。 */
@@ -1642,6 +1151,16 @@ public class RitualCoreBlockEntity extends BlockEntity {
     /** 结算周期末由行为侧写入"本周期实搬 >0"掩码；稳态（值不变）不触发任何推送。 */
     public void setResoMovingMask(long mask) {
         this.resoMovingMask = mask;
+    }
+
+    @Override
+    public long resoMovingMask() {
+        return resoMovingMask;
+    }
+
+    @Override
+    public int sacrificeFxTicks() {
+        return sacrificeFxTicks;
     }
 
     /** 渲染态（客户端 BER 只读入口；服务端侧恒为计算基准，不参与结算）。 */
@@ -1733,94 +1252,12 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (activeMatch == null) {
             return null;
         }
-        ResourceLocation id = activeMatch.patternId();
-        if (id.equals(RitualBehaviors.RESONANCE)) {
-            return buildRelayRenderState();
-        }
-        if (id.equals(RitualBehaviors.KAGUTSUICHI)) {
-            // 注意：本 kind 的 maxY 语义 = 结构水平半径（格），供客户端火柱铺满台面用
-            // （台位坐标可能因结构判定差异缺失，半径是权威且稳定的散布依据）
-            return new RitualRenderState(RitualRenderState.KIND_KAGUTSUICHI, enabled,
-                    activeMatch.level(), boundsMinY, structureRadiusXZ(), 0,
-                    kagutsuchiPillarAnchors(), 0,
-                    isBurning() ? RitualRenderState.MASK_KAGUTSUCHI_BURNING : 0L);
-        }
-        if (id.equals(RitualBehaviors.BAFANG_GUIYUAN)) {
-            return new RitualRenderState(RitualRenderState.KIND_BAFANG, enabled,
-                    activeMatch.level(), 0, 0, 0, new long[0], 0, 0L);
-        }
-        if (id.equals(RitualBehaviors.SEII)) {
-            return buildSeiiRenderState();
-        }
-        if (id.equals(RitualBehaviors.HYAKKI_YAGYO)) {
-            return buildSummonRenderState();
-        }
-        if (id.equals(RitualBehaviors.REIYOKU)) {
-            // 辅助字段：tier=结构等级（客户端据此取该阶 pattern 切片推导水面占地）；
-            // minY/maxY=结构**绝对世界** Y 范围（客户端须减 coreY 才是偏移；minY 供水面基准面，
-            // maxY 供灵力柱高度）。占地不进本通道：5 阶底层 433 格远超 long[] 通道上限 64。
-            return new RitualRenderState(RitualRenderState.KIND_REIYOKU, enabled,
-                    activeMatch.level(), boundsMinY, boundsMaxY, 0,
-                    new long[0], 0, 0L);
-        }
-        if (id.equals(RitualBehaviors.BOUSEN)) {
-            // 辅助字段：enabled=启停态；tier=结构等级（客户端据此取该阶 pattern 切片推导蜡烛坐标）；
-            // movingMask=蜡烛点亮位掩码（bit i = 规范序第 i 根点亮，1/2/3 阶分别占 4/5/6 位）。
-            // 「全亮」由客户端以掩码比对满掩码自行判定，不另占标志位。
-            //
-            // 坐标 MUST NOT 进 linkPos：MAX_CHANNELS 恰为 64，64 根零余量且 bit0 位惯例已被占用。
-            // 满掩码务必用 BousenBehavior.fullMask()（含 n==64 特判），MUST NOT 在此写 (1L<<n)-1。
-            return new RitualRenderState(RitualRenderState.KIND_BOUSEN, enabled,
-                    activeMatch.level(), 0, 0, 0, new long[0], 0, bousenLitMask);
-        }
-        if (id.equals(RitualBehaviors.KANAYAMAHIKO)) {
-            // maxY 语义 = 结构水平半径（格）：客户端据此铺满密集火星场
-            // 锚点与燃烧掩码共用同一份规范序台位，保证 bit(i+1) 与锚点 i 严格对齐
-            List<BlockPos> forgePedestals = pedestalPositions();
-            return new RitualRenderState(RitualRenderState.KIND_KANAYAMAHIKO, enabled,
-                    activeMatch.level(), boundsMinY, structureRadiusXZ(), 0,
-                    kanayamahikoPillarAnchors(forgePedestals), 0,
-                    com.bitsson.gensokyou.ritual.behavior.KanayamahikoSmelting
-                            .renderBurnMask(forgePedestals, kanayamahikoSession));
-        }
-        if (id.equals(RitualBehaviors.WUJINZANG)) {
-            return new RitualRenderState(RitualRenderState.KIND_WUJINZANG, enabled,
-                    activeMatch.level(), boundsMinY, boundsMaxY, 0,
-                    com.bitsson.gensokyou.ritual.behavior.WujinzangStorage
-                            .laserAnchors(this, activeMatch),
-                    0, 0L);
-        }
-        if (id.equals(RitualBehaviors.SUNAKO)) {
-            // 池水常驻（结构合法即渲染，故 enabled 恒真）+ 产出瞬间的献祭光柱。
-            // MUST 排在下面的献祭分支之前：光柱一旦抢占 kind，池水会整段闪断。
-            //
-            // 辅助字段：tier=结构等级（客户端据此取该阶 pattern 切片推导池面占地）；
-            // minY=光柱高度(格)、maxY=光柱剩余刻(0=无光柱)、period=色索引。
-            // 池面占地不进本通道：与灵浴同理，读同一份 pattern JSON 本地推导即可。
-            return new RitualRenderState(RitualRenderState.KIND_SUNAKO, true,
-                    activeMatch.level(),
-                    (int) Math.round(GensokyouConfig.FX_PILLAR_HEIGHT.get()),
-                    sacrificeFxTicks, RitualBehaviors.sacrificeColorIndex(id),
-                    new long[0], 0, 0L);
-        }
-        if (RitualBehaviors.isToolSacrifice(id) || id.equals(RitualBehaviors.SHUJOU)
-                || id.equals(RitualBehaviors.HOUJOUNO_TEIHOU) || id.equals(RitualBehaviors.OMOIKANE)) {
-            if (sacrificeFxTicks <= 0) {
-                return null;
-            }
-            // 复用字段：minY=光柱高度(格)、maxY=剩余刻、period=色索引(0..6)
-            return new RitualRenderState(RitualRenderState.KIND_SACRIFICE, enabled,
-                    activeMatch.level(),
-                    (int) Math.round(GensokyouConfig.FX_PILLAR_HEIGHT.get()),
-                    sacrificeFxTicks,
-                    RitualBehaviors.sacrificeColorIndex(id),
-                    new long[0], 0, 0L);
-        }
-        return null;
+        return RitualBehaviors.get(activeMatch.patternId())
+                .map(behavior -> behavior.buildRenderState(activeMatch, this))
+                .orElse(null);
     }
-
     /** 结构水平半径（格，向上取整）：核心到最远结构块的 XZ 距离，供迦具土火柱铺面参考。 */
-    private int structureRadiusXZ() {
+    public int structureRadiusXZ() {
         if (activeMatch == null) {
             return 0;
         }
@@ -1832,76 +1269,6 @@ public class RitualCoreBlockEntity extends BlockEntity {
             }
         }
         return radius;
-    }
-
-    /**
-     * 迦具土火柱发射锚点：复用既有规范序祭品台位（按 BE 类型判定），转 long[] 并截断到通道上限。
-     */
-    private long[] kagutsuchiPillarAnchors() {
-        List<BlockPos> peds = pedestalPositions();
-        int cap = RitualRenderState.MAX_CHANNELS;
-        long[] out = new long[Math.min(peds.size(), cap)];
-        for (int i = 0; i < out.length; i++) {
-            out[i] = peds.get(i).asLong();
-        }
-        return out;
-    }
-
-    /**
-     * 煅炉火柱锚点：与 {@link com.bitsson.gensokyou.ritual.behavior.KanayamahikoSmelting
-     * #renderBurnMask} 传入的台位列表完全一致，故"第 i 位点亮"必然对应"第 i 个台位冒火"。
-     */
-    private long[] kanayamahikoPillarAnchors(List<BlockPos> pedestals) {
-        int cap = RitualRenderState.MAX_CHANNELS;
-        long[] out = new long[Math.min(pedestals.size(), cap)];
-        for (int i = 0; i < out.length; i++) {
-            out[i] = pedestals.get(i).asLong();
-        }
-        return out;
-    }
-
-    @Nullable
-    private RitualRenderState buildRelayRenderState() {
-        int cap = RitualRenderState.MAX_CHANNELS;
-        int total = Math.min(inLinks.size() + outLinks.size(), cap);
-        long[] links = new long[total];
-        int filled = 0;
-        for (RitualLink link : inLinks) {
-            if (filled >= cap) {
-                break;
-            }
-            links[filled++] = link.corePos().asLong();
-        }
-        int inCount = filled;
-        for (RitualLink link : outLinks) {
-            if (filled >= cap) {
-                break;
-            }
-            links[filled++] = link.corePos().asLong();
-        }
-        // 截断防御：配额翻倍越 64 时此处丢尾通道渲染（结算不受影响），届时掩码改 long[]
-        return new RitualRenderState(RitualRenderState.KIND_RELAY, enabled, activeMatch.level(),
-                boundsMinY, boundsMaxY,
-                Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get()), links, inCount,
-                RitualRenderState.clampMask(resoMovingMask, total));
-    }
-
-    /**
-     * 星移演出渲染态：只下发"演出中 + 档位 + 起始 gameTime + 总时长"四个标量，
-     * 逐帧粒子表现全在客户端 BER 本地生成（稳态零持续包）。
-     *
-     * <p>{@code startTick = gameTime - session.ticks()}：PERFORM 期间两者每 tick 同步 +1，
-     * 故该差值恒定且自校正 —— 无需给会话新增持久化字段，也不会累积漂移。
-     */
-    private RitualRenderState buildSeiiRenderState() {
-        com.bitsson.gensokyou.ritual.behavior.SeiiSession session = seiiSession();
-        boolean performing = level != null && !level.isClientSide
-                && session.phase() == com.bitsson.gensokyou.ritual.behavior.SeiiSession.Phase.PERFORM;
-        int duration = com.bitsson.gensokyou.config.GensokyouConfig.SEII_PERFORM_TICKS.get();
-        int startTick = performing
-                ? (int) (level.getGameTime() - session.ticks()) : 0;
-        return new RitualRenderState(RitualRenderState.KIND_SEII, performing,
-                activeMatch.level(), startTick, duration, 0, new long[0], 0, 0L);
     }
 
     @Override
@@ -1928,12 +1295,9 @@ public class RitualCoreBlockEntity extends BlockEntity {
             return;
         }
         enabled = value;
-        // 百鬼夜行：「停机」即「放弃本次召唤」。挂在 setEnabled 上而不是 stop() 里，
-        // 是为了把图案切换 / 重扫失效 / 周期供给断供这三条自动停机路径一并覆盖——
-        // 它们都直接调 setEnabled(false)，漏掉任何一条都会让核心带着非零容量
-        // 继续留在供灵网络里（空闲态必须容量为 0，见 getCapacity 分派）。
-        if (!value && isPattern(RitualBehaviors.HYAKKI_YAGYO) && summon.phase != SummonPhase.IDLE) {
-            clearSummonSession();
+        if (!value && activeMatch != null && level instanceof ServerLevel serverLevel) {
+            RitualBehaviors.get(activeMatch.patternId()).ifPresent(behavior ->
+                    behavior.onDisabled(serverLevel, getBlockPos(), activeMatch, this));
         }
         setChanged();
     }
@@ -1957,14 +1321,6 @@ public class RitualCoreBlockEntity extends BlockEntity {
      * <p>MUST NOT 把 {@code elapsed} 从服务端逐 tick 推下来——那会变成"开一次门发 60 个包、
      * 丢一个就永久卡死"的经典故障（见 {@code SukimaBlockEntity} 的同款 postmortem）。
      */
-    private RitualRenderState buildSummonRenderState() {
-        boolean active = summon.phase != SummonPhase.IDLE;
-        return new RitualRenderState(RitualRenderState.KIND_SUMMON, active,
-                activeMatch.level(), summon.fxStart,
-                com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_BURST_TICKS.get(),
-                com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_PILLAR_HOLD_TICKS.get(),
-                new long[0], 0, summon.phase.ordinal());
-    }
 
     /**
      * UI 启动按钮的唯一入口：门槛校验 → 行为侧 onStart（收费等）→ 扣除 on_activate 消耗 → 置位。
@@ -2052,6 +1408,12 @@ public class RitualCoreBlockEntity extends BlockEntity {
             behavior.get().onRecipeExecuted(serverLevel, worldPosition, activeMatch, this,
                     player, matched.recipe());
         }
+        String achievement = behavior
+                .map(b -> b.startAchievement(serverLevel, worldPosition, activeMatch, this))
+                .orElse(null);
+        if (achievement != null) {
+            AchievementAwards.award(player, achievement);
+        }
         return true;
     }
 
@@ -2113,14 +1475,23 @@ public class RitualCoreBlockEntity extends BlockEntity {
     // ---- 自动化接口：祭品台代理箱（槽位 ⇄ 成型结构内祭品台，每槽容量 1，活代理） ----
 
     /** 代理箱 handler（稳定单例：NeoForge 按返回实例缓存 capability）。 */
-    private final IItemHandler itemHandler = new PedestalItemHandler();
-    private final IItemHandler wujinzangHandler =
-            new com.bitsson.gensokyou.ritual.behavior.WujinzangStorage.ProxyHandler(this);
+    private final IItemHandler itemHandler = new RitualCorePedestalHandler(this);
+    private IItemHandler customItemHandler;
+    private net.minecraft.resources.ResourceLocation customItemHandlerPattern;
 
-    /** 物品接入面按图案分派：无尽藏 = 跨晶块合并箱，其余 = 祭品台代理箱。 */
+    /** 物品接入面：行为可自定义（如无尽藏跨晶块合并箱），否则默认祭品台代理箱。 */
     public IItemHandler itemHandler() {
-        if (activeMatch != null && RitualBehaviors.WUJINZANG.equals(activeMatch.patternId())) {
-            return wujinzangHandler;
+        if (activeMatch != null) {
+            ResourceLocation pid = activeMatch.patternId();
+            if (customItemHandler == null || !pid.equals(customItemHandlerPattern)) {
+                customItemHandler = RitualBehaviors.get(pid)
+                        .map(behavior -> behavior.itemHandler(this))
+                        .orElse(null);
+                customItemHandlerPattern = pid;
+            }
+            if (customItemHandler != null) {
+                return customItemHandler;
+            }
         }
         return itemHandler;
     }
@@ -2134,9 +1505,8 @@ public class RitualCoreBlockEntity extends BlockEntity {
         if (space <= 0L) {
             return 0L;
         }
-        long carry = cacheFillCarry + (long) spiritCore.fillRatePerSecond() * 1000L;
-        cacheFillCarry = carry % 1000L;
-        long want = Math.min(carry / 1000L, space);
+        long want = cacheFillCarry.accumulate((long) spiritCore.fillRatePerSecond() * 1000L, 1000L);
+        want = Math.min(want, space);
         if (want <= 0L) {
             return 0L;
         }
@@ -2149,7 +1519,7 @@ public class RitualCoreBlockEntity extends BlockEntity {
     }
 
     /** 成型结构内全部祭品台位（按 BE 类型判定、跨 key 汇总后规范序 y,z,x）；未成型为空。 */
-    private List<BlockPos> pedestalPositions() {
+    public List<BlockPos> pedestalPositions() {
         if (activeMatch == null || level == null) {
             return List.of();
         }
@@ -2167,210 +1537,13 @@ public class RitualCoreBlockEntity extends BlockEntity {
         return out;
     }
 
-    private RitualPedestalBlockEntity pedestalAt(int slot) {
+    RitualPedestalBlockEntity pedestalAt(int slot) {
         List<BlockPos> positions = pedestalPositions();
         if (slot < 0 || slot >= positions.size() || level == null) {
             return null;
         }
         return level.getBlockEntity(positions.get(slot))
                 instanceof RitualPedestalBlockEntity pedestal ? pedestal : null;
-    }
-
-    /** 活代理实现：每次调用现场解析台位并直读直写祭品台 BE，核心零存储。 */
-    private final class PedestalItemHandler implements IItemHandler {
-
-        @Override
-        public int getSlots() {
-            return pedestalPositions().size();
-        }
-
-        @Override
-        public ItemStack getStackInSlot(int slot) {
-            RitualPedestalBlockEntity pedestal = pedestalAt(slot);
-            return pedestal == null ? ItemStack.EMPTY : pedestal.getHeld();
-        }
-
-        @Override
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            if (stack.isEmpty()) {
-                return ItemStack.EMPTY;
-            }
-            RitualPedestalBlockEntity pedestal = pedestalAt(slot);
-            if (pedestal == null || !pedestal.getHeld().isEmpty()) {
-                return stack;
-            }
-            if (!simulate) {
-                pedestal.setHeld(stack.copyWithCount(1));
-            }
-            return stack.getCount() <= 1 ? ItemStack.EMPTY : stack.copyWithCount(stack.getCount() - 1);
-        }
-
-        @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            if (amount <= 0) {
-                return ItemStack.EMPTY;
-            }
-            RitualPedestalBlockEntity pedestal = pedestalAt(slot);
-            if (pedestal == null || pedestal.getHeld().isEmpty()) {
-                return ItemStack.EMPTY;
-            }
-            ItemStack held = pedestal.getHeld();
-            int take = Math.min(amount, held.getCount());
-            if (!simulate) {
-                int remaining = held.getCount() - take;
-                pedestal.setHeld(remaining <= 0 ? ItemStack.EMPTY : held.copyWithCount(remaining));
-            }
-            return held.copyWithCount(take);
-        }
-
-        @Override
-        public int getSlotLimit(int slot) {
-            return 1;
-        }
-
-        @Override
-        public boolean isItemValid(int slot, ItemStack stack) {
-            if (stack.isEmpty()) {
-                return false;
-            }
-            RitualPedestalBlockEntity pedestal = pedestalAt(slot);
-            return pedestal != null && pedestal.getHeld().isEmpty();
-        }
-    }
-
-    /** 电池槽单槽代理：仅收灵力核心物品，直读直写 BE 字段（SlotItemHandler.set 要求可写接口）。 */
-    /**
-     * 额外槽的通用 handler：每格恒为 1 个（与祭品台的一台一件同理），物品合法性
-     * 由行为的 {@link RitualExtraSlots#isSlotValid} 裁决。
-     *
-     * <p>允许取出（玩家要把东西拿回去）；若有待决会话，服务侧在采纳时会复验物品是否仍在槽内。
-     */
-    private final class ExtraSlotsHandler implements net.neoforged.neoforge.items.IItemHandlerModifiable {
-
-        @Override
-        public void setStackInSlot(int slot, ItemStack stack) {
-            if (validIndex(slot)) {
-                setExtraSlot(slot, stack);
-            }
-        }
-
-        @Override
-        public int getSlots() {
-            return MAX_EXTRA_SLOTS;
-        }
-
-        @Override
-        public ItemStack getStackInSlot(int slot) {
-            return validIndex(slot) ? extraSlotStacks[slot] : ItemStack.EMPTY;
-        }
-
-        @Override
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            if (!validIndex(slot) || !isItemValid(slot, stack)) {
-                return stack;
-            }
-            ItemStack current = extraSlotStacks[slot];
-            if (current.isEmpty()) {
-                if (!simulate) {
-                    setExtraSlot(slot, stack);
-                }
-                return stack.copyWithCount(stack.getCount() - 1);
-            }
-            // 单格不变量：槽内已有物即拒绝，余量原样退回。
-            // 非模拟时绝不能返回 copyWithCount(0)——那等于声称全部扣完，调用方不再持有余量，物品凭空消失。
-            return stack;
-        }
-
-        @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            if (!validIndex(slot) || extraSlotStacks[slot].isEmpty()) {
-                return ItemStack.EMPTY;
-            }
-            ItemStack out = extraSlotStacks[slot].copyWithCount(Math.min(amount,
-                    extraSlotStacks[slot].getCount()));
-            if (!simulate) {
-                setExtraSlot(slot, ItemStack.EMPTY);
-            }
-            return out;
-        }
-
-        @Override
-        public int getSlotLimit(int slot) {
-            return 1;
-        }
-
-        @Override
-        public boolean isItemValid(int slot, ItemStack stack) {
-            if (!validIndex(slot) || stack == null || stack.isEmpty()) {
-                return false;
-            }
-            RitualMatch match = activeMatch;
-            if (match == null) {
-                return false;
-            }
-            return RitualBehaviors.get(match.patternId())
-                    .filter(RitualExtraSlots.class::isInstance)
-                    .map(RitualExtraSlots.class::cast)
-                    .map(slots -> slot < slots.slotCount() && slots.isSlotValid(slot, stack))
-                    .orElse(false);
-        }
-
-        private boolean validIndex(int slot) {
-            return slot >= 0 && slot < MAX_EXTRA_SLOTS;
-        }
-    }
-
-    private final class BatteryHandler implements net.neoforged.neoforge.items.IItemHandlerModifiable {
-        @Override
-        public void setStackInSlot(int slot, ItemStack stack) {
-            if (slot == 0 && isItemValid(slot, stack)) {
-                setBatteryStack(stack.isEmpty() ? ItemStack.EMPTY : stack.copyWithCount(1));
-            }
-        }
-
-        @Override
-        public int getSlots() {
-            return 1;
-        }
-
-        @Override
-        public ItemStack getStackInSlot(int slot) {
-            return slot == 0 ? batteryStack : ItemStack.EMPTY;
-        }
-
-        @Override
-        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-            if (slot != 0 || !isItemValid(slot, stack)) {
-                return stack;
-            }
-            if (!simulate) {
-                setBatteryStack(stack.copyWithCount(1));
-            }
-            return stack.getCount() <= 1 ? ItemStack.EMPTY : stack.copyWithCount(stack.getCount() - 1);
-        }
-
-        @Override
-        public ItemStack extractItem(int slot, int amount, boolean simulate) {
-            if (slot != 0 || amount <= 0 || batteryStack.isEmpty()) {
-                return ItemStack.EMPTY;
-            }
-            ItemStack copy = batteryStack.copyWithCount(1);
-            if (!simulate) {
-                setBatteryStack(ItemStack.EMPTY);
-            }
-            return copy;
-        }
-
-        @Override
-        public int getSlotLimit(int slot) {
-            return 1;
-        }
-
-        @Override
-        public boolean isItemValid(int slot, ItemStack stack) {
-            return slot == 0 && stack.getItem()
-                    instanceof com.bitsson.gensokyou.spirit.SpiritCoreItem;
-        }
     }
 
     public static void serverTick(Level level, BlockPos pos, BlockState state,
@@ -2554,35 +1727,24 @@ public class RitualCoreBlockEntity extends BlockEntity {
             burn.putInt(TAG_BURN_REMAINING, burnRemainingTicks);
             tag.put(TAG_BURN, burn);
         }
-        if (rateCarry != 0) {
-            tag.putLong(TAG_RATE_ACCUM, rateCarry);
+        if (rateCarry.carry() != 0) {
+            tag.putLong(TAG_RATE_ACCUM, rateCarry.carry());
         }
-        if (fillCarry != 0) {
-            tag.putLong(TAG_FILL_ACCUM, fillCarry);
+        if (fillCarry.carry() != 0) {
+            tag.putLong(TAG_FILL_ACCUM, fillCarry.carry());
         }
-        craft.save(tag);
-        summon.save(tag);
-        grace.save(tag);
-        seii.save(tag);
+        for (com.bitsson.gensokyou.ritual.RitualBehaviorState state : behaviorStates.values()) {
+            state.save(tag, registries);
+        }
         if (lastPowered) {
             tag.putBoolean(TAG_LAST_POWERED, true);
         }
         if (actionCooldown > 0) {
             tag.putInt(TAG_ACTION_COOLDOWN, actionCooldown);
         }
-        if (wujinzangVault != null) {
-            tag.put(TAG_WUJINZANG_VAULT, wujinzangVault.copy());
+        if (cacheFillCarry.carry() != 0L) {
+            tag.putLong("WujinzangCacheCarry", cacheFillCarry.carry());
         }
-        if (cacheFillCarry != 0L) {
-            tag.putLong("WujinzangCacheCarry", cacheFillCarry);
-        }
-        if (reiyokuRateCarry != 0L) {
-            tag.putLong("ReiyokuRateCarry", reiyokuRateCarry);
-        }
-        if (reiyokuSplitCarry != 0L) {
-            tag.putLong("ReiyokuSplitCarry", reiyokuSplitCarry);
-        }
-        kanayamahikoSession.save(tag, registries);
     }
 
     @Override
@@ -2618,20 +1780,21 @@ public class RitualCoreBlockEntity extends BlockEntity {
             burnTotalTicks = burn.getInt(TAG_BURN_TOTAL);
             burnRemainingTicks = Math.min(burn.getInt(TAG_BURN_REMAINING), burnTotalTicks);
         }
-        rateCarry = tag.getLong(TAG_RATE_ACCUM);
-        fillCarry = tag.getLong(TAG_FILL_ACCUM);
-        craft.load(tag);
-        summon.load(tag);
-        grace.load(tag);
-        seii.load(tag);
+        rateCarry.setCarry(tag.getLong(TAG_RATE_ACCUM));
+        fillCarry.setCarry(tag.getLong(TAG_FILL_ACCUM));
+        for (var entry : RitualBehaviors.all().entrySet()) {
+            com.bitsson.gensokyou.ritual.RitualBehaviorState state = entry.getValue().newState();
+            if (state == null) {
+                continue;
+            }
+            state.load(tag, registries);
+            if (!state.isEmpty()) {
+                behaviorStates.put(entry.getKey(), state);
+            }
+        }
         lastPowered = tag.getBoolean(TAG_LAST_POWERED);
         actionCooldown = Math.max(0, tag.getInt(TAG_ACTION_COOLDOWN));
-        wujinzangVault = tag.contains(TAG_WUJINZANG_VAULT)
-                ? tag.getCompound(TAG_WUJINZANG_VAULT).copy() : null;
-        cacheFillCarry = tag.getLong("WujinzangCacheCarry");
-        reiyokuRateCarry = tag.getLong("ReiyokuRateCarry");
-        reiyokuSplitCarry = tag.getLong("ReiyokuSplitCarry");
-        kanayamahikoSession.load(tag, registries);
+        cacheFillCarry.setCarry(tag.getLong("WujinzangCacheCarry"));
         if (tag.contains(TAG_RENDER_STATE)) {
             renderState = RitualRenderState.fromTag(tag.getCompound(TAG_RENDER_STATE));
         }

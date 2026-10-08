@@ -353,7 +353,7 @@ public final class ModNetworking {
 
     /** 造化合成演出指令：FLIGHT 起点单发给追踪该区块的玩家（客户端程序化升空粒子）。 */
     public static void sendRitualCraftFx(ServerLevel level, BlockPos corePos,
-                                         RitualCoreBlockEntity core, int durationTicks) {
+                                         com.bitsson.gensokyou.ritual.SpiritPowerAccess core, int durationTicks) {
         net.minecraft.core.BlockPos min = corePos.immutable();
         net.minecraft.core.BlockPos max = corePos.immutable();
         RitualMatch match = core.activeMatch();

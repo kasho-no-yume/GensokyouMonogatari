@@ -1,5 +1,9 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.KanayamahikoSmeltSession;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
@@ -36,6 +40,10 @@ import java.util.Optional;
 import java.util.Set;
 
 public final class KanayamahikoSmelting {
+
+    private static KanayamahikoSmeltSession smelt(SpiritPowerAccess core) {
+        return (KanayamahikoSmeltSession) core.behaviorState();
+    }
 
     public record RecipeLock(ResourceLocation id, KanayamahikoSmeltSession.Source source, ItemStack result) {
         public RecipeLock {
@@ -96,8 +104,8 @@ public final class KanayamahikoSmelting {
     }
 
     public static void tick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                            RitualCoreBlockEntity core) {
-        KanayamahikoSmeltSession session = core.kanayamahikoSession();
+                            SpiritPowerAccess core) {
+        KanayamahikoSmeltSession session = smelt(core);
         List<BlockPos> positions = RitualPedestals.positions(match);
         Map<BlockPos, ItemStack> held = heldItems(level, positions);
         boolean changed = false;
@@ -151,13 +159,13 @@ public final class KanayamahikoSmelting {
         }
 
         if (changed || core.ageTicks() % 20L == 0L) {
-            core.setChanged();
+            core.markDirty();
         }
     }
 
     public static void clear(ServerLevel level, BlockPos corePos) {
-        if (level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core) {
-            core.clearKanayamahikoSession();
+        if (level.getBlockEntity(corePos) instanceof SpiritPowerAccess core) {
+            smelt(core).clear(); core.markDirty();
         }
     }
 
@@ -187,8 +195,8 @@ public final class KanayamahikoSmelting {
     }
 
     public static List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                         RitualCoreBlockEntity core) {
-        KanayamahikoSmeltSession session = core.kanayamahikoSession();
+                                         SpiritPowerAccess core) {
+        KanayamahikoSmeltSession session = smelt(core);
         List<KanayamahikoSmeltSession.Job> jobs = session.jobs();
         int active = 0;
         int waiting = 0;
@@ -271,8 +279,8 @@ public final class KanayamahikoSmelting {
     }
 
     public static String debugSummary(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
-        KanayamahikoSmeltSession session = core.kanayamahikoSession();
+                                      SpiritPowerAccess core) {
+        KanayamahikoSmeltSession session = smelt(core);
         int running = 0;
         int waiting = 0;
         int paused = 0;
@@ -512,7 +520,7 @@ public final class KanayamahikoSmelting {
     }
 
     private static boolean advanceJob(ServerLevel level, BlockPos corePos,
-                                      RitualCoreBlockEntity core,
+                                      SpiritPowerAccess core,
                                       KanayamahikoSmeltSession.Job job) {
         long accumulated = job.powerCarry() + saturatedMultiply(job.drainPerSecond(), 50L);
         long cost = accumulated / 1000L;
@@ -543,13 +551,13 @@ public final class KanayamahikoSmelting {
     }
 
     private static void finishJob(ServerLevel level, BlockPos corePos,
-                                  RitualCoreBlockEntity core,
+                                  SpiritPowerAccess core,
                                   KanayamahikoSmeltSession.Job job) {
         for (KanayamahikoSmeltSession.Auxiliary support : job.supports()) {
             consumeOne(level, support.pos(), support.expected());
         }
         consumeOne(level, job.primary(), job.expectedPrimary());
-        core.kanayamahikoSession().remove(job);
+        smelt(core).remove(job);
         emit(level, corePos, multipliedResult(job.result(), job.blockOre()));
     }
 

@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.KanayamahikoSmeltSession;
+
 import com.bitsson.gensokyou.ritual.RitualRenderState;
 import com.bitsson.gensokyou.support.MinecraftTestBootstrap;
 import net.minecraft.core.BlockPos;

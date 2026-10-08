@@ -163,4 +163,9 @@ public final class RitualBehaviors {
     public static Optional<RitualBehavior> get(ResourceLocation patternId) {
         return Optional.ofNullable(REGISTRY.get(patternId));
     }
+
+    /** 全部注册项（patternId → 行为单例）；供逐仪式状态读档等遍历用。 */
+    public static Map<ResourceLocation, RitualBehavior> all() {
+        return java.util.Collections.unmodifiableMap(REGISTRY);
+    }
 }

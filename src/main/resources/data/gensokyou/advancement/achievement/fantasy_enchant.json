@@ -1,0 +1,22 @@
+{
+  "parent": "gensokyou:achievement/root",
+  "display": {
+    "icon": {
+      "id": "minecraft:enchanted_book"
+    },
+    "title": {
+      "translate": "advancement.gensokyou.achievement.fantasy_enchant.title"
+    },
+    "description": {
+      "translate": "advancement.gensokyou.achievement.fantasy_enchant.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "reached": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

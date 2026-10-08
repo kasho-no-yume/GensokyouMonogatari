@@ -67,6 +67,9 @@ public final class GraceService {
                 .withTemper(newTier));
         applyContributions(player, roll);
         GraceFlight.applyPermission(player);
+        if (newTier >= 1) {
+            com.bitsson.gensokyou.event.AchievementAwards.award(player, "divine_grace");
+        }
         return ModAttachments.get(player);
     }
 

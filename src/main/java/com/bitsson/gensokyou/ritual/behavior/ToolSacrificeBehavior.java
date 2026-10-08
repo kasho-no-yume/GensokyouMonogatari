@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
@@ -40,6 +42,19 @@ import java.util.Map;
  * 解锁地狱池、≥{@code dragonHeadsRequired} 个龙首解锁末地池，头颅**不消耗**。
  */
 public abstract class ToolSacrificeBehavior implements RitualBehavior {
+
+    @Override
+    public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
+        if (core.sacrificeFxTicks() <= 0) return null;
+        return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SACRIFICE, core.isEnabled(), match.level(),
+                (int) Math.round(com.bitsson.gensokyou.config.GensokyouConfig.FX_PILLAR_HEIGHT.get()), core.sacrificeFxTicks(),
+                com.bitsson.gensokyou.ritual.RitualBehaviors.sacrificeColorIndex(match.patternId()), new long[0], 0, 0L);
+    }
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return RitualCoreBlockEntity.sacrificeCapacity(level);
+    }
 
     /** 单个合规工具（台位 + 持有栈）。 */
     public record PedestalTool(BlockPos pos, ItemStack stack) {
@@ -177,13 +192,13 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
 
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         return GensokyouConfig.SACRIFICE_SPIRIT_IN_RATE.get().longValue();
     }
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
+                           SpiritPowerAccess core) {
         RitualLootTable table = RitualLootLoader.byPattern(match.patternId()).orElse(null);
         if (table == null) {
             return;
@@ -256,7 +271,7 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         List<InfoLine> lines = new ArrayList<>();
         int color = accentColor();
         RitualLootTable table = RitualLootLoader.byPattern(match.patternId()).orElse(null);

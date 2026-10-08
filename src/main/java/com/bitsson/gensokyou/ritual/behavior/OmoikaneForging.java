@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
@@ -84,7 +86,7 @@ public final class OmoikaneForging {
     // ------------------------------------------------------------------ 扫描
 
     /** 当前模式：槽空 → NONE；普通书 → BOOK；否则 GEAR。 */
-    public static Mode modeOf(RitualCoreBlockEntity core) {
+    public static Mode modeOf(SpiritPowerAccess core) {
         ItemStack slot = core.extraSlot(GEAR_SLOT);
         if (slot.isEmpty()) {
             return Mode.NONE;
@@ -136,7 +138,7 @@ public final class OmoikaneForging {
     }
 
     /** 装备模式的合并计划预览（GUI 与结算共用同一入口，保证所见即所扣）。 */
-    public static OmoikaneMerge.MergePlan planGear(RitualCoreBlockEntity core,
+    public static OmoikaneMerge.MergePlan planGear(SpiritPowerAccess core,
                                                    List<ItemStack> books, int ritualTier) {
         return OmoikaneMerge.plan(core.extraSlot(GEAR_SLOT), books, ritualTier);
     }
@@ -150,7 +152,7 @@ public final class OmoikaneForging {
      *         返回 {@code producedAnything() == false} 的 Outcome 且<b>零消耗</b>
      */
     public static Outcome forge(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                RitualCoreBlockEntity core) {
+                                SpiritPowerAccess core) {
         int ritualLevel = match.level();
         Mode mode = modeOf(core);
         long storedBefore = core.getStored();
@@ -172,7 +174,7 @@ public final class OmoikaneForging {
     }
 
     /** 装备模式：书池合并入装备。 */
-    private static Outcome forgeGear(ServerLevel level, RitualCoreBlockEntity core,
+    private static Outcome forgeGear(ServerLevel level, SpiritPowerAccess core,
                                      List<BlockPos> valid, int ritualLevel, long storedBefore) {
         List<ItemStack> books = new ArrayList<>();
         for (BlockPos pos : valid) {
@@ -214,7 +216,7 @@ public final class OmoikaneForging {
     }
 
     /** 书模式：青金石块换随机词条，普通书原地变附魔书。 */
-    private static Outcome forgeBook(ServerLevel level, RitualCoreBlockEntity core,
+    private static Outcome forgeBook(ServerLevel level, SpiritPowerAccess core,
                                      List<BlockPos> valid, int ritualLevel, long storedBefore) {
         int entries = valid.size();
         long cost = OmoikaneScaling.batchCost(entries, ritualLevel);
@@ -265,7 +267,7 @@ public final class OmoikaneForging {
     // ------------------------------------------------------------------ GUI
 
     public static List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                        RitualCoreBlockEntity core) {
+                                        SpiritPowerAccess core) {
         int ritualLevel = match.level();
         Mode mode = modeOf(core);
         PedestalScan scan = scanPedestals(level, match);

@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
@@ -36,6 +38,11 @@ import java.util.List;
  */
 public class YumewatariBehavior implements RitualBehavior {
 
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return RitualCoreBlockEntity.yumewatariCapacity(level);
+    }
+
     /** 一张合规床及其当前占用者（结算 tick 快照，空床 sleeper=null）。 */
     public record Bed(BlockPos head, BlockPos foot, Entity sleeper) {
     }
@@ -54,7 +61,7 @@ public class YumewatariBehavior implements RitualBehavior {
 
     @Override
     public long spiritOutRatePerSecond(ServerLevel level, BlockPos corePos,
-                                       RitualMatch match, RitualCoreBlockEntity core) {
+                                       RitualMatch match, SpiritPowerAccess core) {
         return GensokyouConfig.YUMEWATARI_OUT_RATE_PER_SECOND.get().longValue();
     }
 
@@ -67,7 +74,7 @@ public class YumewatariBehavior implements RitualBehavior {
     /** 产能不能动：成型即每秒把缓存灵力按核心注灵速率自发搬进槽内灵力核心（无核心时零副作用）。 */
     @Override
     public void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                  RitualCoreBlockEntity core) {
+                                  SpiritPowerAccess core) {
         if (core.ageTicks() % 20 == 0L) {
             core.tickBatteryAutoFill();
         }
@@ -84,7 +91,7 @@ public class YumewatariBehavior implements RitualBehavior {
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos,
-                                 RitualMatch match, RitualCoreBlockEntity core) {
+                                 RitualMatch match, SpiritPowerAccess core) {
         List<InfoLine> lines = new ArrayList<>();
         List<Bed> beds = scanBeds(level, match, corePos);
         int sleepers = countSleepers(beds);
@@ -193,13 +200,13 @@ public class YumewatariBehavior implements RitualBehavior {
      * 零睡眠者不产生任何写入与推送。
      */
     public static Settlement settle(ServerLevel level, BlockPos corePos,
-                                    RitualMatch match, RitualCoreBlockEntity core) {
+                                    RitualMatch match, SpiritPowerAccess core) {
         return settleWith(level, corePos, match, core, countSleepers(scanBeds(level, match, corePos)));
     }
 
     /** 结算内核；{@code sleepers} 由调试命令注入以在无真实睡眠者时验证分流路径（仅调试侧使用）。 */
     public static Settlement settleWith(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                        RitualCoreBlockEntity core, int sleepers) {
+                                        SpiritPowerAccess core, int sleepers) {
         long unit = unitPerSleeper(match.level());
         if (sleepers <= 0) {
             return new Settlement(0, unit, 0L, 0L, 0L, 0L);

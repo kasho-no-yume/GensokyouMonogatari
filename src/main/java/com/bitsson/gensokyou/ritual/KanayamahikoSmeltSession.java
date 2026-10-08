@@ -1,4 +1,4 @@
-package com.bitsson.gensokyou.ritual.behavior;
+package com.bitsson.gensokyou.ritual;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -13,7 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class KanayamahikoSmeltSession {
+public final class KanayamahikoSmeltSession extends RitualBehaviorState {
 
     public static final int VERSION = 1;
     private static final String TAG_ROOT = "KanayamahikoSmeltSession";
@@ -315,6 +315,12 @@ public final class KanayamahikoSmeltSession {
         nextSequence = 0L;
     }
 
+    @Override
+    public boolean isEmpty() {
+        return jobs.isEmpty();
+    }
+
+    @Override
     public void save(CompoundTag parent, HolderLookup.Provider registries) {
         if (jobs.isEmpty()) {
             return;
@@ -330,6 +336,7 @@ public final class KanayamahikoSmeltSession {
         parent.put(TAG_ROOT, tag);
     }
 
+    @Override
     public void load(CompoundTag parent, HolderLookup.Provider registries) {
         clear();
         if (!parent.contains(TAG_ROOT)) {

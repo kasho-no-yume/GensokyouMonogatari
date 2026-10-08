@@ -1,4 +1,4 @@
-package com.bitsson.gensokyou.ritual.behavior;
+package com.bitsson.gensokyou.ritual;
 
 import com.bitsson.gensokyou.ritual.RitualMatch;
 import net.minecraft.core.BlockPos;

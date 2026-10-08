@@ -1,6 +1,8 @@
 package com.bitsson.gensokyou.ritual;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
+import com.bitsson.gensokyou.ritual.CraftPhase;
+import com.bitsson.gensokyou.ritual.CraftSession;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import org.junit.jupiter.api.Test;
@@ -19,8 +21,8 @@ class CraftSessionTest {
 
     private static final ResourceLocation RECIPE = ResourceLocation.parse("gensokyou:zaohua_stone_t1");
 
-    private static RitualCoreBlockEntity.CraftSession begin() {
-        RitualCoreBlockEntity.CraftSession session = new RitualCoreBlockEntity.CraftSession();
+    private static CraftSession begin() {
+        CraftSession session = new CraftSession();
         session.begin(RECIPE, 2000L);
         return session;
     }
@@ -28,7 +30,7 @@ class CraftSessionTest {
     @Test
     void beginLocksRecipeCostAndEntersPaying() {
         var s = begin();
-        assertEquals(RitualCoreBlockEntity.CraftPhase.PAYING, s.phase());
+        assertEquals(CraftPhase.PAYING, s.phase());
         assertEquals(RECIPE, s.recipeId());
         assertEquals(0L, s.collected());
         assertEquals(2000L, s.cost(), "会话容量口径 = 锁定配方 spCost");
@@ -49,7 +51,7 @@ class CraftSessionTest {
         long firstId = s.sessionId();
         s.addCollected(2000L);
         s.enterFlight(List.of(11, 22, 33));
-        assertEquals(RitualCoreBlockEntity.CraftPhase.FLIGHT, s.phase());
+        assertEquals(CraftPhase.FLIGHT, s.phase());
         assertEquals(0, s.ticks());
         assertEquals(List.of(11, 22, 33), s.flightIds());
         assertTrue(s.holdsFlight(firstId), "飞行代际应被本会话保护");
@@ -60,7 +62,7 @@ class CraftSessionTest {
         var s = begin();
         s.enterFlight(List.of(5));
         s.clear();
-        assertEquals(RitualCoreBlockEntity.CraftPhase.IDLE, s.phase());
+        assertEquals(CraftPhase.IDLE, s.phase());
         assertEquals(null, s.recipeId());
         assertEquals(0L, s.collected());
         assertTrue(s.flightIds().isEmpty());
@@ -85,9 +87,9 @@ class CraftSessionTest {
         CompoundTag tag = new CompoundTag();
         s.save(tag);
 
-        var restored = new RitualCoreBlockEntity.CraftSession();
+        var restored = new CraftSession();
         restored.load(tag);
-        assertEquals(RitualCoreBlockEntity.CraftPhase.PAYING, restored.phase());
+        assertEquals(CraftPhase.PAYING, restored.phase());
         assertEquals(RECIPE, restored.recipeId());
         assertEquals(1234L, restored.collected());
         assertEquals(2000L, restored.cost(), "容量口径须随存档往返");
@@ -103,9 +105,9 @@ class CraftSessionTest {
         CompoundTag tag = new CompoundTag();
         s.save(tag);
 
-        var restored = new RitualCoreBlockEntity.CraftSession();
+        var restored = new CraftSession();
         restored.load(tag);
-        assertEquals(RitualCoreBlockEntity.CraftPhase.FLIGHT, restored.phase());
+        assertEquals(CraftPhase.FLIGHT, restored.phase());
         assertEquals(2, restored.ticks());
         assertEquals(List.of(7, 8), restored.flightIds());
     }
@@ -113,7 +115,7 @@ class CraftSessionTest {
     @Test
     void idleSessionWritesNothingToTag() {
         CompoundTag tag = new CompoundTag();
-        new RitualCoreBlockEntity.CraftSession().save(tag);
+        new CraftSession().save(tag);
         assertTrue(tag.isEmpty(), "空闲会话不得污染核心存档");
     }
 
@@ -121,12 +123,12 @@ class CraftSessionTest {
     void triggerDecisionTable() {
         assertEquals(com.bitsson.gensokyou.ritual.behavior.ZaohuaCraftingService.TriggerDecision.START,
                 com.bitsson.gensokyou.ritual.behavior.ZaohuaCraftingService
-                        .decisionFor(RitualCoreBlockEntity.CraftPhase.IDLE));
+                        .decisionFor(CraftPhase.IDLE));
         assertEquals(com.bitsson.gensokyou.ritual.behavior.ZaohuaCraftingService.TriggerDecision.CANCEL,
                 com.bitsson.gensokyou.ritual.behavior.ZaohuaCraftingService
-                        .decisionFor(RitualCoreBlockEntity.CraftPhase.PAYING));
+                        .decisionFor(CraftPhase.PAYING));
         assertEquals(com.bitsson.gensokyou.ritual.behavior.ZaohuaCraftingService.TriggerDecision.IGNORE,
                 com.bitsson.gensokyou.ritual.behavior.ZaohuaCraftingService
-                        .decisionFor(RitualCoreBlockEntity.CraftPhase.FLIGHT));
+                        .decisionFor(CraftPhase.FLIGHT));
     }
 }

@@ -3,7 +3,7 @@ package com.bitsson.gensokyou.spirit;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualMatch;
-import com.bitsson.gensokyou.ritual.behavior.SpiritBank;
+import com.bitsson.gensokyou.ritual.SpiritBank;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
@@ -22,7 +22,7 @@ public final class SpiritPowerHelper {
     // ---- 三段式扣费来源（core-socket-powering）：槽内核 → 核心自身储灵 → 周围兜底 ----
 
     /** 灵力来源合计（模拟口径，零副作用）；long 饱和加。 */
-    public static long available(ServerLevel level, BlockPos center, RitualCoreBlockEntity core) {
+    public static long available(ServerLevel level, BlockPos center, com.bitsson.gensokyou.ritual.SpiritPowerAccess core) {
         long sum = 0L;
         ItemStack battery = core.batteryStack();
         if (battery.getItem() instanceof SpiritCoreItem) {
@@ -37,7 +37,7 @@ public final class SpiritPowerHelper {
 
     /** 来源核验：全仪式扣费执行前 MUST 先行（全有全无，杜绝先抽后比不回滚）。 */
     public static boolean canCover(ServerLevel level, BlockPos center,
-                                   RitualCoreBlockEntity core, long want) {
+                                   com.bitsson.gensokyou.ritual.SpiritPowerAccess core, long want) {
         return want <= 0L || available(level, center, core) >= want;
     }
 
@@ -47,7 +47,7 @@ public final class SpiritPowerHelper {
      * 返回实抽量。
      */
     public static long collect(ServerLevel level, BlockPos center,
-                               RitualCoreBlockEntity core, long want) {
+                               com.bitsson.gensokyou.ritual.SpiritPowerAccess core, long want) {
         if (want <= 0L) {
             return 0L;
         }
@@ -78,7 +78,7 @@ public final class SpiritPowerHelper {
     }
 
     /** 槽内核当前存量（非核心物品=0）。 */
-    private static long batteryStored(RitualCoreBlockEntity core) {
+    private static long batteryStored(com.bitsson.gensokyou.ritual.SpiritPowerAccess core) {
         ItemStack battery = core.batteryStack();
         return battery.getItem() instanceof SpiritCoreItem ? SpiritCoreItem.getStored(battery) : 0L;
     }
@@ -91,7 +91,7 @@ public final class SpiritPowerHelper {
         return sum;
     }
 
-    private static long extractable(ServerLevel level, RitualCoreBlockEntity storage) {
+    private static long extractable(ServerLevel level, com.bitsson.gensokyou.ritual.SpiritPowerAccess storage) {
         RitualMatch match = storage.activeMatch();
         if (match != null) {
             return RitualBehaviors.get(match.patternId())
@@ -123,7 +123,7 @@ public final class SpiritPowerHelper {
 
     /** 原子扣费：核验足额后一次抽满；不足则零消耗返回 false。 */
     public static boolean payCost(ServerLevel level, BlockPos center,
-                                  RitualCoreBlockEntity core, long cost) {
+                                  com.bitsson.gensokyou.ritual.SpiritPowerAccess core, long cost) {
         if (cost <= 0L) {
             return true;
         }

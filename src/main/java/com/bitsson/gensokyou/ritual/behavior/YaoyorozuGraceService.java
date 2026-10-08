@@ -1,5 +1,10 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.GraceSession;
+import com.bitsson.gensokyou.ritual.GracePhase;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.ModNetworking;
@@ -40,6 +45,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * PERFORM=忽略；红石与通用启停通道整体让位（behavior.handlesStartViaUiAction）。
  */
 public final class YaoyorozuGraceService {
+
+    private static GraceSession grace(SpiritPowerAccess core) {
+        return (GraceSession) core.behaviorState();
+    }
 
     /** UiAction 按钮：列表位 0=启动仪式/取消，1=飞行惯性切换（按查看者注入）。 */
     public static final int ACTION_TRIGGER = 0;
@@ -95,7 +104,7 @@ public final class YaoyorozuGraceService {
     /** 触发决策（纯表）：空闲/待决策=启动、聚灵中=取消、演出中=无响应。 */
     public enum TriggerDecision { START, CANCEL, IGNORE }
 
-    public static TriggerDecision decisionFor(RitualCoreBlockEntity.GracePhase phase) {
+    public static TriggerDecision decisionFor(GracePhase phase) {
         return switch (phase) {
             case IDLE, REVIEW -> TriggerDecision.START;
             case PAYING -> TriggerDecision.CANCEL;
@@ -105,14 +114,14 @@ public final class YaoyorozuGraceService {
 
     /** 会话唯一入口（UI 按钮通道）。返回 false = 本次触发无效果。 */
     public static boolean trigger(ServerLevel level, BlockPos corePos, ServerPlayer player) {
-        if (!(level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core)
+        if (!(level.getBlockEntity(corePos) instanceof SpiritPowerAccess core)
                 || !core.isPattern(RitualBehaviors.KAMI_NO_MEGUMI) || core.activeMatch() == null) {
             return false;
         }
-        return switch (decisionFor(core.gracePhase())) {
+        return switch (decisionFor(grace(core).phase())) {
             case IGNORE -> false;
             case CANCEL -> {
-                UUID initiator = core.graceSession().initiator();
+                UUID initiator = grace(core).initiator();
                 if (initiator == null || !initiator.equals(player.getUUID())) {
                     feedback(player, "msg.gensokyou.grace_not_initiator");
                     yield false;
@@ -127,8 +136,8 @@ public final class YaoyorozuGraceService {
 
     /** 核心 BE tick 推进（仅 enabled 期间被调用；演出收尾也会把 enabled 落回 false）。 */
     public static void advanceSession(ServerLevel level, BlockPos corePos,
-                                      RitualCoreBlockEntity core) {
-        switch (core.gracePhase()) {
+                                      SpiritPowerAccess core) {
+        switch (grace(core).phase()) {
             case PAYING -> tickPaying(level, corePos, core);
             case PERFORM -> tickPerform(level, corePos, core);
             case IDLE -> core.setEnabled(false);
@@ -140,7 +149,7 @@ public final class YaoyorozuGraceService {
     // ---- 启动校验 ----
 
     private static boolean startSession(ServerLevel level, BlockPos corePos,
-                                        RitualCoreBlockEntity core, ServerPlayer player) {
+                                        SpiritPowerAccess core, ServerPlayer player) {
         RitualMatch match = core.activeMatch();
         int playerTier = GraceService.tierOf(player);
         List<RitualRecipe> all = RitualRecipeLoader.forPattern(match.patternId()).stream()
@@ -202,8 +211,10 @@ public final class YaoyorozuGraceService {
             feedback(player, "msg.gensokyou.ritual_no_matching_recipe");
             return false;
         }
-        core.beginGraceSession(recipe.id(), recipe.spCost(), player.getUUID(),
+        grace(core).begin(recipe.id(), recipe.spCost(), player.getUUID(),
                 info.tier(), info.refine());
+        core.setActiveRecipeId(recipe.id());
+        core.markDirty();
         core.setEnabled(true);
         core.broadcastPedestalsActive(true);
         feedback(player, "msg.gensokyou.grace_started");
@@ -216,8 +227,8 @@ public final class YaoyorozuGraceService {
     // ---- PAYING ----
 
     private static void tickPaying(ServerLevel level, BlockPos corePos,
-                                   RitualCoreBlockEntity core) {
-        RitualCoreBlockEntity.GraceSession session = core.graceSession();
+                                   SpiritPowerAccess core) {
+        GraceSession session = grace(core);
         Optional<RitualRecipe> recipeOpt = session.recipeId() == null
                 ? Optional.empty() : RitualRecipeLoader.byId(session.recipeId());
         if (recipeOpt.isEmpty() || core.activeMatch() == null) {
@@ -242,8 +253,8 @@ public final class YaoyorozuGraceService {
         }
         long remaining = session.cost() - session.collected();
         if (remaining > 0L) {
-            core.addGraceCollected(SpiritPowerHelper.collect(level, corePos, core, remaining));
-            if (core.graceSession().collected() < core.graceSession().cost()) {
+            grace(core).addCollected(SpiritPowerHelper.collect(level, corePos, core, remaining)); core.markDirty();
+            if (grace(core).collected() < grace(core).cost()) {
                 return; // 等槽核装入/共鸣注灵/周围储灵后续来源
             }
         }
@@ -251,7 +262,7 @@ public final class YaoyorozuGraceService {
     }
 
     /** 蓄满瞬间：扣台面料 → 立刻入账（进阶 apply / 洗练 staged 预览）→ 进演出。 */
-    private static void applyNow(ServerLevel level, BlockPos corePos, RitualCoreBlockEntity core,
+    private static void applyNow(ServerLevel level, BlockPos corePos, SpiritPowerAccess core,
                                  RitualRecipe recipe, List<RitualRecipeMatcher.Take> takes,
                                  ServerPlayer initiator) {
         EffectInfo info = effectOf(recipe);
@@ -261,13 +272,13 @@ public final class YaoyorozuGraceService {
         }
         RitualRecipeMatcher.apply(level, takes);
         if (info.refine()) {
-            core.graceSession().stageRefine(GraceNumbers.rollTier(info.tier(), level.random));
+            grace(core).stageRefine(GraceNumbers.rollTier(info.tier(), level.random));
         } else {
             GraceService.advance(initiator, info.tier(), level.random);
             ModAttachments.syncSkills(initiator); // 槽数=阶级：进阶瞬间 HUD 需同步
             feedback(initiator, "msg.gensokyou.grace_advanced", info.tier());
         }
-        core.enterGracePerform();
+        grace(core).enterPerform(); core.markDirty();
         PERFORM_ANCHORS.put(initiator.getUUID(), corePos.immutable());
         ModNetworking.sendRitualInfoToViewers(level, corePos);
     }
@@ -275,10 +286,10 @@ public final class YaoyorozuGraceService {
     // ---- PERFORM（纯演出，效果已入账，永不回滚） ----
 
     private static void tickPerform(ServerLevel level, BlockPos corePos,
-                                    RitualCoreBlockEntity core) {
-        core.advanceGracePerformTick();
+                                    SpiritPowerAccess core) {
+        grace(core).advancePerform();
         int duration = GensokyouConfig.GRACE_PERFORM_TICKS.get();
-        ServerPlayer initiator = resolveInitiator(level, core.graceSession().initiator());
+        ServerPlayer initiator = resolveInitiator(level, grace(core).initiator());
         if (initiator == null || !initiator.isAlive()) {
             finishPerform(level, corePos, core, null);
             return;
@@ -290,15 +301,15 @@ public final class YaoyorozuGraceService {
             return;
         }
         performTick(level, corePos, core, initiator);
-        if (core.graceSession().ticks() >= duration) {
+        if (grace(core).ticks() >= duration) {
             finishPerform(level, corePos, core, initiator);
         }
     }
 
     /** 单拍演出：钉位悬浮 + 脚本掉血/回血 + 落雷 + 粒子（表现与数值全在演出层）。 */
     private static void performTick(ServerLevel level, BlockPos corePos,
-                                    RitualCoreBlockEntity core, ServerPlayer initiator) {
-        int ticks = core.graceSession().ticks();
+                                    SpiritPowerAccess core, ServerPlayer initiator) {
+        int ticks = grace(core).ticks();
         BlockPos anchor = performAnchor(level, corePos, core);
         Vec3 hover = new Vec3(anchor.getX() + 0.5D, anchor.getY() + 1.1D, anchor.getZ() + 0.5D);
         initiator.setNoGravity(true);
@@ -331,7 +342,7 @@ public final class YaoyorozuGraceService {
 
     /** 演出钉位锚点：核心往上首个双脚+头部皆空的格（防被装饰盖住；找不到回落核心顶）。 */
     private static BlockPos performAnchor(ServerLevel level, BlockPos corePos,
-                                          RitualCoreBlockEntity core) {
+                                          SpiritPowerAccess core) {
         for (int dy = 1; dy <= 8; dy++) {
             BlockPos feet = corePos.above(dy);
             if (level.isEmptyBlock(feet) && level.isEmptyBlock(feet.above())) {
@@ -341,7 +352,7 @@ public final class YaoyorozuGraceService {
         return corePos.above(2);
     }
 
-    private static void strikeLightning(ServerLevel level, RitualCoreBlockEntity core,
+    private static void strikeLightning(ServerLevel level, SpiritPowerAccess core,
                                         BlockPos corePos) {
         int minX = corePos.getX();
         int maxX = corePos.getX();
@@ -376,9 +387,9 @@ public final class YaoyorozuGraceService {
 
     /** 演出收尾：进阶线直接清退；洗练线升为 REVIEW 等待当场决策。永不回滚已入账效果。 */
     private static void finishPerform(ServerLevel level, BlockPos corePos,
-                                      RitualCoreBlockEntity core, @Nullable ServerPlayer initiator) {
+                                      SpiritPowerAccess core, @Nullable ServerPlayer initiator) {
         PERFORM_ANCHORS.values().removeIf(pos -> pos.equals(corePos));
-        RitualCoreBlockEntity.GraceSession session = core.graceSession();
+        GraceSession session = grace(core);
         boolean refine = session.refine() && session.pendingRefine() != null;
         if (initiator != null) {
             initiator.setNoGravity(false);
@@ -389,9 +400,9 @@ public final class YaoyorozuGraceService {
         core.broadcastPedestalsActive(false);
         core.setEnabled(false);
         if (refine) {
-            core.promoteGraceReview();
+            grace(core).promoteReview(); core.markDirty();
         } else {
-            core.clearGraceSession();
+            grace(core).clear(); core.setActiveRecipeId(null); core.markDirty();
         }
         level.sendParticles(ParticleTypes.FIREWORK, corePos.getX() + 0.5D,
                 corePos.getY() + 1.5D, corePos.getZ() + 0.5D,
@@ -404,16 +415,16 @@ public final class YaoyorozuGraceService {
     // ---- 取消/中止/预览决策 ----
 
     private static void abortSession(ServerLevel level, BlockPos corePos,
-                                     RitualCoreBlockEntity core, String msgKey) {
-        ServerPlayer initiator = resolveInitiator(level, core.graceSession().initiator());
+                                     SpiritPowerAccess core, String msgKey) {
+        ServerPlayer initiator = resolveInitiator(level, grace(core).initiator());
         refundAndClear(level, corePos, core);
         feedback(initiator, msgKey);
     }
 
     private static void refundAndClear(ServerLevel level, BlockPos corePos,
-                                       RitualCoreBlockEntity core) {
-        core.refundCached(core.graceSession().collected());
-        core.clearGraceSession();
+                                       SpiritPowerAccess core) {
+        core.refundCached(grace(core).collected());
+        grace(core).clear(); core.setActiveRecipeId(null); core.markDirty();
         core.setEnabled(false);
         core.broadcastPedestalsActive(false);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
@@ -421,23 +432,23 @@ public final class YaoyorozuGraceService {
 
     /** 结构失效统一清退（缓存未扣料即退还；演出中效果已入账，仅清态）。 */
     public static void onStructureLost(ServerLevel level, BlockPos corePos,
-                                       RitualCoreBlockEntity core) {
-        long collected = core.graceSession().collected();
-        RitualCoreBlockEntity.GracePhase phase = core.gracePhase();
+                                       SpiritPowerAccess core) {
+        long collected = grace(core).collected();
+        GracePhase phase = grace(core).phase();
         PERFORM_ANCHORS.values().removeIf(pos -> pos.equals(corePos));
-        if (phase == RitualCoreBlockEntity.GracePhase.PAYING) {
+        if (phase == GracePhase.PAYING) {
             core.refundCached(collected);
         }
-        core.clearGraceSession();
+        grace(core).clear(); core.setActiveRecipeId(null); core.markDirty();
         core.setEnabled(false);
     }
 
     /** 洗练预览：采纳（整组替换落库）/保留。仅 initiator、仅 REVIEW 态。 */
     public static boolean decideRefine(ServerLevel level, BlockPos corePos,
-                                       RitualCoreBlockEntity core, ServerPlayer viewer,
+                                       SpiritPowerAccess core, ServerPlayer viewer,
                                        boolean accept) {
-        RitualCoreBlockEntity.GraceSession session = core.graceSession();
-        if (session.phase() != RitualCoreBlockEntity.GracePhase.REVIEW
+        GraceSession session = grace(core);
+        if (session.phase() != GracePhase.REVIEW
                 || session.pendingRefine() == null || viewer == null
                 || !viewer.getUUID().equals(session.initiator())) {
             return false;
@@ -448,7 +459,7 @@ public final class YaoyorozuGraceService {
         } else {
             feedback(viewer, "msg.gensokyou.grace_refine_kept");
         }
-        core.clearGraceSession();
+        grace(core).clear(); core.setActiveRecipeId(null); core.markDirty();
         ModNetworking.sendRitualInfoToViewers(level, corePos);
         return true;
     }
@@ -475,9 +486,9 @@ public final class YaoyorozuGraceService {
             return false;
         }
         if (!(player.level() instanceof ServerLevel serverLevel)
-                || !(serverLevel.getBlockEntity(pos) instanceof RitualCoreBlockEntity core)
-                || core.gracePhase() != RitualCoreBlockEntity.GracePhase.PERFORM
-                || !player.getUUID().equals(core.graceSession().initiator())) {
+                || !(serverLevel.getBlockEntity(pos) instanceof SpiritPowerAccess core)
+                || grace(core).phase() != GracePhase.PERFORM
+                || !player.getUUID().equals(grace(core).initiator())) {
             PERFORM_ANCHORS.remove(player.getUUID(), pos);
             return false;
         }

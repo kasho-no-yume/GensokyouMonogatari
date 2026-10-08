@@ -1,5 +1,11 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.GraceSession;
+import com.bitsson.gensokyou.ritual.GracePhase;
+import com.bitsson.gensokyou.ritual.RitualBehaviorState;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
@@ -32,10 +38,25 @@ import java.util.UUID;
  */
 public class YaoyorozuGraceBehavior implements RitualBehavior {
 
+    private static GraceSession grace(SpiritPowerAccess core) {
+        return (GraceSession) core.behaviorState();
+    }
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        GracePhase phase = grace(core).phase();
+        return phase == GracePhase.PAYING || phase == GracePhase.PERFORM ? grace(core).cost() : 0L;
+    }
+
+    @Override
+    public RitualBehaviorState newState() {
+        return new GraceSession();
+    }
+
     /** 受灵汇速率：固定高配置（"inrate 相当大"——校验后蓄满即执行，不设等待曲线）。 */
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         return GensokyouConfig.GRACE_SPIRIT_IN_RATE.get();
     }
 
@@ -57,22 +78,22 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
 
     @Override
     public List<UiAction> uiActions(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                    RitualCoreBlockEntity core) {
+                                    SpiritPowerAccess core) {
         return uiActions(level, corePos, match, core, null);
     }
 
     @Override
     public List<UiAction> uiActions(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                    RitualCoreBlockEntity core, @Nullable ServerPlayer viewer) {
+                                    SpiritPowerAccess core, @Nullable ServerPlayer viewer) {
         List<UiAction> actions = new ArrayList<>();
-        RitualCoreBlockEntity.GracePhase phase = core.gracePhase();
-        boolean initiator = viewer != null && viewer.getUUID().equals(core.graceSession().initiator());
+        GracePhase phase = grace(core).phase();
+        boolean initiator = viewer != null && viewer.getUUID().equals(grace(core).initiator());
         actions.add(new UiAction(YaoyorozuGraceService.ACTION_TRIGGER,
-                phase == RitualCoreBlockEntity.GracePhase.PAYING
+                phase == GracePhase.PAYING
                         ? "gui.gensokyou.ritual.grace.cancel"
                         : "gui.gensokyou.ritual.grace.start",
-                phase != RitualCoreBlockEntity.GracePhase.PERFORM
-                        && (phase != RitualCoreBlockEntity.GracePhase.PAYING || initiator)));
+                phase != GracePhase.PERFORM
+                        && (phase != GracePhase.PAYING || initiator)));
         if (viewer != null && GraceService.tierOf(viewer) >= 1) {
             actions.add(new UiAction(YaoyorozuGraceService.ACTION_INERTIA,
                     ModAttachments.get(viewer).flightInertia()
@@ -84,7 +105,7 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
 
     @Override
     public InteractionResult onUiAction(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                        RitualCoreBlockEntity core, ServerPlayer player, int actionId) {
+                                        SpiritPowerAccess core, ServerPlayer player, int actionId) {
         switch (actionId) {
             case YaoyorozuGraceService.ACTION_TRIGGER -> {
                 return YaoyorozuGraceService.trigger(level, corePos, player)
@@ -115,13 +136,13 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
+                           SpiritPowerAccess core) {
         YaoyorozuGraceService.advanceSession(level, corePos, core);
     }
 
     @Override
     public void onStructureLost(ServerLevel level, BlockPos corePos) {
-        if (level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core) {
+        if (level.getBlockEntity(corePos) instanceof SpiritPowerAccess core) {
             YaoyorozuGraceService.onStructureLost(level, corePos, core);
         }
     }
@@ -130,15 +151,15 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core, @Nullable ServerPlayer viewer) {
+                                 SpiritPowerAccess core, @Nullable ServerPlayer viewer) {
         List<InfoLine> lines = new ArrayList<>();
-        RitualCoreBlockEntity.GracePhase phase = core.gracePhase();
+        GracePhase phase = grace(core).phase();
         boolean initiator = viewer != null
-                && viewer.getUUID().equals(core.graceSession().initiator());
+                && viewer.getUUID().equals(grace(core).initiator());
         switch (phase) {
             case PAYING -> {
-                long cost = core.graceSession().cost();
-                long got = core.graceSession().collected();
+                long cost = grace(core).cost();
+                long got = grace(core).collected();
                 lines.add(new InfoLine("gui.gensokyou.ritual.grace.paying",
                         new String[]{InfoLine.compact(got), InfoLine.compact(cost)},
                         "", 0xFFB39DDB, cost <= 0L ? 1F : Math.min(1F, (float) got / (float) cost),
@@ -148,7 +169,7 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
             }
             case PERFORM -> lines.add(new InfoLine("gui.gensokyou.ritual.grace.perform",
                     new String[0], "", 0xFFCE93D8,
-                    Math.min(1F, (float) core.graceSession().ticks()
+                    Math.min(1F, (float) grace(core).ticks()
                             / (float) Math.max(1, GensokyouConfig.GRACE_PERFORM_TICKS.get())), null));
             case REVIEW -> {
                 if (initiator) {
@@ -165,7 +186,7 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
         }
         // REVIEW 期属性面板刻意隐藏：洗练对比本身即是该时刻的信息主体，
         // 且两者叠加会把行数推到 33 行（≈363px）而视口仅 68px。
-        if (viewer != null && phase != RitualCoreBlockEntity.GracePhase.REVIEW) {
+        if (viewer != null && phase != GracePhase.REVIEW) {
             appendAttributePanel(lines, viewer);
         }
         return lines;
@@ -174,7 +195,7 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
     /** 会话信息行入口（无查看者场景兜底：不含面板）。 */
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         return uiInfo(level, corePos, match, core, null);
     }
 
@@ -207,9 +228,9 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
      * <p>按钮必须在最前两行 —— 信息区视口（68px ≈ 6 行）放不下完整对比，
      * 按钮排在末尾等于不存在。决策权绑定 initiator（他人由 uiInfo 的 review_waiting 分支接手）。
      */
-    private static void appendReviewLines(List<InfoLine> lines, RitualCoreBlockEntity core,
+    private static void appendReviewLines(List<InfoLine> lines, SpiritPowerAccess core,
                                           ServerPlayer viewer) {
-        GraceNumbers.GraceRoll preview = core.graceSession().pendingRefine();
+        GraceNumbers.GraceRoll preview = grace(core).pendingRefine();
         if (preview == null) {
             return;
         }

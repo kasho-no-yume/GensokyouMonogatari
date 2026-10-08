@@ -1,5 +1,10 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.WujinzangState;
+import com.bitsson.gensokyou.ritual.RitualBehaviorState;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
@@ -26,6 +31,44 @@ import java.util.List;
 public class WujinzangBehavior implements RitualBehavior {
 
     @Override
+    public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
+        return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_WUJINZANG, core.isEnabled(), match.level(),
+                core.structureMinY(), core.structureMaxY(), 0,
+                com.bitsson.gensokyou.ritual.behavior.WujinzangStorage.laserAnchors(core, match), 0, 0L);
+    }
+
+    private static WujinzangState wujinzang(SpiritPowerAccess core) {
+        return (WujinzangState) core.behaviorState();
+    }
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return RitualCoreBlockEntity.wujinzangCapacity(level);
+    }
+
+    @Override
+    public RitualBehaviorState newState() {
+        return new WujinzangState();
+    }
+
+    @Override
+    public String startAchievement(ServerLevel level, BlockPos corePos, RitualMatch match,
+                                   SpiritPowerAccess core) {
+        return "wujinzang";
+    }
+
+    @Override
+    public net.neoforged.neoforge.items.IItemHandler itemHandler(SpiritPowerAccess core) {
+        return new WujinzangStorage.ProxyHandler(core);
+    }
+
+    @Override
+    public void onCoreRemoved(ServerLevel level, BlockPos corePos, RitualMatch match,
+                              SpiritPowerAccess core) {
+        WujinzangStorage.releaseForceLoads(core, level);
+    }
+
+    @Override
     public ResourceLocation screenMenuId() {
         return Gensokyou.id("wujinzang_terminal");
     }
@@ -35,7 +78,7 @@ public class WujinzangBehavior implements RitualBehavior {
 
     @Override
     public void onFormed(ServerLevel level, BlockPos corePos, RitualMatch match) {
-        RitualCoreBlockEntity core = core(level, corePos);
+        SpiritPowerAccess core = core(level, corePos);
         if (core != null) {
             WujinzangStorage.ensureCrystals(core, level, match);
         }
@@ -43,7 +86,7 @@ public class WujinzangBehavior implements RitualBehavior {
 
     @Override
     public void onStructureLost(ServerLevel level, BlockPos corePos) {
-        RitualCoreBlockEntity core = core(level, corePos);
+        SpiritPowerAccess core = core(level, corePos);
         if (core != null) {
             WujinzangStorage.onStructureLost(core, level);
         }
@@ -51,13 +94,13 @@ public class WujinzangBehavior implements RitualBehavior {
 
     @Override
     public void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                  RitualCoreBlockEntity core) {
+                                  SpiritPowerAccess core) {
         WujinzangStorage.passiveTick(core, level, match);
     }
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
+                           SpiritPowerAccess core) {
         if (core.ageTicks() % 20 != 0L) {
             return;
         }
@@ -71,7 +114,7 @@ public class WujinzangBehavior implements RitualBehavior {
 
     @Override
     public InteractionResult onStart(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                     RitualCoreBlockEntity core, ServerPlayer player) {
+                                     SpiritPowerAccess core, ServerPlayer player) {
         int blocked = WujinzangStorage.blockedCount(level, match);
         if (blocked > 0) {
             player.displayClientMessage(Component.translatable(
@@ -83,13 +126,13 @@ public class WujinzangBehavior implements RitualBehavior {
 
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         return GensokyouConfig.WUJINZANG_IN_RATE.get();
     }
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         List<InfoLine> lines = new ArrayList<>();
         long stored = core.getStored();
         long cap = core.getCapacity();
@@ -99,7 +142,7 @@ public class WujinzangBehavior implements RitualBehavior {
                 0xFF4FC3F7,
                 "gui.gensokyou.ritual.wujinzang.buffer_tip",
                 new String[]{String.valueOf(stored), String.valueOf(cap), String.valueOf(drain)}));
-        int[] counts = WujinzangStorage.counts(level, match, core.getWujinzangVault());
+        int[] counts = WujinzangStorage.counts(level, match, wujinzang(core).rawVault());
         lines.add(InfoLine.tipped("gui.gensokyou.ritual.wujinzang.crystals",
                 new String[]{String.valueOf(counts[0]), String.valueOf(counts[1])},
                 0xFF4FC3F7, "gui.gensokyou.ritual.wujinzang.crystals_tip",
@@ -118,7 +161,7 @@ public class WujinzangBehavior implements RitualBehavior {
 
     /** 现场探针摘要（gs_debug wujinzang）：分区/容量/耗电/被占。 */
     public static String debugSummary(ServerLevel level, BlockPos corePos, RitualMatch match) {
-        RitualCoreBlockEntity core = level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity c
+        SpiritPowerAccess core = level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity c
                 ? c : null;
         long stored = core == null ? 0L : core.getStored();
         long cap = core == null ? 0L : core.getCapacity();
@@ -131,7 +174,7 @@ public class WujinzangBehavior implements RitualBehavior {
                 + " level=" + match.level();
     }
 
-    private static RitualCoreBlockEntity core(ServerLevel level, BlockPos pos) {
+    private static SpiritPowerAccess core(ServerLevel level, BlockPos pos) {
         return level.getBlockEntity(pos) instanceof RitualCoreBlockEntity c ? c : null;
     }
 }

@@ -1,5 +1,9 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SeiiSession;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.item.weapon.AmpCoreItem;
@@ -41,6 +45,10 @@ import java.util.UUID;
  * 并以 {@code seii:core_N} 编码目标核阶自选配方（不依赖 matchMax 的 Σcount 排序）。
  */
 public final class SeiiService {
+
+    private static SeiiSession seii(SpiritPowerAccess core) {
+        return (SeiiSession) core.behaviorState();
+    }
 
     /** UiAction 按钮：列表位 0=启动洗练 / 取消。 */
     public static final int ACTION_TRIGGER = 0;
@@ -93,14 +101,14 @@ public final class SeiiService {
 
     /** 会话唯一入口（UI 按钮通道）。返回 false = 本次触发无效果。 */
     public static boolean trigger(ServerLevel level, BlockPos corePos, ServerPlayer player) {
-        if (!(level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core)
+        if (!(level.getBlockEntity(corePos) instanceof SpiritPowerAccess core)
                 || !core.isPattern(RitualBehaviors.SEII) || core.activeMatch() == null) {
             return false;
         }
-        return switch (decisionFor(core.seiiSession().phase())) {
+        return switch (decisionFor(seii(core).phase())) {
             case IGNORE -> false;
             case CANCEL -> {
-                UUID initiator = core.seiiSession().initiator();
+                UUID initiator = seii(core).initiator();
                 if (initiator == null || !initiator.equals(player.getUUID())) {
                     feedback(player, "msg.gensokyou.seii_not_initiator");
                     yield false;
@@ -116,7 +124,7 @@ public final class SeiiService {
     // ---- 启动校验 ----
 
     private static boolean startSession(ServerLevel level, BlockPos corePos,
-                                        RitualCoreBlockEntity core, ServerPlayer player) {
+                                        SpiritPowerAccess core, ServerPlayer player) {
         RitualMatch match = core.activeMatch();
         int level1 = match.level();
         // ① 读核心 GUI 的目标槽（核不进祭品台）
@@ -152,7 +160,7 @@ public final class SeiiService {
         }
         RitualRecipe recipe = matched.get().recipe();
         long cost = SeiiNumbers.spCost(coreTier);
-        core.beginSeiiSession(recipe.id(), cost, target.tier(), player.getUUID());
+        seii(core).begin(recipe.id(), cost, target.tier(), player.getUUID()); core.setActiveRecipeId(recipe.id()); core.markDirty();
         core.setEnabled(true);
         core.broadcastPedestalsActive(true);
         feedback(player, "msg.gensokyou.seii_started");
@@ -166,7 +174,7 @@ public final class SeiiService {
     }
 
     @Nullable
-    private static Target findTarget(RitualCoreBlockEntity core) {
+    private static Target findTarget(SpiritPowerAccess core) {
         ItemStack held = core.extraSlot(SEII_CORE_SLOT);
         if (held.getItem() instanceof AmpCoreItem amp) {
             return new Target(amp.tier(), held.copy());
@@ -180,16 +188,16 @@ public final class SeiiService {
     // ---- 推进 ----
 
     /** 核心 BE tick 推进（仅 enabled 期间被调用）。 */
-    public static void advanceSession(ServerLevel level, BlockPos corePos, RitualCoreBlockEntity core) {
-        switch (core.seiiSession().phase()) {
+    public static void advanceSession(ServerLevel level, BlockPos corePos, SpiritPowerAccess core) {
+        switch (seii(core).phase()) {
             case PAYING -> tickPaying(level, corePos, core);
             case PERFORM -> tickPerform(level, corePos, core);
             case IDLE, REVIEW -> core.setEnabled(false);
         }
     }
 
-    private static void tickPaying(ServerLevel level, BlockPos corePos, RitualCoreBlockEntity core) {
-        SeiiSession session = core.seiiSession();
+    private static void tickPaying(ServerLevel level, BlockPos corePos, SpiritPowerAccess core) {
+        SeiiSession session = seii(core);
         Optional<RitualRecipe> recipeOpt = session.recipeId() == null
                 ? Optional.empty() : RitualRecipeLoader.byId(session.recipeId());
         RitualMatch match = core.activeMatch();
@@ -220,8 +228,8 @@ public final class SeiiService {
         }
         long remaining = session.cost() - session.collected();
         if (remaining > 0L) {
-            core.addSeiiCollected(SpiritPowerHelper.collect(level, corePos, core, remaining));
-            if (core.seiiSession().collected() < core.seiiSession().cost()) {
+            seii(core).addCollected(SpiritPowerHelper.collect(level, corePos, core, remaining)); core.markDirty();
+            if (seii(core).collected() < seii(core).cost()) {
                 return;
             }
         }
@@ -229,7 +237,7 @@ public final class SeiiService {
     }
 
     /** 蓄满瞬间：扣催化剂 → roll 新词条暂存（核组件零写入）→ 进演出。 */
-    private static void applyNow(ServerLevel level, BlockPos corePos, RitualCoreBlockEntity core,
+    private static void applyNow(ServerLevel level, BlockPos corePos, SpiritPowerAccess core,
                                  RitualRecipe recipe, List<RitualRecipeMatcher.Take> takes,
                                  Target target, int ritualLevel) {
         RitualRecipeMatcher.apply(level, takes);
@@ -237,9 +245,10 @@ public final class SeiiService {
                 .getOrDefault(ModDataComponents.RUNE_AFFIXES.get(), List.of());
         int pity = RuneGenerator.rerollsOf(target.stack());
         List<RuneAffix> after = SeiiNumbers.roll(target.tier(), pity, level.random);
-        core.enterSeiiPerform(new SeiiSession.Pending(target.tier(), ritualLevel,
+        seii(core).stage(new SeiiSession.Pending(target.tier(), ritualLevel,
                 before, after, pity));
-        feedback(resolveInitiator(level, core.seiiSession().initiator()), "msg.gensokyou.seii_washed",
+        core.markDirty();
+        feedback(resolveInitiator(level, seii(core).initiator()), "msg.gensokyou.seii_washed",
                 after.size());
         ModNetworking.sendRitualInfoToViewers(level, corePos);
     }
@@ -256,24 +265,24 @@ public final class SeiiService {
      * <p>红线：{@code level.sendParticles} 在服务端是逐追踪玩家广播
      * {@code ClientboundLevelParticlesPacket}，用于持续表现即构成包风暴。
      */
-    private static void tickPerform(ServerLevel level, BlockPos corePos, RitualCoreBlockEntity core) {
-        core.tickSeiiPerform();
+    private static void tickPerform(ServerLevel level, BlockPos corePos, SpiritPowerAccess core) {
+        seii(core).tickPerform();
         int duration = GensokyouConfig.SEII_PERFORM_TICKS.get();
-        if (core.seiiSession().ticks() >= duration) {
+        if (seii(core).ticks() >= duration) {
             finishPerform(level, corePos, core);
         }
     }
 
     /** 演出收尾：升为待决（永久存续、决策权绑定 initiator）。 */
-    private static void finishPerform(ServerLevel level, BlockPos corePos, RitualCoreBlockEntity core) {
+    private static void finishPerform(ServerLevel level, BlockPos corePos, SpiritPowerAccess core) {
         core.broadcastPedestalsActive(false);
         core.setEnabled(false);
-        if (core.seiiSession().pending() != null) {
-            core.promoteSeiiReview();
-            feedback(resolveInitiator(level, core.seiiSession().initiator()),
+        if (seii(core).pending() != null) {
+            seii(core).promoteReview(); core.markDirty();
+            feedback(resolveInitiator(level, seii(core).initiator()),
                     "msg.gensokyou.seii_review_ready");
         } else {
-            core.clearSeiiSession();
+            seii(core).clear(); core.setActiveRecipeId(null); core.markDirty();
         }
         level.sendParticles(ParticleTypes.FIREWORK, corePos.getX() + 0.5D,
                 corePos.getY() + 1.5D, corePos.getZ() + 0.5D, 60, 1.0D, 1.0D, 1.0D, 0.2D);
@@ -285,16 +294,16 @@ public final class SeiiService {
     // ---- 取消 / 中止 / 决策 ----
 
     private static void abortSession(ServerLevel level, BlockPos corePos,
-                                     RitualCoreBlockEntity core, String msgKey) {
-        ServerPlayer initiator = resolveInitiator(level, core.seiiSession().initiator());
+                                     SpiritPowerAccess core, String msgKey) {
+        ServerPlayer initiator = resolveInitiator(level, seii(core).initiator());
         refundAndClear(level, corePos, core);
         feedback(initiator, msgKey);
     }
 
     private static void refundAndClear(ServerLevel level, BlockPos corePos,
-                                       RitualCoreBlockEntity core) {
-        core.refundCached(core.seiiSession().collected());
-        core.clearSeiiSession();
+                                       SpiritPowerAccess core) {
+        core.refundCached(seii(core).collected());
+        seii(core).clear(); core.setActiveRecipeId(null); core.markDirty();
         core.setEnabled(false);
         core.broadcastPedestalsActive(false);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
@@ -302,11 +311,11 @@ public final class SeiiService {
 
     /** 结构失效统一清退（缓存未扣料即退还；暂存结果丢弃，核组件从未被写过）。 */
     public static void onStructureLost(ServerLevel level, BlockPos corePos,
-                                       RitualCoreBlockEntity core) {
-        if (core.seiiSession().phase() == SeiiSession.Phase.PAYING) {
-            core.refundCached(core.seiiSession().collected());
+                                       SpiritPowerAccess core) {
+        if (seii(core).phase() == SeiiSession.Phase.PAYING) {
+            core.refundCached(seii(core).collected());
         }
-        core.clearSeiiSession();
+        seii(core).clear(); core.setActiveRecipeId(null); core.markDirty();
         core.setEnabled(false);
     }
 
@@ -317,9 +326,9 @@ public final class SeiiService {
      * 复验失败拒绝并提示（另一名玩家可能已把核取走或换掉）。
      */
     public static boolean decideReroll(ServerLevel level, BlockPos corePos,
-                                       RitualCoreBlockEntity core, ServerPlayer viewer,
+                                       SpiritPowerAccess core, ServerPlayer viewer,
                                        boolean accept) {
-        SeiiSession session = core.seiiSession();
+        SeiiSession session = seii(core);
         SeiiSession.Pending pending = session.pending();
         if (session.phase() != SeiiSession.Phase.REVIEW || pending == null || viewer == null
                 || !viewer.getUUID().equals(session.initiator())) {
@@ -346,7 +355,7 @@ public final class SeiiService {
             }
             feedback(viewer, "msg.gensokyou.seii_kept");
         }
-        core.clearSeiiSession();
+        seii(core).clear(); core.setActiveRecipeId(null); core.markDirty();
         ModNetworking.sendRitualInfoToViewers(level, corePos);
         return true;
     }
@@ -362,8 +371,8 @@ public final class SeiiService {
     // ---- 查询 / 工具 ----
 
     /** 该核的词条（含暂存）行数据，供 behavior 渲染对比。 */
-    public static SeiiSession.Pending pendingOf(RitualCoreBlockEntity core) {
-        return core.seiiSession().pending();
+    public static SeiiSession.Pending pendingOf(SpiritPowerAccess core) {
+        return seii(core).pending();
     }
 
     @Nullable
@@ -378,8 +387,8 @@ public final class SeiiService {
     }
 
     /** 供 /gs_debug 用的机读单行摘要。 */
-    public static String debugSummary(RitualCoreBlockEntity core) {
-        SeiiSession s = core.seiiSession();
+    public static String debugSummary(SpiritPowerAccess core) {
+        SeiiSession s = seii(core);
         RitualMatch m = core.activeMatch();
         return "SEII phase=" + s.phase()
                 + " ritualLevel=" + (m == null ? 0 : m.level())

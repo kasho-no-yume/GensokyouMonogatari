@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
@@ -32,6 +34,25 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 public final class HoujounoTeihouBehavior implements RitualBehavior {
+
+    @Override
+    public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
+        if (core.sacrificeFxTicks() <= 0) return null;
+        return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SACRIFICE, core.isEnabled(), match.level(),
+                (int) Math.round(com.bitsson.gensokyou.config.GensokyouConfig.FX_PILLAR_HEIGHT.get()), core.sacrificeFxTicks(),
+                com.bitsson.gensokyou.ritual.RitualBehaviors.sacrificeColorIndex(match.patternId()), new long[0], 0, 0L);
+    }
+
+    @Override
+    public void onRemoved(ServerLevel level, BlockPos corePos, RitualMatch match,
+                          SpiritPowerAccess core) {
+        clearRuntimeFailures(level, corePos);
+    }
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return capacity(level);
+    }
     private static final Logger LOGGER = LoggerFactory.getLogger(HoujounoTeihouBehavior.class);
     private static final int ACCENT = 0xFF78A84A;
     private static final String KEY_DISABLED = "gui.gensokyou.ritual.houjouno.disabled";
@@ -214,13 +235,13 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
 
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                       RitualCoreBlockEntity core) {
+                                       SpiritPowerAccess core) {
         return inRate(match.level());
     }
 
     @Override
     public void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                  RitualCoreBlockEntity core) {
+                                  SpiritPowerAccess core) {
         core.tickBatteryToCacheFill();
     }
 
@@ -235,7 +256,7 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
+                           SpiritPowerAccess core) {
         if (core.actionCooldown() > 0) {
             return;
         }
@@ -320,7 +341,7 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                  RitualCoreBlockEntity core) {
+                                  SpiritPowerAccess core) {
         int ritualLevel = match.level();
         InputScan scan = effectiveScan(level, corePos, match);
         long totalCost = totalCost(ritualLevel, scan.valid());
@@ -375,7 +396,7 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
     }
 
     public static String debugSummary(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         int ritualLevel = match.level();
         InputScan scan = effectiveScan(level, corePos, match);
         return debugLine(ritualLevel, core.isEnabled(), core.actionCooldown(), scan,

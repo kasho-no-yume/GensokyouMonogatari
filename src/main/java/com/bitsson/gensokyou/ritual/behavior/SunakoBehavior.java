@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -31,6 +33,18 @@ import java.util.List;
  */
 public class SunakoBehavior implements RitualBehavior, RitualExtraSlots {
 
+    @Override
+    public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
+        return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SUNAKO, true, match.level(),
+                (int) Math.round(com.bitsson.gensokyou.config.GensokyouConfig.FX_PILLAR_HEIGHT.get()), core.sacrificeFxTicks(),
+                com.bitsson.gensokyou.ritual.RitualBehaviors.sacrificeColorIndex(match.patternId()), new long[0], 0, 0L);
+    }
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return SunakoScaling.capacityOf(level);
+    }
+
     /** 注入按钮：唯一操作「开始炼药」。 */
     public static final int ACTION_BREW = 0;
 
@@ -43,19 +57,23 @@ public class SunakoBehavior implements RitualBehavior, RitualExtraSlots {
 
     @Override
     public List<UiAction> uiActions(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                    RitualCoreBlockEntity core) {
+                                    SpiritPowerAccess core) {
         return List.of(new UiAction(ACTION_BREW, KEY_BUTTON));
     }
 
     @Override
     public InteractionResult onUiAction(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                        RitualCoreBlockEntity core, ServerPlayer player,
+                                        SpiritPowerAccess core, ServerPlayer player,
                                         int actionId) {
         if (actionId != ACTION_BREW) {
             return InteractionResult.PASS;
         }
         // player 可能为 null（红石代管触发），本操作不依赖玩家身份
-        return SunakoBrewing.brew(level, corePos, match, core).producedAnything()
+        boolean produced = SunakoBrewing.brew(level, corePos, match, core).producedAnything();
+        if (produced && match.level() >= 3 && player != null) {
+            com.bitsson.gensokyou.event.AchievementAwards.award(player, "spirit_wine");
+        }
+        return produced
                 ? InteractionResult.SUCCESS
                 : InteractionResult.FAIL;
     }
@@ -64,7 +82,7 @@ public class SunakoBehavior implements RitualBehavior, RitualExtraSlots {
 
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         return SunakoScaling.inRateOf(match.level());
     }
 
@@ -81,7 +99,7 @@ public class SunakoBehavior implements RitualBehavior, RitualExtraSlots {
      */
     @Override
     public void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                  RitualCoreBlockEntity core) {
+                                  SpiritPowerAccess core) {
         core.tickBatteryToCacheFill();
     }
 
@@ -110,7 +128,7 @@ public class SunakoBehavior implements RitualBehavior, RitualExtraSlots {
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         return SunakoBrewing.uiInfo(level, corePos, match, core);
     }
 }

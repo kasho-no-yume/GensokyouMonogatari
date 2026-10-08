@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
@@ -51,6 +53,17 @@ import java.util.Locale;
  * → 保留闩锁与门；非 null = 变成别的仪式 → 清闩锁并请求关门。
  */
 public class BarrierBreakBehavior implements RitualBehavior {
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return RitualCoreBlockEntity.barrierCapacity();
+    }
+
+    @Override
+    public void onCoreRemoved(ServerLevel level, BlockPos corePos, RitualMatch match,
+                              SpiritPowerAccess core) {
+        removePortals(level, corePos, core);
+    }
 
     /** 扣费周期（tick）。1 秒一次，故配置以「每秒」为单位且无需定点进位。 */
     private static final int DRAIN_PERIOD_TICKS = 20;
@@ -154,7 +167,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
      * 一个满速却永不上涨的进度条。
      */
     public static Supply supply(ServerLevel level, BlockPos corePos,
-                                @Nullable RitualCoreBlockEntity core) {
+                                @Nullable SpiritPowerAccess core) {
         long drain = RitualCoreBlockEntity.barrierDrainPerSecond();
         int radius = Math.max(1, ResonanceRelayBehavior.radius(5));
         int count = 0;
@@ -207,7 +220,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
      */
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         return supply(level, corePos, core).bankOutRate();
     }
 
@@ -225,7 +238,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
 
     @Override
     public void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                  RitualCoreBlockEntity core) {
+                                  SpiritPowerAccess core) {
         if (core.isBarrierLatched()) {
             // 闩锁后：永久开启。不耗灵、不校验祭品，只保证两扇门在位。
             if (core.ageTicks() % DRAIN_PERIOD_TICKS == 0L) {
@@ -346,7 +359,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
      * 故此处除一次音效广播外不产生任何网络包。
      */
     private static void open(ServerLevel level, BlockPos corePos, RitualMatch match,
-                             RitualCoreBlockEntity core) {
+                             SpiritPowerAccess core) {
         core.setBarrierLatched(true);
         consumeOfferings(level, offerings(level, match));
         placePortals(level, corePos, core);
@@ -387,7 +400,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
      *
      * @return 实际重播的门数（0 = 该核心没有已开启的门）
      */
-    public static int replayShatter(ServerLevel level, BlockPos corePos, RitualCoreBlockEntity core) {
+    public static int replayShatter(ServerLevel level, BlockPos corePos, SpiritPowerAccess core) {
         int burst = GensokyouConfig.SUKIMA_PORTAL_BURST_TICKS.get();
         int replayed = 0;
         BlockPos main = core != null && core.portalPos() != null
@@ -560,7 +573,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
 
     /** 放置主世界侧门（必有）与幻想乡侧孪生门（冲突则跳过）。返回孪生门是否真的放下了。 */
     private static boolean placePortals(ServerLevel level, BlockPos corePos,
-                                        RitualCoreBlockEntity core) {
+                                        SpiritPowerAccess core) {
         placeAt(level, mainPortalPos(corePos));
         core.setPortalPos(mainPortalPos(corePos));
         // 开门这一刻允许付一次跨维度区块加载的代价
@@ -592,7 +605,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
      * 孪生门仅在该区块已加载时复查——见 {@link #twinPortalPos} 的强载说明。
      */
     private static boolean ensurePortals(ServerLevel level, BlockPos corePos,
-                                         RitualCoreBlockEntity core) {
+                                         SpiritPowerAccess core) {
         boolean ok = true;
         BlockPos main = core.portalPos() != null ? core.portalPos() : mainPortalPos(corePos);
         if (!level.getBlockState(main).is(ModBlocks.SUKIMA.get())) {
@@ -634,7 +647,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
      * @param core 可为 null（核心 BE 已随方块移除而消失的路径）
      */
     public static void removePortals(ServerLevel level, @Nullable BlockPos corePos,
-                                     @Nullable RitualCoreBlockEntity core) {
+                                     @Nullable SpiritPowerAccess core) {
         BlockPos main = core != null && core.portalPos() != null
                 ? core.portalPos()
                 : (corePos != null ? mainPortalPos(corePos) : null);
@@ -667,7 +680,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
 
     @Override
     public void onStructureLost(ServerLevel level, BlockPos corePos) {
-        if (!(level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core)) {
+        if (!(level.getBlockEntity(corePos) instanceof SpiritPowerAccess core)) {
             return;
         }
         // activeMatch 已被重扫更新：null = 结构暂时拆毁（保留闩锁与门）；非 null = 变成别的仪式。
@@ -689,7 +702,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                  RitualCoreBlockEntity core) {
+                                  SpiritPowerAccess core) {
         List<InfoLine> lines = new ArrayList<>();
         Supply supply = core.isBarrierLatched()
                 ? Supply.idle() : supply(level, corePos, core);
@@ -793,7 +806,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
         return twin != null && gensokyo.getBlockState(twin).is(ModBlocks.SUKIMA.get());
     }
 
-    public static State stateOf(RitualCoreBlockEntity core, Supply supply) {
+    public static State stateOf(SpiritPowerAccess core, Supply supply) {
         if (core.isBarrierLatched()) {
             return State.OPEN;
         }
@@ -815,7 +828,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
      * 三者 id 相近、只认精确匹配，放错时界面上只显示「星银 2/4」而看不出是哪台放了矿石。
      */
     public static List<String> debugOfferings(ServerLevel level, RitualMatch match,
-                                               RitualCoreBlockEntity core) {
+                                               SpiritPowerAccess core) {
         List<String> rows = new ArrayList<>();
         for (BlockPos pos : match.positionsOf('P')) {
             BlockPos rel = pos.subtract(core.getBlockPos());
@@ -837,7 +850,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
     }
 
     public static String debugSummary(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         Supply s = supply(level, corePos, core);
         BlockPos main = core.portalPos() != null ? core.portalPos() : mainPortalPos(corePos);
         return "state=" + stateOf(core, s)

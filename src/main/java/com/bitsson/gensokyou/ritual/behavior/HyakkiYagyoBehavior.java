@@ -1,7 +1,12 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SummonSession;
+import com.bitsson.gensokyou.ritual.SummonPhase;
+import com.bitsson.gensokyou.ritual.RitualBehaviorState;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity.SummonPhase;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
@@ -53,9 +58,50 @@ import java.util.Optional;
  * 也让本核心对路由器<b>结构性隐身</b>（汇端筛选要求受灵上限 &gt; 0）。
  *
  * <p><b>演出进度零网络包</b>：三段演出全部由客户端依持久化的绝对 gameTime 锚点自算
- * （{@code core.summonElapsed()}），服务端只推一个渲染态。
+ * （{@code elapsed(level, core)}），服务端只推一个渲染态。
  */
 public class HyakkiYagyoBehavior implements RitualBehavior {
+
+    /** 停机即放弃本次召唤：清会话、抽干缓存、清激活配方。 */
+    @Override
+    public void onDisabled(ServerLevel level, BlockPos corePos, RitualMatch match,
+                           SpiritPowerAccess core) {
+        SummonSession s = summon(core);
+        if (s.phase() != SummonPhase.IDLE) {
+            s.clear();
+            core.extract(core.getStored());
+            core.setActiveRecipeId(null);
+            core.markDirty();
+        }
+    }
+
+    @Override
+    public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
+        com.bitsson.gensokyou.ritual.SummonSession s = summon(core);
+        boolean active = s.phase() != SummonPhase.IDLE;
+        return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SUMMON, active, match.level(), s.fxStart(),
+                com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_BURST_TICKS.get(), com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_PILLAR_HOLD_TICKS.get(),
+                new long[0], 0, s.phase().ordinal());
+    }
+
+    private static SummonSession summon(SpiritPowerAccess core) {
+        return (SummonSession) core.behaviorState();
+    }
+
+    private static int elapsed(ServerLevel level, SpiritPowerAccess core) {
+        SummonSession s = summon(core);
+        return s.fxStart() < 0 || level == null ? 0 : Math.max(0, (int) level.getGameTime() - s.fxStart());
+    }
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return summon(core).phase() == SummonPhase.IDLE ? 0L : summon(core).cost();
+    }
+
+    @Override
+    public RitualBehaviorState newState() {
+        return new SummonSession();
+    }
 
     /**
      * UI 动作 id。
@@ -114,16 +160,16 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
 
     @Override
     public List<UiAction> uiActions(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                     RitualCoreBlockEntity core) {
+                                     SpiritPowerAccess core) {
         // 会话进行中只给「取消」，且**不置灰**：它必须可点，否则玩家一旦断供就只能干等。
-        return core.summonActive()
+        return !summon(core).isIdle()
                 ? List.of(new UiAction(ACTION_SUMMON, KEY_CANCEL))
                 : List.of(new UiAction(ACTION_SUMMON, KEY_BUTTON));
     }
 
     @Override
     public InteractionResult onUiAction(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                        RitualCoreBlockEntity core, ServerPlayer player,
+                                        SpiritPowerAccess core, ServerPlayer player,
                                         int actionId) {
         if (actionId != ACTION_SUMMON) {
             return InteractionResult.PASS;
@@ -138,11 +184,11 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
      * 悄悄烧掉祭品与十秒供灵，等于凭空蒸发玩家的存货。
      */
     public static boolean trigger(ServerLevel level, BlockPos corePos, @Nullable ServerPlayer player) {
-        if (!(level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core)
+        if (!(level.getBlockEntity(corePos) instanceof SpiritPowerAccess core)
                 || !core.isPattern(RitualBehaviors.HYAKKI_YAGYO) || core.activeMatch() == null) {
             return false;
         }
-        if (core.summonActive()) {
+        if (!summon(core).isIdle()) {
             cancel(level, corePos, core, player);
             return true;
         }
@@ -157,7 +203,7 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
      * 故先算好账本、扣完料，再开会话。
      */
     private static boolean startSession(ServerLevel level, BlockPos corePos,
-                                        RitualCoreBlockEntity core, @Nullable ServerPlayer player) {
+                                        SpiritPowerAccess core, @Nullable ServerPlayer player) {
         RitualMatch match = core.activeMatch();
         List<RitualRecipe> candidates = RitualRecipeLoader.forPattern(match.patternId()).stream()
                 .filter(RitualRecipe::activation)
@@ -179,7 +225,7 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
         // 祭品在此刻吞掉（需求：启动即吞），此后不退还、不复查台面。
         RitualRecipeMatcher.apply(level, matched.get().takes());
         // 不 payCost：spCost 即容量。演出锚点**不在此落**——由缓存填满那一刻的 markSummonBurst 落。
-        core.beginSummonSession(recipe.id(), recipe.spCost(), match.level());
+        summon(core).begin(recipe.id(), recipe.spCost(), match.level()); core.setActiveRecipeId(recipe.id()); core.markDirty();
         core.setEnabled(true);
         core.broadcastPedestalsActive(true);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
@@ -188,12 +234,12 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
     }
 
     /** 取消会话：抽干缓存、清会话、归零。祭品与已投入灵力均不退（需求）。 */
-    private static void cancel(ServerLevel level, BlockPos corePos, RitualCoreBlockEntity core,
+    private static void cancel(ServerLevel level, BlockPos corePos, SpiritPowerAccess core,
                                @Nullable ServerPlayer player) {
         // 先关 enabled 再清：setEnabled(false) 内部会 clearSummonSession（覆盖全部停机路径），
         // 这里再显式清一次是幂等的，但保证即便将来那条挂钩改了也一定清干净。
         core.setEnabled(false);
-        core.clearSummonSession();
+        summon(core).clear(); core.extract(core.getStored()); core.setActiveRecipeId(null); core.markDirty();
         core.broadcastPedestalsActive(false);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
         feedback(player, "msg.gensokyou.hyakki_cancelled");
@@ -203,8 +249,8 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
-        switch (core.summonPhase()) {
+                           SpiritPowerAccess core) {
+        switch (summon(core).phase()) {
             case CHARGING -> tickCharging(level, corePos, core);
             case BURST, PILLAR -> tickPerformance(level, corePos, core);
             case IDLE -> core.setEnabled(false);
@@ -232,7 +278,7 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
      * 供灵不足时只是更慢，MUST NOT 变成拒绝或回退。
      */
     private static void tickCharging(ServerLevel level, BlockPos corePos,
-                                     RitualCoreBlockEntity core) {
+                                     SpiritPowerAccess core) {
         long capacity = core.getCapacity();
         // 先补料再判满：否则玩家"最后一刻断供"时会差一档卡住，而料其实还在。
         if (capacity > 0L && core.ageTicks() % PULL_PERIOD_TICKS == 0L) {
@@ -244,7 +290,7 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
         if (capacity > 0L && core.getStored() >= capacity) {
             // 判满这一刻才落演出锚点：球/闪电在充能段由「相位」驱动（时长随供灵而变），
             // 爆散与光柱才从这一刻起算。锚点若打在启动瞬间，零供灵时整段演出会在 1 秒内播完。
-            core.markSummonBurst((int) level.getGameTime());
+            summon(core).markBurst((int) level.getGameTime()); core.markDirty();
             // 爆散当刻：这是"判满"这一事件唯一干净的一次性落点，故音效就播在这里。
             burstSound(level, corePos);
             return;
@@ -255,12 +301,12 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
     }
 
     /** 每秒主动抽取量（= 受灵汇速率同口径），下限 1 杜绝配置写坏时彻底不吸。 */
-    private static long pullPerSecond(RitualCoreBlockEntity core) {
-        if (!core.summonActive()) {
+    private static long pullPerSecond(SpiritPowerAccess core) {
+        if (!!summon(core).isIdle()) {
             return 0L;
         }
         int divisor = Math.max(1, GensokyouConfig.SUMMON_IN_RATE_DIVISOR.get());
-        return Math.max(1L, core.summonCost() / divisor);
+        return Math.max(1L, summon(core).cost() / divisor);
     }
 
     /**
@@ -270,11 +316,11 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
      * 客户端各自算，故两者天然同步。收束时把缓存抽干并回到 IDLE，核心即可再次召唤。
      */
     private static void tickPerformance(ServerLevel level, BlockPos corePos,
-                                        RitualCoreBlockEntity core) {
-        int elapsed = core.summonElapsed();
-        if (core.summonPhase() == SummonPhase.BURST) {
+                                        SpiritPowerAccess core) {
+        int elapsed = elapsed(level, core);
+        if (summon(core).phase() == SummonPhase.BURST) {
             if (elapsed >= GensokyouConfig.FX_SUMMON_BURST_TICKS.get()) {
-                core.setSummonPhase(SummonPhase.PILLAR);
+                summon(core).setPhase(SummonPhase.PILLAR); core.markDirty();
                 spawnBoss(level, corePos, core);
             }
             return;
@@ -287,7 +333,7 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
         }
         // 收束：抽干缓存并回到 IDLE，核心即可再次召唤。
         core.setEnabled(false);
-        core.clearSummonSession();
+        summon(core).clear(); core.extract(core.getStored()); core.setActiveRecipeId(null); core.markDirty();
         core.broadcastPedestalsActive(false);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
     }
@@ -298,7 +344,7 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
      * <p>落点 = 核心正上方，与光柱落点一致。effect 为空或未注册时静默跳过——
      * 本仪式本身不要求必须召出东西（探针配方可只验演出）。
      */
-    private static void spawnBoss(ServerLevel level, BlockPos corePos, RitualCoreBlockEntity core) {
+    private static void spawnBoss(ServerLevel level, BlockPos corePos, SpiritPowerAccess core) {
         String effect = effectOf(core);
         if (effect == null || effect.isEmpty() || "-".equals(effect)) {
             return;
@@ -311,8 +357,8 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
      */
     @Override
     public void onStructureLost(ServerLevel level, BlockPos corePos) {
-        if (level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core) {
-            core.clearSummonSession();
+        if (level.getBlockEntity(corePos) instanceof SpiritPowerAccess core) {
+            summon(core).clear(); core.extract(core.getStored()); core.setActiveRecipeId(null); core.markDirty();
         }
     }
 
@@ -348,11 +394,11 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
      */
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
-        if (!core.summonActive()) {
+                                      SpiritPowerAccess core) {
+        if (!!summon(core).isIdle()) {
             return 0L;
         }
-        long cost = core.summonCost();
+        long cost = summon(core).cost();
         int divisor = Math.max(1, GensokyouConfig.SUMMON_IN_RATE_DIVISOR.get());
         return cost <= 0L ? 0L : Math.max(1L, cost / divisor);
     }
@@ -367,7 +413,7 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
      */
     @Override
     public boolean refillsCacheFromSocket() {
-        return true;
+        return false;
     }
 
     /**
@@ -386,7 +432,7 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
         }
     }
 
-    public static Supply supply(ServerLevel level, BlockPos corePos, RitualCoreBlockEntity core) {
+    public static Supply supply(ServerLevel level, BlockPos corePos, SpiritPowerAccess core) {
         long socket = 0L;
         if (core.batteryStack().getItem() instanceof SpiritCoreItem item) {
             socket = SpiritCoreItem.getStored(core.batteryStack());
@@ -400,9 +446,9 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         List<InfoLine> lines = new ArrayList<>();
-        if (!core.summonActive()) {
+        if (!!summon(core).isIdle()) {
             // 空闲：只补一行「本次召唤需先把灵力灌进核心」的引导，不列容量/供灵。
             lines.add(new InfoLine(KEY_IDLE, new String[0], "", COLOR_DIM, -1F, null,
                     0, InfoLine.CONTROL_NONE, InfoLine.LINK_NONE, "", new String[0]));
@@ -448,11 +494,11 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
 
     /** 会话自检单行（/gs_debug summon 用）。 */
     public static String debugSummary(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         Supply s = supply(level, corePos, core);
         return "pattern=" + match.patternId()
                 + " level=" + match.level()
-                + " phase=" + core.summonPhase()
+                + " phase=" + summon(core).phase()
                 + " stored=" + core.getStored()
                 + " cap=" + core.getCapacity()
                 + " pullPerSec=" + pullPerSecond(core)
@@ -460,16 +506,16 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
                 + " storedAround=" + s.stored()
                 + " availTotal=" + s.total()
                 + " deficit=" + s.deficit(core.getCapacity())
-                + " fxStart=" + core.summonFxStart()
-                + " elapsed=" + core.summonElapsed()
-                + " tier=" + core.summonTier()
-                + " recipe=" + core.summonRecipeId()
+                + " fxStart=" + summon(core).fxStart()
+                + " elapsed=" + elapsed(level, core)
+                + " tier=" + summon(core).tier()
+                + " recipe=" + summon(core).recipeId()
                 + " effect=" + effectOf(core);
     }
 
     /** 锁定配方的 effect 串（后续 BOSS 生成的挂钩点，本变更只读不解释）。 */
-    public static String effectOf(RitualCoreBlockEntity core) {
-        return Optional.ofNullable(core.summonRecipeId())
+    public static String effectOf(SpiritPowerAccess core) {
+        return Optional.ofNullable(summon(core).recipeId())
                 .flatMap(RitualRecipeLoader::byId)
                 .map(RitualRecipe::effect)
                 .orElse("-");

@@ -1,0 +1,29 @@
+{
+  "parent": "gensokyou:achievement/root",
+  "display": {
+    "icon": {
+      "id": "gensokyou:ritual_core"
+    },
+    "title": {
+      "translate": "advancement.gensokyou.achievement.ritual_core.title"
+    },
+    "description": {
+      "translate": "advancement.gensokyou.achievement.ritual_core.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "gensokyou:ritual_core"
+          }
+        ]
+      }
+    }
+  }
+}

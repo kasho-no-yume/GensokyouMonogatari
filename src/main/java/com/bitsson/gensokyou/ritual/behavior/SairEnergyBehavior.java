@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
@@ -29,6 +31,11 @@ import java.util.List;
  */
 public final class SairEnergyBehavior implements RitualBehavior {
 
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return GensokyouConfig.SAIR_ENERGY_BASE_CAPACITY.get();
+    }
+
     /** 恒定满缓存的补满周期（20 tick = 1 秒）。 */
     private static final long REFILL_PERIOD_TICKS = 20L;
 
@@ -46,7 +53,7 @@ public final class SairEnergyBehavior implements RitualBehavior {
 
     @Override
     public long spiritOutRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                       RitualCoreBlockEntity core) {
+                                       SpiritPowerAccess core) {
         return GensokyouConfig.SAIR_ENERGY_OUT_RATE_PER_SECOND.get().longValue();
     }
 
@@ -59,7 +66,7 @@ public final class SairEnergyBehavior implements RitualBehavior {
     /** 成型即每秒把缓存补满至上限（无限源语义）；缓存已满时零写入。 */
     @Override
     public void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                  RitualCoreBlockEntity core) {
+                                  SpiritPowerAccess core) {
         if (core.ageTicks() % REFILL_PERIOD_TICKS != 0L) {
             return;
         }
@@ -73,7 +80,7 @@ public final class SairEnergyBehavior implements RitualBehavior {
     /** 可见行只放供灵速率短值，缓存/上限明细进 tooltip；下方固定放由来诗。 */
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         long stored = core.getStored();
         long capacity = core.getCapacity();
         long out = spiritOutRatePerSecond(level, corePos, match, core);

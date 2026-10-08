@@ -27,11 +27,27 @@ public final class YumewatariSleepHandler {
         if (!(event.getLevel() instanceof net.minecraft.server.level.ServerLevel level)) {
             return;
         }
+        boolean npcProduced = false;
         for (RitualCoreBlockEntity core
                 : RitualCoreRegistry.formedOfPattern(level, RitualBehaviors.YUMEWATARI)) {
             RitualMatch match = core.activeMatch();
             if (match != null) {
-                YumewatariBehavior.settle(level, core.getBlockPos(), match, core);
+                YumewatariBehavior.Settlement settlement = YumewatariBehavior.settle(level, core.getBlockPos(), match, core);
+                if (settlement.produced() > 0) {
+                    for (YumewatariBehavior.Bed bed : YumewatariBehavior.scanBeds(level, match, core.getBlockPos())) {
+                        if (bed.sleeper() != null && !(bed.sleeper() instanceof net.minecraft.server.level.ServerPlayer)) {
+                            npcProduced = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (npcProduced) {
+            for (net.minecraft.server.level.ServerPlayer player : level.players()) {
+                if (player.isSleeping()) {
+                    AchievementAwards.award(player, "yumewatari_npc");
+                }
             }
         }
     }

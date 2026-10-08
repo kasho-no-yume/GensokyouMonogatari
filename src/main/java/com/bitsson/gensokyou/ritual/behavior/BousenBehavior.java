@@ -1,5 +1,10 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.BousenState;
+import com.bitsson.gensokyou.ritual.RitualBehaviorState;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
@@ -53,6 +58,26 @@ import java.util.List;
  * @see BousenLanterns 位表与跨端位序不变量
  */
 public class BousenBehavior implements RitualBehavior {
+
+    @Override
+    public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
+        return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_BOUSEN, core.isEnabled(), match.level(), 0, 0, 0, new long[0], 0,
+                bousen(core).litMask());
+    }
+
+    private static BousenState bousen(SpiritPowerAccess core) {
+        return (BousenState) core.behaviorState();
+    }
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return capacityOf(level);
+    }
+
+    @Override
+    public RitualBehaviorState newState() {
+        return new BousenState();
+    }
 
     /** 全亮色 / 缺灯色（信息行用；与屏障仪式同色系）。 */
     private static final int COLOR_OK = 0xFF2E8B57;
@@ -220,7 +245,7 @@ public class BousenBehavior implements RitualBehavior {
      */
     @Override
     public void serverPassiveTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                  RitualCoreBlockEntity core) {
+                                  SpiritPowerAccess core) {
         if (core.ageTicks() % scanPeriodTicks() == 0L) {
             rescan(level, match, core);
         }
@@ -233,7 +258,7 @@ public class BousenBehavior implements RitualBehavior {
     /** 启动通道（仅 enabled）：逐秒产灵 + 定期熄灭结算，两者均以全亮为前置。 */
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
+                           SpiritPowerAccess core) {
         if (!allLit(core)) {
             return;
         }
@@ -273,7 +298,7 @@ public class BousenBehavior implements RitualBehavior {
     }
 
     /** 全量重扫蜡烛点亮态 → 瞬态掩码。唯一读取蜡烛的地方。 */
-    private static void rescan(ServerLevel level, RitualMatch match, RitualCoreBlockEntity core) {
+    private static void rescan(ServerLevel level, RitualMatch match, SpiritPowerAccess core) {
         List<BlockPos> candles = BousenLanterns.positions(match);
         long mask = 0L;
         for (int i = 0; i < candles.size() && i < Long.SIZE; i++) {
@@ -281,7 +306,7 @@ public class BousenBehavior implements RitualBehavior {
                 mask |= 1L << i;
             }
         }
-        core.setBousenLanterns(mask, Long.bitCount(mask), candles.size());
+        bousen(core).setLanterns(mask, Long.bitCount(mask), candles.size());
     }
     /**
      * 核优先（不限速直注）→ 溢出进缓存（截到上限，余量作废）。
@@ -289,7 +314,7 @@ public class BousenBehavior implements RitualBehavior {
      * <p>走普通 receive / {@link SpiritCoreItem#receive}，<b>不</b>走
      * {@code extractRouted/receiveRouted}——否则被自身 inRate=0 误截。
      */
-    private static void deposit(RitualCoreBlockEntity core, long amount) {
+    private static void deposit(SpiritPowerAccess core, long amount) {
         long rest = amount;
         ItemStack battery = core.batteryStack();
         if (battery.getItem() instanceof SpiritCoreItem) {
@@ -311,8 +336,8 @@ public class BousenBehavior implements RitualBehavior {
      * 光照几何，触发邻居更新只会白白惊动结构内 64 个祭品台与整片匹配区域的方块更新检查。
      */
     private static void rollExtinguish(ServerLevel level, RitualMatch match,
-                                       RitualCoreBlockEntity core) {
-        int lit = core.bousenLitCount();
+                                       SpiritPowerAccess core) {
+        int lit = bousen(core).litCount();
         double p = extinguishChance(match.level());
         if (lit <= 0 || p <= 0.0D) {
             return;
@@ -324,8 +349,8 @@ public class BousenBehavior implements RitualBehavior {
             return;
         }
         int[] picked = new int[k];
-        int taken = pickLitIndices(core.bousenLitMask(), k, rng, picked);
-        long mask = core.bousenLitMask();
+        int taken = pickLitIndices(bousen(core).litMask(), k, rng, picked);
+        long mask = bousen(core).litMask();
         for (int i = 0; i < taken; i++) {
             int index = picked[i];
             if (index >= candles.size()) {
@@ -340,7 +365,7 @@ public class BousenBehavior implements RitualBehavior {
             mask &= ~(1L << index);
         }
         // 立即落一次刷新，避免同一 tick 的产灵/渲染态读到过期掩码；下个 1Hz 重扫会再确认一次。
-        core.setBousenLanterns(mask, Long.bitCount(mask), candles.size());
+        bousen(core).setLanterns(mask, Long.bitCount(mask), candles.size());
     }
 
     // ================================================================= 端点
@@ -351,7 +376,7 @@ public class BousenBehavior implements RitualBehavior {
      */
     @Override
     public long spiritOutRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                       RitualCoreBlockEntity core) {
+                                       SpiritPowerAccess core) {
         return outRateOf(match.level());
     }
 
@@ -360,15 +385,15 @@ public class BousenBehavior implements RitualBehavior {
     /** 结构失效：清瞬态灯火态。字段本身不持久化，但显式清零可避免停机瞬间的 GUI 读到上一形态。 */
     @Override
     public void onStructureLost(ServerLevel level, BlockPos corePos) {
-        if (level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core) {
-            core.setBousenLanterns(0L, 0, 0);
+        if (level.getBlockEntity(corePos) instanceof SpiritPowerAccess core) {
+            bousen(core).setLanterns(0L, 0, 0);
         }
     }
 
     // ================================================================= GUI
 
-    private static boolean allLit(RitualCoreBlockEntity core) {
-        return core.bousenLanternTotal() > 0 && core.bousenLitCount() == core.bousenLanternTotal();
+    private static boolean allLit(SpiritPowerAccess core) {
+        return bousen(core).lanternTotal() > 0 && bousen(core).litCount() == bousen(core).lanternTotal();
     }
 
     /**
@@ -377,9 +402,9 @@ public class BousenBehavior implements RitualBehavior {
      */
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
-        int lit = core.bousenLitCount();
-        int total = core.bousenLanternTotal();
+                                 SpiritPowerAccess core) {
+        int lit = bousen(core).litCount();
+        int total = bousen(core).lanternTotal();
         boolean full = allLit(core);
         long rate = produceRatePerSecond(match.level());
         long outRate = outRateOf(match.level());
@@ -444,13 +469,13 @@ public class BousenBehavior implements RitualBehavior {
 
     /** 机读单行（供外部 harness 解析）。 */
     public static String debugSummary(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         return "BOUSEN level=" + match.level()
                 + " enabled=" + core.isEnabled()
-                + " candles=" + core.bousenLanternTotal()
-                + " lit=" + core.bousenLitCount()
+                + " candles=" + bousen(core).lanternTotal()
+                + " lit=" + bousen(core).litCount()
                 + " allLit=" + allLit(core)
-                + " mask=0x" + Long.toHexString(core.bousenLitMask())
+                + " mask=0x" + Long.toHexString(bousen(core).litMask())
                 + " rate=" + produceRatePerSecond(match.level())
                 + " capacity=" + capacityOf(match.level())
                 + " stored=" + core.getStored()

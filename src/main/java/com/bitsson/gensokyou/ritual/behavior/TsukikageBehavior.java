@@ -1,5 +1,8 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
+import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 
 /**
@@ -7,6 +10,12 @@ import com.bitsson.gensokyou.config.GensokyouConfig;
  * 日落(dayTime 12000) 0 → 午夜(18000) 峰值 → 日出(24000/0) 0，其余时段 0。
  */
 public final class TsukikageBehavior extends DayCycleGeneratorBehavior {
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity.daycycleCapacity(level,
+                com.bitsson.gensokyou.config.GensokyouConfig.TSUKIKAGE_BASE_CAPACITY.get());
+    }
 
     @Override
     protected boolean solar() {

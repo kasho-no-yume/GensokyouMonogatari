@@ -1,0 +1,22 @@
+{
+  "parent": "gensokyou:achievement/root",
+  "display": {
+    "icon": {
+      "id": "gensokyou:spirit_core_1"
+    },
+    "title": {
+      "translate": "advancement.gensokyou.achievement.resonance.title"
+    },
+    "description": {
+      "translate": "advancement.gensokyou.achievement.resonance.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "reached": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

@@ -927,7 +927,7 @@ public class GensokyouConfig {
         KANAYAMAHIKO_IN_RATE_MULTIPLIER = BUILDER.defineInRange("kanayamahikoInRateMultiplier", 4, 1, 1000);
         KAGUTSUICHI_BASE_RATE_PER_SECOND = BUILDER.comment("Kagutsuchi Flame: base spirit power per second at level 0 (level N multiplies by 4^N)").defineInRange("kagutsuchiBaseRatePerSecond", 20D, 0D, 1000000D);
         KAGUTSUICHI_BASE_OUT_RATE_PER_SECOND = BUILDER.comment("Kagutsuchi Flame: base max routed output (supply) rate per second at level 0 (level N multiplies by 4^N); independent of the production rate above, defaults equal").defineInRange("kagutsuchiBaseOutRatePerSecond", 20D, 0D, 1000000D);
-        KAGUTSUICHI_BASE_CAPACITY = BUILDER.comment("Kagutsuchi Flame: base buffer capacity at level 0 (level N multiplies by 10^N)").defineInRange("kagutsuchiBaseCapacity", 1000, 1, Integer.MAX_VALUE);
+        KAGUTSUICHI_BASE_CAPACITY = BUILDER.comment("Kagutsuchi Flame: base buffer capacity at level 0 (level N multiplies by 10^N)").defineInRange("kagutsuchiBaseCapacity", 10000, 1, Integer.MAX_VALUE);
         KAGUTSUICHI_FUEL_BLACKLIST = BUILDER.comment("Item ids the Kagutsuchi Flame refuses to digest (fuel-table items you consider unsuitable, e.g. minecraft:wool)").defineListAllowEmpty("kagutsuchiFuelBlacklist", List.of(), o -> o instanceof String);
         ZAOHUA_CRAFT_DURATION_TICKS = BUILDER.comment("Zaohua rite: flight/convergence animation length in ticks (100 = 5s)").defineInRange("zaohuaCraftDurationTicks", 100, 20, 2400);
         ZAOHUA_SPIRIT_IN_RATE_BASE = BUILDER.comment("Zaohua rite: routed spirit intake rate (per second) at level 0, so the resonance network can power it as a sink").defineInRange("zaohuaSpiritInRateBase", 10000, 0, Integer.MAX_VALUE);

@@ -14,6 +14,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -104,6 +105,9 @@ public class CodexOfBeingsItem extends Item {
         }
 
         held.set(ModDataComponents.CODEX_DATA.get(), data.capture(EntityType.getKey(mob.getType())));
+        if (CodexOfBeingsItem.isFull(held) && player instanceof ServerPlayer serverPlayer) {
+            com.bitsson.gensokyou.event.AchievementAwards.award(serverPlayer, "codex_full");
+        }
         mob.discard();
 
         ServerLevel serverLevel = (ServerLevel) level;

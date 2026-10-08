@@ -1,0 +1,21 @@
+{
+  "display": {
+    "icon": {
+      "id": "gensokyou:guide_book"
+    },
+    "title": {
+      "translate": "advancement.gensokyou.achievement.root.title"
+    },
+    "description": {
+      "translate": "advancement.gensokyou.achievement.root.description"
+    },
+    "frame": "task",
+    "show_toast": false,
+    "announce_to_chat": false
+  },
+  "criteria": {
+    "reached": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

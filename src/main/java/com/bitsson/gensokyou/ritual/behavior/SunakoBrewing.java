@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
@@ -110,7 +112,7 @@ public final class SunakoBrewing {
 
     /** 试剂槽当前解析出的结果（GUI 预览用；解析失败返回空）。 */
     public static Optional<BrewReagentIndex.Resolution> reagent(ServerLevel level,
-                                                                RitualCoreBlockEntity core) {
+                                                                SpiritPowerAccess core) {
         return BrewReagentIndex.resolve(level, core.extraSlot(REAGENT_SLOT));
     }
 
@@ -121,7 +123,7 @@ public final class SunakoBrewing {
      *         {@link Outcome#NONE} 且<b>零消耗</b>
      */
     public static Outcome brew(ServerLevel level, BlockPos corePos, RitualMatch match,
-                               RitualCoreBlockEntity core) {
+                               SpiritPowerAccess core) {
         Optional<BrewReagentIndex.Resolution> resolution = reagent(level, core);
         if (resolution.isEmpty()) {
             return Outcome.NONE;
@@ -181,7 +183,7 @@ public final class SunakoBrewing {
     // ------------------------------------------------------------------ GUI
 
     public static List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                        RitualCoreBlockEntity core) {
+                                        SpiritPowerAccess core) {
         int ritualLevel = match.level();
         PedestalScan scan = scanPedestals(level, match);
         long unitCost = SunakoScaling.unitCostOf(ritualLevel);

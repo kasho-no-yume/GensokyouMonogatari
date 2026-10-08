@@ -33,7 +33,7 @@ class RedstoneTriggerContractTest {
         @Override
         public void onRedstonePulse(net.minecraft.server.level.ServerLevel level,
                                     net.minecraft.core.BlockPos corePos, RitualMatch match,
-                                    com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core) {
+                                    com.bitsson.gensokyou.ritual.SpiritPowerAccess core) {
             pulses++;
         }
     }

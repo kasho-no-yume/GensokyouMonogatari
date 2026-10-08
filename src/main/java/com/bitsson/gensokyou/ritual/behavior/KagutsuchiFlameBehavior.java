@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
@@ -33,13 +35,29 @@ import java.util.List;
 public class KagutsuchiFlameBehavior implements RitualBehavior {
 
     @Override
+    public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
+        java.util.List<net.minecraft.core.BlockPos> peds = core.pedestalPositions();
+        int cap = com.bitsson.gensokyou.ritual.RitualRenderState.MAX_CHANNELS;
+        long[] anchors = new long[Math.min(peds.size(), cap)];
+        for (int i = 0; i < anchors.length; i++) anchors[i] = peds.get(i).asLong();
+        return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_KAGUTSUICHI, core.isEnabled(), match.level(),
+                core.structureMinY(), core.structureRadiusXZ(), 0, anchors, 0,
+                core.isBurning() ? com.bitsson.gensokyou.ritual.RitualRenderState.MASK_KAGUTSUCHI_BURNING : 0L);
+    }
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return RitualCoreBlockEntity.kagutsuchiCapacity(level);
+    }
+
+    @Override
     public boolean usesCoreSocket() {
         return true;
     }
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         List<InfoLine> lines = new ArrayList<>();
         int remaining = core.burnRemainingTicks();
         int total = core.burnTotalTicks();
@@ -69,7 +87,7 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
+                           SpiritPowerAccess core) {
         // 1) 推进当前批；烧尽在同 tick 尝试点燃下一批（规则：无断档帧）
         if (core.isBurning()) {
             if (core.advanceBurnTick()) {
@@ -90,14 +108,14 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
 
     @Override
     public void onStructureLost(ServerLevel level, BlockPos corePos) {
-        if (level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core) {
+        if (level.getBlockEntity(corePos) instanceof SpiritPowerAccess core) {
             core.clearBurnBatch();
         }
     }
 
     /** 规范序扫描祭品台，点燃首个合格可燃物；缓存满时不选（停等）。 */
     private static void tryIgnite(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                  RitualCoreBlockEntity core) {
+                                  SpiritPowerAccess core) {
         if (core.getStored() >= core.getCapacity()) {
             return;
         }
@@ -156,7 +174,7 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
 
     @Override
     public long spiritOutRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                       RitualCoreBlockEntity core) {
+                                       SpiritPowerAccess core) {
         return (long) Math.floor(maxOutputRatePerSecond(match.level()));
     }
 
@@ -167,14 +185,13 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
     }
 
     /** 每秒一次的产灵/注灵结算（速率 ×1000 定点进位，避免整除截断）。 */
-    private static void settlePerSecond(RitualMatch match, RitualCoreBlockEntity core) {
+    private static void settlePerSecond(RitualMatch match, SpiritPowerAccess core) {
         // 产灵：20 × 4^等级 每秒，仅燃烧期入账（含空烧——receive 天然截到上限，超出作废）；
         // 无燃料待机/停等 MUST NOT 白产（bugfix：此前缺 isBurning 门控）
         if (core.isBurning()) {
             double ratePerSecond = productionRatePerSecond(match.level());
-            long rateCarry = core.rateCarry() + (long) Math.floor(ratePerSecond * 1000D);
-            long produced = rateCarry / 1000L;
-            core.setRateCarry(rateCarry % 1000L);
+            long produced = core.rateCarryAccumulator().accumulate(
+                    (long) Math.floor(ratePerSecond * 1000D), 1000L);
             if (produced > 0L) {
                 core.receive(produced);
             }
@@ -183,9 +200,9 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
         ItemStack battery = core.batteryStack();
         if (!battery.isEmpty() && battery.getItem() instanceof SpiritCoreItem spiritCore
                 && core.getStored() > 0L) {
-            long fillCarry = core.fillCarry() + (long) spiritCore.fillRatePerSecond() * 1000L;
-            long want = Math.min(fillCarry / 1000L, core.getStored());
-            core.setFillCarry(fillCarry % 1000L);
+            long want = core.fillCarryAccumulator().accumulate(
+                    (long) spiritCore.fillRatePerSecond() * 1000L, 1000L);
+            want = Math.min(want, core.getStored());
             if (want > 0L) {
                 long pushed = SpiritCoreItem.receive(battery, want);
                 core.extract(pushed);
@@ -196,7 +213,7 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
     private static long pow4(int exponent) {
         long value = 1L;
         for (int i = 0; i < exponent; i++) {
-            value *= 4L;
+            value = value << 2;
         }
         return value;
     }
@@ -207,7 +224,7 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
      * MUST NOT 再发射 FLAME/SMALL_FLAME 柱。非燃烧态（停等/待机）零点缀。
      */
     private static void emitSmokeAccents(ServerLevel level, BlockPos corePos,
-                                          RitualMatch match, RitualCoreBlockEntity core) {
+                                          RitualMatch match, SpiritPowerAccess core) {
         if (!core.isBurning()) {
             return;
         }

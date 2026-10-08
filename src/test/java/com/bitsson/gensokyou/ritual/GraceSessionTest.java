@@ -1,6 +1,8 @@
 package com.bitsson.gensokyou.ritual;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
+import com.bitsson.gensokyou.ritual.GracePhase;
+import com.bitsson.gensokyou.ritual.GraceSession;
 import com.bitsson.gensokyou.ritual.behavior.YaoyorozuGraceService;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
@@ -27,8 +29,8 @@ class GraceSessionTest {
             ResourceLocation.parse("gensokyou:grace_advance_1");
     private static final UUID WHO = UUID.randomUUID();
 
-    private static RitualCoreBlockEntity.GraceSession begin() {
-        RitualCoreBlockEntity.GraceSession s = new RitualCoreBlockEntity.GraceSession();
+    private static GraceSession begin() {
+        GraceSession s = new GraceSession();
         s.begin(RECIPE, 200L, WHO, 1, false);
         return s;
     }
@@ -36,20 +38,20 @@ class GraceSessionTest {
     @Test
     void triggerDecisionTable() {
         assertEquals(YaoyorozuGraceService.TriggerDecision.START,
-                YaoyorozuGraceService.decisionFor(RitualCoreBlockEntity.GracePhase.IDLE));
+                YaoyorozuGraceService.decisionFor(GracePhase.IDLE));
         assertEquals(YaoyorozuGraceService.TriggerDecision.CANCEL,
-                YaoyorozuGraceService.decisionFor(RitualCoreBlockEntity.GracePhase.PAYING));
+                YaoyorozuGraceService.decisionFor(GracePhase.PAYING));
         assertEquals(YaoyorozuGraceService.TriggerDecision.IGNORE,
-                YaoyorozuGraceService.decisionFor(RitualCoreBlockEntity.GracePhase.PERFORM));
+                YaoyorozuGraceService.decisionFor(GracePhase.PERFORM));
         assertEquals(YaoyorozuGraceService.TriggerDecision.START,
-                YaoyorozuGraceService.decisionFor(RitualCoreBlockEntity.GracePhase.REVIEW),
+                YaoyorozuGraceService.decisionFor(GracePhase.REVIEW),
                 "REVIEW 再启动=作废旧预览执行新配方");
     }
 
     @Test
     void beginLocksInitiatorTierAndCost() {
-        RitualCoreBlockEntity.GraceSession s = begin();
-        assertEquals(RitualCoreBlockEntity.GracePhase.PAYING, s.phase());
+        GraceSession s = begin();
+        assertEquals(GracePhase.PAYING, s.phase());
         assertEquals(WHO, s.initiator());
         assertEquals(1, s.tier());
         assertFalse(s.refine());
@@ -59,45 +61,45 @@ class GraceSessionTest {
 
     @Test
     void advanceThenPerformThenClearSequence() {
-        RitualCoreBlockEntity.GraceSession s = begin();
+        GraceSession s = begin();
         s.addCollected(120L);
         s.addCollected(80L);
         assertEquals(200L, s.collected());
         s.enterPerform();
-        assertEquals(RitualCoreBlockEntity.GracePhase.PERFORM, s.phase());
+        assertEquals(GracePhase.PERFORM, s.phase());
         assertEquals(0, s.ticks());
         s.advancePerform();
         assertEquals(1, s.ticks());
         s.clear();
-        assertEquals(RitualCoreBlockEntity.GracePhase.IDLE, s.phase());
+        assertEquals(GracePhase.IDLE, s.phase());
         assertNull(s.initiator());
         assertEquals(0L, s.cost());
     }
 
     @Test
     void nbtRoundTripRestoresOnlyPaying() {
-        RitualCoreBlockEntity.GraceSession s = begin();
+        GraceSession s = begin();
         s.addCollected(50L);
         CompoundTag tag = new CompoundTag();
         s.save(tag);
-        RitualCoreBlockEntity.GraceSession loaded = new RitualCoreBlockEntity.GraceSession();
+        GraceSession loaded = new GraceSession();
         loaded.load(tag);
-        assertEquals(RitualCoreBlockEntity.GracePhase.PAYING, loaded.phase());
+        assertEquals(GracePhase.PAYING, loaded.phase());
         assertEquals(50L, loaded.collected());
         assertEquals(WHO, loaded.initiator());
         assertEquals(RECIPE, loaded.recipeId());
         assertEquals(1, loaded.tier());
 
-        RitualCoreBlockEntity.GraceSession performing = begin();
+        GraceSession performing = begin();
         performing.enterPerform();
         CompoundTag performTag = new CompoundTag();
         performing.save(performTag);
-        RitualCoreBlockEntity.GraceSession revived = new RitualCoreBlockEntity.GraceSession();
+        GraceSession revived = new GraceSession();
         revived.load(performTag);
-        assertEquals(RitualCoreBlockEntity.GracePhase.IDLE, revived.phase(),
+        assertEquals(GracePhase.IDLE, revived.phase(),
                 "PERFORM 存档恢复视为演出已结束（效果已入账，不回滚不重演）");
 
-        RitualCoreBlockEntity.GraceSession review = begin();
+        GraceSession review = begin();
         review.stageRefine(new com.bitsson.gensokyou.spirit.grace.GraceNumbers.GraceRoll(
                 1, 200F, 8F,
                 java.util.Map.of(com.bitsson.gensokyou.spirit.attr.AttributeKey.DANMAKU_REDUCE, 0.1F)));
@@ -106,9 +108,9 @@ class GraceSessionTest {
         review.save(reviewTag);
         assertFalse(reviewTag.isEmpty(),
                 "REVIEW 入存档（待决永久存续，关界面/重启都不作废）");
-        RitualCoreBlockEntity.GraceSession restored = new RitualCoreBlockEntity.GraceSession();
+        GraceSession restored = new GraceSession();
         restored.load(reviewTag);
-        assertEquals(RitualCoreBlockEntity.GracePhase.REVIEW, restored.phase(),
+        assertEquals(GracePhase.REVIEW, restored.phase(),
                 "REVIEW 永久存续：重启后仍在待决态");
         assertEquals(WHO, restored.initiator(), "决策权仍归原发起者");
         // 待决 roll 本身也必须落盘：否则重启后 REVIEW 回来了却无可决策内容，
@@ -127,11 +129,11 @@ class GraceSessionTest {
     void reviewWithoutPendingRollFallsBackToIdle() {
         // 老存档（REVIEW 相位已写盘但没有 GracePending）不得停在"有相位、无内容"的死状态
         CompoundTag legacy = new CompoundTag();
-        legacy.putString("GracePhase", RitualCoreBlockEntity.GracePhase.REVIEW.name());
+        legacy.putString("GracePhase", GracePhase.REVIEW.name());
         legacy.putLong("GraceSession", 7L);
-        RitualCoreBlockEntity.GraceSession loaded = new RitualCoreBlockEntity.GraceSession();
+        GraceSession loaded = new GraceSession();
         loaded.load(legacy);
-        assertEquals(RitualCoreBlockEntity.GracePhase.IDLE, loaded.phase());
+        assertEquals(GracePhase.IDLE, loaded.phase());
         assertNull(loaded.pendingRefine());
     }
 

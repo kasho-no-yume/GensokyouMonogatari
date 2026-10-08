@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
@@ -36,6 +38,40 @@ import java.util.function.ToLongFunction;
  * （{@code RitualCoreRenderer} 据同步渲染态本地绘制；服务端仅按周期发布实搬通道掩码）。
  */
 public class ResonanceRelayBehavior implements RitualBehavior {
+
+    @Override
+    public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
+        int cap = com.bitsson.gensokyou.ritual.RitualRenderState.MAX_CHANNELS;
+        java.util.List<com.bitsson.gensokyou.ritual.RitualLink> inLinks = core.inLinks();
+        java.util.List<com.bitsson.gensokyou.ritual.RitualLink> outLinks = core.outLinks();
+        int total = Math.min(inLinks.size() + outLinks.size(), cap);
+        long[] links = new long[total];
+        int filled = 0;
+        for (com.bitsson.gensokyou.ritual.RitualLink link : inLinks) {
+            if (filled >= cap) break;
+            links[filled++] = link.corePos().asLong();
+        }
+        int inCount = filled;
+        for (com.bitsson.gensokyou.ritual.RitualLink link : outLinks) {
+            if (filled >= cap) break;
+            links[filled++] = link.corePos().asLong();
+        }
+        return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_RELAY, core.isEnabled(), match.level(),
+                core.structureMinY(), core.structureMaxY(),
+                Math.max(1, com.bitsson.gensokyou.config.GensokyouConfig.SETTLE_PERIOD_TICKS.get()), links, inCount,
+                com.bitsson.gensokyou.ritual.RitualRenderState.clampMask(core.resoMovingMask(), total));
+    }
+
+    @Override
+    public String startAchievement(ServerLevel level, BlockPos corePos, RitualMatch match,
+                                   SpiritPowerAccess core) {
+        return "resonance";
+    }
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return 0L;
+    }
 
     /** 行操作 id 基准（与 uiActions 顶部按钮的 0..2 命名空间互斥）。 */
     public static final int ROW_BASE = 200;
@@ -97,13 +133,13 @@ public class ResonanceRelayBehavior implements RitualBehavior {
 
     @Override
     public List<UiAction> uiActions(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                    RitualCoreBlockEntity core) {
+                                    SpiritPowerAccess core) {
         return List.of(new UiAction(ACTION_CLEAR, "gui.gensokyou.ritual.reso_clear"));
     }
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         sweepLinks(level, core);
         List<InfoLine> lines = new ArrayList<>();
         TowerState st = TOWERS.getOrDefault(corePos, new TowerState());
@@ -141,7 +177,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
 
     @Override
     public InteractionResult onUiAction(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                        RitualCoreBlockEntity core, ServerPlayer player, int actionId) {
+                                        SpiritPowerAccess core, ServerPlayer player, int actionId) {
         if (actionId == ACTION_CLEAR) {
             core.setSpiritLinks(List.of(), List.of());
             resetState(corePos);
@@ -156,7 +192,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
             return InteractionResult.SUCCESS; // 列表已变（静默失效+重推），不报错
         }
         RitualLink target = candidates.get(index);
-        RitualCoreBlockEntity endpoint = formedAt(level, target);
+        SpiritPowerAccess endpoint = formedAt(level, target);
         if (endpoint == null) {
             sweepLinks(level, core); // 点击瞬间目标已死：静默解链，随本次推送消失
             return InteractionResult.SUCCESS;
@@ -196,7 +232,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
+                           SpiritPowerAccess core) {
         boolean linksChanged = sweepLinks(level, core);
         TowerState st = TOWERS.computeIfAbsent(corePos.immutable(), k -> new TowerState());
         if (linksChanged) {
@@ -217,13 +253,13 @@ public class ResonanceRelayBehavior implements RitualBehavior {
     }
 
     /** 一次路由结算；返回本周期实搬 >0 的通道位掩码（规范序：inLinks 再 outLinks）。 */
-    private long routeTick(ServerLevel level, RitualCoreBlockEntity core, TowerState st,
+    private long routeTick(ServerLevel level, SpiritPowerAccess core, TowerState st,
                            int period) {
         st.lastMovedPerTick = 0L;
         Map<BlockPos, Long> outRates = new HashMap<>();
         Map<BlockPos, Long> inRates = new HashMap<>();
-        List<RitualCoreBlockEntity> sources = needyEndpoints(level, core.inLinks(), true, outRates);
-        List<RitualCoreBlockEntity> sinks = needyEndpoints(level, core.outLinks(), false, inRates);
+        List<SpiritPowerAccess> sources = needyEndpoints(level, core.inLinks(), true, outRates);
+        List<SpiritPowerAccess> sinks = needyEndpoints(level, core.outLinks(), false, inRates);
         if (sources.isEmpty() || sinks.isEmpty()) {
             return 0L;
         }
@@ -232,9 +268,9 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         // 每对预算仅为"建议值"（塔内把源速率在自家多汇间分摊、汇 in 速率在多源间分摊）；
         // 真正不超发由端点自身账本（extractRouted/receiveRouted）保证：
         // 多塔同 tick 争用同一端点额度 = 先到先得，次序 = 各路由 tick 顺序，与启停历史无关。
-        for (RitualCoreBlockEntity source : sources) {
+        for (SpiritPowerAccess source : sources) {
             double sShare = outRates.get(source.getBlockPos()) / (double) sinks.size();
-            for (RitualCoreBlockEntity sink : sinks) {
+            for (SpiritPowerAccess sink : sinks) {
                 if (source.getStored() <= 0L) {
                     break;
                 }
@@ -276,7 +312,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
     // ---- 链接监视 / 候选 ----
 
     /** 死链（不成型/图案不符）静默剔除；返回是否发生变化。 */
-    private static boolean sweepLinks(ServerLevel level, RitualCoreBlockEntity core) {
+    private static boolean sweepLinks(ServerLevel level, SpiritPowerAccess core) {
         List<RitualLink> in = sweep(level, core.inLinks());
         List<RitualLink> out = sweep(level, core.outLinks());
         if (in == core.inLinks() && out == core.outLinks()) {
@@ -299,11 +335,11 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         return alive.size() == links.size() ? links : List.copyOf(alive);
     }
 
-    private static RitualCoreBlockEntity formedAt(ServerLevel level, RitualLink link) {
+    private static SpiritPowerAccess formedAt(ServerLevel level, RitualLink link) {
         if (!level.isLoaded(link.corePos())) {
             return null;
         }
-        if (!(level.getBlockEntity(link.corePos()) instanceof RitualCoreBlockEntity core)
+        if (!(level.getBlockEntity(link.corePos()) instanceof SpiritPowerAccess core)
                 || core.activeMatch() == null
                 || !core.activeMatch().patternId().equals(link.patternId())) {
             return null;
@@ -311,7 +347,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         return core;
     }
 
-    private static long outRateOf(ServerLevel level, RitualCoreBlockEntity core) {
+    private static long outRateOf(ServerLevel level, SpiritPowerAccess core) {
         RitualMatch m = core.activeMatch();
         if (m == null || m.patternId().equals(RitualBehaviors.RESONANCE)) {
             return 0L;
@@ -321,7 +357,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
                 .orElse(0L);
     }
 
-    private static long inRateOf(ServerLevel level, RitualCoreBlockEntity core) {
+    private static long inRateOf(ServerLevel level, SpiritPowerAccess core) {
         RitualMatch m = core.activeMatch();
         if (m == null || m.patternId().equals(RitualBehaviors.RESONANCE)) {
             return 0L;
@@ -335,13 +371,13 @@ public class ResonanceRelayBehavior implements RitualBehavior {
      * 结算用端点集：链上解析 + 属性与供需现状过滤（needy 每结算周期现算）。
      * 速率经 rateCache per-period memo——每端点每周期至多解析一次（值与逐次重扫逐位一致）。
      */
-    private static List<RitualCoreBlockEntity> needyEndpoints(ServerLevel level,
+    private static List<SpiritPowerAccess> needyEndpoints(ServerLevel level,
                                                               List<RitualLink> links,
                                                               boolean asSource,
                                                               Map<BlockPos, Long> rateCache) {
-        List<RitualCoreBlockEntity> out = new ArrayList<>();
+        List<SpiritPowerAccess> out = new ArrayList<>();
         for (RitualLink link : links) {
-            RitualCoreBlockEntity core = formedAt(level, link);
+            SpiritPowerAccess core = formedAt(level, link);
             if (core == null) {
                 continue;
             }
@@ -394,7 +430,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
 
     /** 候选行集合：范围内有 in 或 out 属性的非共鸣成型核心 ∪ 已链接目标，确定序（距离→y,z,x）。 */
     private static List<RitualLink> buildCandidates(ServerLevel level, BlockPos corePos,
-                                                    RitualCoreBlockEntity core) {
+                                                    SpiritPowerAccess core) {
         Set<BlockPos> seen = new HashSet<>();
         List<RitualLink> candidates = new ArrayList<>();
         for (RitualCoreBlockEntity found
@@ -434,7 +470,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
 
     // ---- 行工具 ----
 
-    private static int linkStateOf(RitualCoreBlockEntity core, RitualLink target) {
+    private static int linkStateOf(SpiritPowerAccess core, RitualLink target) {
         if (find(core.inLinks(), target.corePos()) >= 0) {
             return InfoLine.LINK_IN;
         }
@@ -498,7 +534,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
     }
 
     /** 端点实测 {入, 出} 每秒速率：跨全部路由链路聚合，来源为核心 BE 的落账单调计数。 */
-    static long[] actualEndpointRates(RitualCoreBlockEntity endpoint, long now, int periodTicks) {
+    static long[] actualEndpointRates(SpiritPowerAccess endpoint, long now, int periodTicks) {
         BlockPos key = endpoint.getBlockPos().immutable();
         long in = endpoint.routedInTotal();
         long out = endpoint.routedOutTotal();
@@ -522,7 +558,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
     }
 
     private static TipSpec tipOf(BlockPos target, BlockPos tower,
-                                 @javax.annotation.Nullable RitualCoreBlockEntity endpoint,
+                                 @javax.annotation.Nullable SpiritPowerAccess endpoint,
                                  ServerLevel level) {
         String dist = String.valueOf((int) Mth.sqrt(distanceSq(target, tower)));
         String coord = target.getX() + ", " + target.getY() + ", " + target.getZ();

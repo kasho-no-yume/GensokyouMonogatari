@@ -1,5 +1,11 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.ReiyokuState;
+import com.bitsson.gensokyou.ritual.FixedPointAccumulator;
+import com.bitsson.gensokyou.ritual.RitualBehaviorState;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
@@ -51,6 +57,26 @@ import java.util.List;
  * （先例：{@code RitualCoreBlockEntity.rateCarry} / {@code fillCarry} / {@code cacheFillCarry}）。
  */
 public final class ReiyokuBehavior implements RitualBehavior {
+
+    @Override
+    public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
+        return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_REIYOKU, core.isEnabled(), match.level(),
+                core.structureMinY(), core.structureMaxY(), 0, new long[0], 0, 0L);
+    }
+
+    private static ReiyokuState reiyoku(SpiritPowerAccess core) {
+        return (ReiyokuState) core.behaviorState();
+    }
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return capacity(level);
+    }
+
+    @Override
+    public RitualBehaviorState newState() {
+        return new ReiyokuState();
+    }
 
     /** 每秒 tick 数（速率折算的固定除数）。 */
     public static final int TICKS_PER_SECOND = 20;
@@ -202,9 +228,9 @@ public final class ReiyokuBehavior implements RitualBehavior {
      * @return {@code [每人整数点数, 新速率余, 新均分余]}；点数为 0 时本 tick 无发放
      */
     public static long[] chargeStep(long rateCarry, long splitCarry, long perTickFixed, int n) {
-        long accum = rateCarry + perTickFixed;
-        long whole = accum / 1000L;
-        long nextRate = accum % 1000L;
+        long[] rateStep = FixedPointAccumulator.step(rateCarry, perTickFixed, 1000L);
+        long whole = rateStep[0];
+        long nextRate = rateStep[1];
         if (whole <= 0L || n <= 0) {
             return new long[]{0L, nextRate, Math.max(0L, splitCarry)};
         }
@@ -269,7 +295,7 @@ public final class ReiyokuBehavior implements RitualBehavior {
     /** 受灵汇速率：可被万象共鸣连接。仅随结构等级变化，不随时刻/缓存/在场与否变化。 */
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         return inRate(match.level());
     }
 
@@ -277,12 +303,12 @@ public final class ReiyokuBehavior implements RitualBehavior {
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
+                           SpiritPowerAccess core) {
         // 顺序要紧：先让槽核补料，再扣费。同一 tick 内先扣后补会让净值短暂为负一档。
         core.tickBatteryToCacheFill();
 
         List<ServerPlayer> bathers = qualifiedBathers(level, corePos, match);
-        core.setReiyokuRosterText(rosterText(bathers));
+        reiyoku(core).setRosterText(rosterText(bathers));
         if (bathers.isEmpty()) {
             pushIfBatherCountChanged(level, corePos, core, 0);
             return;
@@ -290,10 +316,10 @@ public final class ReiyokuBehavior implements RitualBehavior {
         pushIfBatherCountChanged(level, corePos, core, bathers.size());
 
         // 份额结算（纯函数，两级进位器 MUST 分道，见 chargeStep）。
-        long[] step = chargeStep(core.reiyokuRateCarry(), core.reiyokuSplitCarry(),
+        long[] step = chargeStep(reiyoku(core).rateCarry(), reiyoku(core).splitCarry(),
                 cachePerTickFixed(match.level()), bathers.size());
-        core.setReiyokuRateCarry(step[1]);
-        core.setReiyokuSplitCarry(step[2]);
+        reiyoku(core).setRateCarry(step[1]);
+        reiyoku(core).setSplitCarry(step[2]);
         if (step[0] <= 0L) {
             return;
         }
@@ -352,11 +378,11 @@ public final class ReiyokuBehavior implements RitualBehavior {
 
     /** 在浴人数变化时立即补推一次快照（否则该行要等统一 1Hz 心跳才收敛）。 */
     private static void pushIfBatherCountChanged(ServerLevel level, BlockPos corePos,
-                                                 RitualCoreBlockEntity core, int count) {
-        if (core.reiyokuBatherCount() == count) {
+                                                 SpiritPowerAccess core, int count) {
+        if (reiyoku(core).batherCount() == count) {
             return;
         }
-        core.setReiyokuBatherCount(count);
+        reiyoku(core).setBatherCount(count);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
     }    /**
      * 在浴名单文本（tooltip 单行用）：最多列 {@value #ROSTER_LIMIT} 个名字，超出以省略号收尾
@@ -385,7 +411,7 @@ public final class ReiyokuBehavior implements RitualBehavior {
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         return buildLines(level, corePos, match, core, null);
     }
 
@@ -397,12 +423,12 @@ public final class ReiyokuBehavior implements RitualBehavior {
      */
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core, @Nullable ServerPlayer viewer) {
+                                 SpiritPowerAccess core, @Nullable ServerPlayer viewer) {
         return buildLines(level, corePos, match, core, viewer);
     }
 
     private static List<InfoLine> buildLines(ServerLevel level, BlockPos corePos,
-                                             RitualMatch match, RitualCoreBlockEntity core,
+                                             RitualMatch match, SpiritPowerAccess core,
                                              @Nullable ServerPlayer viewer) {
         List<InfoLine> lines = new ArrayList<>();
         long stored = core.getStored();
@@ -411,14 +437,14 @@ public final class ReiyokuBehavior implements RitualBehavior {
         double charge = chargePerSecond(match.level());
 
         // 「谁在充灵」：与主循环同一份判据（复用 serverTick 落下的在浴人数，避免两套语义）。
-        int bathers = core.reiyokuBatherCount();
+        int bathers = reiyoku(core).batherCount();
         lines.add(InfoLine.tipped("gui.gensokyou.ritual.reiyoku.bathing",
                 new String[]{String.valueOf(bathers)}, ACCENT,
                 "gui.gensokyou.ritual.reiyoku.bathing.tip",
                 new String[]{
                         InfoLine.compact(bathers <= 0 ? 0L
                                 : (long) Math.round(charge / bathers)),
-                        core.reiyokuRosterText()}));
+                        reiyoku(core).rosterText()}));
 
         if (!core.isEnabled()) {
             lines.add(new InfoLine("gui.gensokyou.ritual.reiyoku.not_started",
@@ -479,7 +505,7 @@ public final class ReiyokuBehavior implements RitualBehavior {
 
     /** 机读单行摘要（供外部 harness 解析断言）。 */
     public static String debugSummary(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         int lv = match.level();
         return String.format(java.util.Locale.ROOT,
                 "reiyoku hit=1 level=%d stored=%d capacity=%d inRate=%d chargePerSecond=%s cachePerSecond=%s",

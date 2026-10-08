@@ -1,4 +1,4 @@
-package com.bitsson.gensokyou.ritual.behavior;
+package com.bitsson.gensokyou.ritual;
 
 import com.bitsson.gensokyou.item.weapon.RuneAffix;
 import net.minecraft.nbt.CompoundTag;
@@ -20,7 +20,7 @@ import java.util.UUID;
  * <p><b>暂存语义</b>：洗练结果在 REVIEW 落定前只存在本对象里，核组件一个字节都没动。
  * 任一中止路径（结构失效 / 配方丢失 / initiator 离线）都保持核原样。
  */
-public final class SeiiSession {
+public final class SeiiSession extends RitualBehaviorState {
 
     public enum Phase { IDLE, PAYING, PERFORM, REVIEW }
 
@@ -129,6 +129,11 @@ public final class SeiiSession {
         this.collected = 0L;
         this.ticks = 0;
         this.coreTier = 0;
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return phase == Phase.IDLE;
     }
 
     // ---- 持久化 ----

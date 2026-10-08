@@ -1,5 +1,10 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritBank;
+import com.bitsson.gensokyou.ritual.TickRateLedger;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
@@ -34,6 +39,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@link #transfer} 仅负责把内核结果落到真实物品。
  */
 public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
+
+    @Override
+    public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
+        return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_BAFANG, core.isEnabled(), match.level(), 0, 0, 0, new long[0], 0, 0L);
+    }
+
+    @Override
+    public String startAchievement(ServerLevel level, BlockPos corePos, RitualMatch match,
+                                   SpiritPowerAccess core) {
+        return allPedestalsRecognized(level, match) ? "bafang" : null;
+    }
 
     /**
      * 托管存电仪式豁免灵力核心槽：灵力物理住在祭品台的核心上，GUI 槽不参与
@@ -193,6 +209,12 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
     // ---- 世界访问 ----
 
     /** 台位快照（全部灵力核心，未过滤阶级；非核心物品缺席）。 */
+    public static boolean allPedestalsRecognized(ServerLevel level, RitualMatch match) {
+        List<SpiritCoreView> all = snapshot(level, match);
+        int pedestalCount = RitualPedestals.positions(match).size();
+        return all.size() == pedestalCount && accepted(all, match.level()).size() == pedestalCount;
+    }
+
     private static List<SpiritCoreView> snapshot(ServerLevel level, RitualMatch match) {
         List<SpiritCoreView> out = new ArrayList<>();
         for (BlockPos pos : RitualPedestals.positions(match)) {
@@ -390,19 +412,19 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
 
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         return sumInRate(accepted(snapshot(level, match), match.level()));
     }
 
     @Override
     public long spiritOutRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                       RitualCoreBlockEntity core) {
+                                       SpiritPowerAccess core) {
         return sumOutRate(accepted(snapshot(level, match), match.level()));
     }
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         List<SpiritCoreView> all = snapshot(level, match);
         List<SpiritCoreView> hostedViews = accepted(all, match.level());
         int pedestalCount = RitualPedestals.positions(match).size();

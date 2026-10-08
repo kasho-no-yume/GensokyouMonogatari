@@ -1,5 +1,10 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.RitualBehaviorState;
+import com.bitsson.gensokyou.ritual.SeiiSession;
+
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.item.weapon.AmpCoreItem;
@@ -36,6 +41,31 @@ import java.util.Map;
  */
 public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
 
+    @Override
+    public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
+        com.bitsson.gensokyou.ritual.SeiiSession session = seii(core);
+        net.minecraft.world.level.Level lv = core.getLevel();
+        boolean performing = lv != null && !lv.isClientSide
+                && session.phase() == com.bitsson.gensokyou.ritual.SeiiSession.Phase.PERFORM;
+        int duration = com.bitsson.gensokyou.config.GensokyouConfig.SEII_PERFORM_TICKS.get();
+        int startTick = performing ? (int) (lv.getGameTime() - session.ticks()) : 0;
+        return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SEII, performing, match.level(), startTick, duration, 0, new long[0], 0, 0L);
+    }
+
+    private static SeiiSession seii(SpiritPowerAccess core) {
+        return (SeiiSession) core.behaviorState();
+    }
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return com.bitsson.gensokyou.item.weapon.SeiiNumbers.capacity(level);
+    }
+
+    @Override
+    public RitualBehaviorState newState() {
+        return new SeiiSession();
+    }
+
     private static final int COLOR_OK_ACTION = 0xFF66BB6A;
     private static final int COLOR_KEEP_ACTION = 0xFFFFB74D;
     private static final int COLOR_UP = 0xFFA5D6A7;
@@ -43,7 +73,7 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
 
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         return SeiiNumbers.inRate(match.level());
     }
 
@@ -71,15 +101,15 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
 
     @Override
     public List<UiAction> uiActions(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                     RitualCoreBlockEntity core) {
+                                     SpiritPowerAccess core) {
         return uiActions(level, corePos, match, core, null);
     }
 
     @Override
     public List<UiAction> uiActions(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                    RitualCoreBlockEntity core, @Nullable ServerPlayer viewer) {
-        SeiiSession.Phase phase = core.seiiSession().phase();
-        boolean initiator = viewer == null || viewer.getUUID().equals(core.seiiSession().initiator());
+                                    SpiritPowerAccess core, @Nullable ServerPlayer viewer) {
+        SeiiSession.Phase phase = seii(core).phase();
+        boolean initiator = viewer == null || viewer.getUUID().equals(seii(core).initiator());
         return List.of(new UiAction(SeiiService.ACTION_TRIGGER,
                 phase == SeiiSession.Phase.PAYING
                         ? "gui.gensokyou.ritual.seii.cancel"
@@ -90,7 +120,7 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
 
     @Override
     public InteractionResult onUiAction(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                        RitualCoreBlockEntity core, ServerPlayer player, int actionId) {
+                                        SpiritPowerAccess core, ServerPlayer player, int actionId) {
         return switch (actionId) {
             case SeiiService.ACTION_TRIGGER -> SeiiService.trigger(level, corePos, player)
                     ? InteractionResult.SUCCESS : InteractionResult.FAIL;
@@ -106,13 +136,13 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
+                           SpiritPowerAccess core) {
         SeiiService.advanceSession(level, corePos, core);
     }
 
     @Override
     public void onStructureLost(ServerLevel level, BlockPos corePos) {
-        if (level.getBlockEntity(corePos) instanceof RitualCoreBlockEntity core) {
+        if (level.getBlockEntity(corePos) instanceof SpiritPowerAccess core) {
             SeiiService.onStructureLost(level, corePos, core);
         }
     }
@@ -121,15 +151,15 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         return uiInfo(level, corePos, match, core, null);
     }
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core, @Nullable ServerPlayer viewer) {
+                                 SpiritPowerAccess core, @Nullable ServerPlayer viewer) {
         List<InfoLine> lines = new ArrayList<>();
-        SeiiSession session = core.seiiSession();
+        SeiiSession session = seii(core);
         boolean initiator = viewer != null && viewer.getUUID().equals(session.initiator());
         switch (session.phase()) {
             case PAYING -> {
@@ -171,7 +201,7 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
      * 复制其语义（图标 + ✓/✗ 满足标记）并补上 {@code CONTROL_ITEM} 边框。
      */
     private static void appendOfferingChecklist(List<InfoLine> lines, RitualMatch match,
-                                                RitualCoreBlockEntity core) {
+                                                SpiritPowerAccess core) {
         var patternOpt = com.bitsson.gensokyou.ritual.RitualPatternLoader.byId(match.patternId());
         patternOpt.ifPresent(pattern -> {
             var result = com.bitsson.gensokyou.ritual.RitualOfferings.check(pattern, match, core.getLevel());

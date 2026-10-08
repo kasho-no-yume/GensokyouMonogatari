@@ -1,0 +1,29 @@
+{
+  "parent": "gensokyou:achievement/root",
+  "display": {
+    "icon": {
+      "id": "gensokyou:memory_fragment"
+    },
+    "title": {
+      "translate": "advancement.gensokyou.achievement.strange_paper.title"
+    },
+    "description": {
+      "translate": "advancement.gensokyou.achievement.strange_paper.description"
+    },
+    "frame": "task",
+    "show_toast": true,
+    "announce_to_chat": true
+  },
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "gensokyou:memory_fragment"
+          }
+        ]
+      }
+    }
+  }
+}

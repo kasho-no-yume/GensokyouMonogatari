@@ -84,21 +84,11 @@ public class RitualCoreBlock extends Block implements EntityBlock {
                             BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock())
                 && level.getBlockEntity(pos) instanceof RitualCoreBlockEntity core) {
-            if (level instanceof ServerLevel serverLevel
-                    && core.activeMatch() != null
-                    && com.bitsson.gensokyou.ritual.RitualBehaviors.WUJINZANG
-                            .equals(core.activeMatch().patternId())) {
-                com.bitsson.gensokyou.ritual.behavior.WujinzangStorage
-                        .releaseForceLoads(core, serverLevel);
-            }
-            // 结界破坏：核心被挖 → 两扇门（含幻想乡侧孪生门）走同一条关门路径。
-            // 幂等，且经由行为侧派生孪生门坐标，避免核心 BE 上另存一份会漂移的坐标。
-            if (level instanceof ServerLevel serverLevel
-                    && core.activeMatch() != null
-                    && com.bitsson.gensokyou.ritual.RitualBehaviors.BARRIER_BREAK
-                            .equals(core.activeMatch().patternId())) {
-                com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior
-                        .removePortals(serverLevel, pos, core);
+            if (level instanceof ServerLevel serverLevel && core.activeMatch() != null) {
+                com.bitsson.gensokyou.ritual.RitualBehaviors
+                        .get(core.activeMatch().patternId())
+                        .ifPresent(behavior -> behavior.onCoreRemoved(
+                                serverLevel, pos, core.activeMatch(), core));
             }
             ItemStack battery = core.batteryStack();
             if (!battery.isEmpty()) {
@@ -174,7 +164,7 @@ public class RitualCoreBlock extends Block implements EntityBlock {
         return OWN_REDSTONE_HANDLERS.computeIfAbsent(behavior.getClass(), type -> {
             try {
                 return type.getMethod("onRedstonePulse", ServerLevel.class, BlockPos.class,
-                                RitualMatch.class, RitualCoreBlockEntity.class)
+                                RitualMatch.class, com.bitsson.gensokyou.ritual.SpiritPowerAccess.class)
                         .getDeclaringClass() != RitualBehavior.class;
             } catch (NoSuchMethodException exception) {
                 return false;

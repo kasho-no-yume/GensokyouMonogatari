@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
+
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
@@ -48,6 +50,11 @@ import java.util.Map;
  * 空投 + 水蓝光柱 → 动态冷却（基础 1min / 命中大奖 10min）。
  */
 public class WatatsumiBehavior implements RitualBehavior {
+
+    @Override
+    public long capacity(int level, SpiritPowerAccess core) {
+        return RitualCoreBlockEntity.sacrificeCapacity(level);
+    }
 
     /** 合规钓鱼竿标签（原版无 fishing_rods 标签，故自建）。 */
     public static final TagKey<Item> FISHING_RODS =
@@ -209,13 +216,13 @@ public class WatatsumiBehavior implements RitualBehavior {
 
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                      RitualCoreBlockEntity core) {
+                                      SpiritPowerAccess core) {
         return GensokyouConfig.SACRIFICE_SPIRIT_IN_RATE.get().longValue();
     }
 
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
-                           RitualCoreBlockEntity core) {
+                           SpiritPowerAccess core) {
         if (core.actionCooldown() > 0) {
             return;
         }
@@ -275,7 +282,7 @@ public class WatatsumiBehavior implements RitualBehavior {
 
     @Override
     public List<InfoLine> uiInfo(ServerLevel level, BlockPos corePos, RitualMatch match,
-                                 RitualCoreBlockEntity core) {
+                                 SpiritPowerAccess core) {
         List<InfoLine> lines = new ArrayList<>();
         int ritualLevel = match.level();
         List<ToolSacrificeBehavior.PedestalTool> rods = scanRods(level, match);
