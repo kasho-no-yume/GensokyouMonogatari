@@ -9,6 +9,7 @@ import com.bitsson.gensokyou.ritual.behavior.SunakoScaling;
 import com.bitsson.gensokyou.ritual.BousenLanterns;
 import com.bitsson.gensokyou.ritual.behavior.BousenBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ReiyokuBehavior;
+import com.bitsson.gensokyou.ritual.behavior.TsukumogamiBehavior;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.HolderLookup;
@@ -281,6 +282,12 @@ public class RitualTierComponent implements ICustomComponent {
                     * pow(GensokyouConfig.ZAOHUA_SPIRIT_IN_RATE_MULT.get(), L)) + " /秒");
             case "kami_no_megumi_circle" -> add(out, "受灵上限", compact(GensokyouConfig.GRACE_SPIRIT_IN_RATE.get()) + " /秒");
             case "bafang_guiyuan_circle" -> add(out, "可托管核心", "tier ≤ " + L + " 的灵力核心");
+            case "tsukumogami_no_tsuka" -> {
+                // 数值全部现算自 config（与行为侧同一组静态函数口径），不写公式。
+                add(out, "产灵", secs(TsukumogamiBehavior.ratePerSlotPerSecond(L)) + " /秒");
+                add(out, "输出上限", secs(TsukumogamiBehavior.outRatePerSecond(L)) + " /秒");
+                add(out, "缓存", compact(TsukumogamiBehavior.capacity(L)));
+            }
             case "reiyoku_circle" -> {
                 // 数值全部现算自 config（与行为侧同一组静态函数口径），不写公式。
                 add(out, "缓存", compact(ReiyokuBehavior.capacity(L)));

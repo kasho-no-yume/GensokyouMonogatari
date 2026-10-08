@@ -81,6 +81,7 @@ public class GensokyouJeiPlugin implements IModPlugin {
     private static volatile Map<ResourceLocation, List<RitualLootCardWrapper>> syncedLoot = Map.of();
     private static volatile int syncedLootSignature = Integer.MIN_VALUE;
     private static volatile List<WatatsumiLootCardWrapper> syncedWatatsumi = List.of();
+    private static volatile List<TsukumogamiFuelCardWrapper> syncedTsukumogami = List.of();
     private static volatile Map<ResourceLocation, List<RitualSmeltCardWrapper>> syncedSmelt = Map.of();
     private static volatile Map<ResourceLocation, List<BrewRecipeCardWrapper>> syncedBrew = Map.of();
 
@@ -94,6 +95,7 @@ public class GensokyouJeiPlugin implements IModPlugin {
         syncedLoot = Map.of();
         syncedLootSignature = Integer.MIN_VALUE;
         syncedWatatsumi = List.of();
+        syncedTsukumogami = List.of();
         syncedSmelt = Map.of();
     }
 
@@ -143,6 +145,10 @@ public class GensokyouJeiPlugin implements IModPlugin {
                 guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK,
                         new ItemStack(Items.FISHING_ROD))));
 
+        registration.addRecipeCategories(new TsukumogamiFuelCategory(guiHelper, RitualBehaviors.TSUKUMOGAMI,
+                guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK,
+                        new ItemStack(Items.DECORATED_POT))));
+
         List<RitualSmeltCategory> smeltCategories = new ArrayList<>();
         for (ResourceLocation patternId : SMELT_TABS) {
             smeltCategories.add(new RitualSmeltCategory(guiHelper, patternId,
@@ -191,6 +197,7 @@ public class GensokyouJeiPlugin implements IModPlugin {
         syncFromLoader(ClientRitualData.recipesAll());
         syncLoot(ClientRitualData.lootsAll());
         syncWatatsumi();
+        syncTsukumogami();
         syncSmelt(ClientRitualData.smeltsAll());
         syncBrew(ClientRitualData.brewsAll());
     }
@@ -383,6 +390,30 @@ public class GensokyouJeiPlugin implements IModPlugin {
         manager.unhideRecipeCategory(type);
         manager.addRecipes(type, desired);
         syncedWatatsumi = desired;
+    }
+
+    /** 付丧之冢燃料卡同步：固定 3 张（等级 0/1/2）；燃料表数据变化即刷新。 */
+    static void syncTsukumogami() {
+        IJeiRuntime rt = checkRuntime();
+        if (rt == null) {
+            return;
+        }
+        List<TsukumogamiFuelCardWrapper> desired = List.of(
+                TsukumogamiFuelCardWrapper.of(0),
+                TsukumogamiFuelCardWrapper.of(1),
+                TsukumogamiFuelCardWrapper.of(2));
+        if (desired.equals(syncedTsukumogami)) {
+            return;
+        }
+        IRecipeManager manager = rt.getRecipeManager();
+        RecipeType<TsukumogamiFuelCardWrapper> type =
+                TsukumogamiFuelCategory.typeFor(RitualBehaviors.TSUKUMOGAMI);
+        if (!syncedTsukumogami.isEmpty()) {
+            manager.hideRecipes(type, syncedTsukumogami);
+        }
+        manager.unhideRecipeCategory(type);
+        manager.addRecipes(type, desired);
+        syncedTsukumogami = desired;
     }
 
     /** 配方集变化即逐页签增删卡片（稳态零操作，由 {@link #resyncAll()} 在真事件上触发）。 */

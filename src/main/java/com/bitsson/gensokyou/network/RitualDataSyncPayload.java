@@ -7,6 +7,7 @@ import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import com.bitsson.gensokyou.ritual.RitualSmeltRuleLoader;
 import com.bitsson.gensokyou.ritual.brew.RitualBrewRuleLoader;
 import com.bitsson.gensokyou.ritual.WatatsumiSpecialLootLoader;
+import com.bitsson.gensokyou.ritual.TsukumogamiFuelLoader;
 import com.google.gson.JsonObject;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -61,6 +62,10 @@ public record RitualDataSyncPayload(byte[] data) implements CustomPacketPayload 
         if (special != null) {
             // 单表 loader：形态为单个对象而非 id→对象 map
             root.add("ritual_special", special);
+        }
+        JsonObject fuel = TsukumogamiFuelLoader.rawAll();
+        if (fuel != null) {
+            root.add("tsukumogami_fuel", fuel);
         }
         return new RitualDataSyncPayload(compress(root.toString()));
     }

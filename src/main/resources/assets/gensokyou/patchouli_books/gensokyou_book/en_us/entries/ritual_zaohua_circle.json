@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.zaohua_circle",
   "category": "gensokyou:rituals",
   "icon": "gensokyou:spellcard_star",
-  "sortnum": 12,
+  "sortnum": 13,
   "pages": [
     {
       "type": "patchouli:text",

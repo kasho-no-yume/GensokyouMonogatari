@@ -13,6 +13,7 @@ import com.bitsson.gensokyou.ritual.brew.RitualBrewRule;
 import com.bitsson.gensokyou.ritual.brew.RitualBrewRuleLoader;
 import com.bitsson.gensokyou.ritual.WatatsumiSpecialLoot;
 import com.bitsson.gensokyou.ritual.WatatsumiSpecialLootLoader;
+import com.bitsson.gensokyou.ritual.TsukumogamiFuelLoader;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -49,6 +50,7 @@ public final class ClientRitualData {
     private static volatile List<RitualBrewRule> brewRules = List.of();
     private static volatile List<RitualLootTable> lootTables = List.of();
     private static volatile WatatsumiSpecialLoot watatsumi = WatatsumiSpecialLoot.EMPTY;
+    private static volatile List<TsukumogamiFuelLoader.Entry> tsukumogamiFuel = List.of();
     private static volatile boolean diskChecked = false;
 
     private ClientRitualData() {
@@ -112,6 +114,12 @@ public final class ClientRitualData {
         return watatsumi;
     }
 
+    /** 付丧之冢燃料表（JEI 付丧页签用）。 */
+    public static List<TsukumogamiFuelLoader.Entry> tsukumogamiFuel() {
+        ensureLoaded();
+        return tsukumogamiFuel;
+    }
+
     public static boolean hasData() {
         ensureLoaded();
         return !patterns.isEmpty();
@@ -130,6 +138,7 @@ public final class ClientRitualData {
         List<RitualBrewRule> parsedBrews = new ArrayList<>();
         List<RitualLootTable> parsedLoots = new ArrayList<>();
         WatatsumiSpecialLoot parsedWatatsumi = WatatsumiSpecialLoot.EMPTY;
+        List<TsukumogamiFuelLoader.Entry> parsedTsukumogamiFuel = List.of();
         try {
             JsonObject root = JsonParser.parseString(snapshotJson).getAsJsonObject();
             if (root.has("patterns")) {
@@ -217,6 +226,15 @@ public final class ClientRitualData {
                             ex.getMessage());
                 }
             }
+            if (root.has("tsukumogami_fuel")) {
+                try {
+                    parsedTsukumogamiFuel = TsukumogamiFuelLoader.parseFileForClient(
+                            root.getAsJsonObject("tsukumogami_fuel"));
+                } catch (Exception ex) {
+                    Gensokyou.LOGGER.warn("Client rejected tsukumogami fuel: {}",
+                            ex.getMessage());
+                }
+            }
         } catch (Exception ex) {
             Gensokyou.LOGGER.warn("Client rejected ritual data sync: {}", ex.getMessage());
             return false;
@@ -227,6 +245,7 @@ public final class ClientRitualData {
         brewRules = List.copyOf(parsedBrews);
         lootTables = List.copyOf(parsedLoots);
         watatsumi = parsedWatatsumi;
+        tsukumogamiFuel = parsedTsukumogamiFuel;
         diskChecked = true;
         writeCache(snapshotJson);
         return true;

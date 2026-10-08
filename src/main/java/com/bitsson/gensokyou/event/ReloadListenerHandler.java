@@ -6,6 +6,7 @@ import com.bitsson.gensokyou.ritual.RitualPatternLoader;
 import com.bitsson.gensokyou.ritual.RitualRecipeLoader;
 import com.bitsson.gensokyou.ritual.RitualSmeltRuleLoader;
 import com.bitsson.gensokyou.ritual.WatatsumiSpecialLootLoader;
+import com.bitsson.gensokyou.ritual.TsukumogamiFuelLoader;
 import com.bitsson.gensokyou.ritual.brew.RitualBrewRuleLoader;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -24,6 +25,7 @@ public final class ReloadListenerHandler {
         event.addListener(new RitualSmeltRuleLoader());
         event.addListener(new RitualLootLoader());
         event.addListener(new WatatsumiSpecialLootLoader());
+        event.addListener(new TsukumogamiFuelLoader());
         // 炼药试剂映射：必须排在最后，使它在装载结束时顺带作废 BrewReagentIndex 的反查缓存
         event.addListener(new RitualBrewRuleLoader());
     }

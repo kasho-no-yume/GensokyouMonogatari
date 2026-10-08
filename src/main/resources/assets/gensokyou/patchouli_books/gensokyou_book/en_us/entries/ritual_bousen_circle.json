@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.bousen_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:candle",
-  "sortnum": 22,
+  "sortnum": 23,
   "pages": [
     {
       "type": "patchouli:text",

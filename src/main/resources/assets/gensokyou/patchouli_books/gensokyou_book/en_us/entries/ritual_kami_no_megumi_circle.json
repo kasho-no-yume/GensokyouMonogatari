@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.kami_no_megumi_circle",
   "category": "gensokyou:rituals",
   "icon": "gensokyou:spirit_core_1",
-  "sortnum": 13,
+  "sortnum": 14,
   "pages": [
     {
       "type": "patchouli:text",

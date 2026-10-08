@@ -8,6 +8,7 @@ import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.ritual.BousenLanterns;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualFxLayout;
+import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualPedestals;
 import com.bitsson.gensokyou.ritual.RitualRenderState;
 import com.bitsson.gensokyou.ritual.behavior.BousenBehavior;
@@ -240,6 +241,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                     renderLanterns(blockEntity, state, now, poseStack, bufferSource);
             case RitualRenderState.KIND_SUNAKO ->
                     renderSunako(blockEntity, state, now, poseStack, bufferSource);
+            case RitualRenderState.KIND_TSUKUMOGAMI ->
+                    renderTsukumogami(blockEntity, state, now, poseStack, bufferSource);
             default -> {
             }
         }
@@ -2105,9 +2108,101 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                 .orElse(List.of()));
     }
 
+    // ================================================================ 付丧之冢
+
+    /** 冒烟帧：复用原版 large_smoke 的 8 帧软边真烟贴图（particle/generic_0..7）。 */
+    private static final ResourceLocation[] SMOKE_FRAMES = {
+            ResourceLocation.withDefaultNamespace("particle/generic_0"),
+            ResourceLocation.withDefaultNamespace("particle/generic_1"),
+            ResourceLocation.withDefaultNamespace("particle/generic_2"),
+            ResourceLocation.withDefaultNamespace("particle/generic_3"),
+            ResourceLocation.withDefaultNamespace("particle/generic_4"),
+            ResourceLocation.withDefaultNamespace("particle/generic_5"),
+            ResourceLocation.withDefaultNamespace("particle/generic_6"),
+            ResourceLocation.withDefaultNamespace("particle/generic_7")};
+
+    /** 付丧之冢的烟色：近黑灰（alpha 混合会让它压底背景、读作烟，而不是实心深色面片）。 */
+    private static final int TSUKU_R = 28, TSUKU_G = 28, TSUKU_B = 34;
+
+    /** 逐阶结构柱顶（相对核心，每 (x,z) 取该柱最高方块的 y）；客户端本地推导，整座统一布气。 */
+    private static final Map<Integer, List<BlockPos>> TSUKUMOGAMI_FIELD = new ConcurrentHashMap<>();
+
+    private static List<BlockPos> tsukumogamiFieldColumns(int tier) {
+        return TSUKUMOGAMI_FIELD.computeIfAbsent(tier, t -> ClientRitualData
+                .pattern(RitualBehaviors.TSUKUMOGAMI)
+                .map(pattern -> {
+                    // 累计该阶全部切片，按 (x,z) 取最高 y 作为柱顶
+                    java.util.HashMap<Long, Integer> top = new java.util.HashMap<>();
+                    for (RitualPattern.LevelSlice slice : pattern.levels()) {
+                        if (slice.level() > t) {
+                            continue;
+                        }
+                        for (RitualPattern.BlockEntry b : slice.blocks()) {
+                            long key = (((long) b.x()) << 32) ^ (b.z() & 0xFFFFFFFFL);
+                            top.merge(key, b.y(), Math::max);
+                        }
+                    }
+                    List<BlockPos> out = new java.util.ArrayList<>();
+                    for (var entry : top.entrySet()) {
+                        int x = (int) (entry.getKey() >> 32);
+                        int z = (int) (entry.getKey() & 0xFFFFFFFFL);
+                        out.add(new BlockPos(x, entry.getValue(), z));
+                    }
+                    out.sort(java.util.Comparator.<BlockPos>comparingInt(BlockPos::getZ)
+                            .thenComparingInt(BlockPos::getX));
+                    return out;
+                })
+                .orElse(List.of()));
+    }
+
     /**
-     * 忘川灯坛灯火表现（三段，全程客户端几何，服务端零粒子包）。
+     * 付丧之冢燃烧黑烟：整座仪式统一冒黑气——以结构每根竖柱的柱顶为布点，上升烟片铺满整座形态。
      *
+     * <p>全程客户端几何，服务端零粒子包；非燃烧态（movingMask==0）经包络淡出零烟。
+     */
+    private void renderTsukumogami(RitualCoreBlockEntity be, RitualRenderState state, double now,
+                                   PoseStack poseStack, MultiBufferSource buffers) {
+        List<BlockPos> columns = tsukumogamiFieldColumns(state.tier());
+        if (columns.isEmpty()) {
+            return;
+        }
+        float env = advanceEnvelope(be.getBlockPos(), 0,
+                (state.enabled() && state.movingMask() != 0L) ? 1F : 0F, now);
+        if (env <= 0.01F) {
+            return;
+        }
+        int puffs = GensokyouConfig.TSUKUMOGAMI_FX_PUFFS_PER_COLUMN.get();
+        double height = GensokyouConfig.TSUKUMOGAMI_FX_COLUMN_HEIGHT.get();
+        float size = GensokyouConfig.TSUKUMOGAMI_FX_PUFF_SIZE.get().floatValue();
+        float tierScale = 1.0F + 0.25F * state.tier();
+        // 整座仪式布气：每根结构柱顶都冒，形成一片黑气而非只在祭品台
+        for (int i = 0; i < columns.size(); i++) {
+            BlockPos off = columns.get(i);
+            for (int p = 0; p < puffs; p++) {
+                // 每个 puff 按固定相位上升再消失；循环周期与帧错开避免同步感
+                double phase = ((now * 0.02D + p / (double) puffs + i * 0.137D) % 1.0D + 1.0D) % 1.0D;
+                double y = phase * height;
+                float rise = (float) (y / height);
+                int tex = ((int) (now / 4) + p * 3 + i * 5) & 7;
+                VertexConsumer smoke = buffers.getBuffer(DanmakuRenderTypes.translucent(SMOKE_FRAMES[tex]));
+                // 淡烟：峰值压到 46（整座铺满时叠加不至于糊成一片），峰态取中段
+                float alphaF = Math.min(1.0F, 4.0F * rise * (1.0F - rise));
+                int alpha = (int) (alphaF * env * 46.0F);
+                // 半径随升而放大，是整股气体而非一个立柱
+                float halfSz = size * (0.5F + 0.8F * rise) * tierScale;
+                float jx = ((i * 3 + p) % 5 - 2) * 0.14F;
+                float jz = ((i * 5 + p * 2) % 5 - 2) * 0.14F;
+                FxGeometry.emitBillboard(smoke, poseStack.last(), this.camRot,
+                        off.getX() + 0.5F + jx, off.getY() + 1.0F + (float) y, off.getZ() + 0.5F + jz,
+                        halfSz, halfSz, TSUKU_R, TSUKU_G, TSUKU_B, alpha);
+            }
+        }
+    }
+
+    /**
+     * 忘川灯坛灯火表现（三段，全程客户端几何，服务端零粒子包）�?
+     *
+
      * <ol>
      *   <li><b>逐烛光晕</b>：点亮 = 淡蓝、熄灭 = 淡红。<b>只此一张贴图</b>，颜色全靠顶点色 tint，
      *       故亮/暗两批写进<b>同一个</b> {@code VertexConsumer}——{@code DanmakuRenderTypes} 按贴图

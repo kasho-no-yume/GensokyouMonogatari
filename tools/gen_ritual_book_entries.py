@@ -78,6 +78,9 @@ WAT_TREASURE = [("minecraft:name_tag", 1), ("minecraft:saddle", 1), ("minecraft:
 # (path, icon, no_recipes)；列表顺序即 sortnum 1..N。name-key 复用 JEI 仪式名。
 ENTRIES = [
     ("kagutsuchi_flame_circle", "minecraft:blaze_powder", False),
+    # 付丧之冢：考古垃圾（陶片/唱片）发电仪式。材料数据驱动（ritual_special/tsukumogami_fuel.json）而非配方
+    # 目录，故 no_recipes=True；阶级参数页现算产灵/缓存/输出上限。
+    ("tsukumogami_no_tsuka", "minecraft:decorated_pot", True),
     ("yumewatari_circle", "minecraft:red_bed", False),
     ("haniyasu_circle", "minecraft:iron_shovel", False),
     ("kukunochi_circle", "minecraft:iron_axe", False),

@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.bafang_guiyuan_circle",
   "category": "gensokyou:rituals",
   "icon": "gensokyou:spirit_core_5",
-  "sortnum": 14,
+  "sortnum": 15,
   "pages": [
     {
       "type": "patchouli:text",

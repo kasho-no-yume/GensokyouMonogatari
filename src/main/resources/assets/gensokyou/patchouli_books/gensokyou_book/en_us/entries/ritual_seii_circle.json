@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.seii_circle",
   "category": "gensokyou:rituals",
   "icon": "gensokyou:amp_core_t1",
-  "sortnum": 18,
+  "sortnum": 19,
   "pages": [
     {
       "type": "patchouli:text",

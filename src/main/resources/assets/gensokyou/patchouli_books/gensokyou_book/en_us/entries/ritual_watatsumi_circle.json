@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.watatsumi_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:fishing_rod",
-  "sortnum": 7,
+  "sortnum": 8,
   "pages": [
     {
       "type": "patchouli:text",

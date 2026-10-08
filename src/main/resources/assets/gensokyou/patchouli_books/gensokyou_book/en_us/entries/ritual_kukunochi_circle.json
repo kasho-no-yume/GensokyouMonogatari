@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.kukunochi_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:iron_axe",
-  "sortnum": 4,
+  "sortnum": 5,
   "pages": [
     {
       "type": "patchouli:text",

@@ -215,6 +215,12 @@ public final class DebugCommands {
                                 .executes(context -> probeWatatsumi(context.getSource(),
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument
                                                 .getLoadedBlockPos(context, "core")))))
+                .then(Commands.literal("tsukumogami")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeTsukumogami(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core")))))
                 .then(Commands.literal("sunako")
                         .then(Commands.literal("brew")
                                 .then(Commands.argument("core",
@@ -734,6 +740,31 @@ public final class DebugCommands {
     }
 
     /** 绵津见神之藏探针：单行 [GS-AUTO] WATATSUMI，含等级/竿数/两池掷数/解锁/成本/特产池（权重+约%）。 */
+    /** 付丧之冢探针：单行 [GS-AUTO] TSUKUMOGAMI，含等级/槽数/台位/缓存/单槽速率/出率。 */
+    private static int probeTsukumogami(net.minecraft.commands.CommandSourceStack source,
+                                        net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null
+                && com.bitsson.gensokyou.ritual.RitualBehaviors.TSUKUMOGAMI
+                        .equals(core.activeMatch().patternId())) {
+            msg = "[GS-AUTO] TSUKUMOGAMI "
+                    + com.bitsson.gensokyou.ritual.behavior.TsukumogamiBehavior
+                            .debugSummary(serverLevel, pos, core.activeMatch(), core)
+                    + " enabled=" + core.isEnabled()
+                    + " be=" + core.getStored() + "/" + core.getCapacity();
+        } else {
+            msg = "[GS-AUTO] TSUKUMOGAMI NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
     private static int probeWatatsumi(net.minecraft.commands.CommandSourceStack source,
                                       net.minecraft.core.BlockPos pos) {
         if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {

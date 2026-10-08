@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.haniyasu_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:iron_shovel",
-  "sortnum": 3,
+  "sortnum": 4,
   "pages": [
     {
       "type": "patchouli:text",

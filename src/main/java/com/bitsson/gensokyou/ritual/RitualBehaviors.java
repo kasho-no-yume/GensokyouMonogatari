@@ -21,6 +21,7 @@ import com.bitsson.gensokyou.ritual.behavior.SeiiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.ShujouYorokuBehavior;
 import com.bitsson.gensokyou.ritual.behavior.SunakoBehavior;
 import com.bitsson.gensokyou.ritual.behavior.TsukikageBehavior;
+import com.bitsson.gensokyou.ritual.behavior.TsukumogamiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.WatatsumiBehavior;
 import com.bitsson.gensokyou.ritual.behavior.WujinzangBehavior;
 import com.bitsson.gensokyou.ritual.behavior.YaoyorozuGraceBehavior;
@@ -87,6 +88,11 @@ public final class RitualBehaviors {
      * 早已入库（1/2/3 阶、祭品台×4、toggleable:false），此前是无行为空壳，本仪式
      * 即为其补行为。行为/配置类名仍用 Omoikane（思兼神）——命名分两层，别混。
      */
+    public static final ResourceLocation TSUKUMOGAMI = Gensokyou.id("tsukumogami_no_tsuka");
+    /**
+     * 付丧之冢：祭品台上的陶片/唱片即焚、产灵的发电仪式。启停门控（pattern {@code toggleable:true}）�?
+     * 并行点火即吞、缓存→槽核→路由出率同迦具土口径；燃料表刻意剔除纹饰模板与装饰陶罐�?
+     */
     public static final ResourceLocation OMOIKANE = Gensokyou.id("shiken_circle");
 
     static {
@@ -115,6 +121,7 @@ public final class RitualBehaviors {
         register(BOUSEN, new BousenBehavior());
         register(SUNAKO, new SunakoBehavior());
         register(OMOIKANE, new OmoikaneBehavior());
+        register(TSUKUMOGAMI, new TsukumogamiBehavior());
     }
 
     private RitualBehaviors() {

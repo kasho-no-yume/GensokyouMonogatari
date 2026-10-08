@@ -99,6 +99,12 @@ public record RitualRenderState(int kind, boolean enabled, int tier, int minY, i
      * 经本通道承载（同 {@link #KIND_REIYOKU} 的理由），改由客户端读同一份 pattern 推导。
      */
     public static final int KIND_SUNAKO = 11;
+    /**
+     * 付丧之冢：燃烧表现（黑色烟雾，整座仪式统一冒）只取 {@code enabled}+{@code tier}+{@code movingMask}+{@code minY}/{@code maxY}；
+     * {@code movingMask} bit0 = 是否有批次在燃烧（仪式一次只烧一批，故无台位分址）；台位坐标由客户端
+     * 读同一份 pattern JSON 推导（{@code linkPos} 不携带）。
+     */
+    public static final int KIND_TSUKUMOGAMI = 12;
 
     /** 位掩码通道上限（当前 L5 配额合计 40 < 64）。注意 {@link #KIND_BOUSEN} 恰好用满 1~6 位，
      * 但占的是 {@code movingMask} 而非 {@code linkPos}，故不占本上限。 */
@@ -108,6 +114,8 @@ public record RitualRenderState(int kind, boolean enabled, int tier, int minY, i
     public static final long MASK_KAGUTSUCHI_BURNING = 1L;
     /** 煅炉"存在燃烧任务"标记（kind=KANAYAMAHIKO 时 movingMask 的 bit0）。 */
     public static final long MASK_KANAYAMAHIKO_BURNING = 1L;
+    /** 付丧之冢"存在燃烧批次"标记（kind=TSUKUMOGAMI 时 movingMask 的 bit0）。 */
+    public static final long MASK_TSUKUMOGAMI_BURNING = 1L;
 
     public static final RitualRenderState EMPTY =
             new RitualRenderState(KIND_NONE, false, 0, 0, 0, 20, new long[0], 0, 0L);

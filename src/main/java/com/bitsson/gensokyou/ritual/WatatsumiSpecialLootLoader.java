@@ -40,6 +40,10 @@ public class WatatsumiSpecialLootLoader extends SimpleJsonResourceReloadListener
         WatatsumiSpecialLoot parsed = WatatsumiSpecialLoot.EMPTY;
         JsonObject parsedRaw = null;
         for (var file : files.entrySet()) {
+            // ritual_special 目录现由多个仪式共用：只认自己的文件，避免误吞他表
+            if (!file.getKey().getPath().equals("watatsumi_special")) {
+                continue;
+            }
             try {
                 JsonObject json = GsonHelper.convertToJsonObject(file.getValue(), "watatsumi special loot");
                 parsed = parse(json);

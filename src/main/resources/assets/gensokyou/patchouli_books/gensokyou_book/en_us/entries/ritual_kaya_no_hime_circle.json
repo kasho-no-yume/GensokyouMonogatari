@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.kaya_no_hime_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:iron_hoe",
-  "sortnum": 5,
+  "sortnum": 6,
   "pages": [
     {
       "type": "patchouli:text",

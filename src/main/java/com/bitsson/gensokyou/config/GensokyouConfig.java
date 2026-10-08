@@ -189,6 +189,15 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue WATATSUMI_BONUS_COOLDOWN_TICKS;
     public static final ModConfigSpec.DoubleValue WATATSUMI_BONUS_CHANCE;
 
+    // ---- tsukumogami-tomb-ritual：付丧之冢（考古垃圾发电机）----
+    public static final ModConfigSpec.DoubleValue TSUKUMOGAMI_BASE_RATE_PER_SECOND;
+    public static final ModConfigSpec.DoubleValue TSUKUMOGAMI_BASE_OUT_RATE_PER_SECOND;
+    public static final ModConfigSpec.IntValue TSUKUMOGAMI_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue TSUKUMOGAMI_LEVEL_MULT;
+    public static final ModConfigSpec.IntValue TSUKUMOGAMI_FX_PUFFS_PER_COLUMN;
+    public static final ModConfigSpec.DoubleValue TSUKUMOGAMI_FX_COLUMN_HEIGHT;
+    public static final ModConfigSpec.DoubleValue TSUKUMOGAMI_FX_PUFF_SIZE;
+
     // ---- shujou-yoroku-ritual：众生余录（满态典籍按实体战利品表产出的持续转化仪式）----
     public static final ModConfigSpec.IntValue SHUJOU_BASE_CAPACITY;
     public static final ModConfigSpec.IntValue SHUJOU_CAPACITY_MULT;
@@ -962,6 +971,16 @@ public class GensokyouConfig {
         WATATSUMI_BASE_COOLDOWN_TICKS = BUILDER.comment("Watatsumi treasure rite: forced cooldown in ticks after a normal settlement (1200 = 60s)").defineInRange("watatsumiBaseCooldownTicks", 1200, 0, 72000);
         WATATSUMI_BONUS_COOLDOWN_TICKS = BUILDER.comment("Watatsumi treasure rite: forced cooldown in ticks after the level-2 buried-treasure bonus triggers (12000 = 10min)").defineInRange("watatsumiBonusCooldownTicks", 12000, 0, 720000);
         WATATSUMI_BONUS_CHANCE = BUILDER.comment("Watatsumi treasure rite: per-settlement chance at level 2 to additionally roll a full buried-treasure chest").defineInRange("watatsumiBonusChance", 0.001D, 0.0D, 1.0D);
+        BUILDER.pop();
+
+        BUILDER.push("tsukumogami").comment("Tsukumogami no Tsuka (付丧之冢): archaeological-trash power generator (pottery sherds & music discs); every value scales by LEVEL_MULT^level");
+        TSUKUMOGAMI_BASE_RATE_PER_SECOND = BUILDER.comment("Tsukumogami Flame: base spirit power per second per burning slot at level 0 (level N multiplies by levelMult^N)").defineInRange("tsukumogamiBaseRatePerSecond", 50D, 0D, 1000000D);
+        TSUKUMOGAMI_BASE_OUT_RATE_PER_SECOND = BUILDER.comment("Tsukumogami Flame: base max routed output rate per second at level 0 (level N multiplies by levelMult^N); independent of the production rate above, defaults equal").defineInRange("tsukumogamiBaseOutRatePerSecond", 50D, 0D, 1000000D);
+        TSUKUMOGAMI_BASE_CAPACITY = BUILDER.comment("Tsukumogami Flame: base buffer capacity at level 0 (level N multiplies by levelMult^N)").defineInRange("tsukumogamiBaseCapacity", 400000, 1, Integer.MAX_VALUE);
+        TSUKUMOGAMI_LEVEL_MULT = BUILDER.comment("Tsukumogami Flame: per-level multiplier applied to production rate, output rate, capacity, and per-item yield").defineInRange("tsukumogamiLevelMult", 5, 1, 100);
+        TSUKUMOGAMI_FX_PUFFS_PER_COLUMN = BUILDER.comment("Tsukumogami Flame: smoke puffs emitted per burning pedestal column (client-side geometry)").defineInRange("tsukumogamiFxPuffsPerColumn", 5, 1, 40);
+        TSUKUMOGAMI_FX_COLUMN_HEIGHT = BUILDER.comment("Tsukumogami Flame: smoke column height in blocks (client-side geometry)").defineInRange("tsukumogamiFxColumnHeight", 2.4D, 0.5D, 12.0D);
+        TSUKUMOGAMI_FX_PUFF_SIZE = BUILDER.comment("Tsukumogami Flame: smoke puff half-size in blocks").defineInRange("tsukumogamiFxPuffSize", 0.5D, 0.1D, 4.0D);
         BUILDER.pop();
 
         BUILDER.push("shujou").comment("Shujou Yoroku (Miscellany of All Beings): per-cycle spirit converted into the death loot of recorded entities");

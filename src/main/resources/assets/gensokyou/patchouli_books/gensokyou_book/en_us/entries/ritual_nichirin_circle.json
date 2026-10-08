@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.nichirin_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:daylight_detector",
-  "sortnum": 9,
+  "sortnum": 10,
   "pages": [
     {
       "type": "patchouli:text",

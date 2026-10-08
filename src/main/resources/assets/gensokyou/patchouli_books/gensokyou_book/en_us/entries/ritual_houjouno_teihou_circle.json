@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.houjouno_teihou_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:wheat_seeds",
-  "sortnum": 17,
+  "sortnum": 18,
   "pages": [
     {
       "type": "patchouli:text",

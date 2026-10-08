@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.sunako_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:brewing_stand",
-  "sortnum": 23,
+  "sortnum": 24,
   "pages": [
     {
       "type": "patchouli:text",

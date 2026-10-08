@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.oyamatsumi_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:iron_pickaxe",
-  "sortnum": 6,
+  "sortnum": 7,
   "pages": [
     {
       "type": "patchouli:text",

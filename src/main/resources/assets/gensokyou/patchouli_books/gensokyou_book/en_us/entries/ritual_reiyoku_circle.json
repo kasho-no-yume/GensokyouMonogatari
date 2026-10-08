@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.reiyoku_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:sea_lantern",
-  "sortnum": 21,
+  "sortnum": 22,
   "pages": [
     {
       "type": "patchouli:text",

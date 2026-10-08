@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.yumewatari_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:red_bed",
-  "sortnum": 2,
+  "sortnum": 3,
   "pages": [
     {
       "type": "patchouli:text",

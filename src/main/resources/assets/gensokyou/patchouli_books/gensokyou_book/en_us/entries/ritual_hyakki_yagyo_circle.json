@@ -2,7 +2,7 @@
   "name": "jei.gensokyou.ritual.hyakki_yagyo_circle",
   "category": "gensokyou:rituals",
   "icon": "minecraft:soul_lantern",
-  "sortnum": 20,
+  "sortnum": 21,
   "pages": [
     {
       "type": "patchouli:text",
