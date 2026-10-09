@@ -7,6 +7,14 @@ import com.bitsson.gensokyou.entity.SphereDanmaku;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import com.bitsson.gensokyou.item.GuideBookItem;
 import com.bitsson.gensokyou.item.CodexOfBeingsItem;
+import com.bitsson.gensokyou.item.GensokyouTools;
+import com.bitsson.gensokyou.item.equipment.GensokyouAxeItem;
+import com.bitsson.gensokyou.item.equipment.GensokyouHoeItem;
+import com.bitsson.gensokyou.item.equipment.GensokyouPickaxeItem;
+import com.bitsson.gensokyou.item.equipment.GensokyouShovelItem;
+import com.bitsson.gensokyou.item.equipment.GensokyouSwordItem;
+import com.bitsson.gensokyou.item.LandscapingToolItem;
+import com.bitsson.gensokyou.item.SpiritBombItem;
 import com.bitsson.gensokyou.item.LaevateinTier;
 import com.bitsson.gensokyou.item.MemoryFragmentItem;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
@@ -28,6 +36,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.component.ItemAttributeModifiers;
 import net.neoforged.neoforge.registries.DeferredItem;
@@ -77,6 +86,8 @@ public final class ModItems {
             ITEMS.registerSimpleBlockItem("spirit_soil", ModBlocks.SPIRIT_SOIL);
     public static final DeferredItem<BlockItem> PORCELAIN_CLAY =
             ITEMS.registerSimpleBlockItem("porcelain_clay", ModBlocks.PORCELAIN_CLAY);
+    /** 瓷器：瓷土经金山彦命煅炉精炼的产物，mod 药水强效档的封装耗材。 */
+    public static final DeferredItem<Item> PORCELAIN = simpleMaterial("porcelain");
     public static final DeferredItem<BlockItem> HIGAN_SOIL =
             ITEMS.registerSimpleBlockItem("higan_soil", ModBlocks.HIGAN_SOIL);
     public static final DeferredItem<BlockItem> MOON_SAND =
@@ -104,6 +115,7 @@ public final class ModItems {
     public static final DeferredItem<Item> MERMAID_SCALE = simpleMaterial("mermaid_scale");
     public static final DeferredItem<Item> TIDE_CRYSTAL = simpleMaterial("tide_crystal");
     public static final DeferredItem<Item> DRAGON_SCALE = simpleMaterial("dragon_scale");
+    /** 植物（由农业产出）：灵草 / 龙胆 / 彼岸花 / 魔法菇。 */
     public static final DeferredItem<BlockItem> SPIRIT_HERB =
             ITEMS.registerSimpleBlockItem("spirit_herb", ModBlocks.SPIRIT_HERB);
     public static final DeferredItem<BlockItem> GENTIAN =
@@ -112,6 +124,27 @@ public final class ModItems {
             ITEMS.registerSimpleBlockItem("higanbana", ModBlocks.HIGANBANA);
     public static final DeferredItem<BlockItem> MAGIC_MUSHROOM =
             ITEMS.registerSimpleBlockItem("magic_mushroom", ModBlocks.MAGIC_MUSHROOM);
+
+    /**
+     * 植物种子（茅野姬神花亭产出）：四种作物线的启动物。
+     *
+     * <p><b>与原版种子物品刻意区分</b>：{@code ItemNameBlockItem} 会带「种子」后缀本地化键，
+     * 且右击逻辑与原版不同（不需要忠实转译方块描述）。此处用普通 {@link BlockItem}，
+     * 描述名走自己的物品键，避免出现「龙胆的种子」这类由方块名拼接出来的怪名。
+     */
+    public static final DeferredItem<BlockItem> SPIRIT_HERB_SEEDS =
+            ITEMS.registerSimpleBlockItem("spirit_herb_seeds", ModBlocks.SPIRIT_HERB_CROP);
+    public static final DeferredItem<BlockItem> GENTIAN_SEEDS =
+            ITEMS.registerSimpleBlockItem("gentian_seeds", ModBlocks.GENTIAN_CROP);
+    public static final DeferredItem<BlockItem> HIGANBANA_SEEDS =
+            ITEMS.registerSimpleBlockItem("higanbana_seeds", ModBlocks.HIGANBANA_CROP);
+    public static final DeferredItem<BlockItem> MAGIC_MUSHROOM_SPORES =
+            ITEMS.registerSimpleBlockItem("magic_mushroom_spores", ModBlocks.MAGIC_MUSHROOM_CROP);
+
+    /**
+     * 灵土耕地刻意<b>不注册物品形态</b>：只能由锄头锄 {@link ModBlocks#SPIRIT_SOIL} 得到，
+     * 破坏后退回灵土（与原版耕地退泥土同构）。创造栏不给，JEI 不可见。
+     */
     public static final DeferredItem<Item> SPIRIT_CHARCOAL = simpleMaterial("spirit_charcoal");
     public static final DeferredItem<Item> TALISMAN_PAPER = simpleMaterial("talisman_paper");
     public static final DeferredItem<Item> SUKIMA_FRAGMENT = simpleMaterial("sukima_fragment");
@@ -182,6 +215,100 @@ public final class ModItems {
     public static final List<DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem>> SPIRIT_CORES =
             registerSpiritCores();
 
+    // ---------------- 灵铁 / 星银装备阶梯（add-gensokyou-material-uses）----------------
+    private static Item.Properties equipmentProps() {
+        return new Item.Properties().stacksTo(1);
+    }
+
+    /** 灵铁 5 件工具。 */
+    public static final DeferredItem<GensokyouPickaxeItem> SPIRIT_IRON_PICKAXE =
+            ITEMS.register("spirit_iron_pickaxe",
+                    () -> new GensokyouPickaxeItem(GensokyouTools.SPIRIT_IRON, equipmentProps(),
+                            true, false));
+    public static final DeferredItem<GensokyouAxeItem> SPIRIT_IRON_AXE =
+            ITEMS.register("spirit_iron_axe",
+                    () -> new GensokyouAxeItem(GensokyouTools.SPIRIT_IRON, equipmentProps(), true));
+    public static final DeferredItem<GensokyouShovelItem> SPIRIT_IRON_SHOVEL =
+            ITEMS.register("spirit_iron_shovel",
+                    () -> new GensokyouShovelItem(GensokyouTools.SPIRIT_IRON, equipmentProps(), true));
+    public static final DeferredItem<GensokyouHoeItem> SPIRIT_IRON_HOE =
+            ITEMS.register("spirit_iron_hoe",
+                    () -> new GensokyouHoeItem(GensokyouTools.SPIRIT_IRON, equipmentProps(), true));
+    public static final DeferredItem<GensokyouSwordItem> SPIRIT_IRON_SWORD =
+            ITEMS.register("spirit_iron_sword",
+                    () -> new GensokyouSwordItem(GensokyouTools.SPIRIT_IRON, equipmentProps()));
+
+    /** 星银 5 件工具。 */
+    /**
+     * 星银镐自带精准采集。这里直接写 {@code true} 而不是读 config：
+     * 注册期 config 可能尚未就绪，且"是否自带"是<b>物品固有属性</b>而非可调数值——
+     * 想关掉精准采集的整合包应改掉 {@code GensokyouTools.STAR_SILVER} 本身，
+     * 而不是让同一件物品时有时无（那会让 JEI / 附魔提示自相矛盾）。
+     * {@code STAR_SILVER_SILK_TOUCH} 配置保留给工具提示与调试查询使用。
+     */
+    public static final DeferredItem<GensokyouPickaxeItem> STAR_SILVER_PICKAXE =
+            ITEMS.register("star_silver_pickaxe",
+                    () -> new GensokyouPickaxeItem(GensokyouTools.STAR_SILVER, equipmentProps(),
+                            false, true));
+    public static final DeferredItem<GensokyouAxeItem> STAR_SILVER_AXE =
+            ITEMS.register("star_silver_axe",
+                    () -> new GensokyouAxeItem(GensokyouTools.STAR_SILVER, equipmentProps(), false));
+    public static final DeferredItem<GensokyouShovelItem> STAR_SILVER_SHOVEL =
+            ITEMS.register("star_silver_shovel",
+                    () -> new GensokyouShovelItem(GensokyouTools.STAR_SILVER, equipmentProps(), false));
+    public static final DeferredItem<GensokyouHoeItem> STAR_SILVER_HOE =
+            ITEMS.register("star_silver_hoe",
+                    () -> new GensokyouHoeItem(GensokyouTools.STAR_SILVER, equipmentProps(), false));
+    public static final DeferredItem<GensokyouSwordItem> STAR_SILVER_SWORD =
+            ITEMS.register("star_silver_sword",
+                    () -> new GensokyouSwordItem(GensokyouTools.STAR_SILVER, equipmentProps()));
+
+    /** 灵铁 4 件盔甲。 */
+    public static final DeferredItem<ArmorItem> SPIRIT_IRON_HELMET =
+            ITEMS.register("spirit_iron_helmet",
+                    () -> new ArmorItem(ModEquipmentMaterials.SPIRIT_IRON, ArmorItem.Type.HELMET,
+                            equipmentProps()));
+    public static final DeferredItem<ArmorItem> SPIRIT_IRON_CHESTPLATE =
+            ITEMS.register("spirit_iron_chestplate",
+                    () -> new ArmorItem(ModEquipmentMaterials.SPIRIT_IRON, ArmorItem.Type.CHESTPLATE,
+                            equipmentProps()));
+    public static final DeferredItem<ArmorItem> SPIRIT_IRON_LEGGINGS =
+            ITEMS.register("spirit_iron_leggings",
+                    () -> new ArmorItem(ModEquipmentMaterials.SPIRIT_IRON, ArmorItem.Type.LEGGINGS,
+                            equipmentProps()));
+    public static final DeferredItem<ArmorItem> SPIRIT_IRON_BOOTS =
+            ITEMS.register("spirit_iron_boots",
+                    () -> new ArmorItem(ModEquipmentMaterials.SPIRIT_IRON, ArmorItem.Type.BOOTS,
+                            equipmentProps()));
+
+    /** 星银 4 件盔甲。 */
+    public static final DeferredItem<ArmorItem> STAR_SILVER_HELMET =
+            ITEMS.register("star_silver_helmet",
+                    () -> new ArmorItem(ModEquipmentMaterials.STAR_SILVER, ArmorItem.Type.HELMET,
+                            equipmentProps()));
+    public static final DeferredItem<ArmorItem> STAR_SILVER_CHESTPLATE =
+            ITEMS.register("star_silver_chestplate",
+                    () -> new ArmorItem(ModEquipmentMaterials.STAR_SILVER, ArmorItem.Type.CHESTPLATE,
+                            equipmentProps()));
+    public static final DeferredItem<ArmorItem> STAR_SILVER_LEGGINGS =
+            ITEMS.register("star_silver_leggings",
+                    () -> new ArmorItem(ModEquipmentMaterials.STAR_SILVER, ArmorItem.Type.LEGGINGS,
+                            equipmentProps()));
+    public static final DeferredItem<ArmorItem> STAR_SILVER_BOOTS =
+            ITEMS.register("star_silver_boots",
+                    () -> new ArmorItem(ModEquipmentMaterials.STAR_SILVER, ArmorItem.Type.BOOTS,
+                            equipmentProps()));
+
+    // ---------------- 妙妙工具（add-gensokyou-material-uses）----------------
+
+    /** 整地工具：一次性清出仪式建筑用地并整平为泥土。 */
+    public static final DeferredItem<com.bitsson.gensokyou.item.LandscapingToolItem> LANDSCAPING_TOOL =
+            ITEMS.register("landscaping_tool", () -> new LandscapingToolItem(
+                    new Item.Properties().stacksTo(1).durability(0)));
+    /** 灵力引爆器：可放置、可配置、可重复使用的引爆物。 */
+    public static final DeferredItem<com.bitsson.gensokyou.item.SpiritBombItem> SPIRIT_BOMB =
+            ITEMS.register("spirit_bomb", () -> new SpiritBombItem(new Item.Properties()));
+
     private static List<DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem>> registerSpiritCores() {
         List<DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem>> cores = new ArrayList<>();
         for (int tier = 0; tier <= 5; tier++) {
@@ -203,7 +330,6 @@ public final class ModItems {
     }
 
     // ---------------- 弹幕主武器与三槽核 ----------------
-
     private static ItemAttributeModifiers noMeleeAttributes() {
         return ItemAttributeModifiers.builder()
                 .add(Attributes.ATTACK_DAMAGE, new AttributeModifier(

@@ -244,6 +244,229 @@
         { "item": "gensokyou:sukima_fragment", "count": 1 }
       ],
       "result": { "item": "gensokyou:spirit_core_2", "count": 1 }
+    },
+    {
+      "_comment": "高阶灵力核心：常世木主材，且每条至少另含一件别的幻想乡素材（gensokyo-materials 独有品规则）",
+      "name": "zaohua_spirit_core_3",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 3,
+      "spCost": 120000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_3", "count": 1 },
+        { "item": "gensokyou:eternal_wood", "count": 4 },
+        { "item": "gensokyou:star_silver", "count": 4 },
+        { "item": "gensokyou:dragon_scale", "count": 1 },
+        { "item": "gensokyou:porcelain", "count": 2 },
+        { "item": "gensokyou:tide_crystal", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:spirit_core_3", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_core_4",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 4,
+      "spCost": 400000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_4", "count": 1 },
+        { "item": "gensokyou:eternal_wood", "count": 8 },
+        { "item": "gensokyou:dragon_scale", "count": 2 },
+        { "item": "gensokyou:moon_sand", "count": 4 },
+        { "item": "gensokyou:spirit_charcoal", "count": 4 }
+      ],
+      "result": { "item": "gensokyou:spirit_core_4", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_core_5",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 5,
+      "spCost": 1200000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_5", "count": 1 },
+        { "item": "gensokyou:eternal_wood", "count": 12 },
+        { "item": "gensokyou:dragon_scale", "count": 4 },
+        { "item": "gensokyou:moon_sand", "count": 8 },
+        { "item": "minecraft:netherite_ingot", "count": 2 },
+        { "item": "gensokyou:oni_stone", "count": 4 }
+      ],
+      "result": { "item": "gensokyou:spirit_core_5", "count": 1 }
+    },
+    {
+      "_comment": "灵铁装备：T1 成品金属 + 金刚级凡材。一组 4~8 件原料对应一件成品。",
+      "name": "zaohua_spirit_iron_sword",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 6000,
+      "ingredients": [
+        { "item": "gensokyou:spirit_iron", "count": 3 },
+        { "item": "minecraft:iron_ingot", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:spirit_iron_sword", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_iron_pickaxe",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 6000,
+      "ingredients": [
+        { "item": "gensokyou:spirit_iron", "count": 4 },
+        { "item": "minecraft:iron_ingot", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:spirit_iron_pickaxe", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_iron_axe",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 6000,
+      "ingredients": [
+        { "item": "gensokyou:spirit_iron", "count": 4 },
+        { "item": "minecraft:iron_ingot", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:spirit_iron_axe", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_iron_shovel",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 5000,
+      "ingredients": [
+        { "item": "gensokyou:spirit_iron", "count": 3 },
+        { "item": "minecraft:iron_ingot", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:spirit_iron_shovel", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_iron_hoe",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 5000,
+      "ingredients": [
+        { "item": "gensokyou:spirit_iron", "count": 3 },
+        { "item": "minecraft:iron_ingot", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:spirit_iron_hoe", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_iron_helmet",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 6000,
+      "ingredients": [
+        { "item": "gensokyou:spirit_iron", "count": 5 },
+        { "item": "minecraft:iron_ingot", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:spirit_iron_helmet", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_iron_chestplate",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 9000,
+      "ingredients": [
+        { "item": "gensokyou:spirit_iron", "count": 8 },
+        { "item": "minecraft:iron_ingot", "count": 3 }
+      ],
+      "result": { "item": "gensokyou:spirit_iron_chestplate", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_iron_leggings",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 7000,
+      "ingredients": [
+        { "item": "gensokyou:spirit_iron", "count": 7 },
+        { "item": "minecraft:iron_ingot", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:spirit_iron_leggings", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_iron_boots",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 5000,
+      "ingredients": [
+        { "item": "gensokyou:spirit_iron", "count": 4 },
+        { "item": "minecraft:iron_ingot", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:spirit_iron_boots", "count": 1 }
+    },
+    {
+      "_comment": "星银装备：T2 成品金属 + 至少一件别的幻想乡素材（独有品规则）。",
+      "name": "zaohua_star_silver_sword",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 24000,
+      "ingredients": [
+        { "item": "gensokyou:star_silver", "count": 3 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "minecraft:diamond", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:star_silver_sword", "count": 1 }
+    },
+    {
+      "name": "zaohua_star_silver_pickaxe",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 24000,
+      "ingredients": [
+        { "item": "gensokyou:star_silver", "count": 4 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "minecraft:diamond", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:star_silver_pickaxe", "count": 1 }
+    },
+    {
+      "name": "zaohua_star_silver_axe",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 24000,
+      "ingredients": [
+        { "item": "gensokyou:star_silver", "count": 4 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "minecraft:diamond", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:star_silver_axe", "count": 1 }
+    },
+    {
+      "name": "zaohua_star_silver_shovel",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 20000,
+      "ingredients": [
+        { "item": "gensokyou:star_silver", "count": 3 },
+        { "item": "gensokyou:moon_sand", "count": 1 },
+        { "item": "minecraft:diamond", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:star_silver_shovel", "count": 1 }
+    },
+    {
+      "name": "zaohua_star_silver_hoe",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 20000,
+      "ingredients": [
+        { "item": "gensokyou:star_silver", "count": 3 },
+        { "item": "gensokyou:moon_sand", "count": 1 },
+        { "item": "minecraft:diamond", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:star_silver_hoe", "count": 1 }
+    },
+    {
+      "name": "zaohua_star_silver_helmet",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 24000,
+      "ingredients": [
+        { "item": "gensokyou:star_silver", "count": 5 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "minecraft:diamond", "count": 3 }
+      ],
+      "result": { "item": "gensokyou:star_silver_helmet", "count": 1 }
+    },
+    {
+      "name": "zaohua_star_silver_chestplate",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 36000,
+      "ingredients": [
+        { "item": "gensokyou:star_silver", "count": 8 },
+        { "item": "gensokyou:tide_crystal", "count": 2 },
+        { "item": "gensokyou:dragon_scale", "count": 1 },
+        { "item": "minecraft:diamond", "count": 4 }
+      ],
+      "result": { "item": "gensokyou:star_silver_chestplate", "count": 1 }
+    },
+    {
+      "name": "zaohua_star_silver_leggings",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 28000,
+      "ingredients": [
+        { "item": "gensokyou:star_silver", "count": 7 },
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "gensokyou:dragon_scale", "count": 1 },
+        { "item": "minecraft:diamond", "count": 3 }
+      ],
+      "result": { "item": "gensokyou:star_silver_leggings", "count": 1 }
+    },
+    {
+      "name": "zaohua_star_silver_boots",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 20000,
+      "ingredients": [
+        { "item": "gensokyou:star_silver", "count": 4 },
+        { "item": "gensokyou:moon_sand", "count": 2 },
+        { "item": "minecraft:diamond", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:star_silver_boots", "count": 1 }
     }
   ]
 }

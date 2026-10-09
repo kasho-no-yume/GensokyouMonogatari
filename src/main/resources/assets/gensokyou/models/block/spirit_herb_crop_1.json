@@ -1,0 +1,7 @@
+﻿{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/spirit_herb_crop_1"
+  },
+  "render_type": "minecraft:cutout"
+}

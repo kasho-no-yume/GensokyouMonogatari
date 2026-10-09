@@ -1,0 +1,37 @@
+{
+  "pattern": "gensokyou:sunako_circle",
+  "_comment": [
+    "mod 专属药水试剂（add-gensokyou-material-uses）。",
+    "单文件而非并进 sunako_circle.json 的原因：RitualBrewRuleLoader 的覆盖语义是「同一 reagent",
+    " 后者覆盖前者」，把 mod 条目留在原文件会让整合包无法单独改写它们；且 BrewReagentIndexTest",
+    " 会在纯 JUnit 环境解析原版文件，混入 mod 物品 id 会让整表解析失败。",
+    "「结构内放置 magic_wood 才接受 mod 试剂」这条门槛由 SunakoBrewing.hasBrewingCore 判定，",
+    "不写在数据里——它是结构状态而非配方属性。"
+  ],
+  "entries": [
+    {
+      "reagent": "gensokyou:spirit_herb",
+      "potion": "gensokyou:reiki_recovery",
+      "long_potion": "gensokyou:long_reiki_recovery",
+      "strong_potion": "gensokyou:strong_reiki_recovery"
+    },
+    {
+      "reagent": "gensokyou:magic_mushroom",
+      "potion": "gensokyou:spiritual_sight",
+      "long_potion": "gensokyou:long_spiritual_sight",
+      "strong_potion": "gensokyou:strong_spiritual_sight"
+    },
+    {
+      "reagent": "gensokyou:gentian",
+      "potion": "gensokyou:spirit_touch",
+      "long_potion": "gensokyou:long_spirit_touch",
+      "strong_potion": "gensokyou:strong_spirit_touch"
+    },
+    {
+      "reagent": "gensokyou:higanbana",
+      "potion": "gensokyou:higanbana_poison",
+      "long_potion": "gensokyou:long_higanbana_poison",
+      "strong_potion": "gensokyou:strong_higanbana_poison"
+    }
+  ]
+}

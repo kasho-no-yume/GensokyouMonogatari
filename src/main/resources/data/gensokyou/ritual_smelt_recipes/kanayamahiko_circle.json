@@ -2,6 +2,16 @@
   "pattern": "gensokyou:kanayamahiko_circle",
   "rules": [
     {
+      "id": "gensokyou:kanayamahiko_porcelain",
+      "primary": "gensokyou:porcelain_clay",
+      "auxiliary": "gensokyou:spirit_charcoal",
+      "auxiliary_count": 1,
+      "result": {
+        "item": "gensokyou:porcelain",
+        "count": 1
+      }
+    },
+    {
       "id": "gensokyou:kanayamahiko_cinnabar",
       "primary": "gensokyou:cinnabar",
       "auxiliary": "gensokyou:spirit_charcoal",

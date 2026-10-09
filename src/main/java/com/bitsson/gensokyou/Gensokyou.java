@@ -7,9 +7,11 @@ import com.bitsson.gensokyou.registry.ModBlockEntities;
 import com.bitsson.gensokyou.registry.ModCreativeTabs;
 import com.bitsson.gensokyou.registry.ModDataComponents;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
+import com.bitsson.gensokyou.registry.ModEquipmentMaterials;
 import com.bitsson.gensokyou.registry.ModItems;
 import com.bitsson.gensokyou.registry.ModMenus;
 import com.bitsson.gensokyou.registry.ModMobEffects;
+import com.bitsson.gensokyou.registry.ModPotions;
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.mojang.logging.LogUtils;
 import net.minecraft.resources.ResourceLocation;
@@ -33,12 +35,14 @@ public class Gensokyou {
         ModItems.ITEMS.register(modEventBus);
         ModEntityTypes.ENTITY_TYPES.register(modEventBus);
         ModMobEffects.EFFECTS.register(modEventBus);
+        ModPotions.POTIONS.register(modEventBus);
         ModCreativeTabs.TABS.register(modEventBus);
         ModAttachments.ATTACHMENTS.register(modEventBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModMenus.MENUS.register(modEventBus);
         ModDataComponents.DATA_COMPONENTS.register(modEventBus);
-    ModAttributes.ATTRIBUTES.register(modEventBus);
+        ModAttributes.ATTRIBUTES.register(modEventBus);
+        ModEquipmentMaterials.ARMOR_MATERIALS.register(modEventBus);
         modContainer.registerConfig(ModConfig.Type.COMMON, GensokyouConfig.SPEC);
     }
 }

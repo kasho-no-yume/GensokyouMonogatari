@@ -44,6 +44,8 @@ public final class GensokyouClient {
 
     @SubscribeEvent
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
+        event.registerEntityRenderer(ModEntityTypes.SPIRIT_BOMB.get(),
+                com.bitsson.gensokyou.client.renderer.SpiritBombRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.DANMAKU.get(),
                 context -> new BillboardRenderer<>(context, 0.4F, GensokyouTextures.DANMAKU));
         event.registerEntityRenderer(ModEntityTypes.SPHERE_DANMAKU.get(),
@@ -139,5 +141,7 @@ public final class GensokyouClient {
                 com.bitsson.gensokyou.client.screen.CrystalStorageScreen::new);
         event.register(ModMenus.WUJINZANG_TERMINAL.get(),
                 com.bitsson.gensokyou.client.screen.WujinzangTerminalScreen::new);
+        event.register(ModMenus.SPIRIT_BOMB.get(),
+                com.bitsson.gensokyou.client.screen.SpiritBombScreen::new);
     }
 }

@@ -1,0 +1,10 @@
+﻿{
+  "variants": {
+      "age=0": { "model": "gensokyou:block/spirit_herb_crop_0" },
+      "age=1": { "model": "gensokyou:block/spirit_herb_crop_1" },
+      "age=2": { "model": "gensokyou:block/spirit_herb_crop_1" },
+      "age=3": { "model": "gensokyou:block/spirit_herb_crop_2" },
+      "age=4": { "model": "gensokyou:block/spirit_herb_crop_2" },
+      "age=5": { "model": "gensokyou:block/spirit_herb_crop_2" }
+  }
+}

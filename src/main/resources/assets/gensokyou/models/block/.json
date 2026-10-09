@@ -1,0 +1,8 @@
+﻿{
+  "parent": "minecraft:block/",
+  "textures": {
+    "top": "gensokyou:block/spirit_soil_farmland_top",
+    "bottom": "gensokyou:block/spirit_soil_farmland_top",
+    "side": "gensokyou:block/spirit_soil_farmland_side"
+  }
+}

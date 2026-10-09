@@ -115,7 +115,9 @@ public class SunakoBehavior implements RitualBehavior, RitualExtraSlots {
         if (slot != SunakoBrewing.REAGENT_SLOT || stack == null || stack.isEmpty()) {
             return false;
         }
-        // 只收"确实是炼药试剂"的物品：显式声明的优先，其次是原版 startMix 试剂集
+        // 只收"确实是炼药试剂"的物品：显式声明的优先，其次是原版 startMix 试剂集。
+        // mod 试剂（四种魔物植物）同样在此放行；"结构内有没有魔法木"由结算侧判定，
+        // 这里刻意不拦截——否则玩家无法把试剂放进槽里看 GUI 的明确原因提示。
         return BrewReagentIndex.isKnownReagent(stack.getItem());
     }
 

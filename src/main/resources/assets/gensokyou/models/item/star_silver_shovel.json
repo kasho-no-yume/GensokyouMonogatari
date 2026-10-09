@@ -1,0 +1,6 @@
+﻿{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "gensokyou:item/star_silver_shovel"
+  }
+}

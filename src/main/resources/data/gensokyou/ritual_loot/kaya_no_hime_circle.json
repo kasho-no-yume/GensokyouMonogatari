@@ -32,12 +32,12 @@
     ["minecraft:shroomlight", 0.5]
   ],
   "gensokyou_low": [
-    ["gensokyou:spirit_herb", 1.0],
-    ["gensokyou:gentian", 0.8],
-    ["gensokyou:higanbana", 0.8]
+    ["gensokyou:spirit_herb_seeds", 1.0],
+    ["gensokyou:gentian_seeds", 0.8],
+    ["gensokyou:higanbana_seeds", 0.8]
   ],
   "gensokyou_high": [
-    ["gensokyou:magic_mushroom", 0.3]
+    ["gensokyou:magic_mushroom_spores", 0.3]
   ],
   "tables": [
     { "tier": "wood", "special": [["minecraft:wheat_seeds", 0.5]] },

@@ -1,0 +1,7 @@
+﻿{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/gentian_crop_0"
+  },
+  "render_type": "minecraft:cutout"
+}

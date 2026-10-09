@@ -49,6 +49,14 @@ public final class ModMenus {
                             com.bitsson.gensokyou.menu.WujinzangTerminalMenu::new,
                     FeatureFlags.VANILLA_SET));
 
+    /** 灵力引爆器配置界面（无物品槽，纯参数面板）。 */
+    public static final DeferredHolder<MenuType<?>, MenuType<com.bitsson.gensokyou.menu.SpiritBombMenu>> SPIRIT_BOMB =
+            MENUS.register("spirit_bomb", () -> new MenuType<>(
+                    (IContainerFactory<com.bitsson.gensokyou.menu.SpiritBombMenu>)
+                            (id, inventory, player) ->
+                                    new com.bitsson.gensokyou.menu.SpiritBombMenu(id, inventory),
+                    FeatureFlags.VANILLA_SET));
+
     private ModMenus() {
     }
 }

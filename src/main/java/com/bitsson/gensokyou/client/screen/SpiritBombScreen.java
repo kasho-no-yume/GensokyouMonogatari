@@ -1,0 +1,204 @@
+package com.bitsson.gensokyou.client.screen;
+
+import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.menu.SpiritBombMenu;
+import com.bitsson.gensokyou.network.SpiritBombStatePayload;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractSliderButton;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.player.Inventory;
+
+/**
+ * 灵力引爆器配置界面：三个滑块 + 消耗预估 + 启动按钮。
+ *
+ * <p><b>滑块只在本地下界</b>：拖动过程中不改服务端任何东西，松手
+ * （{@link #mouseReleased}）才提交。服务端钳制后由 {@link SpiritBombStatePayload}
+ * 回发，下一帧滑块自动对齐——显示值永远等于服务端回发值，不会漂移。
+ */
+public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
+
+    private static final int SLIDER_WIDTH = 140;
+
+    private ParamSlider fuseSlider;
+    private ParamSlider powerSlider;
+    private ParamSlider radiusSlider;
+    private Button armButton;
+    private SpiritBombStatePayload state;
+
+    public SpiritBombScreen(SpiritBombMenu menu, Inventory inventory, Component title) {
+        super(menu, inventory, title);
+        this.imageWidth = 176;
+        this.imageHeight = 152;
+        this.titleLabelY = 6;
+        this.inventoryLabelY = this.imageHeight + 4;
+        this.state = menu.state();
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+        int left = this.leftPos + 16;
+        int top = this.topPos + 18;
+
+        boolean present = state != null && state.present();
+        this.fuseSlider = addRenderableWidget(new ParamSlider(left, top, SLIDER_WIDTH, 20,
+                "gui.gensokyou.spirit_bomb.fuse", 0.1D, 600.0D,
+                present ? state.fuseTicks() / 20.0D : defaultFuseSeconds(), 0.1D));
+        this.powerSlider = addRenderableWidget(new ParamSlider(left, top + 26, SLIDER_WIDTH, 20,
+                "gui.gensokyou.spirit_bomb.power", 1.0D, 12.0D,
+                present ? state.power() : 4.0D, 0.1D));
+        this.radiusSlider = addRenderableWidget(new ParamSlider(left, top + 52, SLIDER_WIDTH, 20,
+                "gui.gensokyou.spirit_bomb.radius", 1.0D, 24.0D,
+                present ? state.radius() : 6.0D, 1.0D));
+
+        this.armButton = addRenderableWidget(Button.builder(
+                        Component.translatable("gui.gensokyou.spirit_bomb.arm"),
+                        button -> menu.submit(true, fuseTicks(), powerValue(), radiusValue()))
+                .bounds(left, top + 82, SLIDER_WIDTH, 20)
+                .build());
+
+        syncButton();
+    }
+
+    private static double defaultFuseSeconds() {
+        return GensokyouConfig.SPIRIT_BOMB_DEFAULT_FUSE_TICKS.get() / 20.0D;
+    }
+
+    private int fuseTicks() {
+        return (int) Math.round(fuseSlider.paramValue() * 20.0D);
+    }
+
+    private float powerValue() {
+        return (float) powerSlider.paramValue();
+    }
+
+    private int radiusValue() {
+        return (int) Math.round(radiusSlider.paramValue());
+    }
+
+    /** 客户端收到服务端状态：更新按钮态与滑块显示（保持权威值）。 */
+    public void onState(SpiritBombStatePayload payload) {
+        this.state = payload;
+        if (fuseSlider != null) {
+            fuseSlider.setParamValue(payload.fuseTicks() / 20.0D);
+            powerSlider.setParamValue(payload.power());
+            radiusSlider.setParamValue(payload.radius());
+        }
+        syncButton();
+    }
+
+    private void syncButton() {
+        if (armButton == null) {
+            return;
+        }
+        if (state == null || !state.present()) {
+            armButton.active = false;
+            armButton.setMessage(Component.translatable("gui.gensokyou.spirit_bomb.gone"));
+            return;
+        }
+        if (state.armed()) {
+            armButton.active = false;
+            armButton.setMessage(Component.translatable("gui.gensokyou.spirit_bomb.armed"));
+            return;
+        }
+        armButton.active = state.affordable();
+        armButton.setMessage(Component.translatable(state.affordable()
+                ? "gui.gensokyou.spirit_bomb.arm"
+                : "gui.gensokyou.spirit_bomb.short"));
+    }
+
+    /** 每次松手都把参数提交一次（不请求启动），让消耗预估即时刷新。 */
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        boolean handled = super.mouseReleased(mouseX, mouseY, button);
+        if (state != null && state.present() && !state.armed()) {
+            menu.submit(false, fuseTicks(), powerValue(), radiusValue());
+        }
+        return handled;
+    }
+
+    @Override
+    protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+        graphics.fill(this.leftPos, this.topPos, this.leftPos + this.imageWidth,
+                this.topPos + this.imageHeight, 0xC0101010);
+        graphics.fill(this.leftPos + 8, this.topPos + this.imageHeight - 26,
+                this.leftPos + this.imageWidth - 8, this.topPos + this.imageHeight - 8, 0x80000000);
+    }
+
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        syncButton();
+        super.render(graphics, mouseX, mouseY, partialTick);
+        if (state != null && state.present()) {
+            graphics.drawString(this.font,
+                    Component.translatable("gui.gensokyou.spirit_bomb.cost",
+                            String.format("%,d", state.estimatedCost())),
+                    this.leftPos + 14, this.topPos + this.imageHeight - 22, 0xE0E0E0, false);
+        }
+        this.renderTooltip(graphics, mouseX, mouseY);
+    }
+
+    /**
+     * 把一个 double 参数映射到 0..1 的滑块进度，按 step 取整。
+     *
+     * <p><b>为什么包成静态内部类</b>：三个滑块共用同一套映射/格式化逻辑，
+     * 只有 labelKey 与取值域不同；抽出来避免三份近似重复的匿名类。
+     */
+    public static class ParamSlider extends AbstractSliderButton {
+
+        private final String labelKey;
+        private final double min;
+        private final double max;
+        private final double step;
+
+        public ParamSlider(int x, int y, int width, int height, String labelKey,
+                           double min, double max, double current, double step) {
+            super(x, y, width, height, Component.empty(), toProgress(current, min, max));
+            this.labelKey = labelKey;
+            this.min = min;
+            this.max = max;
+            this.step = step;
+            updateMessage();
+        }
+
+        private static double toProgress(double value, double min, double max) {
+            return Mth.clamp((value - min) / (max - min), 0.0D, 1.0D);
+        }
+
+        /** 当前参数值（已按 step 取整并钳制）。 */
+        public double paramValue() {
+            double raw = min + this.value * (max - min);
+            double snapped = Math.round(raw / step) * step;
+            return Mth.clamp(snapped, min, max);
+        }
+
+        /** 由服务端回发值驱动（钳制后对齐）。 */
+        public void setParamValue(double value) {
+            this.value = toProgress(value, min, max);
+            updateMessage();
+        }
+
+        /**
+         * 拖动过程中被原版调用。<b>刻意什么都不做</b>：改参数是松手
+         * （{@code mouseReleased}）才提交的服务端权威动作，
+         * 在这里发包会让每次像素移动都产生一次上行包。
+         */
+        @Override
+        protected void applyValue() {
+        }
+
+        @Override
+        protected void updateMessage() {
+            setMessage(Component.translatable(labelKey, formatValue(paramValue())));
+        }
+
+        private String formatValue(double value) {
+            return step >= 1.0D
+                    ? String.valueOf((int) Math.round(value))
+                    : String.format("%.1f", value);
+        }
+    }
+}

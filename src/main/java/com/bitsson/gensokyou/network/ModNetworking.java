@@ -9,6 +9,8 @@ import com.bitsson.gensokyou.entity.AbstractTouhouBoss;
 import com.bitsson.gensokyou.entity.TouhouBoss;
 import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
+import com.bitsson.gensokyou.network.SpiritBombConfigPayload;
+import com.bitsson.gensokyou.network.SpiritBombStatePayload;
 import com.bitsson.gensokyou.registry.ModDataComponents;
 import com.bitsson.gensokyou.ritual.RitualMatch;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
@@ -18,6 +20,7 @@ import com.bitsson.gensokyou.spirit.SkillStateData;
 import com.bitsson.gensokyou.spirit.SpellCardEffects;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -59,6 +62,10 @@ public final class ModNetworking {
                 ClientPayloadHandler::handleRitualPreview);
         registrar.playToClient(BoundSupplyCountsPayload.TYPE, BoundSupplyCountsPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleBoundSupplyCounts);
+        registrar.playToClient(SpiritBombStatePayload.TYPE, SpiritBombStatePayload.STREAM_CODEC,
+                ClientPayloadHandler::handleSpiritBombState);
+        registrar.playToServer(SpiritBombConfigPayload.TYPE, SpiritBombConfigPayload.STREAM_CODEC,
+                SpiritBombConfigPayload::handle);
         registrar.playToClient(EditorPreviewPayload.TYPE, EditorPreviewPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleEditorPreview);
         registrar.playToClient(RitualDataSyncPayload.TYPE, RitualDataSyncPayload.STREAM_CODEC,
@@ -399,6 +406,18 @@ public final class ModNetworking {
                 sendRitualInfo(player, level, pos, core, "");
             }
         }
+    }
+
+    // ------------------------------------------------------------------ 发包快捷方式
+
+    /** 客户端 → 服务端。 */
+    public static void sendToServer(CustomPacketPayload payload) {
+        PacketDistributor.sendToServer(payload);
+    }
+
+    /** 服务端 → 指定玩家。 */
+    public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
+        PacketDistributor.sendToPlayer(player, payload);
     }
 
     private static void handleCastSkill(CastSkillPayload payload,

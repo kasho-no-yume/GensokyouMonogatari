@@ -141,6 +141,53 @@ class BrewReagentIndexTest {
         }
     }
 
+    /**
+     * mod 药水试剂文件（{@code sunako_mod_potions.json}）的形状校验。
+     *
+     * <p><b>为什么不走 {@link RitualBrewRuleLoader#parseFile}</b>：该入口会把
+     * {@code gensokyou:*} id 送进注册表解析，而纯 JUnit 环境没有 mod 加载器，
+     * {@code ModItems} / {@code ModPotions} 的 DeferredRegister 不会跑，一律查不到。
+     * 这里只做<b>数据形状</b>断言——四条试剂各自三档齐全、命名遵循
+     * {@code <base> / long_<base> / strong_<base>} 约定（{@code PotionTierTransform.findSibling}
+     * 靠这条约定找兄弟），真正的注册表解析由运行时的 loader 承担。
+     */
+    @Test
+    void modPotionReagentFileHasThreeTiersPerEntry() {
+        JsonObject shipped = com.google.gson.JsonParser.parseString(
+                new String(readResource("/data/gensokyou/brew_recipes/sunako_mod_potions.json"),
+                        java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+        assertEquals("gensokyou:sunako_circle", shipped.get("pattern").getAsString());
+
+        JsonArray entries = shipped.getAsJsonArray("entries");
+        assertEquals(4, entries.size());
+        java.util.Set<String> reagents = new java.util.HashSet<>();
+        for (com.google.gson.JsonElement element : entries) {
+            JsonObject entry = element.getAsJsonObject();
+            String reagent = entry.get("reagent").getAsString();
+            assertTrue(reagent.startsWith("gensokyou:"), "试剂必须是 mod 物品: " + reagent);
+            reagents.add(reagent);
+
+            String base = entry.get("potion").getAsString();
+            String longPotion = entry.get("long_potion").getAsString();
+            String strongPotion = entry.get("strong_potion").getAsString();
+            // 三档命名约定：findSibling 是「命名空间不变、path 前加 long_/strong_」，
+            // 写成就把前缀顶到命名空间前面，运行时一个兄弟都找不到。
+            int slash = base.indexOf(':');
+            String namespace = base.substring(0, slash + 1);
+            String path = base.substring(slash + 1);
+            assertEquals(namespace + "long_" + path, longPotion,
+                    reagent + " 的长效档不遵循命名约定");
+            assertEquals(namespace + "strong_" + path, strongPotion,
+                    reagent + " 的强效档不遵循命名约定");
+            assertTrue(base.startsWith("gensokyou:"), "mod 药水必须是 mod 条目: " + base);
+        }
+        // 四种植物各一条，缺一条 mod 药水线就断一环
+        assertEquals(java.util.Set.of(
+                        "gensokyou:spirit_herb", "gensokyou:magic_mushroom",
+                        "gensokyou:gentian", "gensokyou:higanbana"),
+                reagents);
+    }
+
     private static byte[] readResource(String path) {
         try (java.io.InputStream stream =
                      BrewReagentIndexTest.class.getResourceAsStream(path)) {

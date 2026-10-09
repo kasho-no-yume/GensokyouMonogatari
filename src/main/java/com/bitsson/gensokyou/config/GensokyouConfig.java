@@ -236,6 +236,30 @@ public class GensokyouConfig {
     /** 缺 STRONG_ 兄弟时的时效缩放倍率，默认 1.0（只升品质、不动时长）。 */
     public static final ModConfigSpec.DoubleValue SUNAKO_STRONG_DURATION_MULTIPLIER;
 
+    // ---- spirit-crop-farming：灵土耕地生长加速 ----
+    public static final ModConfigSpec.IntValue SPIRIT_SOIL_GROWTH_CHANCE;
+    public static final ModConfigSpec.IntValue HIGAN_SOIL_GROWTH_MULTIPLIER;
+
+    // ---- mod 专属药水线 ----
+    public static final ModConfigSpec.IntValue REIKI_RECOVERY_PER_SECOND;
+    public static final ModConfigSpec.DoubleValue SPIRITUAL_SIGHT_RADIUS;
+    public static final ModConfigSpec.DoubleValue SPIRIT_TOUCH_RANGE_BONUS;
+    public static final ModConfigSpec.DoubleValue HIGANBANA_POISON_DAMAGE_SCALE;
+
+    // ---- 灵铁 / 星银装备阶梯 ----
+    public static final ModConfigSpec.BooleanValue SPIRIT_IRON_FREE_DURABILITY;
+    public static final ModConfigSpec.BooleanValue STAR_SILVER_SILK_TOUCH;
+    public static final ModConfigSpec.DoubleValue STAR_SILVER_EXTRA_ORE_CHANCE;
+    public static final ModConfigSpec.DoubleValue ARMOR_SPIRIT_REGEN_BONUS;
+    public static final ModConfigSpec.DoubleValue STAR_SILVER_SET_SPIRIT_DAMAGE_BONUS;
+
+    // ---- 整地工具 / 灵力引爆器 ----
+    public static final ModConfigSpec.IntValue LANDSCAPING_RADIUS;
+    public static final ModConfigSpec.IntValue LANDSCAPING_COOLDOWN_TICKS;
+    public static final ModConfigSpec.IntValue SPIRIT_BOMB_BASE_COST;
+    public static final ModConfigSpec.IntValue SPIRIT_BOMB_DEFAULT_FUSE_TICKS;
+    public static final ModConfigSpec.IntValue SPIRIT_BOMB_MAX_PRODUCTS;
+
     // ---- omoikane-enchant-ritual：思兼神封（附魔书合并打造 + 青金石随机附魔书仪式）----
     // 三档显式表（容量 1e6/1e7/1e8、受灵 1e5/1e6/5e6、单价 5e4/3e5/2e6），×10 外推不到 3 阶。
     // getCapacity() 必须显式分派，漏分支会静默回落 DEFAULT_CORE_CAPACITY=10000。
@@ -1035,6 +1059,94 @@ public class GensokyouConfig {
         SUNAKO_STRONG_DURATION_MULTIPLIER = BUILDER.comment("Fallback duration multiplier when a potion has no STRONG_ sibling"
                 + " (1.0 = raise quality only, keep the base duration)")
                 .defineInRange("strongDurationMultiplier", 1.0D, 0.01D, 100.0D);
+        BUILDER.pop();
+
+        BUILDER.push("spiritSoil").comment("Spirit Soil Farmland (spirit_soil_farmland): hoe spirit_soil to get it;"
+                + " crops on it mature faster than on vanilla farmland. The bonus is a SEPARATE random-tick"
+                + " chance -- it is NOT folded into isFertile, so that the two soils stay independently tunable"
+                + " and so that higan_soil (a plain dirt block, not farmland) can also carry a bonus."
+                + " The divisor is a denominator: smaller = faster. 0 disables the bonus entirely.");
+        SPIRIT_SOIL_GROWTH_CHANCE = BUILDER.comment("One-in-N random-tick chance of an extra growth step for a"
+                + " crop standing on spirit_soil_farmland. Vanilla farmland itself rolls 1/25 per growth tick at"
+                + " speed 3.0; set this to 0 to disable the bonus")
+                .defineInRange("growthChance", 6, 0, 1000);
+        HIGAN_SOIL_GROWTH_MULTIPLIER = BUILDER.comment("Divisor divided by this when the crop's substrate is"
+                + " higan_soil and the crop is a higan-soil crop (higanbana / magic_mushroom). 2 = twice as"
+                + " fast as plain spirit soil farmland").defineInRange("higanSoilGrowthMultiplier", 2, 1, 100);
+        BUILDER.pop();
+
+        BUILDER.push("modPotions").comment("Gensokyou mod potion line (reiki_recovery / spiritual_sight /"
+                + " spirit_touch / higanbana_poison). These are only brewed from crude_sanzu_potion in a"
+                + " brewing stand, or from sanzu_flask in the Sukuna-hikona ritual; no vanilla brewing"
+                + " path may produce them.");
+        REIKI_RECOVERY_PER_SECOND = BUILDER.comment("Spirit restored per second per amplifier while"
+                + " reiki_recovery is active. Only refills 'current', never 'max' or spirit damage.")
+                .defineInRange("reikiRecoveryPerSecond", 5000, 0, 100000000);
+        SPIRITUAL_SIGHT_RADIUS = BUILDER.comment("Horizontal radius in blocks of the spirit-sight outline"
+                + " scan. Entities inside are given a short vanilla GLOWING and tinted green via a"
+                + " dedicated scoreboard team. 0 disables the outline.")
+                .defineInRange("spiritualSightRadius", 24.0D, 0.0D, 64.0D);
+        SPIRIT_TOUCH_RANGE_BONUS = BUILDER.comment("Base interaction range bonus in blocks granted by"
+                + " spirit_touch (applied to both block and entity interaction range). Amplifiers add"
+                + " half this amount each.").defineInRange("spiritTouchRangeBonus", 2.0D, 0.0D, 32.0D);
+        HIGANBANA_POISON_DAMAGE_SCALE = BUILDER.comment("Damage multiplier while higanbana_poison is"
+                + " active. 0.2 = 80% reduction (equivalent to Resistance IV). Deliberately NOT 0.0:"
+                + " Resistance V immunity is an accepted balance benchmark and must not be matched.")
+                .defineInRange("higanbanaPoisonDamageScale", 0.2D, 0.0D, 1.0D);
+        BUILDER.pop();
+
+        BUILDER.push("equipment").comment("Spirit Iron / Star Silver tool and armour tiers (add-gensokyou-"
+                + "material-uses). The two tiers sit between vanilla diamond and Laevatein; every special"
+                + " behaviour below is opt-out so server packs can flatten the ladder back to vanilla.");
+        SPIRIT_IRON_FREE_DURABILITY = BUILDER.comment("Spirit Iron tools lose no durability when"
+                + " breaking COMMON blocks (stone/dirt/wood/leaves/sand/plants). Ore and mod material"
+                + " blocks still cost durability. Set false to disable.")
+                .define("spiritIronFreeDurability", true);
+        STAR_SILVER_SILK_TOUCH = BUILDER.comment("Star Silver tools always drop the block itself"
+                + " (silk touch) without needing the enchantment. Disable to require the enchantment.")
+                .define("starSilverSilkTouch", true);
+        STAR_SILVER_EXTRA_ORE_CHANCE = BUILDER.comment("Chance (0..1) that a Star Silver tool drops one"
+                + " EXTRA Gensokyou ore block when mining cinnabar / spirit_iron_ore / star_silver_ore /"
+                + " oni_stone. Vanilla ores are unaffected.")
+                .defineInRange("starSilverExtraOreChance", 0.25D, 0.0D, 1.0D);
+        ARMOR_SPIRIT_REGEN_BONUS = BUILDER.comment("Multiplier applied to natural spirit regen while"
+                + " wearing any Spirit Iron or Star Silver armour piece. 1.5 = +50%. Only refills"
+                + " 'current'; MUST NOT change 'max' or spirit damage.")
+                .defineInRange("armorSpiritRegenBonus", 1.5D, 1.0D, 100.0D);
+        STAR_SILVER_SET_SPIRIT_DAMAGE_BONUS = BUILDER.comment("Additive fraction applied to player"
+                + " spirit damage while wearing a FULL Star Silver set (all 4 pieces; 0 by default on a"
+                + " single piece). 0.08 = +8%. Deliberately modest: armour MUST NOT grant high danmaku"
+                + " or damage reduction.")
+                .defineInRange("starSilverSetSpiritDamageBonus", 0.08D, 0.0D, 1.0D);
+        BUILDER.pop();
+
+        BUILDER.push("landscaping").comment("Landscaping tool: one right-click clears a radius of common"
+                + " terrain (stone/dirt/wood/leaves/sand/plants) and flattens the ground to dirt, to open"
+                + " space for large ritual builds. Hard protection (tile entities, bedrock, obsidian,"
+                + " ores, portal frames, mod material blocks, custom-named blocks) is ALWAYS active and"
+                + " is not configurable.");
+        LANDSCAPING_RADIUS = BUILDER.comment("Horizontal clear/flatten radius in blocks. Vertical range"
+                + " is fixed at -3..+6 relative to the clicked block.")
+                .defineInRange("radius", 8, 1, 32);
+        LANDSCAPING_COOLDOWN_TICKS = BUILDER.comment("Cooldown after one use, in ticks (20 = 1s)."
+                + " Creative mode bypasses this entirely.")
+                .defineInRange("cooldownTicks", 200, 0, 72000);
+        BUILDER.pop();
+
+        BUILDER.push("spiritBomb").comment("Spirit Bomb: a placeable, reusable detonator. Right-click to"
+                + " place, right-click again to open its config GUI (fuse time / power / radius), then"
+                + " press Arm: the cost is charged to the player's own spirit pool and the bomb refuses"
+                + " to arm when short. Explosions drop every destroyed block (ExplosionInteraction.BLOCK).");
+        SPIRIT_BOMB_BASE_COST = BUILDER.comment("Base spirit cost at (power 4.0, radius 6). Actual cost"
+                + " = base x (power/4)^2 x (radius/6).")
+                .defineInRange("baseCost", 20000, 0, 100000000);
+        SPIRIT_BOMB_DEFAULT_FUSE_TICKS = BUILDER.comment("Default fuse in ticks shown when the GUI opens"
+                + " for a freshly placed bomb. 100 ticks = 5 seconds.")
+                .defineInRange("defaultFuseTicks", 100, 2, 12000);
+        SPIRIT_BOMB_MAX_PRODUCTS = BUILDER.comment("Hard cap on dropped block entities per explosion."
+                + " A large radius with full block drops can spawn thousands of item entities and stall"
+                + " the server; products beyond this cap are discarded with a server log warning.")
+                .defineInRange("maxProducts", 1000, 1, 100000);
         BUILDER.pop();
 
         BUILDER.push("omoikane").comment("Omoikane (Enchantment Forging): pedestals hold enchanted books (gear mode)"

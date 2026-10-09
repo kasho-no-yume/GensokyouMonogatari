@@ -8,6 +8,7 @@ import com.bitsson.gensokyou.network.RitualConflictPayload;
 import com.bitsson.gensokyou.network.RitualInfoPayload;
 import com.bitsson.gensokyou.network.RitualPreviewPayload;
 import com.bitsson.gensokyou.network.SkillSyncPayload;
+import com.bitsson.gensokyou.network.SpiritBombStatePayload;
 import com.bitsson.gensokyou.network.SpiritPowerSyncPayload;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -185,6 +186,16 @@ public final class ClientPayloadHandler {
      * 此时记下即可，血条真正画出来时实体早已加载。若在这里因查不到就丢弃，
      * 玩家会看到空白符卡位且此后永不更新——而空白与「无符卡」画面上无法区分。
      */
+    public static void handleSpiritBombState(
+            com.bitsson.gensokyou.network.SpiritBombStatePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (net.minecraft.client.Minecraft.getInstance().screen
+                    instanceof com.bitsson.gensokyou.client.screen.SpiritBombScreen screen) {
+                screen.onState(payload);
+            }
+        });
+    }
+
     public static void handleSpellCardName(
             com.bitsson.gensokyou.network.SpellCardNamePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> ClientSpellCardNames.put(payload.entityId(), payload.cardIndex()));

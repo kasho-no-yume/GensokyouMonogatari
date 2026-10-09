@@ -11,7 +11,7 @@
     {
       "type": "gensokyou:loot_page",
       "mode": "tool",
-      "entries": "gensokyou:spirit_herb,0.97,3;gensokyou:gentian,0.78,3;gensokyou:higanbana,0.78,3"
+      "entries": "gensokyou:spirit_herb_seeds,0.97,3;gensokyou:gentian_seeds,0.78,3;gensokyou:higanbana_seeds,0.78,3"
     },
     {
       "type": "gensokyou:loot_page",
@@ -22,7 +22,7 @@
     {
       "type": "gensokyou:loot_page",
       "mode": "tool",
-      "entries": "gensokyou:magic_mushroom,0.30,4",
+      "entries": "gensokyou:magic_mushroom_spores,0.30,4",
       "advancement": "gensokyou:guide/end_unlock"
     }
   ]

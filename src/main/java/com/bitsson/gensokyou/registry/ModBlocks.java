@@ -6,8 +6,11 @@ import com.bitsson.gensokyou.block.DanmakuAssemblyBenchBlock;
 import com.bitsson.gensokyou.block.RitualCoreBlock;
 import com.bitsson.gensokyou.block.RitualPedestalBlock;
 import com.bitsson.gensokyou.block.SukimaBlock;
+import com.bitsson.gensokyou.block.SpiritCropBlock;
 import com.bitsson.gensokyou.block.SpiritPlantBlock;
 import com.bitsson.gensokyou.block.SpiritSaplingBlock;
+import com.bitsson.gensokyou.block.SpiritSoilBlock;
+import com.bitsson.gensokyou.block.SpiritSoilFarmlandBlock;
 import com.bitsson.gensokyou.block.TieredBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.SlabBlock;
@@ -108,8 +111,11 @@ public final class ModBlocks {
     public static final DeferredBlock<Block> ONI_STONE =
             BLOCKS.registerBlock("oni_stone", Block::new, oreProperties());
     /** 土产：灵土 / 瓷土 / 彼岸土 / 月砂。 */
-    public static final DeferredBlock<Block> SPIRIT_SOIL =
-            BLOCKS.registerBlock("spirit_soil", Block::new, soilProperties());
+    public static final DeferredBlock<SpiritSoilBlock> SPIRIT_SOIL =
+            BLOCKS.registerBlock("spirit_soil", SpiritSoilBlock::new, soilProperties());
+    /** 灵土耕地：锄 {@link #SPIRIT_SOIL} 得到；失效塌陷退回灵土而非泥土。 */
+    public static final DeferredBlock<SpiritSoilFarmlandBlock> SPIRIT_SOIL_FARMLAND =
+            BLOCKS.registerBlock("spirit_soil_farmland", SpiritSoilFarmlandBlock::new, farmlandProperties());
     public static final DeferredBlock<Block> PORCELAIN_CLAY =
             BLOCKS.registerBlock("porcelain_clay", Block::new, soilProperties());
     public static final DeferredBlock<Block> HIGAN_SOIL =
@@ -145,6 +151,17 @@ public final class ModBlocks {
     public static final DeferredBlock<SpiritPlantBlock> MAGIC_MUSHROOM =
             BLOCKS.registerBlock("magic_mushroom", SpiritPlantBlock::new, plantProperties());
 
+    /** 作物：4 种幻想乡植物的种子化产物（6 阶段 {@link SpiritCropBlock}）。 */
+    public static final DeferredBlock<SpiritCropBlock> SPIRIT_HERB_CROP =
+            BLOCKS.registerBlock("spirit_herb_crop", p -> new SpiritCropBlock(p, false), cropProperties());
+    public static final DeferredBlock<SpiritCropBlock> GENTIAN_CROP =
+            BLOCKS.registerBlock("gentian_crop", p -> new SpiritCropBlock(p, false), cropProperties());
+    /** 彼岸花与魔法菇可种彼岸土（{@link SpiritCropBlock#mayPlaceOn}）。 */
+    public static final DeferredBlock<SpiritCropBlock> HIGANBANA_CROP =
+            BLOCKS.registerBlock("higanbana_crop", p -> new SpiritCropBlock(p, true), cropProperties());
+    public static final DeferredBlock<SpiritCropBlock> MAGIC_MUSHROOM_CROP =
+            BLOCKS.registerBlock("magic_mushroom_crop", p -> new SpiritCropBlock(p, true), cropProperties());
+
     private static BlockBehaviour.Properties oreProperties() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.STONE)
                 .strength(3.0F, 3.0F).requiresCorrectToolForDrops().sound(SoundType.STONE);
@@ -158,6 +175,21 @@ public final class ModBlocks {
     private static BlockBehaviour.Properties sandProperties() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.SAND)
                 .strength(0.5F).sound(SoundType.SAND);
+    }
+
+    /** 耕地属性：和原版耕地一致的强度与音效（{@code 0.6F}，脚步为 GRAVEL），参与随机刻。 */
+    private static BlockBehaviour.Properties farmlandProperties() {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.DIRT)
+                .strength(0.6F).sound(SoundType.GRAVEL)
+                .randomTicks();
+    }
+
+    /** 作物属性：无碰撞、瞬间破坏、踏过即毁，参与随机刻。 */
+    private static BlockBehaviour.Properties cropProperties() {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.PLANT)
+                .noCollission().instabreak().sound(SoundType.CROP)
+                .pushReaction(PushReaction.DESTROY)
+                .randomTicks();
     }
 
     private static BlockBehaviour.Properties woodProperties() {

@@ -123,7 +123,11 @@ public final class ModAttachments {
 
     /** playerSpiritDamage 统一读取入口（伤害公式唯一数据来源）。 */
     public static float spiritDamage(ServerPlayer player) {
-        return get(player).spiritDamage();
+        float base = get(player).spiritDamage();
+        // 星银铠套装加成：只在"四件齐全"时生效，读时叠加、绝不写回台账
+        // （spirit_damage 是阶级台账求和的单写事实来源，旁路写入会让属性永久漂移）。
+        float bonus = com.bitsson.gensokyou.item.equipment.StarSilverSetBonus.multiplier(player);
+        return (float) (base * bonus);
     }
 
     /** 测试无限灵力（add-balance-test-harness）。 */
