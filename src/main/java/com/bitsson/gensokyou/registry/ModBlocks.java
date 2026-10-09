@@ -100,6 +100,19 @@ public final class ModBlocks {
                     BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.5F, 6F)
                             .sound(SoundType.WOOD));
 
+    /**
+     * 灵力引爆器的渲染锚点方块：<b>无物品形态、不可放置、无掉落</b>。
+     *
+     * <p>引爆器本体是实体（{@code SpiritBombEntity} + GUI + 自定义爆炸，见 design.md D9），
+     * 这里只注册一个带专属模型/贴图的方块状态，供 {@code SpiritBombRenderer} 绘制外观，
+     * 替换掉早先用原版 TNT 方块顶替的占位。
+     */
+    public static final DeferredBlock<Block> SPIRIT_BOMB =
+            BLOCKS.registerBlock("spirit_bomb", Block::new,
+                    BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_RED)
+                            .strength(1.5F, 6F).sound(SoundType.STONE)
+                            .noOcclusion().noLootTable());
+
     // ---------------- 幻想乡素材方块（矿产/土产/木材）----------------
     /** 矿产：辰砂 / 灵铁矿 / 星银矿 / 鬼石。 */
     public static final DeferredBlock<Block> CINNABAR =

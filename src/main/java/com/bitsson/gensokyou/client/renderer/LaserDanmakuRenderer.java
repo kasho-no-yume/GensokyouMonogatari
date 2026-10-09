@@ -24,6 +24,13 @@ import net.minecraft.world.phys.Vec3;
  *   <li>端盖 —— 面向摄像机的圆片，模拟半球末端</li>
  * </ol>
  *
+ * <p><b>本渲染器豁免弹幕密度 LOD。</b>球/灵符在弹幕密集时会切到 body 单通以省开销
+ * （见 {@code danmaku-render-state}），但激光不在此列：预警线是玩法信息，外发光/亮核/
+ * 端盖/法阵是激光观感的构成部分，且激光数量为个位数到数十，开销与高密度球幕不在一个
+ * 量级。故本类只读 {@link DanmakuRenderProbe} 的<b>显式调试开关</b>
+ * （{@code glowEnabled}/{@code coreEnabled}/{@code bodyEnabled}，默认全开），
+ * MUST NOT 读 {@code effectiveGlow()}/{@code effectiveCore()} 这类含密度降级的判据。
+ *
  * <p><b>如何替换资源：</b>
  * <ul>
  *   <li>光束材质：{@code assets/gensokyou/textures/entity/laser_danmaku.png}<br>
@@ -146,8 +153,9 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         int alpha = (int) Mth.lerp(pulse * (0.4F + 0.6F * urgency),
                 INDICATOR_ALPHA_MIN, INDICATOR_ALPHA_MAX);
 
+        // 预警线是玩法信息，MUST NOT 受屏上密度 / LOD 降级门控（只受显式调试开关约束）。
         VertexConsumer consumer = this.getBuffer(bufferSource, this.glowRenderType());
-        if (DanmakuRenderProbe.effectiveGlow()) {
+        if (DanmakuRenderProbe.glowEnabled) {
             DanmakuRenderProbe.countGlow();
             DanmakuRenderProbe.pushGlow();
             try {
@@ -184,7 +192,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         // 只按发光可见轮廓写深度，不会凿出整块方形洞。
         // 注意 immediate 缓冲的别名规则：请求不同 RenderType 会立刻结束上一批，
         // 因此必须按「外发光 → 法阵 → 主体/亮核 → 端盖」整层连续写入，禁止交叉。
-        if (DanmakuRenderProbe.effectiveGlow()) {
+        if (DanmakuRenderProbe.glowEnabled) {
             VertexConsumer glow = this.getBuffer(bufferSource, DanmakuRenderTypes.additiveSolid(BEAM_TEXTURE));
             DanmakuRenderProbe.countGlow();
             DanmakuRenderProbe.pushGlow();
@@ -210,7 +218,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
                 this.emitBeam(poseStack, emissive, length, radius * envelope,
                         r, g, b, (int) (235 * envelope), FULL_BRIGHT);
 
-                if (DanmakuRenderProbe.effectiveCore()) {
+                if (DanmakuRenderProbe.coreEnabled) {
                     // 亮核：向白色混合，制造过曝感
                     this.emitBeam(poseStack, emissive, length, radius * CORE_RADIUS_RATIO * envelope,
                             coreR, coreG, coreB, (int) (255 * envelope), FULL_BRIGHT);
@@ -244,7 +252,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         poseStack.mulPose(Axis.ZP.rotationDegrees(angle));
 
         PoseStack.Pose pose = poseStack.last();
-        if (DanmakuRenderProbe.effectiveGlow()) {
+        if (DanmakuRenderProbe.glowEnabled) {
             VertexConsumer consumer = this.getBuffer(bufferSource, DanmakuRenderTypes.additiveSolid(MAGIC_CIRCLE_TEXTURE));
             DanmakuRenderProbe.countGlow();
             DanmakuRenderProbe.pushGlow();
@@ -320,7 +328,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         if (radius <= 0.0F || a <= 0) {
             return;
         }
-        if (DanmakuRenderProbe.effectiveGlow()) {
+        if (DanmakuRenderProbe.glowEnabled) {
             VertexConsumer consumer = this.getBuffer(bufferSource, DanmakuRenderTypes.additiveSolid(CAP_TEXTURE));
             DanmakuRenderProbe.countGlow();
             DanmakuRenderProbe.pushGlow();

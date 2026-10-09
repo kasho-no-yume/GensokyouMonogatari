@@ -35,6 +35,11 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue BIG_FAIRY_WALL_SPEED;
     public static final ModConfigSpec.DoubleValue BIG_FAIRY_WALL_SIZE;
     public static final ModConfigSpec.DoubleValue BIG_FAIRY_WALL_OFFSET;
+    public static final ModConfigSpec.IntValue YAMAME_WEB_INTERVAL;
+    public static final ModConfigSpec.IntValue YAMAME_WEB_COUNT;
+    public static final ModConfigSpec.DoubleValue YAMAME_WEB_SPREAD_DEG;
+    public static final ModConfigSpec.DoubleValue YAMAME_WEB_SPEED;
+    public static final ModConfigSpec.DoubleValue YAMAME_WEB_SIZE;
     public static final ModConfigSpec.DoubleValue FAIRY_PPOINT_CHANCE;
     public static final ModConfigSpec.DoubleValue FAIRY_BPOINT_CHANCE;
     public static final ModConfigSpec.IntValue FAIRY_VARIANT_SINGLE_WEIGHT;
@@ -83,6 +88,8 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue DANMAKU_CALIBRATION_INTERVAL_TICKS;
     /** danmaku-render-state：单批校准覆盖的弹数上限。 */
     public static final ModConfigSpec.IntValue DANMAKU_CALIBRATION_BATCH_CAP;
+    /** 冻结弹过期清理扫的间隔（tick）。0 = 关闭。 */
+    public static final ModConfigSpec.IntValue DANMAKU_FROZEN_SWEEP_INTERVAL_TICKS;
 
     /** BOSS 同时锁定的玩家数上限。 */
     public static final ModConfigSpec.IntValue BOSS_MAX_TARGETS;
@@ -110,10 +117,10 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue BIG_FAIRY_BOSS_SECONDS;
     /** 大妖精的挨弹数目标。 */
     public static final ModConfigSpec.IntValue BIG_FAIRY_BOSS_HITS;
-    /** 鬼蛛的战斗秒数目标。 */
-    public static final ModConfigSpec.DoubleValue KUZUMONO_BOSS_SECONDS;
-    /** 鬼蛛的挨弹数目标。 */
-    public static final ModConfigSpec.IntValue KUZUMONO_BOSS_HITS;
+    /** 黑谷山女的战斗秒数目标。 */
+    public static final ModConfigSpec.DoubleValue YAMAME_BOSS_SECONDS;
+    /** 黑谷山女的挨弹数目标。 */
+    public static final ModConfigSpec.IntValue YAMAME_BOSS_HITS;
     /** 碎符卡星掉落下界。 */
     public static final ModConfigSpec.IntValue BOSS_STAR_DROP_MIN;
     /** 碎符卡星掉落上界。 */
@@ -835,6 +842,13 @@ public class GensokyouConfig {
         BIG_FAIRY_WALL_SPEED = BUILDER.defineInRange("bigFairyWallSpeed", 0.3D, 0.01D, 2.0D);
         BIG_FAIRY_WALL_SIZE = BUILDER.defineInRange("bigFairyWallSize", 0.7D, 0.05D, 4.0D);
         BIG_FAIRY_WALL_OFFSET = BUILDER.defineInRange("bigFairyWallForwardOffset", 3.0D, 0.0D, 32.0D);
+        // 黑谷山女的默认攻击（蛛丝扇）。同样不进 BossCards：它是全程在符卡底下继续跑的底噪。
+        YAMAME_WEB_INTERVAL = BUILDER.comment("Yamame default attack: ticks between spider-strand volleys")
+                .defineInRange("yamameWebInterval", 40, 5, Integer.MAX_VALUE);
+        YAMAME_WEB_COUNT = BUILDER.defineInRange("yamameWebCount", 5, 1, 32);
+        YAMAME_WEB_SPREAD_DEG = BUILDER.defineInRange("yamameWebSpreadDeg", 40.0D, 1.0D, 180.0D);
+        YAMAME_WEB_SPEED = BUILDER.defineInRange("yamameWebSpeed", 0.35D, 0.01D, 2.0D);
+        YAMAME_WEB_SIZE = BUILDER.defineInRange("yamameWebSize", 0.55D, 0.05D, 4.0D);
 
         FAIRY_PPOINT_CHANCE = BUILDER.defineInRange("fairyPpointDropChance", 0.10D, 0D, 1D);
         FAIRY_BPOINT_CHANCE = BUILDER.defineInRange("fairyBpointDropChance", 0.10D, 0D, 1D);
@@ -895,6 +909,10 @@ public class GensokyouConfig {
                 "This is BANDWIDTH, not a quality dial: each sample costs roughly 20 bytes. At 400 on-screen bullets, 40 ticks (~2s) is about 4 KB/s per player. Sample RATE does not affect comparison ERROR - only how fast the rate estimate converges and how long staleness takes to trip (see DanmakuSyncProbeTest#sampleRateChangesCostButNotCorrectness).",
                 "Also see danmakuCalibrationBatchCap.").defineInRange("danmakuCalibrationIntervalTicks", 40, 0, 1200);
         DANMAKU_CALIBRATION_BATCH_CAP = BUILDER.comment("danmaku-render-state: max danmaku entities covered by ONE calibration batch per player. Bullets beyond the cap go unsampled for that round and are covered by the next one, so a very dense screen is sampled in rotation rather than all at once.").defineInRange("danmakuCalibrationBatchCap", 512, 1, 2048);
+        DANMAKU_FROZEN_SWEEP_INTERVAL_TICKS = BUILDER.comment("fix-danmaku-laser-render-and-frozen-expiry: ticks between server sweeps that expire over-due danmaku which are FROZEN (their chunk is loaded but outside simulation distance, so they are not entity-ticked and cannot run their own lifetime check). 0 = disabled.",
+                "Danmaku existence is measured in SERVER GAME TIME (see DanmakuLifetime): the sweep only discards bullets whose game-time lifetime has elapsed - never by distance from a player, so retreat-and-return does not destroy live bullets (danmaku-age-continuity).",
+                "The sweep is what reclaims the entity budget (danmakuEntityCap) while the player is away; it cannot see bullets in UNLOADED chunks - those are handled by the persisted birth time on reload.",
+                "Cost is one pass over the level's entities per interval; 40 (~2s) is negligible at the 2000-bullet cap.").defineInRange("danmakuFrozenSweepIntervalTicks", 40, 0, 1200);
         BUILDER.pop();
 
         BUILDER.push("boss").comment("add-remnant-touhou-bosses: summoned BOSS movement / targeting / numbers. "
@@ -922,8 +940,8 @@ public class GensokyouConfig {
         BOSS_SECONDS_T5 = BUILDER.defineInRange("bossSecondsT5", 720D, 120D, 900D);
         BIG_FAIRY_BOSS_SECONDS = BUILDER.comment("大妖精 spell-card fight length target (3 cards, T1 reference)").defineInRange("bigFairyBossSeconds", 160D, 120D, 900D);
         BIG_FAIRY_BOSS_HITS = BUILDER.comment("大妖精 hits-to-kill target (damage = referencePlayerEhp / this)").defineInRange("bigFairyBossHits", 10, 1, 200);
-        KUZUMONO_BOSS_SECONDS = BUILDER.comment("鬼蛛 spell-card fight length target (3 cards, no aimed tracks)").defineInRange("kuzumonoBossSeconds", 190D, 120D, 900D);
-        KUZUMONO_BOSS_HITS = BUILDER.defineInRange("kuzumonoBossHits", 8, 1, 200);
+        YAMAME_BOSS_SECONDS = BUILDER.comment("Yamame (黑谷山女) spell-card fight length target (4 cards, T1 reference)").defineInRange("yamameBossSeconds", 200D, 120D, 900D);
+        YAMAME_BOSS_HITS = BUILDER.defineInRange("yamameBossHits", 8, 1, 200);
         BOSS_STAR_DROP_MIN = BUILDER.comment("碎符卡星 drop count, lower bound").defineInRange("bossStarDropMin", 1, 0, 64);
         BOSS_STAR_DROP_MAX = BUILDER.defineInRange("bossStarDropMax", 2, 0, 64);
         BUILDER.pop();

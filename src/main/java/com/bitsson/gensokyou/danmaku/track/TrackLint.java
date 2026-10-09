@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 轨道表静态校验器——把「三维可读性契约」R1/R2/R3 与缺段约束变成可断言的规则。
+ * 轨道表静态校验器——把「三维可读性契约」R1/R2/R3 变成可断言的规则。
  *
  * <p>契约（{@code danmaku-track-composition}）：
  * <ul>
@@ -18,11 +18,9 @@ import java.util.Set;
  *       而稳态少，两种量各错一个方向。
  * </ul>
  *
- * <p>另有两条本 mod 特有的硬约束：
+ * <p>另有一条本 mod 特有的硬约束：
  * <ul>
  *   <li><b>轨道视觉独占</b>——同符卡内任两轨在（色相/速度/尺寸/形状）四项中至少一项不同。
- *   <li><b>缺段约束</b>——缺「破」的符卡 MUST NOT 含 {@link TargetMode#AIMED}；
- *       缺「結」的符卡全部轨道 MUST 无终止条件。
  * </ul>
  *
  * <p>纯静态、可离线运行，故 lint 与单测都无需世界。
@@ -605,21 +603,5 @@ public final class TrackLint {
                     where, hiddenTicks, (int) MAX_BLIND_TICKS));
         }
         return violations;
-    }
-
-    // ------------------------------------------------------------------
-    // 缺段约束（残影 BOSS 的机制载体）
-    // ------------------------------------------------------------------
-
-    /** 缺「破」：整副符卡表 MUST NOT 含任何瞄准型节拍。 */
-    public static boolean hasNoAimedTrack(String owner, List<SpellCard> cards) {
-        return cards.stream().flatMap(c -> c.tracks().stream())
-                .flatMap(t -> t.beats().stream())
-                .noneMatch(b -> b.targetMode() == TargetMode.AIMED);
-    }
-
-    /** 缺「結」：全部符卡的全部轨道 MUST 无终止条件。 */
-    public static boolean allTracksEndless(List<SpellCard> cards) {
-        return cards.stream().flatMap(c -> c.tracks().stream()).noneMatch(Track::terminates);
     }
 }

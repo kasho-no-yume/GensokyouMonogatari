@@ -15,11 +15,11 @@ import net.minecraft.world.level.Level;
 import java.util.List;
 
 /**
- * 狐火「無序」——缺「序」的符卡成了精。
+ * 狐火「無序」——主题：起手即峰值、没有预备拍。
  *
- * <p>「序」是符卡的开场与条件准备。缺了它，这张符<b>起手就是峰值、没有预备拍</b>。
+ * <p>这张符<b>起手就是峰值、没有预备拍</b>，预警窗口被压到极限。
  *
- * <p>关键约束：缺「序」MUST NOT 变成「在你背后凭空刷弹」。读不出是因为没时间，
+ * <p>可读性：起手即峰值 MUST NOT 变成「在你背后凭空刷弹」。读不出是因为没时间，
  * 不是因为看不见，故全部轨道仍锁在玩家朝向的包络内（R1 前向威胁）。
  */
 public class KitsuneBiEntity extends AbstractTouhouBoss {

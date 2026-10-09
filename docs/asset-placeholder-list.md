@@ -101,7 +101,7 @@
 | textures/entity/lesser_fairy.png | DONE(外部 Bedrock 模型贴图，cutout) | 外部美术资源 | fairy（GeckoLib） |
 | textures/entity/lesser_fairy.*（复用） | 复用(占位) | 复用妖精 geo/动画/贴图 | balance_test_boss（测试 BOSS，GeckoLib 模型复用 lesser_fairy，仅放大） |
 | textures/entity/greater_fairy.* | DONE(Blockbench 工程，F:/blockbench/touhou_fairies/大妖精) | 外部美术资源 | big_fairy（GeckoLib：geo/animation/贴图，idle/fly/walk/cast） |
-| textures/entity/kuzumono.png | TODO | 复用 danmaku.png（lightorb） | kuzumono（残影占位；渲染走 `RemnantBossRenderer` 注册点，正式模型到位后只覆盖文件） |
+| textures/entity/yamame.* | DONE(Blockbench 工程，F:/blockbench/kurodani) | 外部美术资源 | yamame（GeckoLib：geo/animation/贴图，idle/walk/cast） |
 | textures/entity/kitsunebi.png | TODO | 复用 danmaku.png（lightorb） | kitsunebi（残影占位，同上） |
 | textures/entity/nomen_mask.png | TODO | 复用 danmaku.png（lightorb） | nomen_mask（残影占位，同上） |
 | textures/entity/danmaku.png | DONE(暂定旧版贴图) | 旧仓库 lightorb.png | 弹幕投射物 billboard |

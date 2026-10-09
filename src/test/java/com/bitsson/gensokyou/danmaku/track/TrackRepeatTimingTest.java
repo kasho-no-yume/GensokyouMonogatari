@@ -56,7 +56,7 @@ class TrackRepeatTimingTest {
 
     @Test
     void everyProductionTrackActuallyFires() {
-        for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.kuzumono(),
+        for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
                 BossCards.kitsuneBi(), BossCards.nomenMask())) {
             for (SpellCard card : cards) {
                 for (Track track : card.tracks()) {
@@ -77,13 +77,13 @@ class TrackRepeatTimingTest {
         }
     }
 
-    /** 无终止轨道（缺結型）必须持续发射，永不进入收束。 */
+    /** 无终止轨道必须持续发射，永不进入收束。 */
     @Test
     void endlessTracksKeepFiringPastAnyHorizon() {
         for (SpellCard card : BossCards.nomenMask()) {
             for (Track track : card.tracks()) {
                 assertFalse(track.terminates(),
-                        "缺「結」符卡的轨道 MUST 无终止条件：" + track.name());
+                        "无终止轨道的节拍 MUST 无终止条件：" + track.name());
                 int firstHalf = 0;
                 int secondHalf = 0;
                 for (int tick = 0; tick < 7200; tick++) {

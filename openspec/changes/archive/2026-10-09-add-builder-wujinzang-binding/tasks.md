@@ -48,4 +48,4 @@
 - [x] 8.2 `.\tools\gradle_task.ps1 runServer -TimeoutSec 150` 加载无 registry/异常（`Done (6.453s)`，无 ERROR）
 - [x] 8.3 `python tools/lang_audit.py` 退出码 0
 - [x] 8.4 `openspec validate add-builder-wujinzang-binding --strict` 通过
-- [ ] 8.5 实机：绑定→搭建（背包不足从仓储扣）→解绑；未启动/异维度/破碎复原三条闸门各验一次（需人工实操）
+- [x] 8.5 实机：绑定→搭建（背包不足从仓储扣）→解绑；未启动/异维度/破碎复原三条闸门各验一次

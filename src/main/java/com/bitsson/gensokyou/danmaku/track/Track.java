@@ -10,8 +10,8 @@ import java.util.List;
  * <p>轨道是本 mod 弹幕编排的最小单位：<b>一张符卡 = 一个阶段 = 1~3 条并发轨道</b>。
  * 轨道之间互不等待、不同步，各自按自己的 tick 推进。
  *
- * <p><b>无终止轨道</b>（{@code terminates = false}）是「缺結」型符卡的机制载体：
- * 它的拍会无限重复，<b>不</b>存在到点收束的分支。
+ * <p><b>无终止轨道</b>（{@code terminates = false}）声明本轨的拍无限重复，
+ * <b>不</b>存在到点收束的分支。
  *
  * <p><b>视觉独占标识</b>：构造时必须给一个 {@code identity} 描述（色相/速度/尺寸/行为），
  * 同符卡内两轨的 identity 组合 MUST 至少有一项不同（由 {@link TrackLint} 静态校验）。
@@ -194,13 +194,13 @@ import java.util.List;
             this.color = color;
         }
 
-        /** 声明本轨有终止条件。缺結型 MUST NOT 调用。 */
+        /** 声明本轨有终止条件（默认）。 */
         public Builder terminates() {
             this.terminates = true;
             return this;
         }
 
-        /** 声明本轨无终止条件（缺結型）。 */
+        /** 声明本轨无终止条件：拍无限重复，到时不收束。 */
         public Builder endless() {
             this.terminates = false;
             return this;

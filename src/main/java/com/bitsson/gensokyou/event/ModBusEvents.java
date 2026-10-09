@@ -7,8 +7,8 @@ import com.bitsson.gensokyou.entity.FairyEntity;
 import com.bitsson.gensokyou.entity.FakeFlandreEntity;
 import com.bitsson.gensokyou.entity.FlandreEntity;
 import com.bitsson.gensokyou.entity.KitsuneBiEntity;
-import com.bitsson.gensokyou.entity.KuzumonoEntity;
 import com.bitsson.gensokyou.entity.NomenMaskEntity;
+import com.bitsson.gensokyou.entity.YamameEntity;
 import com.bitsson.gensokyou.entity.TouhouNpcEntity;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.core.BlockPos;
@@ -39,7 +39,7 @@ public final class ModBusEvents {
         event.put(ModEntityTypes.FAKE_FLANDRE.get(), FakeFlandreEntity.createAttributes().build());
         event.put(ModEntityTypes.FAIRY.get(), FairyEntity.createAttributes().build());
         event.put(ModEntityTypes.BIG_FAIRY.get(), BigFairyEntity.createAttributes().build());
-        event.put(ModEntityTypes.KUZUMONO.get(), KuzumonoEntity.createAttributes().build());
+        event.put(ModEntityTypes.YAMAME.get(), YamameEntity.createAttributes().build());
         event.put(ModEntityTypes.KITSUNEBI.get(), KitsuneBiEntity.createAttributes().build());
         event.put(ModEntityTypes.NOMEN_MASK.get(), NomenMaskEntity.createAttributes().build());
         event.put(ModEntityTypes.CIRNO.get(), FairyEntity.createAttributes().build());

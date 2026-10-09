@@ -6,6 +6,7 @@ import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget.RemovalCause;
 import com.bitsson.gensokyou.danmaku.DanmakuHitScan;
 import com.bitsson.gensokyou.danmaku.DanmakuLegTargetPush;
+import com.bitsson.gensokyou.danmaku.DanmakuLifetime;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuAge;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuCorrection;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuLegMotion;
@@ -627,6 +628,16 @@ import java.util.Set;
     /** 服务端：由存档恢复的年龄基准，只读权威。正常发射恒为 0。 */
     private int restoredAge = 0;
 
+    /**
+     * 服务端：绝对寿命的「出生游戏时间」。{@link DanmakuLifetime#UNSET_BIRTH} = 尚未初始化，
+     * 将在首个服务端 tick / 首次判据调用时按「当前游戏时间 − 年龄」惰性补上。
+     *
+     * <p><b>为什么存在性要单独记游戏时间</b>：{@code age()} 由 tickCount 驱动，而超出模拟
+     * 距离的区块不做实体 tick ⇒ 年龄冻结、寿命永不判到期。绝对寿命以服务端游戏时间为钟，
+     * 冻结时间照常计入。二者解耦：年龄管运动连续性，本字段管存在性。
+     */
+    private long birthGameTime = DanmakuLifetime.UNSET_BIRTH;
+
     /** 客户端：本次配对时由服务端下发的年龄基准，收到后不再变更。 */
     private int peerAge = 0;
 
@@ -810,6 +821,13 @@ import java.util.Set;
 
         if (this.age() > getLifetimeTicks()) {
             this.discard(RemovalCause.LIFETIME);
+            return;
+        }
+
+        // 绝对寿命（服务端游戏时间）：冻结后恢复 tick 的弹会在这一 tick 立即判死，
+        // 避免「远处冻结 → 玩家回来 → 成片复活继续飞」。仅服务端。
+        if (!this.level().isClientSide && this.isExpiredByGameTime()) {
+            this.discard(RemovalCause.EXPIRED);
             return;
         }
 
@@ -2011,6 +2029,67 @@ import java.util.Set;
         return this.entityData.get(DATA_LIFETIME);
     }
 
+    // ---------------------------------------------------------------
+    // 绝对寿命（存在性）：以服务端游戏时间为钟，见 DanmakuLifetime
+    // ---------------------------------------------------------------
+
+    /**
+     * 本弹的绝对寿命（tick）。默认取常规寿命；子类可覆写
+     * （激光 = 延迟 + 持续，插墙飞刀 = 插驻时长）。
+     */
+    protected int absoluteLifetimeTicks() {
+        return this.getLifetimeTicks();
+    }
+
+    /** 服务端：已记录的出生游戏时间；未设置时为 {@link DanmakuLifetime#UNSET_BIRTH}。 */
+    public long birthGameTime() {
+        return this.birthGameTime;
+    }
+
+    /**
+     * 服务端：取出生游戏时间；未设置时按「当前游戏时间 − 年龄」惰性补上。
+     *
+     * <p>惰性补上是旧存档缺键与「构造早于入世界」的统一回退：让弹从已恢复年龄处继续
+     * 正常寿命，行为不劣于本变更之前。
+     */
+    public long resolveBirthGameTime() {
+        if (this.birthGameTime == DanmakuLifetime.UNSET_BIRTH) {
+            this.birthGameTime = DanmakuLifetime.fallbackBirth(this.level().getGameTime(), this.age());
+        }
+        return this.birthGameTime;
+    }
+
+    /** 服务端：把出生游戏时间重设为当前时刻（供延长寿命的路径使用，如插墙飞刀重新计时）。 */
+    protected void resetBirthGameTimeNow() {
+        this.birthGameTime = this.level().getGameTime();
+    }
+
+    /**
+     * 是否已过绝对寿命。<b>仅服务端</b>返回有意义的值；客户端恒 false——客户端由服务端
+     * 移除包收敛，且本地游戏时间与服务器不同步。
+     */
+    public boolean isExpiredByGameTime() {
+        if (this.level().isClientSide) {
+            return false;
+        }
+        long now = this.level().getGameTime();
+        return DanmakuLifetime.overdue(now, this.resolveBirthGameTime(), this.absoluteLifetimeTicks());
+    }
+
+    /**
+     * 服务端清理扫入口：若已过绝对寿命则带死因回收，返回是否已回收。
+     *
+     * <p>存在的理由：冻结弹自身不 tick，{@link #tickDanmaku()} 的自检不跑；清理扫是唯一
+     * 能在玩家离开期间回收它们、释放实体计数上限（{@code DanmakuBudget}）的路径。
+     */
+    public boolean expireIfOverdue() {
+        if (this.isExpiredByGameTime()) {
+            this.discard(RemovalCause.EXPIRED);
+            return true;
+        }
+        return false;
+    }
+
     public int getColor() {
         return this.entityData.get(DATA_COLOR);
     }
@@ -2059,6 +2138,8 @@ import java.util.Set;
         // 基准必须补上这个差，否则双端自变量从此不等（位置存了、年龄没存）。
         // 缺键时读入 0，即退化为本变更之前的行为——不比迁移前更差。
         tag.putInt("Age", this.age());
+        // 出生游戏时间：绝对寿命的锚点。写解析后的值，保证冻结弹重载后仍按真实经过时间判死。
+        tag.putLong("BirthGameTime", this.resolveBirthGameTime());
         if (DanmakuAge.axisNeedsPersistence(this.hasSpeedProfile(), this.hasFormationFrame())) {
             // 速率曲线与其轴：7 个 double + 3 个轴分量。
             // 缺了它们，重载后的弹会沿原速直飞——返程弹变成永动机，
@@ -2181,6 +2262,10 @@ import java.util.Set;
         }
         // 缺键（旧存档）时保持 0：读档得到的飞行中弹退化为本变更之前的行为。
         this.restoredAge = Math.max(0, tag.getInt("Age"));
+        // 缺键（旧存档）⇒ 保持哨兵 ⇒ 首次判据时按「当前游戏时间 − 已恢复年龄」回退。
+        this.birthGameTime = tag.contains("BirthGameTime")
+                ? tag.getLong("BirthGameTime")
+                : DanmakuLifetime.UNSET_BIRTH;
         this.entityData.set(DATA_DIES_AT_ORIGIN, tag.getBoolean("DiesAtOrigin"));
         if (tag.contains("PhasePeriod")) {
             this.entityData.set(DATA_PHASE_PERIOD, tag.getInt("PhasePeriod"));

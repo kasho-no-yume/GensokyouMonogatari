@@ -8,8 +8,11 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -51,6 +54,8 @@ public final class DanmakuBudget {
     public enum RemovalCause {
         /** 寿命到期（{@code age > lifetime}）。 */
         LIFETIME,
+        /** 绝对寿命（服务端游戏时间）到期——冻结弹由实体自检或清理扫回收。 */
+        EXPIRED,
         /** 撞方块。 */
         BLOCK,
         /** 撞到实体（通常是玩家）。 */
@@ -771,6 +776,57 @@ public final class DanmakuBudget {
             new java.util.concurrent.atomic.AtomicLong();
     private static final java.util.concurrent.atomic.AtomicLong SPLIT_REQUESTED =
             new java.util.concurrent.atomic.AtomicLong();
+
+    // ------------------------------------------------------------------
+    // 冻结弹过期清理扫（fix-danmaku-laser-render-and-frozen-expiry）
+    //
+    // 弹幕存在性以服务端游戏时间为钟（见 DanmakuLifetime）。正在 tick 的弹由实体自检
+    // 判死；但超出模拟距离的弹不被 tick，自检不跑，故需本扫在玩家离开期间回收它们、
+    // 释放实体计数上限（danmakuEntityCap）。
+    //
+    // **只删已过寿命者，MUST NOT 按距离 / 脱离追踪剔除**：后者会误杀追远玩家的活弹，
+    // 违反 danmaku-age-continuity 的「存续判据与丢失原因无关」。
+    // ------------------------------------------------------------------
+
+    /** 清理扫的 tick 计数，用于节流。 */
+    private static int sweepTicks;
+
+    @SubscribeEvent
+    public static void onServerTick(ServerTickEvent.Post event) {
+        int interval = GensokyouConfig.DANMAKU_FROZEN_SWEEP_INTERVAL_TICKS.get();
+        if (interval <= 0 || ++sweepTicks < interval) {
+            return;
+        }
+        sweepTicks = 0;
+        for (ServerLevel level : event.getServer().getAllLevels()) {
+            sweepExpired(level);
+        }
+    }
+
+    /**
+     * 扫描本世界全部弹幕，回收已过绝对寿命者。
+     *
+     * <p>先收集再回收：{@code getAllEntities()} 是实体管理器的视图，边遍历边移除可能触发
+     * 结构修改异常。过滤用 {@code instanceof}，不维护额外的引用集合——后者一旦漏掉一次
+     * leave 事件就会把已移除的实体强引用住（内存泄漏 + 对空壳重复判死）。
+     */
+    private static void sweepExpired(ServerLevel level) {
+        List<AbstractDanmakuProjectile> expired = null;
+        for (Entity entity : level.getAllEntities()) {
+            if (entity instanceof AbstractDanmakuProjectile bullet && bullet.isExpiredByGameTime()) {
+                if (expired == null) {
+                    expired = new ArrayList<>();
+                }
+                expired.add(bullet);
+            }
+        }
+        if (expired == null) {
+            return;
+        }
+        for (AbstractDanmakuProjectile bullet : expired) {
+            bullet.expireIfOverdue();
+        }
+    }
 
     @SubscribeEvent
     public static void onLevelUnload(LevelEvent.Unload event) {

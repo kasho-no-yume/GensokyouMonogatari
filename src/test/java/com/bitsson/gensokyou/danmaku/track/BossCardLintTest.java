@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * {@code danmaku-track-composition} 与 {@code remnant-touhou-bosses} 的静态契约测试。
  *
- * <p>这些断言是 spec 里「可判定的部分」——R1/R2/R3、轨道视觉独占、缺段约束。
+ * <p>这些断言是 spec 里「可判定的部分」——R1/R2/R3、轨道视觉独占、签名色盘容量。
  * 全部纯静态，不需世界与实体。
  */
 class BossCardLintTest {
@@ -20,7 +20,7 @@ class BossCardLintTest {
     @Test
     void allBossCardTablesPassLint() {
         assertLintClean("大妖精", BossCards.bigFairy(), BossCards.BIG_FAIRY_PALETTE);
-        assertLintClean("鬼蛛", BossCards.kuzumono(), BossCards.KUZUMONO_PALETTE);
+        assertLintClean("黑谷山女", BossCards.yamame(), BossCards.YAMAME_PALETTE);
         assertLintClean("狐火", BossCards.kitsuneBi(), BossCards.KITSUNEBI_PALETTE);
         assertLintClean("傩神楽面", BossCards.nomenMask(), BossCards.NOMEN_PALETTE);
     }
@@ -48,7 +48,7 @@ class BossCardLintTest {
         }
         List<Entry> tables = List.of(
                 new Entry("大妖精", BossCards.bigFairy()),
-                new Entry("鬼蛛", BossCards.kuzumono()),
+                new Entry("黑谷山女", BossCards.yamame()),
                 new Entry("狐火", BossCards.kitsuneBi()),
                 new Entry("傩神楽面", BossCards.nomenMask()));
         double worst = 0.0D;
@@ -106,31 +106,6 @@ class BossCardLintTest {
         assertTrue(waivers <= 1,
                 "全表至多允许一处密度豁免，当前 " + waivers + " 处——每多一处都意味着"
                         + "估值模型又有一处结构性失真该先修");
-    }
-
-    /** 缺「破」= 不主动攻击：整副表 MUST NOT 含瞄准型节拍。 */
-    @Test
-    void kuzumonoHasNoAimedTrack() {
-        assertTrue(TrackLint.hasNoAimedTrack("鬼蛛", BossCards.kuzumono()),
-                "鬼蛛缺「破」，其轨道里不得出现瞄准型节拍");
-    }
-
-    /** 缺「結」= 节拍无终止条件。 */
-    @Test
-    void nomenMaskTracksAreAllEndless() {
-        assertTrue(TrackLint.allTracksEndless(BossCards.nomenMask()),
-                "傩神楽面缺「結」，其全部轨道 MUST 无终止条件");
-    }
-
-    /** 反例：缺「結」的符卡里混入有终止轨道时必须被检出。 */
-    @Test
-    void endlessCheckRejectsTerminatedTracks() {
-        List<SpellCard> mixed = List.of(new SpellCard(Component.literal("拍"), 1.0D, List.of(
-                Track.of("有终止", 0xFFFFFF).terminates().repeatEvery(40)
-                        .at(0, Shape.RING_FACING, Shape.Params.defaults()
-                                .count(10).gap(60.0D).speed(0.3D), TargetMode.SELF_AXIS)
-                        .build())));
-        assertFalse(TrackLint.allTracksEndless(mixed));
     }
 
     /** R1：环形不留缺口 = 一半弹在玩家背后，必须被检出。 */
@@ -310,11 +285,11 @@ class BossCardLintTest {
         assertFalse(TargetMode.ARENA.copiesPerTarget());
     }
 
-    /** 符卡数分档：大妖精/鬼蛛/狐火 3 张，傩神楽面 5 张。 */
+    /** 符卡数分档：大妖精/狐火 3 张、黑谷山女 4 张，傩神楽面 5 张。 */
     @Test
     void spellCardCounts() {
         assertTrue(BossCards.bigFairy().size() == 3);
-        assertTrue(BossCards.kuzumono().size() == 3);
+        assertTrue(BossCards.yamame().size() == 4);
         assertTrue(BossCards.kitsuneBi().size() == 3);
         assertTrue(BossCards.nomenMask().size() == 5);
     }
@@ -322,7 +297,7 @@ class BossCardLintTest {
     /** 符卡起始占比 MUST 随血量递减（阶段切分的前提）。 */
     @Test
     void cardThresholdsDecrease() {
-        for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.kuzumono(),
+        for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
                 BossCards.kitsuneBi(), BossCards.nomenMask())) {
             double previous = Double.MAX_VALUE;
             for (SpellCard card : cards) {

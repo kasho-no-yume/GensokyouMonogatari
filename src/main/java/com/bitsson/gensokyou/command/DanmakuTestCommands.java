@@ -217,7 +217,7 @@ public final class DanmakuTestCommands {
         if (set == null) {
             source.sendFailure(Component.literal("未知的 BOSS id: " + bossId));
             source.sendFailure(Component.literal("可用: " + String.join(", ",
-                    "big_fairy, kuzumono, kitsune_bi, nomen_mask")));
+                    "big_fairy, yamame, kitsune_bi, nomen_mask")));
             return 0;
         }
         List<SpellCard> cards = set.cards();

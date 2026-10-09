@@ -16,12 +16,9 @@ import java.util.List;
  * 行为一律经 {@link Behaviour} 的工厂显式给出，MUST NOT 靠形状名隐含——改前
  * {@code HOVER_BURST} 这类名字把行为编码进了几何，导致「悬停的环」无法表达。
  *
- * <p>「缺段」是对轨道构成的硬约束，由 {@link TrackLint} 的
- * {@link TrackLint#hasNoAimedTrack} / {@link TrackLint#allTracksEndless} 断言：
- * <ul>
- *   <li>鬼蛛缺「破」——整副表 MUST NOT 含任何瞄准型节拍（它不主动攻击）。
- *   <li>傩神楽面缺「結」——全部轨道 MUST 无终止条件。
- * </ul>
+ * <p>每只 BOSS 以其<b>角色自身的签名弹幕主题</b>区分，MUST NOT 依赖任何形式化的
+ * 段式分类装置。符卡表 MUST 通过 {@link TrackLint} 的三维可读性契约（R1/R2/R3）、
+ * 轨道视觉独占与签名色盘容量校验。
  */
 public final class BossCards {
 
@@ -266,83 +263,166 @@ private static SpellCard ringCard() {
     }
 
     // ==================================================================
-    // 鬼蛛「堅牢」 —— 缺「破」。它不主动攻击，只会封锁。
-    // 玩家必须主动破局：拆掉定幕的静止弹幕、躲开潜溜、或者从交差的空格里穿过去。
+    // 黑谷山女（土蜘蛛） —— T1，接在大妖精之后。
+    //
+    // 母题来自原作地霊殿 1 面：罠符「キャプチャーウェブ」（网）与
+    // 瘴符「フィルドミアズマ」（瘴气）。
+    //
+    // **红线：每一发都得是朝着玩家去的。** 只用「朝着玩家/绕着玩家/压在玩家脚下」
+    // 的几何——AIMED 瞄准扇、AROUND_TARGET 绕玩家收拢、LATTICE 绕玩家的激光网、
+    // DISC_RING 悬停后朝玩家压来的墙、PLAYER_GROUND 从玩家脚下炸起的光柱。
+    // 绝不用往 BOSS 侧边放的 RING / RADIAL_BURST / SHELL / CAGE——那打不到人、
+    // 也不逼走位，是纯粹的花瓶。
+    //
+    // 颜色：at(0) 金（蛛丝）／at(1) 陶土（地蜘蛛）／at(2) 赤・at(3) 紫（奇偶波的瘴）
+    //      ／at(4) 病黄绿（毒/热病）。容量 6 ≥ 最大并发 3。
     // ==================================================================
 
-    public static final SignaturePalette KUZUMONO_PALETTE =
-            SignaturePalette.of(0x8C6BD8, 0x4CE0B0, 0xD84C8C, 0xF0E24C);
+    public static final SignaturePalette YAMAME_PALETTE =
+            SignaturePalette.of(0xE0A24B, 0xD9683A, 0xC8383E, 0x8E5FD8, 0xB8D24A, 0x5FBF7A);
 
-    public static List<SpellCard> kuzumono() {
-        return List.of(
-                // 経糸：地滑帯 ‖ 定幕。两轨都是封锁，不打你。
-                new SpellCard(card("kuzumono", 1), 1.00D, List.of(
-                        of("地滑帯", KUZUMONO_PALETTE.at(0))
-                                .identity(0, 0, 0)
-                                .repeatEvery(60)
-                                .at(0, Shape.SHELL, Shape.Params.defaults()
-                                                .count(14).radius(4.0D, 0.08D).rise(0.15D)
-                                                .speed(0.34D).size(0.7D),
-                                        Behaviour.NONE.withMotion(Behaviour.Motion.groundHug()),
-                                        TargetMode.ARENA)
-                                .build(),
-                        of("定幕", KUZUMONO_PALETTE.at(1))
-                                .damageScale(1.0D)
-                                .identity(1, 1, 0)
-                                .repeatEvery(90)
-                                .phaseStep(20)
-                                .at(0, Shape.RADIAL_BURST, Shape.Params.defaults()
-                                        .count(8).speed(0.26D).size(0.6D),
-                                        Behaviour.NONE.withMotion(Behaviour.Motion.hover(26)),
-                                        TargetMode.SELF_AXIS)
-                                .build())),
-                // 結界：包囲 ‖ 潜溜。包囲会闭合，逼迫玩家在合拢前找到出口。
-                new SpellCard(card("kuzumono", 2), 0.66D, List.of(
-                        of("包囲", KUZUMONO_PALETTE.at(2))
-                                .damageScale(1.15D)
-                                .identity(2, 2, 0)
-                                .repeatEvery(50)
-                                .at(0, Shape.SHELL, Shape.Params.defaults()
-                                                .count(16).radius(11.0D, -0.06D).rise(1.0D)
-                                                .speed(0.24D).size(0.75D),
-                                        Behaviour.NONE, TargetMode.SELF_AXIS)
-                                .build(),
-                        of("潜溜", KUZUMONO_PALETTE.at(3))
-                                .damageScale(1.15D)
-                                .identity(3, 0, 1)
-                                .repeatEvery(120)
-                                .phaseStep(30)
-                                .at(0, Shape.SCATTER_STATIC, Shape.Params.defaults()
-                                                .count(6).radius(5.0D).speed(0.0D).size(0.55D),
-                                        Behaviour.NONE.withMotion(Behaviour.Motion.mine(1.6D)),
-                                        TargetMode.ARENA)
-                                .build())),
-                // 硬化：三正交面交差 ‖ 从缺口方位补发的分裂弹。必须自己找空格。
-                new SpellCard(card("kuzumono", 3), 0.33D, List.of(
-                        of("交差", KUZUMONO_PALETTE.at(0))
-                                .damageScale(1.3D)
-                                .identity(0, 1, 1)
-                                .repeatEvery(70)
-                                .phaseStep(11)
-                                .at(0, Shape.CAGE, Shape.Params.defaults()
-                                        .count(8).gap(45.0D).speed(0.30D).size(0.65D),
-                                        Behaviour.NONE, TargetMode.SELF_AXIS)
-                                .build(),
-                        of("補発", KUZUMONO_PALETTE.at(1))
-                                .damageScale(1.3D)
-                                .identity(1, 2, 1)
-                                .repeatEvery(140)
-                                .at(0, Shape.GAP_FAN, Shape.Params.defaults()
-                                                .count(3).gap(45.0D).speed(0.28D).size(0.55D),
-                                        Behaviour.NONE.withSplit(Behaviour.Split.at(18, 4)),
-                                        TargetMode.SELF_AXIS)
-                                .build())));
+    /** 各卡循环长度（tick）。显式时间轴靠它重放，符卡切换也挂起到它的边界。 */
+    private static final int YAMAME_WEB_CYCLE = 160;
+    private static final int YAMAME_MIASMA_CYCLE = 240;
+    private static final int YAMAME_NEST_CYCLE = 220;
+    private static final int YAMAME_FEVER_CYCLE = 240;
+
+    public static List<SpellCard> yamame() {
+        return List.of(webCard(), miasmaCard(), nestCard(), feverCard());
+    }
+
+    /**
+     * 1 阶段 · 罠符「キャプチャーウェブ」（100%~75%）
+     *
+     * <p>意念：蛛丝朝着你收拢。一道瞄准扇直取当前站位；同时一圈蛛丝绕着你生成、
+     * 从四面八方朝你合拢——站在原点必死，必须踩着缝走位。
+     */
+    private static SpellCard webCard() {
+        Track.Builder net = of("張網", YAMAME_PALETTE.at(0))
+                .identity(0, 0, 0)
+                .repeatEvery(20)
+                .phaseStep(9.0D);
+        net.at(0, Shape.AROUND_TARGET, Shape.Params.defaults()
+                        .count(18).radius(7.0D).spread(14.0D).speed(0.30D).size(0.6D),
+                Behaviour.NONE, TargetMode.AIMED);
+
+        Track.Builder thread = of("追い糸", YAMAME_PALETTE.at(1))
+                .identity(1, 1, 1)
+                .repeatEvery(20);
+        thread.at(0, Shape.FAN, Shape.Params.defaults()
+                        .count(7).spread(22.0D).speed(0.45D).size(0.55D),
+                Behaviour.NONE, TargetMode.AIMED);
+
+        return new SpellCard(card("yamame", 1), 1.00D,
+                List.of(net.build(), thread.build()), YAMAME_WEB_CYCLE);
+    }
+
+    /**
+     * 2 阶段 · 瘴符「フィルドミアズマ」（75%~50%）
+     *
+     * <p>意念：瘴气充满你所在的洞窟。绕着你自转的瘴气涡旋逐拍推进、不断收拢；
+     * 同时一圈**凌乱激光网**在你四周亮起——有的直指你（不动就中），有的只封路，
+     * 必须在一堆交叉线里找活口。
+     */
+    private static SpellCard miasmaCard() {
+        Track.Builder vortex = of("瘴気の渦", YAMAME_PALETTE.at(2))
+                .identity(0, 0, 0)
+                .repeatEvery(16)
+                .phaseStep(12.0D);
+        vortex.at(0, Shape.AROUND_TARGET, Shape.Params.defaults()
+                        .count(20).radius(7.0D).spread(16.0D).speed(0.32D).size(0.6D),
+                Behaviour.NONE, TargetMode.AIMED);
+
+        Track.Builder web = of("瘴気の網", YAMAME_PALETTE.at(4))
+                .identity(1, 1, 0)
+                .repeatEvery(46);
+        web.at(0, Shape.LATTICE, Shape.Params.defaults()
+                        .count(14).radius(9.0D).spread(40.0D).aimBias(0.4D).speed(0.0D),
+                Behaviour.NONE, TargetMode.AIMED, Projectile.laser(36.0D, 0.3D, 1.4D, 2.4D));
+
+        return new SpellCard(card("yamame", 2), 0.75D,
+                List.of(vortex.build(), web.build()), YAMAME_MIASMA_CYCLE);
+    }
+
+    /**
+     * 3 阶段 · 蜘蛛「石窟の蜘蛛の巣」（50%~25%）
+     *
+     * <p>意念：蜘蛛收网。她在身后立起一面蛛丝墙、悬停两秒后整面朝你压来；
+     * 你的脚底炸起垂丝光柱；同时一圈络丝持续绕你收拢。三种威胁叠在一起，
+     * 逼着你不停换位。
+     */
+    private static SpellCard nestCard() {
+        Track.Builder wall = of("結界網", YAMAME_PALETTE.at(1))
+                .identity(0, 0, 0)
+                .repeatEvery(50);
+        wall.at(0, Shape.DISC_RING, Shape.Params.defaults()
+                        .count(30).radius(5.0D).offsetForward(-8.0D).speed(0.4D).size(0.65D),
+                Behaviour.NONE.withMotion(Behaviour.Motion.reclaim(
+                        DanmakuSpeedProfile.decelerateAndHold(0.4D, 1.0D),
+                        46, 0.4D, Behaviour.TARGET_AUTO)),
+                TargetMode.AIMED);
+
+        Track.Builder pillar = of("垂れ糸", YAMAME_PALETTE.at(0))
+                .identity(1, 1, 0)
+                .repeatEvery(44);
+        pillar.at(0, Shape.PILLAR_UP, Shape.Params.defaults()
+                        .count(2).radius(2.0D).speed(0.0D),
+                Behaviour.NONE, TargetMode.SELF_AXIS, Projectile.laser(44.0D, 0.35D, 1.6D, 3.0D),
+                0, 0, Track.Beat.SpawnAnchor.PLAYER_GROUND, 1.0D, 1.0D);
+
+        Track.Builder tangle = of("絡み糸", YAMAME_PALETTE.at(3))
+                .identity(2, 2, 0)
+                .repeatEvery(22)
+                .phaseStep(45.0D);
+        tangle.at(0, Shape.AROUND_TARGET, Shape.Params.defaults()
+                        .count(16).radius(6.0D).spread(16.0D).speed(0.30D).size(0.55D),
+                Behaviour.NONE, TargetMode.AIMED);
+
+        return new SpellCard(card("yamame", 3), 0.50D,
+                List.of(wall.build(), pillar.build(), tangle.build()), YAMAME_NEST_CYCLE);
+    }
+
+    /**
+     * 4 阶段 · 瘴気「原因不明の熱病」（25%~0%）
+     *
+     * <p>意念：高热之涡。更密更快的收拢涡旋、更密的激光网、脚下毒柱连发——
+     * 三种威胁同时压上来。靠后的卡以 damageScale 加压，而非无限加弹数。
+     */
+    private static SpellCard feverCard() {
+        Track.Builder heat = of("熱病", YAMAME_PALETTE.at(2))
+                .damageScale(1.3D)
+                .identity(0, 0, 0)
+                .repeatEvery(16)
+                .phaseStep(14.0D);
+        heat.at(0, Shape.AROUND_TARGET, Shape.Params.defaults()
+                        .count(20).radius(8.0D).spread(14.0D).speed(0.32D).size(0.55D),
+                Behaviour.NONE, TargetMode.AIMED);
+
+        Track.Builder web = of("瘴気の網", YAMAME_PALETTE.at(3))
+                .damageScale(1.3D)
+                .identity(1, 1, 0)
+                .repeatEvery(38);
+        web.at(0, Shape.LATTICE, Shape.Params.defaults()
+                        .count(18).radius(10.0D).spread(45.0D).aimBias(0.45D).speed(0.0D),
+                Behaviour.NONE, TargetMode.AIMED, Projectile.laser(40.0D, 0.32D, 1.2D, 2.4D));
+
+        Track.Builder rain = of("毒雨", YAMAME_PALETTE.at(4))
+                .damageScale(1.35D)
+                .identity(2, 2, 1)
+                .repeatEvery(30);
+        rain.at(0, Shape.PILLAR_UP, Shape.Params.defaults()
+                        .count(3).radius(3.0D).speed(0.0D),
+                Behaviour.NONE, TargetMode.SELF_AXIS, Projectile.laser(40.0D, 0.4D, 1.0D, 2.6D),
+                0, 0, Track.Beat.SpawnAnchor.PLAYER_GROUND, 1.0D, 1.0D);
+
+        return new SpellCard(card("yamame", 4), 0.25D,
+                List.of(heat.build(), web.build(), rain.build()), YAMAME_FEVER_CYCLE);
     }
 
     // ==================================================================
-    // 狐火「無序」 —— 缺「序」。没有预备拍，起手即峰值。
+    // 狐火「無序」 —— 主题：没有预备拍，起手即峰值。
     //
-    // 关键约束：缺「序」MUST NOT 变成「在你背后凭空刷弹」。读不出是因为没时间，
+    // 可读性：起手即峰值 MUST NOT 变成「在你背后凭空刷弹」。读不出是因为没时间，
     // 不是因为看不见，故全部轨道仍锁在玩家朝向的包络里。
     // ==================================================================
 
@@ -418,7 +498,7 @@ private static SpellCard ringCard() {
     }
 
     // ==================================================================
-    // 傩神楽面「無終」 —— 缺「結」。节拍无终止条件，到时不收束。
+    // 傩神楽面「無終」 —— 主题：节拍无终止条件，到时不收束。
     // 五张符卡全是「同一招的变奏」：連射、乱連、急連、互不同步。
     // ==================================================================
 
@@ -536,7 +616,7 @@ private static SpellCard ringCard() {
 
     /** 全部 BOSS 的符卡表（lint / 测试遍历用）。 */
     public static List<SpellCard> all() {
-        return java.util.stream.Stream.of(bigFairy(), kuzumono(), kitsuneBi(), nomenMask())
+        return java.util.stream.Stream.of(bigFairy(), yamame(), kitsuneBi(), nomenMask())
                 .flatMap(List::stream).toList();
     }
 }

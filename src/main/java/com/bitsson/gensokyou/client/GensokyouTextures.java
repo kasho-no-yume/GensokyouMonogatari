@@ -17,7 +17,6 @@ public final class GensokyouTextures {
     public static final ResourceLocation RINNOSUKE = entity("rinnosuke");
     public static final ResourceLocation SUKIMA = entity("sukima");
     public static final ResourceLocation SUKIMA_PORTAL = entity("sukima_portal");
-    public static final ResourceLocation KUZUMONO = entity("kuzumono");
     public static final ResourceLocation KITSUNEBI = entity("kitsunebi");
     public static final ResourceLocation NOMEN_MASK = entity("nomen_mask");
 public static final ResourceLocation CRYSTAL = entity("crystal");

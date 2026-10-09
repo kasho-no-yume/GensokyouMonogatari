@@ -88,7 +88,7 @@ public record SpellCard(Component name, double hpFraction, List<Track> tracks, i
         return covers(0.0D, currentFraction);
     }
 
-    /** 本符卡内所有轨道是否都无终止条件（缺結型符卡的判据）。 */
+    /** 本符卡内所有轨道是否都无终止条件。 */
     public boolean allEndless() {
         return tracks.stream().noneMatch(Track::terminates);
     }

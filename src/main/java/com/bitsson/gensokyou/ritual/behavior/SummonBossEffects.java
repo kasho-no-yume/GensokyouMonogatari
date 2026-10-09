@@ -2,7 +2,6 @@ package com.bitsson.gensokyou.ritual.behavior;
 
 import com.bitsson.gensokyou.entity.AbstractTouhouBoss;
 import com.bitsson.gensokyou.entity.BigFairyEntity;
-import com.bitsson.gensokyou.entity.KuzumonoEntity;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -40,7 +39,7 @@ public final class SummonBossEffects {
 
     static {
         register("hyakki:big_fairy", ModEntityTypes.BIG_FAIRY);
-        register("hyakki:kuzumono", ModEntityTypes.KUZUMONO);
+        register("hyakki:yamame", ModEntityTypes.YAMAME);
         register("hyakki:kitsunebi", ModEntityTypes.KITSUNEBI);
         register("hyakki:nomen", ModEntityTypes.NOMEN_MASK);
     }

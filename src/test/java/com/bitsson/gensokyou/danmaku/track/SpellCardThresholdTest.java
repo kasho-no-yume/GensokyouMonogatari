@@ -60,7 +60,7 @@ class SpellCardThresholdTest {
     /** 死到 0 血都必须换过卡——这正是玩家观察到「只有一个弹幕」的那条。 */
     @Test
     void everyBossRunsThroughAllItsCards() {
-        for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.kuzumono(),
+        for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
                 BossCards.kitsuneBi(), BossCards.nomenMask())) {
             java.util.Set<String> seen = new java.util.LinkedHashSet<>();
             for (double f = 1.0D; f >= 0.0D; f -= 0.01D) {
@@ -74,7 +74,7 @@ class SpellCardThresholdTest {
 
     @Test
     void everyCardIsReachable() {
-        for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.kuzumono(),
+        for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
                 BossCards.kitsuneBi(), BossCards.nomenMask())) {
             for (SpellCard card : cards) {
                 boolean reachable = select(cards, card.hpFraction()).equals(card.name().getString());
@@ -86,7 +86,7 @@ class SpellCardThresholdTest {
     /** 符卡表必须从高到低排列。 */
     @Test
     void thresholdsAreMonotonicDescending() {
-        for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.kuzumono(),
+        for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
                 BossCards.kitsuneBi(), BossCards.nomenMask())) {
             for (int i = 1; i < cards.size(); i++) {
                 assertTrue(cards.get(i).hpFraction() < cards.get(i - 1).hpFraction(),

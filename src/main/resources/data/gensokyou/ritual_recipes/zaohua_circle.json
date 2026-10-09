@@ -9,8 +9,8 @@
       "spCost": 2000,
       "ingredients": [
         { "item": "minecraft:diamond", "count": 4 },
-        { "item": "gensokyou:ritual_stone_0", "count": 4 },
-        { "item": "gensokyou:refined_cinnabar", "count": 4 }
+        { "item": "gensokyou:ritual_stone_0", "count": 2 },
+        { "item": "gensokyou:refined_cinnabar", "count": 2 }
       ],
       "result": { "item": "gensokyou:ritual_stone_1", "count": 1 }
     },
@@ -61,7 +61,7 @@
       "ingredients": [
         { "item": "gensokyou:memory_fragment", "count": 8 },
         { "item": "gensokyou:talisman_paper", "count": 4 },
-        { "item": "gensokyou:spirit_herb", "count": 4 },
+        { "item": "gensokyou:spirit_herb", "count": 3 },
         { "item": "minecraft:book", "count": 1 }
       ],
       "result": { "item": "gensokyou:codex_of_beings", "count": 1 }

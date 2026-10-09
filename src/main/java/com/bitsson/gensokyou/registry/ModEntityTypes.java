@@ -164,21 +164,18 @@ public final class ModEntityTypes {
                     .build("big_fairy"));
 
     /**
-     * 鬼蛛「堅牢」：缺「破」的符卡成了精。
-     *
-     * <p>渲染当前为占位（{@code RemnantBossRenderer} 走注册点解析），故新增正式模型时
-     * 只覆盖资源文件即可，无需改引用。
+     * 黑谷山女（土蜘蛛）：T1 野生召唤 BOSS，带正式 GeckoLib 模型。
      */
-    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.KuzumonoEntity>> KUZUMONO =
-            ENTITY_TYPES.register("kuzumono", () -> EntityType.Builder
-                    .<com.bitsson.gensokyou.entity.KuzumonoEntity>of(
-                            com.bitsson.gensokyou.entity.KuzumonoEntity::new, MobCategory.MONSTER)
-                    .sized(0.9F, 0.9F)
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.YamameEntity>> YAMAME =
+            ENTITY_TYPES.register("yamame", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.YamameEntity>of(
+                            com.bitsson.gensokyou.entity.YamameEntity::new, MobCategory.MONSTER)
+                    .sized(0.8F, 1.7F)
                     .clientTrackingRange(12)
-                    .build("kuzumono"));
+                    .build("yamame"));
 
     /**
-     * 狐火「無序」：缺「序」的符卡成了精。渲染走 {@code RemnantBossRenderer} 注册点。
+     * 狐火「無序」：T1 召唤 BOSS。渲染走 {@code RemnantBossRenderer} 注册点。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.KitsuneBiEntity>> KITSUNEBI =
             ENTITY_TYPES.register("kitsunebi", () -> EntityType.Builder
@@ -189,7 +186,7 @@ public final class ModEntityTypes {
                     .build("kitsunebi"));
 
     /**
-     * 傩神楽面「無終」：缺「結」的符卡成了精。压轴，生命以伤害除数承载。
+     * 傩神楽面「無終」：T2 召唤 BOSS。压轴，生命以伤害除数承载。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.NomenMaskEntity>> NOMEN_MASK =
             ENTITY_TYPES.register("nomen_mask", () -> EntityType.Builder

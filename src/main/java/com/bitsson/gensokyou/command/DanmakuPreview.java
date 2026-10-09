@@ -181,7 +181,7 @@ public final class DanmakuPreview {
     /** 全部可预览的符卡，供命令列出。 */
     public static String describeAll() {
         StringBuilder sb = new StringBuilder();
-        for (String id : new String[]{"big_fairy", "kuzumono", "kitsune_bi", "nomen_mask"}) {
+        for (String id : new String[]{"big_fairy", "yamame", "kitsune_bi", "nomen_mask"}) {
             List<SpellCard> cards = setOf(id).cards();
             sb.append(id).append("  ");
             for (int i = 0; i < cards.size(); i++) {
@@ -197,8 +197,8 @@ public final class DanmakuPreview {
         return switch (id.toLowerCase(Locale.ROOT)) {
             case "big_fairy", "大妖精" ->
                     new CardSet(BossCards.bigFairy(), BossCards.BIG_FAIRY_PALETTE);
-            case "kuzumono", "鬼蛛" ->
-                    new CardSet(BossCards.kuzumono(), BossCards.KUZUMONO_PALETTE);
+            case "yamame", "黑谷山女", "山女" ->
+                    new CardSet(BossCards.yamame(), BossCards.YAMAME_PALETTE);
             case "kitsune_bi", "kitsunebi", "狐火" ->
                     new CardSet(BossCards.kitsuneBi(), BossCards.KITSUNEBI_PALETTE);
             case "nomen_mask", "傩神楽面" ->

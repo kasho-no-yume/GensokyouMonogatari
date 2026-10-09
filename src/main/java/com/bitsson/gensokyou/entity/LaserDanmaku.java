@@ -165,6 +165,13 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         // 不调用 super.tick()：激光静止，不需要移动与命中判定
         this.baseTick();
 
+        // 绝对寿命（服务端游戏时间）：与基类同一条存在性判据，避免冻结的激光永不销毁。
+        // 激光的寿命 = 延迟 + 持续，覆写见 absoluteLifetimeTicks()。
+        if (this.isExpiredByGameTime()) {
+            this.discard(DanmakuBudget.RemovalCause.EXPIRED);
+            return;
+        }
+
         if (this.getPhase() == Phase.ACTIVE
                 && this.level() instanceof ServerLevel
                 && (this.age() - this.getDelayTicks()) % DAMAGE_INTERVAL_TICKS == 0) {
@@ -174,6 +181,12 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         if (this.age() >= this.getDelayTicks() + this.getDurationTicks()) {
             this.discard(DanmakuBudget.RemovalCause.BEAM_ENDED);
         }
+    }
+
+    /** 激光的绝对寿命 = 延迟 + 持续（与 {@link #tick()} 的阶段终点一致）。 */
+    @Override
+    protected int absoluteLifetimeTicks() {
+        return this.getDelayTicks() + this.getDurationTicks();
     }
 
     /** 对当前射线覆盖范围内的实体判伤，离开射线的实体不再受伤。 */

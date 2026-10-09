@@ -136,8 +136,23 @@ public class KnifeDanmaku extends AbstractDanmakuProjectile {
         this.entityData.set(DATA_STUCK, true);
         if (this.level() instanceof ServerLevel) {
             this.stickRemaining = ticks;
+            // 插墙是「延长寿命」的路径：把绝对寿命的出生时间重设为当前游戏时间，
+            // 使插墙刀的绝对截止 = 此刻 + 插驻时长。否则冻结的插墙刀永不递减、永久留存。
+            this.resetBirthGameTimeNow();
             this.hurtMarked = true;   // 立即把零速同步给客户端
         }
+    }
+
+    /**
+     * 飞刀的绝对寿命：插墙前是常规寿命；插墙后以插驻时长为绝对寿命
+     * （插墙那一刻已由 {@link #resetBirthGameTimeNow()} 重设出生时间），
+     * 使冻结的插墙刀也按游戏时间到期，而非永远钉在墙上。
+     */
+    @Override
+    protected int absoluteLifetimeTicks() {
+        return this.isStuck()
+                ? Math.max(1, GensokyouConfig.KNIFE_STICK_TICKS.get())
+                : super.absoluteLifetimeTicks();
     }
 
     @Override

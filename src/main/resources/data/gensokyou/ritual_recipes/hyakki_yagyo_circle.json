@@ -26,8 +26,8 @@
       "effect": "hyakki:big_fairy"
     },
     {
-      "name": "hyakki_boss_kuzumono",
-      "_comment": "L1 · 鬼蛛『堅牢』（缺「破」）。钥匙 = 碎符卡星：BOSS 专属。保底掉隙间碎片，是 T2 材料带与 L2 祭坛的唯一前置。",
+      "name": "hyakki_boss_yamame",
+      "_comment": "L1 · 黑谷山女（土蜘蛛）。钥匙 = 碎符卡星：BOSS 专属。保底掉隙间碎片，是 T2 材料带与 L2 祭坛的唯一前置。",
       "mode": "activation",
       "match": "max",
       "minTier": 1,
@@ -39,11 +39,11 @@
         { "item": "gensokyou:spirit_iron", "count": 1 },
         { "item": "gensokyou:refined_cinnabar", "count": 1 }
       ],
-      "effect": "hyakki:kuzumono"
+      "effect": "hyakki:yamame"
     },
     {
       "name": "hyakki_boss_kitsunebi",
-      "_comment": "L2 · 狐火『無序』（缺「序」）。钥匙 = 隙间碎片：鬼蛛给的、通往幻想乡的那把。",
+      "_comment": "L2 · 狐火『無序』。钥匙 = 隙间碎片：山女给的、通往幻想乡的那把。",
       "mode": "activation",
       "match": "max",
       "minTier": 2,
@@ -63,7 +63,7 @@
     },
     {
       "name": "hyakki_boss_nomen",
-      "_comment": "L2 · 傩神楽面『無終』（缺「結」）。钥匙 = 整颗符卡星（8 碎换 1），压轴档。8 条料占满 8 个台，故与狐火互斥。",
+      "_comment": "L2 · 傩神楽面『無終』。钥匙 = 整颗符卡星（8 碎换 1），压轴档。8 条料占满 8 个台，故与狐火互斥。",
       "mode": "activation",
       "match": "max",
       "minTier": 2,

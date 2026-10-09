@@ -4,21 +4,39 @@
 # The farmland maps are fully opaque by design -- no '.' entries in PAL_SOIL.
 #
 # Palette groups:
-#   seeds     - husk bag with kernel accent, one accent colour per plant family
+#   seeds     - loose scattered seeds, one colour family per plant (no container)
 #   crops     - 3 growth stages per plant (sprout / leafy / mature + bloom)
 #   farmland  - tilled earth, sides separate from the top face
 
-PAL_SEEDS = {
+# Seeds are drawn as loose scattered grains coloured to their parent plant, so the four
+# species read as "the seeds of X" at a glance. Same silhouette, four palettes.
+PAL_SEED_HERB = {
     '.': None,
-    'o': (48, 34, 22),      # husk outline
-    'b': (112, 88, 60),     # husk base
-    'B': (150, 122, 84),    # husk highlight
-    's': (72, 54, 32),      # husk shade
-    'a': (108, 186, 96),    # green accent (spirit herb)
-    'p': (110, 118, 214),   # blue-violet accent (gentian)
-    'r': (198, 74, 74),     # crimson accent (higanbana)
-    'v': (176, 108, 220),   # violet accent (magic mushroom)
-    'w': (232, 214, 172),   # seed kernels
+    'o': (34, 58, 30),
+    'b': (108, 186, 96),
+    'h': (176, 232, 148),
+    's': (66, 124, 58),
+}
+PAL_SEED_GENTIAN = {
+    '.': None,
+    'o': (36, 38, 86),
+    'b': (110, 118, 214),
+    'h': (184, 192, 250),
+    's': (62, 68, 142),
+}
+PAL_SEED_HIGANBANA = {
+    '.': None,
+    'o': (72, 20, 20),
+    'b': (198, 74, 74),
+    'h': (248, 158, 134),
+    's': (128, 40, 40),
+}
+PAL_SEED_MUSHROOM = {
+    '.': None,
+    'o': (48, 24, 70),
+    'b': (176, 108, 220),
+    'h': (220, 182, 250),
+    's': (104, 58, 146),
 }
 
 PAL_CROP_1 = {  # green-stem family (spirit herb)
@@ -65,82 +83,31 @@ PAL_SOIL = {  # farmland is fully opaque: no '.' entries at all
 }
 
 # ------------------------------------------------------------------ seeds
-
-TEX_SEED_HERB = [
+# Four loose seeds scattered in a loose diamond. All four species share this silhouette
+# and are told apart purely by the per-plant palette above.
+_SEED_SCATTER = [
     "................",
     "................",
-    "................",
-    ".....oooooo.....",
-    "....obbbbbbo....",
-    "...obBbbbbbbo...",
-    "..obbwaawbbbo...",
-    "..obbwaawbbbo...",
-    "..obbbbbbbbo....",
-    "..obsbbbbbbo....",
-    "..obbbbbbbbo....",
-    "...osbbbbbbo....",
-    "....ossssso.....",
-    ".....oooooo.....",
-    "................",
-    "................",
-]
-
-TEX_SEED_GENTIAN = [
-    "................",
-    "................",
-    "................",
-    ".....oooooo.....",
-    "....obbbbbbo....",
-    "...obBppbbbbo...",
-    "..obbbppppbbo...",
-    "..obbppwppbbo...",
-    "..obbbppppbbo...",
-    "..obbbbbbbbbo...",
-    "..obsbbbbbbo....",
-    "...osbbbbbbo....",
-    "....ossssso.....",
-    ".....oooooo.....",
+    ".......oo.......",
+    "......ohbo......",
+    "......obso......",
+    ".......oo.......",
+    "...oo......oo...",
+    "..ohbo....ohbo..",
+    "..obso....obso..",
+    "...oo......oo...",
+    ".......oo.......",
+    "......ohbo......",
+    "......obso......",
+    ".......oo.......",
     "................",
     "................",
 ]
 
-TEX_SEED_HIGANBANA = [
-    "................",
-    "................",
-    "................",
-    ".....oooooo.....",
-    "....obbbbbbo....",
-    "...obBrbbbbbbo..",
-    "..obbbrrrbbbbo..",
-    "..obbrrwrrbbbo..",
-    "..obbrrrrrbbbo..",
-    "..obbbbbbbbbo...",
-    "..obsbbbbbbo....",
-    "...osbbbbbbo....",
-    "....ossssso.....",
-    ".....oooooo.....",
-    "................",
-    "................",
-]
-
-TEX_SEED_MUSHROOM = [
-    "................",
-    "................",
-    "................",
-    ".....oooooo.....",
-    "....obbbbbbo....",
-    "...obBvbbbbbo...",
-    "..obbvvvvbbbo...",
-    "..obbvvwvbbbo...",
-    "..obbvvvvbbbo...",
-    "..obbbbbbbbbo...",
-    "..obsbbbbbbo....",
-    "...osbbbbbbo....",
-    "....ossssso.....",
-    ".....oooooo.....",
-    "................",
-    "................",
-]
+TEX_SEED_HERB = list(_SEED_SCATTER)
+TEX_SEED_GENTIAN = list(_SEED_SCATTER)
+TEX_SEED_HIGANBANA = list(_SEED_SCATTER)
+TEX_SEED_MUSHROOM = list(_SEED_SCATTER)
 
 # ------------------------------------------------------------------ crop stage 0: sprout
 
@@ -440,10 +407,10 @@ TEXES = {
 # gen_tex.py resolves a per-entry palette via PAL_<key with / as _>, so build them
 # from the named groups above.
 _PALETTES = {
-    "item/spirit_herb_seeds": PAL_SEEDS,
-    "item/gentian_seeds": PAL_SEEDS,
-    "item/higanbana_seeds": PAL_SEEDS,
-    "item/magic_mushroom_spores": PAL_SEEDS,
+    "item/spirit_herb_seeds": PAL_SEED_HERB,
+    "item/gentian_seeds": PAL_SEED_GENTIAN,
+    "item/higanbana_seeds": PAL_SEED_HIGANBANA,
+    "item/magic_mushroom_spores": PAL_SEED_MUSHROOM,
     "block/spirit_herb_crop_0": PAL_CROP_1,
     "block/spirit_herb_crop_1": PAL_CROP_1,
     "block/spirit_herb_crop_2": PAL_CROP_1,

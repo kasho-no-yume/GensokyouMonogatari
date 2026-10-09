@@ -1,6 +1,6 @@
 ---
 name: boss-dev-design
-description: 召唤型东方 BOSS 的开发与设计规范（本仓库专用）。新增或修改任何 BOSS 实体、符卡、弹幕轨道、召唤配方、BOSS 移动/多目标/伤害逻辑前必读——内含「残影·符卡残片」设定与缺段硬约束、轨道编排模型、R1/R2/R3 三维可读性契约、伤害属性单旋钮、祭品台容量规则，以及本项目实测踩过的十一个坑。
+description: 召唤型东方 BOSS 的开发与设计规范（本仓库专用）。新增或修改任何 BOSS 实体、符卡、弹幕轨道、召唤配方、BOSS 移动/多目标/伤害逻辑前必读——内含轨道编排模型、R1/R2/R3 三维可读性契约、伤害属性单旋钮、祭品台容量规则，以及本项目实测踩过的十一个坑。
 metadata:
   author: bitsson
   version: "1.0"
@@ -25,23 +25,27 @@ metadata:
 7. **大批量拆成多拍。** R3 限的是**单拍**发数，不是整张符卡的累计量（第 8 节）。
 8. **秒数是目标不是保证。** 无敌时间与 BOSS 移动会实打实削掉有效 DPS，
    「觉得太长/太短」一律先实测再改数字（第 5 节）。
+9. **每一发都得朝着玩家去。** `SELF_AXIS` 的 `RING` / `RADIAL_BURST` / `SHELL` / `CAGE`
+   是从 BOSS 身上朝<b>侧边</b>发、垂直于「BOSS→玩家」连线的环——**打不到人，也不逼走位，
+   是花瓶**。符卡几何只允许：`AIMED` 扇 / `AROUND_TARGET`（绕玩家收拢）/ `LATTICE`
+   （绕玩家激光网）/ `DISC_RING`+`RECLAIM`（悬停后朝玩家压来）/ `PILLAR_UP`+`PLAYER_GROUND`
+   （脚下光柱）。（这条是 `add-kurodani-yamame-boss` 第一版栽过的坑：一整套符卡全用
+   `SELF_AXIS` 环，读作「BOSS 朝着没人的地方放烟花」。）
 
 ---
 
-## 1. 设定：残影 = 缺了一段式的符卡
+## 1. 差异来自角色签名，不来自人造装置
 
-符卡的「式」由 **序 · 破 · 結** 三段构成，缺了一段便无法成式。
-三只残影是**缺了某一段的符卡成了精**，它们掉落的碎符卡星就是自己缺掉的那一片。
+**区分每只 BOSS 的，是它角色自身的签名弹幕主题**（山女=网+瘴，狐火=狐火，
+傩=能乐面），MUST NOT 依赖任何形式化的分类装置。
 
-**缺哪一段是对轨道构成的硬约束，不是背景比喻**——`TrackLint` 有对应断言：
+> 历史：早期三只「残影」没有正式模型，曾用一个自创的「序 · 破 · 結 / 缺段」装置
+> 把它们区分开（缺破者不主动瞄准、缺序者无预备拍、缺結者全轨无限）。该机制已在
+> `add-kurodani-yamame-boss` 中**整体撤销**——随着真角色模型陆续到位（大妖精、
+> 黑谷山女），装置已失其用途。`TrackLint.hasNoAimedTrack` / `allTracksEndless`
+> 及其断言、测试均已删除。
 
-| 缺段 | BOSS | 机制约束 | 断言 |
-|---|---|---|---|
-| 破 | 鬼蛛「堅牢」 | 无主攻轨，**不主动瞄准玩家** | `TrackLint.hasNoAimedTrack` |
-| 序 | 狐火「無序」 | 无预备拍，起手即峰值。**MUST NOT 变成「背后凭空刷弹」** | 见 R1 |
-| 結 | 傩神楽面「無終」 | 节拍无终止条件，到时不收束 | `TrackLint.allTracksEndless` |
-
-**缺「序」那条特别容易写错**：无序在 3D 里极易滑向「在玩家背后生成」，
+保留下来的一条设计经验：**「起手即峰值」极易在 3D 里滑向「在玩家背后生成」**，
 而那直接违反 R1，玩家读作作弊。正确做法是**锁在玩家朝向的包络内**——
 读不出是因为没时间，不是因为看不见。
 
@@ -112,7 +116,7 @@ BOSS → 符卡 SpellCard（= 阶段，血量阈值切分）→ 轨道 Track ×1
   每一个 `Beat.tick`**。
 - `repeatEvery` 只适合**本来就要一直重复**的轨（无终止符卡、周期性压制）。
 - 无终止符卡（`Track.Builder#endless`）与 `repeatEvery` 是两件不同的事：
-  前者影响 lint 的缺段断言，后者影响调度。**别用 `endless()` 代替「不设 `repeatEvery`」。**
+  前者声明「到时不收束」，后者影响调度。**别用 `endless()` 代替「不设 `repeatEvery`」。**
 
 ---
 
@@ -501,13 +505,12 @@ emitted=? entityHits=? blockHits=? damageSum=? live=? cap=? rejected=[...]
   □ extends AbstractTouhouBoss（自动：符卡阶段、伤害除数、距离带游走、≤5 目标、咒符条）
   □ implements TouhouBoss（已在基类）
   □ 覆写 policy() 调压迫感；hoverFloor/Ceiling 调高度；starDropCount 掉落量
-  □ 缺段约束：缺破则全表无 AIMED 轨；缺結则全轨 endless
   □ 设 setAnchor(...)：野生 = 祭坛核心；寝宫 = 寝宫刷新点（第 7 节）
   □ 会停的编排用 repeatEvery(0) + 显式枚举 Beat.tick（第 3 节）
   □ 需要环境交互（分身/柱子）时另开 change，别在轨道表里硬凑（第 4 节）
 
 测试
-  □ 符卡表过 TrackLint（含 R1/R2/R3 + 缺段 + 视觉独占 + 色盘容量）
+  □ 符卡表过 TrackLint（含 R1/R2/R3 + 视觉独占 + 色盘容量）
   □ 配方过 SummonBossRecipeCapacityTest（Σcount / spCost / 互斥）
   □ 数值秒带与 danmaku_damage 基准
 ```

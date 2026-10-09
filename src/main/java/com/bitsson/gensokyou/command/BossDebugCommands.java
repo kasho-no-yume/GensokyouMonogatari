@@ -78,7 +78,7 @@ public final class BossDebugCommands {
     private static int list(CommandSourceStack source) {
         source.sendSuccess(() -> Component.literal("[GS-BOSS] 召唤型 BOSS："), false);
         for (EntityType<?> type : List.of(ModEntityTypes.BIG_FAIRY.get(),
-                ModEntityTypes.KUZUMONO.get())) {
+                ModEntityTypes.YAMAME.get())) {
             source.sendSuccess(() -> Component.literal("[GS-BOSS] "
                     + typeId(type) + "  ->  /gs_boss spawn "
                     + typeId(type)), false);
@@ -89,7 +89,7 @@ public final class BossDebugCommands {
     private static int lint(CommandSourceStack source) {
         int violations = 0;
         for (EntityType<?> type : List.of(ModEntityTypes.BIG_FAIRY.get(),
-                ModEntityTypes.KUZUMONO.get())) {
+                ModEntityTypes.YAMAME.get())) {
             // 实体需要世界才能构造，故 lint 走静态符卡表；此处只做存在性自检。
             source.sendSuccess(() -> Component.literal("[GS-BOSS] "
                     + typeId(type) + " 已注册"), false);
