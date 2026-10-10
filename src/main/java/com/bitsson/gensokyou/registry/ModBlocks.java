@@ -6,6 +6,8 @@ import com.bitsson.gensokyou.block.DanmakuAssemblyBenchBlock;
 import com.bitsson.gensokyou.block.RitualCoreBlock;
 import com.bitsson.gensokyou.block.RitualPedestalBlock;
 import com.bitsson.gensokyou.block.SukimaBlock;
+import com.bitsson.gensokyou.block.LandscapingBlock;
+import com.bitsson.gensokyou.block.SpiritBombBlock;
 import com.bitsson.gensokyou.block.SpiritCropBlock;
 import com.bitsson.gensokyou.block.SpiritPlantBlock;
 import com.bitsson.gensokyou.block.SpiritSaplingBlock;
@@ -101,17 +103,26 @@ public final class ModBlocks {
                             .sound(SoundType.WOOD));
 
     /**
-     * 灵力引爆器的渲染锚点方块：<b>无物品形态、不可放置、无掉落</b>。
+     * 灵力引爆器：真正的可放置方块（碰撞箱 + 方块贴图 + 右键开配置界面）。
      *
-     * <p>引爆器本体是实体（{@code SpiritBombEntity} + GUI + 自定义爆炸，见 design.md D9），
-     * 这里只注册一个带专属模型/贴图的方块状态，供 {@code SpiritBombRenderer} 绘制外观，
-     * 替换掉早先用原版 TNT 方块顶替的占位。
+     * <p>它同时是设备与爆炸物：沉睡态由 {@code SpiritBombBlockEntity} 保存参数，
+     * 启动后自行倒计时起爆。掉落由 {@link com.bitsson.gensokyou.block.SpiritBombBlock#getDrops}
+     * 按运行时状态决定，故 {@code noLootTable()}。
      */
-    public static final DeferredBlock<Block> SPIRIT_BOMB =
-            BLOCKS.registerBlock("spirit_bomb", Block::new,
+    public static final DeferredBlock<SpiritBombBlock> SPIRIT_BOMB =
+            BLOCKS.registerBlock("spirit_bomb", SpiritBombBlock::new,
                     BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_RED)
                             .strength(1.5F, 6F).sound(SoundType.STONE)
                             .noOcclusion().noLootTable());
+
+    /**
+     * 整地器：可放置的施工设备。右键开界面配置长(X)/宽(Z)/高(Y)盒体并启动，
+     * 按盒体清除地形白名单、把底层铺成泥土。掉落由 {@code LandscapingBlock#getDrops} 给。
+     */
+    public static final DeferredBlock<LandscapingBlock> LANDSCAPING =
+            BLOCKS.registerBlock("landscaping_tool", LandscapingBlock::new,
+                    BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GREEN)
+                            .strength(1.5F, 6F).sound(SoundType.STONE).noOcclusion().noLootTable());
 
     // ---------------- 幻想乡素材方块（矿产/土产/木材）----------------
     /** 矿产：辰砂 / 灵铁矿 / 星银矿 / 鬼石。 */

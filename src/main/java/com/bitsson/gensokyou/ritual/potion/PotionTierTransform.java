@@ -215,9 +215,17 @@ public final class PotionTierTransform {
         if (options.isExcluded(instance)) {
             return copyOf(instance);
         }
-        // 2阶 = 品质 +1 <b>且</b> 时长延长（"红石 + 荧石同施"，原版造不出这个组合）
-        int newAmplifier = instance.getAmplifier() + 1;
+        // 2阶 = 品质 +1 <b>且</b> 时长延长（"红石 + 荧石同施"，原版造不出这个组合）。
+        // 品质无意义的效果（NoAmplifierEffect，如灵视/彼岸花毒）只延长时长、不拔品质。
+        int newAmplifier = noAmplify(instance) ? instance.getAmplifier() : instance.getAmplifier() + 1;
         return with(instance, tier2Duration(source, instance, options), newAmplifier);
+    }
+
+    /** 该效果是否声明品质无意义（见 {@link com.bitsson.gensokyou.effect.NoAmplifierEffect}）。 */
+    private static boolean noAmplify(MobEffectInstance instance) {
+        Holder<MobEffect> effect = instance.getEffect();
+        return effect != null
+                && effect.value() instanceof com.bitsson.gensokyou.effect.NoAmplifierEffect;
     }
 
     /**
@@ -269,7 +277,9 @@ public final class PotionTierTransform {
                 continue;
             }
             int floor = vanillaCeiling(source, current);
-            out.add(with(current, current.getDuration(), Math.max(current.getAmplifier() + 1, floor)));
+            int amplifier = noAmplify(current) ? current.getAmplifier()
+                    : Math.max(current.getAmplifier() + 1, floor);
+            out.add(with(current, current.getDuration(), amplifier));
         }
         return List.copyOf(out);
     }

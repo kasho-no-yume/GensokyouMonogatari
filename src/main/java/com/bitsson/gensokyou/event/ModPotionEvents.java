@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.event;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.effect.SpiritualSightEffect;
+import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModMobEffects;
 import net.minecraft.ChatFormatting;
 import net.minecraft.server.level.ServerLevel;
@@ -51,8 +52,11 @@ public final class ModPotionEvents {
         if (player.level().getGameTime() % SIGHT_SCAN_INTERVAL != 0) {
             return;
         }
-        double radius = SpiritualSightEffect.radius();
-        if (radius <= 0.0D || !(player.level() instanceof ServerLevel level)) {
+        if (!(player.level() instanceof ServerLevel level)) {
+            return;
+        }
+        double radius = sightRadius(player);
+        if (radius <= 0.0D) {
             return;
         }
         PlayerTeam team = ensureSightTeam(level);
@@ -78,6 +82,22 @@ public final class ModPotionEvents {
         }
         team.setColor(ChatFormatting.GREEN);
         return team;
+    }
+
+    /**
+     * 显形扫描半径：至少覆盖服务端视野距离（{@code viewDistance} × 16 格）。
+     *
+     * <p>实体被服务端「绘制」给客户端的范围不会超过服务端视野距离，故以此为下限即可保证
+     * 「只要绘制了的实体都能被灵视看到」；{@code spiritualSightRadius} 配置只作为额外的下限抬高，
+     * 无法把范围缩到视野距离以内（避免出现「看得见却扫不到」）。
+     */
+    private static double sightRadius(ServerPlayer player) {
+        double floor = SpiritualSightEffect.radius();
+        double render = 0.0D;
+        if (player.getServer() != null) {
+            render = player.getServer().getPlayerList().getViewDistance() * 16.0D;
+        }
+        return Math.max(floor, render);
     }
 
     // ------------------------------------------------------------------ 彼岸花毒免伤
@@ -114,24 +134,45 @@ public final class ModPotionEvents {
     // ------------------------------------------------------------------ 彼岸花毒契约死亡
 
     /**
-     * 效果被移除（自然到期 / 牛奶 / 指令）即执行契约。
+     * 效果自然到期即执行契约。
+     *
+     * <p><b>为什么必须单独接 {@link MobEffectEvent.Expired}</b>：原版
+     * {@code LivingEntity#tickEffects} 在时长耗尽时只发 {@code Expired} 然后直接
+     * {@code iterator.remove() + onEffectRemoved()}，<b>不会</b>经过 {@code removeEffect()}，
+     * 因此 <b>不</b>发 {@link MobEffectEvent.Remove}。只监听 Remove 会漏掉「自然到期」这条，
+     * 正是"到期后没死"的根因。两条路径互斥，不会重复死亡。
+     */
+    @SubscribeEvent
+    public static void onEffectExpired(MobEffectEvent.Expired event) {
+        if (event.getEffectInstance() == null
+                || !event.getEffectInstance().getEffect().is(ModMobEffects.HIGANBANA_POISON)) {
+            return;
+        }
+        killByContract(event.getEntity());
+    }
+
+    /**
+     * 效果被移除（牛奶 / 指令 / 其它显式移除）即执行契约。
      *
      * <p><b>为什么不用 {@code hurt()}</b>：不死图腾的判定挂在 {@code LivingEntity#hurt} 内部，
      * 走伤害路径会被图腾救回。这里直接 {@code setHealth(0) + die()}，
      * 完全不进 {@code hurt()}，图腾无从触发。{@code setHealth(0)} 会让 {@code isAlive()}
-     * 转假，因此效果清理触发的第二次 {@code Remove} 会被上面的存活判重挡掉，不会递归。
+     * 转假，因此效果清理触发的后续事件会被存活判重挡掉，不会递归/重复。
      */
     @SubscribeEvent
     public static void onEffectRemoved(MobEffectEvent.Remove event) {
         if (!event.getEffect().is(ModMobEffects.HIGANBANA_POISON)) {
             return;
         }
-        LivingEntity entity = event.getEntity();
+        killByContract(event.getEntity());
+    }
+
+    private static void killByContract(LivingEntity entity) {
         if (entity.level().isClientSide || !entity.isAlive()) {
             return;
         }
         entity.setHealth(0.0F);
-        entity.die(entity.damageSources().starve());
+        entity.die(ModDamageTypes.higanbana(entity));
     }
 
     /** 供调试读取：当前是否应显形。 */

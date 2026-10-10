@@ -5,6 +5,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
@@ -206,6 +207,36 @@ class PotionTierTransformTest {
                     PotionTierTransform.apply(source(Potions.HEALING), tier, blacklisted);
             assertEquals(0, applied.get(0).getAmplifier(), "黑名单内 heal 不应升品质");
             assertEquals(1, applied.get(0).getDuration(), "黑名单内 heal 应保持基础时长");
+        }
+    }
+
+    // -------------------------------------------------------------- 品质无意义效果
+
+    /**
+     * 实现 {@code NoAmplifierEffect} 的效果（如灵视 / 彼岸花毒）：品质不承载机制差异，
+     * 变换时只延长时长、绝不拔品质——既不同于普通效果的 +1，也不同于黑名单的"完全不动"。
+     */
+    @Test
+    void noAmplifierEffectExtendsDurationWithoutRaisingAmplifier() {
+        Holder<MobEffect> effect = Holder.direct(new NonAmplifiableTestEffect());
+        MobEffectInstance base = new MobEffectInstance(effect, 100, 0);
+        MobEffectInstance longVariant = new MobEffectInstance(effect, 400, 0);
+        PotionTierTransform.Source src =
+                new PotionTierTransform.Source(List.of(base), List.of(longVariant), null);
+
+        MobEffectInstance two = PotionTierTransform.apply(src, 2, options()).get(0);
+        assertEquals(0, two.getAmplifier(), "品质无意义的效果不应升品质");
+        assertEquals(400, two.getDuration(), "时长仍应抄 LONG 兄弟");
+
+        MobEffectInstance three = PotionTierTransform.apply(src, 3, options()).get(0);
+        assertEquals(0, three.getAmplifier(), "3 阶仍不应升品质");
+        assertEquals(400, three.getDuration(), "3 阶时长不变");
+    }
+
+    private static final class NonAmplifiableTestEffect extends MobEffect
+            implements com.bitsson.gensokyou.effect.NoAmplifierEffect {
+        private NonAmplifiableTestEffect() {
+            super(MobEffectCategory.BENEFICIAL, 0xFFFFFF);
         }
     }
 

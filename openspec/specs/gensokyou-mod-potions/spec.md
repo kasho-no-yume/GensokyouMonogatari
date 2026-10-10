@@ -1,5 +1,8 @@
-## ADDED Requirements
+# gensokyou-mod-potions Specification
 
+## Purpose
+TBD - created by archiving change add-gensokyou-material-uses. Update Purpose after archive.
+## Requirements
 ### Requirement: 粗制冥汤（炼药台路径的 mod 版 awkward potion）
 系统 SHALL 注册 mod potion `gensokyou:crude_sanzu_potion`（粗制冥汤）。它 SHALL 仅能由炼药台以 `minecraft:awkward_potion` + `gensokyou:sanzu_flask` 酿造得出，并 SHALL 作为全部 mod 药水的共同基液。
 
@@ -25,13 +28,19 @@
 ### Requirement: 强效与长效档的素材门槛
 mod 药水的长效档 SHALL 需要消耗 `gensokyou:moon_sand`（月砂）作为触媒，强效档 SHALL 需要消耗 `gensokyou:porcelain`（瓷器）作为封装耗材；每一次档位转化 SHALL 消耗恰好 1 个对应素材。缺少对应素材时相应档位 SHALL NOT 可炼制。
 
+档位 SHALL 按效果逐个定义，MUST NOT 强求每个效果三档齐全：回灵汤为瞬发效果、时长无意义，MUST NOT 有长效档（与原版瞬间治疗只有 I/II 一致）；灵视药水与彼岸花毒的品质不承载任何机制差异、MUST NOT 有强效档（等级恒为 I，与原版夜视一致）；灵触药水三档齐全。
+
 #### Scenario: 长效档需月砂
-- **WHEN** 玩家对任一 mod 药水使用红石但未持有 `gensokyou:moon_sand`
+- **WHEN** 玩家拥有长效档的 mod 药水并对其实用红石（原版触媒）但未持有 `gensokyou:moon_sand`
 - **THEN** 无法炼成长效档；持有月砂时转化成功并消耗 1 个月砂
 
 #### Scenario: 强效档需瓷器
-- **WHEN** 玩家对任一 mod 药水使用萤石但未持有 `gensokyou:porcelain`
+- **WHEN** 玩家拥有强效档的 mod 药水并对其实用萤石（原版触媒）但未持有 `gensokyou:porcelain`
 - **THEN** 无法炼成强效档；持有瓷器时转化成功并消耗 1 个瓷器
+
+#### Scenario: 无强效档的效果不可升 II
+- **WHEN** 玩家对灵视药水或彼岸花毒使用瓷器
+- **THEN** 不产出任何强效档条目，等级仍为 I
 
 ### Requirement: 瓷器由煅炉精炼而非原版熔炉
 `gensokyou:porcelain` SHALL 只能经金山彦命煅炉的专属精炼规则由 `gensokyou:porcelain_clay` 产出，MUST NOT 由原版熔炉、高炉或烟熏炉炼出。
@@ -56,15 +65,15 @@ mod 药水的长效档 SHALL 需要消耗 `gensokyou:moon_sand`（月砂）作�
 - **THEN** 每条配方除 `eternal_wood` 外还含至少一件别的幻想乡素材，满足 `gensokyo-materials` 的独有品规则
 
 ### Requirement: mod 药水效果
-系统 SHALL 注册四个 mod 药水效果：持续灵力回复、灵视、灵触、彼岸花毒。四者 SHALL NOT 提供任何形式的伤害抗性提升（彼岸花毒的 80% 免伤例外见下条），且 SHALL NOT 与原版药水效果同名或同形。
+系统 SHALL 注册四个 mod 药水效果：瞬发灵力回复、灵视、灵触、彼岸花毒。四者 SHALL NOT 提供任何形式的伤害抗性提升（彼岸花毒的 80% 免伤例外见下条），且 SHALL NOT 与原版药水效果同名或同形。灵视与彼岸花毒的等级 SHALL 恒为 I（无强效档），彼岸花毒的死亡契约见下条。
 
-#### Scenario: 持续灵力回复
-- **WHEN** 玩家持有回灵汤效果
-- **THEN** 效果持续期间玩家灵力池按配置速率额外回复，效果结束后停止
+#### Scenario: 瞬发灵力回复
+- **WHEN** 玩家饮用或被喷溅到回灵汤
+- **THEN** 玩家在生效瞬间一次性回复「当前最大灵力 × 配置比例 × (品质+1)」的灵力（I 阶 10%、II 阶 20%），不产生持续回复、不显示持续时间；灵力已满时为 no-op
 
 #### Scenario: 灵视显形
 - **WHEN** 玩家持有灵视效果
-- **THEN** 范围内的实体以绿色发光轮廓渲染且可穿墙看见，效果结束后轮廓消失
+- **THEN** 服务端视野距离内的实体以绿色发光轮廓渲染且可穿墙看见，效果结束后轮廓消失
 
 #### Scenario: 灵触延伸
 - **WHEN** 玩家持有灵触效果
@@ -92,3 +101,4 @@ mod 药水的长效档 SHALL 需要消耗 `gensokyou:moon_sand`（月砂）作�
 #### Scenario: 图腾不阻挡
 - **WHEN** 彼岸花毒到期触发死亡且玩家持有不死图腾
 - **THEN** 图腾不触发，玩家死亡
+

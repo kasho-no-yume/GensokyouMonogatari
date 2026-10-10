@@ -7,7 +7,6 @@ import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
-import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.registry.ModItems;
 import com.bitsson.gensokyou.ritual.RitualMatch;
 import com.bitsson.gensokyou.ritual.RitualPedestals;
@@ -72,45 +71,6 @@ public final class SunakoBrewing {
     // ------------------------------------------------------------------ 祭品台扫描
 
     /**
-     * 仪式结构内是否放置了 {@code gensokyou:magic_wood}——它决定 mod 试剂是否被接受。
-     *
-     * <p><b>为什么扫结构包围盒而不是加一个 palette 键</b>：加 palette 键会把魔法木变成
-     * <b>必需</b>方块，直接改变 pattern 的搭建要求与既有存档的匹配结果；而需求是"可选构件"。
-     * 结构包围盒（{@code structureMinY/MaxY/RadiusXZ}）由核心在重扫时写入，是现成的边界来源，
-     * 一次遍历成本随结构规模线性增长，仪式只在点击与 GUI 刷新时各扫一遍，可接受。
-     *
-     * <p><b>退化路径</b>：本方法的返回值只影响"是否接受 mod 试剂"，与祭品台机制无关，
-     * 因此若将来要改成"祭品台放魔法木"，只需把这里的扫描换成台面判定。
-     */
-    public static boolean hasBrewingCore(ServerLevel level, SpiritPowerAccess core) {
-        BlockPos center = core.getBlockPos();
-        int minY = core.structureMinY();
-        int maxY = core.structureMaxY();
-        int radius = core.structureRadiusXZ();
-        for (BlockPos pos : BlockPos.betweenClosed(
-                center.offset(-radius, minY, -radius),
-                center.offset(radius, maxY, radius))) {
-            if (level.getBlockState(pos).is(ModBlocks.MAGIC_WOOD.get())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 当前试剂是否是 mod 专属试剂（四种 mod 植物）。这些试剂只有在结构内有魔法木时才可用。
-     */
-    public static boolean isModReagent(ItemStack reagent) {
-        if (reagent == null || reagent.isEmpty()) {
-            return false;
-        }
-        return reagent.is(ModItems.SPIRIT_HERB.get())
-                || reagent.is(ModItems.MAGIC_MUSHROOM.get())
-                || reagent.is(ModItems.GENTIAN.get())
-                || reagent.is(ModItems.HIGANBANA.get());
-    }
-
-    /**
      * 扫一遍祭品台。{@code other} 只用于 GUI 展示"有东西但不是三途川水"，
      * <b>不参与</b>任何产出计算，也不被消耗或清空。
      */
@@ -166,11 +126,6 @@ public final class SunakoBrewing {
                                SpiritPowerAccess core) {
         Optional<BrewReagentIndex.Resolution> resolution = reagent(level, core);
         if (resolution.isEmpty()) {
-            return Outcome.NONE;
-        }
-        // mod 试剂门槛：结构内没有魔法木时拒绝炼 mod 药水，零消耗返回失败
-        if (isModReagent(core.extraSlot(REAGENT_SLOT))
-                && !hasBrewingCore(level, core)) {
             return Outcome.NONE;
         }
         List<BlockPos> valid = validPedestals(level, match);
@@ -240,7 +195,7 @@ public final class SunakoBrewing {
         // 产出预览走**纯文字行**：真槽位（左下 9,61）已经把试剂画出来了，信息栏再画一个
         // 带框的物品格就会并排出现两个"原料槽"（实机反馈）。
         lines.add(previewLine(ritualLevel, resolution));
-        lines.add(stateLine(ritualLevel, level, core, scan, stored, affordable, resolution));
+        lines.add(stateLine(scan, affordable, resolution));
         // 台位：可见行只放两个数，"放了别的东西"的台数下沉 tooltip
         lines.add(InfoLine.tipped("gui.gensokyou.ritual.sunako.pedestals",
                 new String[]{String.valueOf(scan.water()), String.valueOf(scan.pedestals())},
@@ -304,18 +259,11 @@ return lines;
         return new String[]{String.join("\n", parts)};
     }
 
-    private static InfoLine stateLine(int level, ServerLevel serverLevel, SpiritPowerAccess core,
-                                      PedestalScan scan, long stored, int affordable,
+    private static InfoLine stateLine(PedestalScan scan, int affordable,
                                       Optional<BrewReagentIndex.Resolution> resolution) {
         if (resolution.isEmpty()) {
             return new InfoLine("gui.gensokyou.ritual.sunako.no_reagent", new String[0], "",
                     COLOR_IDLE, -1F, null);
-        }
-        // mod 试剂但结构内没有魔法木：给出明确原因，而不是笼统的"无法炼制"
-        if (isModReagent(core.extraSlot(REAGENT_SLOT))
-                && !hasBrewingCore(serverLevel, core)) {
-            return new InfoLine("gui.gensokyou.ritual.sunako.no_magic_wood",
-                    new String[0], "", COLOR_WARN, -1F, null);
         }
         if (scan.water() <= 0) {
             return new InfoLine("gui.gensokyou.ritual.sunako.no_water", new String[0], "",

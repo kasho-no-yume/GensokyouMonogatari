@@ -14,9 +14,9 @@ import net.minecraft.world.entity.player.Inventory;
 /**
  * 灵力引爆器配置界面：三个滑块 + 消耗预估 + 启动按钮。
  *
- * <p><b>滑块只在本地下界</b>：拖动过程中不改服务端任何东西，松手
- * （{@link #mouseReleased}）才提交。服务端钳制后由 {@link SpiritBombStatePayload}
- * 回发，下一帧滑块自动对齐——显示值永远等于服务端回发值，不会漂移。
+ * <p><b>为什么重写 {@link #mouseDragged}</b>：本版本 {@code AbstractContainerScreen.mouseDragged}
+ * 恒返回 true 且<b>不转发</b>给聚焦控件，滑块因此只能点不能拖。本界面无物品槽，直接把拖动
+ * 转给聚焦控件即可（这也是原版选项界面用普通 {@code Screen} 能拖、而容器界面不能的原因）。
  */
 public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
 
@@ -27,6 +27,13 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
     private ParamSlider radiusSlider;
     private Button armButton;
     private SpiritBombStatePayload state;
+    /** 是否已收到过服务端状态：未收到时按钮中性显示，不误报「已不在世界上」。 */
+    private boolean received;
+    /** 服务端已生效参数：仅在服务端值真正变化时才回写滑块。 */
+    private boolean hasApplied;
+    private int appliedFuse;
+    private float appliedPower;
+    private int appliedRadius;
 
     public SpiritBombScreen(SpiritBombMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
@@ -60,7 +67,21 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
                 .bounds(left, top + 82, SLIDER_WIDTH, 20)
                 .build());
 
+        // 界面已存在，此时请求一次状态（一次性，不 tick）
+        menu.requestState();
         syncButton();
+    }
+
+    /**
+     * 绕过 {@code AbstractContainerScreen.mouseDragged} 的「恒吞且不转发」缺陷，
+     * 把拖动交给聚焦控件（滑块），使滑块可正常拖动。
+     */
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (this.getFocused() != null && this.isDragging() && button == 0) {
+            return this.getFocused().mouseDragged(mouseX, mouseY, button, dragX, dragY);
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
     private static double defaultFuseSeconds() {
@@ -79,10 +100,20 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
         return (int) Math.round(radiusSlider.paramValue());
     }
 
-    /** 客户端收到服务端状态：更新按钮态与滑块显示（保持权威值）。 */
+    /** 客户端收到服务端状态：仅在服务端参数<b>真正变化</b>时才回写滑块。 */
     public void onState(SpiritBombStatePayload payload) {
+        this.received = true;
         this.state = payload;
-        if (fuseSlider != null) {
+        if (fuseSlider == null || !payload.present()) {
+            syncButton();
+            return;
+        }
+        if (!hasApplied || payload.fuseTicks() != appliedFuse
+                || payload.power() != appliedPower || payload.radius() != appliedRadius) {
+            hasApplied = true;
+            appliedFuse = payload.fuseTicks();
+            appliedPower = payload.power();
+            appliedRadius = payload.radius();
             fuseSlider.setParamValue(payload.fuseTicks() / 20.0D);
             powerSlider.setParamValue(payload.power());
             radiusSlider.setParamValue(payload.radius());
@@ -92,6 +123,11 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
 
     private void syncButton() {
         if (armButton == null) {
+            return;
+        }
+        if (!received) {
+            armButton.active = false;
+            armButton.setMessage(Component.translatable("gui.gensokyou.spirit_bomb.arm"));
             return;
         }
         if (state == null || !state.present()) {
@@ -141,12 +177,7 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
         this.renderTooltip(graphics, mouseX, mouseY);
     }
 
-    /**
-     * 把一个 double 参数映射到 0..1 的滑块进度，按 step 取整。
-     *
-     * <p><b>为什么包成静态内部类</b>：三个滑块共用同一套映射/格式化逻辑，
-     * 只有 labelKey 与取值域不同；抽出来避免三份近似重复的匿名类。
-     */
+    /** 把一个 double 参数映射到 0..1 的滑块进度，按 step 取整。 */
     public static class ParamSlider extends AbstractSliderButton {
 
         private final String labelKey;
@@ -181,11 +212,7 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
             updateMessage();
         }
 
-        /**
-         * 拖动过程中被原版调用。<b>刻意什么都不做</b>：改参数是松手
-         * （{@code mouseReleased}）才提交的服务端权威动作，
-         * 在这里发包会让每次像素移动都产生一次上行包。
-         */
+        /** 拖动过程中被原版调用。刻意什么都不做：改参数是松手才提交的服务端权威动作。 */
         @Override
         protected void applyValue() {
         }

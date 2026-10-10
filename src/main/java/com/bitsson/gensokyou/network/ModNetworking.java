@@ -66,6 +66,14 @@ public final class ModNetworking {
                 ClientPayloadHandler::handleSpiritBombState);
         registrar.playToServer(SpiritBombConfigPayload.TYPE, SpiritBombConfigPayload.STREAM_CODEC,
                 SpiritBombConfigPayload::handle);
+        registrar.playToServer(SpiritBombRequestPayload.TYPE, SpiritBombRequestPayload.STREAM_CODEC,
+                SpiritBombRequestPayload::handle);
+        registrar.playToClient(LandscapingStatePayload.TYPE, LandscapingStatePayload.STREAM_CODEC,
+                ClientPayloadHandler::handleLandscapingState);
+        registrar.playToServer(LandscapingConfigPayload.TYPE, LandscapingConfigPayload.STREAM_CODEC,
+                LandscapingConfigPayload::handle);
+        registrar.playToServer(LandscapingRequestPayload.TYPE, LandscapingRequestPayload.STREAM_CODEC,
+                LandscapingRequestPayload::handle);
         registrar.playToClient(EditorPreviewPayload.TYPE, EditorPreviewPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleEditorPreview);
         registrar.playToClient(RitualDataSyncPayload.TYPE, RitualDataSyncPayload.STREAM_CODEC,

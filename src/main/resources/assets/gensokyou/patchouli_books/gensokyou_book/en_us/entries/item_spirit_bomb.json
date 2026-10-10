@@ -1,0 +1,17 @@
+{
+  "name": "item.gensokyou.spirit_bomb",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:spirit_bomb",
+  "sortnum": 61,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:spirit_bomb",
+      "text": "gensokyou.book.entry.item_spirit_bomb.p1"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.item_spirit_bomb.p2"
+    }
+  ]
+}

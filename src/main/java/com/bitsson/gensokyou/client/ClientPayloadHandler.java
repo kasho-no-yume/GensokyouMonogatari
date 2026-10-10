@@ -196,6 +196,17 @@ public final class ClientPayloadHandler {
         });
     }
 
+    /** 整地器配置界面状态回执：转交当前屏幕（驱动尺寸滑块与线框）。 */
+    public static void handleLandscapingState(
+            com.bitsson.gensokyou.network.LandscapingStatePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (net.minecraft.client.Minecraft.getInstance().screen
+                    instanceof com.bitsson.gensokyou.client.screen.LandscapingScreen screen) {
+                screen.onState(payload);
+            }
+        });
+    }
+
     public static void handleSpellCardName(
             com.bitsson.gensokyou.network.SpellCardNamePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> ClientSpellCardNames.put(payload.entityId(), payload.cardIndex()));

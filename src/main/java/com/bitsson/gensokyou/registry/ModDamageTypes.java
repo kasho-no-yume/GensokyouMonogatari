@@ -15,6 +15,9 @@ public final class ModDamageTypes {
     /** 神恩演出的脚本伤害类型：不入弹幕减免管线、不触发灵汲（均为按类型排除的天然语义）。 */
     public static final ResourceKey<DamageType> GRACE_PERFORM =
             ResourceKey.create(Registries.DAMAGE_TYPE, Gensokyou.id("grace_perform"));
+    /** 彼岸花毒的契约死亡：只提供死亡提示（"…去往彼岸了"），不入任何减免管线。 */
+    public static final ResourceKey<DamageType> HIGANBANA =
+            ResourceKey.create(Registries.DAMAGE_TYPE, Gensokyou.id("higanbana"));
 
     private ModDamageTypes() {
     }
@@ -33,6 +36,15 @@ public final class ModDamageTypes {
                 .registryAccess()
                 .registryOrThrow(Registries.DAMAGE_TYPE)
                 .getHolderOrThrow(GRACE_PERFORM);
+        return new DamageSource(holder);
+    }
+
+    /** 彼岸花毒契约死亡伤害源：无攻击者，只为命中 {@code death.attack.gensokyou.higanbana} 提示。 */
+    public static DamageSource higanbana(Entity victim) {
+        Holder<DamageType> holder = victim.level()
+                .registryAccess()
+                .registryOrThrow(Registries.DAMAGE_TYPE)
+                .getHolderOrThrow(HIGANBANA);
         return new DamageSource(holder);
     }
 

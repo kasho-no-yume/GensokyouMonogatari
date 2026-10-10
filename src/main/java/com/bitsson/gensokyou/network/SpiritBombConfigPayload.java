@@ -61,23 +61,19 @@ public record SpiritBombConfigPayload(BlockPos bombPos, boolean arm, int fuseTic
             if (!(player.level() instanceof net.minecraft.server.level.ServerLevel level)) {
                 return;
             }
-            // 用实体而不是方块定位：引爆器是实体，可能因移动/卸载而消失
-            for (com.bitsson.gensokyou.entity.SpiritBombEntity bomb
-                    : level.getEntitiesOfClass(com.bitsson.gensokyou.entity.SpiritBombEntity.class,
-                    player.getBoundingBox().inflate(48.0D))) {
-                if (!bomb.blockPosition().equals(payload.bombPos())) {
-                    continue;
-                }
-                bomb.setFuseTicks(payload.fuseTicks());
-                bomb.setPower(payload.power());
-                bomb.setBlastRadius(payload.radius());
-                if (payload.arm()) {
-                    bomb.arm(level, player);
-                }
-                com.bitsson.gensokyou.menu.SpiritBombMenu.sendStateTo(player, bomb);
+            // 用方块实体定位：引爆器现在是方块，pos 即其位置
+            if (!(level.getBlockEntity(payload.bombPos())
+                    instanceof com.bitsson.gensokyou.block.entity.SpiritBombBlockEntity bomb)) {
+                com.bitsson.gensokyou.menu.SpiritBombMenu.sendAbsentTo(player, payload.bombPos());
                 return;
             }
-            com.bitsson.gensokyou.menu.SpiritBombMenu.sendAbsentTo(player, payload.bombPos());
+            bomb.setFuseTicks(payload.fuseTicks());
+            bomb.setPower(payload.power());
+            bomb.setBlastRadius(payload.radius());
+            if (payload.arm()) {
+                bomb.arm(player);
+            }
+            com.bitsson.gensokyou.menu.SpiritBombMenu.sendStateTo(player, bomb);
         });
     }
 }

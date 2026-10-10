@@ -4,11 +4,13 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.registry.ModItems;
 import com.bitsson.gensokyou.registry.ModPotions;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionBrewing;
 import net.minecraft.world.item.alchemy.Potions;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.brewing.RegisterBrewingRecipesEvent;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 /**
  * mod 药水线的炼药台配方注册。
@@ -38,27 +40,34 @@ public final class ModPotionBrewing {
         PotionBrewing.Builder builder = event.getBuilder();
         Item flask = ModItems.SANZU_FLASK.get();
 
-        // 第一步：粗制药水 + 瓶装三途川水（冥水）→ 粗制冥汤 / 长效 / 强效
+        // 第一步：粗制药水 + 瓶装三途川水（冥水）→ 粗制冥汤（mod 版 awkward，无效果、无档位）
         builder.addMix(Potions.AWKWARD, flask, ModPotions.CRUDE_SANZU);
-        builder.addMix(Potions.AWKWARD, flask, ModPotions.LONG_CRUDE);
-        builder.addMix(Potions.AWKWARD, flask, ModPotions.STRONG_CRUDE);
 
-        // 第二步：粗制冥汤（三档）+ 四种 mod 植物 → 对应成品药水
+        // 第二步：粗制冥汤 + 四种 mod 植物 → 对应成品药水（基础档）
         for (String id : ModPotions.ORDER) {
-            Item reagent = reagentFor(id);
-            builder.addMix(ModPotions.CRUDE_SANZU, reagent, ModPotions.BASE.get(id));
-            builder.addMix(ModPotions.LONG_CRUDE, reagent, ModPotions.LONG.get(id));
-            builder.addMix(ModPotions.STRONG_CRUDE, reagent, ModPotions.STRONG.get(id));
+            builder.addMix(ModPotions.CRUDE_SANZU, reagentFor(id), ModPotions.BASE.get(id));
         }
 
-        // 档位：mod 药水 + 月砂 → 长效；mod 药水 + 瓷器 → 强效（跨档互通）
+        // 档位：mod 药水 + 月砂 → 长效；mod 药水 + 瓷器 → 强效（跨档互通）。
+        // 并非每个效果都有三个档：瞬发的回灵汤没有长效档，灵视/彼岸花毒没有强效档，
+        // 缺失的档位直接跳过，不注册配方（见 ModPotions 的档位说明）。
         Item moonSand = ModItems.MOON_SAND.get();
         Item porcelain = ModItems.PORCELAIN.get();
         for (String id : ModPotions.ORDER) {
-            builder.addMix(ModPotions.BASE.get(id), moonSand, ModPotions.LONG.get(id));
-            builder.addMix(ModPotions.BASE.get(id), porcelain, ModPotions.STRONG.get(id));
-            builder.addMix(ModPotions.LONG.get(id), porcelain, ModPotions.STRONG.get(id));
-            builder.addMix(ModPotions.STRONG.get(id), moonSand, ModPotions.LONG.get(id));
+            DeferredHolder<Potion, Potion> base = ModPotions.BASE.get(id);
+            DeferredHolder<Potion, Potion> longPotion = ModPotions.longOf(id);
+            DeferredHolder<Potion, Potion> strongPotion = ModPotions.strongOf(id);
+            if (longPotion != null) {
+                builder.addMix(base, moonSand, longPotion);
+            }
+            if (strongPotion != null) {
+                builder.addMix(base, porcelain, strongPotion);
+            }
+            // 跨档互通只在两个档都存在时有意义
+            if (longPotion != null && strongPotion != null) {
+                builder.addMix(longPotion, porcelain, strongPotion);
+                builder.addMix(strongPotion, moonSand, longPotion);
+            }
         }
     }
 

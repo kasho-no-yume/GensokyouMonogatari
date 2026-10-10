@@ -11,14 +11,17 @@ import net.minecraft.world.effect.MobEffectCategory;
  * 本来就穿墙可见，颜色由实体所属队伍的 {@code teamColor} 决定。给实体挂一个短时效的
  * {@code MobEffects.GLOWING}，再通过一个专用队伍把描边染绿，即可零渲染成本拿到
  * 「绿色灵气缭绕」的效果。真正的显形扫描由 {@link com.bitsson.gensokyou.event.ModPotionEvents} 驱动。
+ *
+ * <p>本类实现 {@link NoAmplifierEffect}：显形半径固定，品质毫无意义，
+ * 故既无强效档，仪式变换也不会给它拔品质。
  */
-public class SpiritualSightEffect extends MobEffect {
+public class SpiritualSightEffect extends MobEffect implements NoAmplifierEffect {
 
     public SpiritualSightEffect() {
         super(MobEffectCategory.BENEFICIAL, 0x7FE86A);
     }
 
-    /** 显形半径（格），供扫描器读取；0 或负数表示关闭。 */
+    /** 显形半径（格）的下限，供扫描器读取；0 或负数表示不额外扩大。 */
     public static double radius() {
         return Math.max(0.0D, GensokyouConfig.SPIRITUAL_SIGHT_RADIUS.get());
     }

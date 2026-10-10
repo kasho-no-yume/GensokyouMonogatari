@@ -1,0 +1,17 @@
+{
+  "name": "item.gensokyou.landscaping_tool",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:landscaping_tool",
+  "sortnum": 60,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:landscaping_tool",
+      "text": "gensokyou.book.entry.item_landscaping_tool.p1"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.item_landscaping_tool.p2"
+    }
+  ]
+}

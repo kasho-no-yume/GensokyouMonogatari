@@ -12,7 +12,6 @@ import com.bitsson.gensokyou.entity.LaserDanmaku;
 import com.bitsson.gensokyou.entity.OrbitYinYangOrb;
 import com.bitsson.gensokyou.entity.RinnosukeEntity;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
-import com.bitsson.gensokyou.entity.SpiritBombEntity;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
@@ -58,16 +57,6 @@ public final class ModEntityTypes {
                     .clientTrackingRange(DANMAKU_TRACKING_RANGE)
                     .updateInterval(DANMAKU_UPDATE_INTERVAL)
                     .build("danmaku"));
-
-    /** 灵力引爆器：0.8 格方块状实体，客户端追踪范围给足（爆炸要看得见）。 */
-    public static final DeferredHolder<EntityType<?>, EntityType<SpiritBombEntity>> SPIRIT_BOMB =
-            ENTITY_TYPES.register("spirit_bomb", () -> EntityType.Builder
-                    .<SpiritBombEntity>of(SpiritBombEntity::new, MobCategory.MISC)
-                    .sized(0.8F, 0.8F)
-                    .clientTrackingRange(16)
-                    .updateInterval(2)
-                    .fireImmune()
-                    .build("spirit_bomb"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<SphereDanmaku>> SPHERE_DANMAKU =
             ENTITY_TYPES.register("sphere_danmaku", () -> EntityType.Builder

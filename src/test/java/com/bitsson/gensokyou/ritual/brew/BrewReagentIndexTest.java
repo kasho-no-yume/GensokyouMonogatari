@@ -147,12 +147,15 @@ class BrewReagentIndexTest {
      * <p><b>为什么不走 {@link RitualBrewRuleLoader#parseFile}</b>：该入口会把
      * {@code gensokyou:*} id 送进注册表解析，而纯 JUnit 环境没有 mod 加载器，
      * {@code ModItems} / {@code ModPotions} 的 DeferredRegister 不会跑，一律查不到。
-     * 这里只做<b>数据形状</b>断言——四条试剂各自三档齐全、命名遵循
-     * {@code <base> / long_<base> / strong_<base>} 约定（{@code PotionTierTransform.findSibling}
-     * 靠这条约定找兄弟），真正的注册表解析由运行时的 loader 承担。
+     * 这里只做<b>数据形状</b>断言——四条试剂各自的档位符合设计，且凡出现的兄弟档
+     * 都遵循 {@code <base> / long_<base> / strong_<base>} 约定（{@code
+     * PotionTierTransform.findSibling} 靠这条约定找兄弟），真正的注册表解析由运行时的 loader 承担。
+     *
+     * <p><b>档位并非每个效果都有三档</b>：回灵汤是瞬发效果（无 long），灵视与彼岸花毒
+     * 的品质不承载任何机制差异（无 strong）。这与原版「瞬间治疗只有 I/II、夜视只有 I/长效」一致。
      */
     @Test
-    void modPotionReagentFileHasThreeTiersPerEntry() {
+    void modPotionReagentFileHasExpectedTiersPerEntry() {
         JsonObject shipped = com.google.gson.JsonParser.parseString(
                 new String(readResource("/data/gensokyou/brew_recipes/sunako_mod_potions.json"),
                         java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
@@ -161,6 +164,7 @@ class BrewReagentIndexTest {
         JsonArray entries = shipped.getAsJsonArray("entries");
         assertEquals(4, entries.size());
         java.util.Set<String> reagents = new java.util.HashSet<>();
+        java.util.Map<String, String[]> tiers = new java.util.HashMap<>();
         for (com.google.gson.JsonElement element : entries) {
             JsonObject entry = element.getAsJsonObject();
             String reagent = entry.get("reagent").getAsString();
@@ -168,24 +172,43 @@ class BrewReagentIndexTest {
             reagents.add(reagent);
 
             String base = entry.get("potion").getAsString();
-            String longPotion = entry.get("long_potion").getAsString();
-            String strongPotion = entry.get("strong_potion").getAsString();
-            // 三档命名约定：findSibling 是「命名空间不变、path 前加 long_/strong_」，
-            // 写成就把前缀顶到命名空间前面，运行时一个兄弟都找不到。
+            assertTrue(base.startsWith("gensokyou:"), "mod 药水必须是 mod 条目: " + base);
             int slash = base.indexOf(':');
             String namespace = base.substring(0, slash + 1);
             String path = base.substring(slash + 1);
-            assertEquals(namespace + "long_" + path, longPotion,
-                    reagent + " 的长效档不遵循命名约定");
-            assertEquals(namespace + "strong_" + path, strongPotion,
-                    reagent + " 的强效档不遵循命名约定");
-            assertTrue(base.startsWith("gensokyou:"), "mod 药水必须是 mod 条目: " + base);
+
+            String longPotion = entry.has("long_potion") ? entry.get("long_potion").getAsString() : null;
+            String strongPotion = entry.has("strong_potion") ? entry.get("strong_potion").getAsString() : null;
+            // 出现的兄弟档必须遵循命名约定：findSibling 是「命名空间不变、path 前加 long_/strong_」，
+            // 写成就把前缀顶到命名空间前面，运行时一个兄弟都找不到。
+            if (longPotion != null) {
+                assertEquals(namespace + "long_" + path, longPotion,
+                        reagent + " 的长效档不遵循命名约定");
+            }
+            if (strongPotion != null) {
+                assertEquals(namespace + "strong_" + path, strongPotion,
+                        reagent + " 的强效档不遵循命名约定");
+            }
+            tiers.put(reagent, new String[]{longPotion, strongPotion});
         }
         // 四种植物各一条，缺一条 mod 药水线就断一环
         assertEquals(java.util.Set.of(
                         "gensokyou:spirit_herb", "gensokyou:magic_mushroom",
                         "gensokyou:gentian", "gensokyou:higanbana"),
                 reagents);
+
+        // 回灵汤：瞬发，无长效档；强效档保留（I=10% / II=20%）
+        assertNull(tiers.get("gensokyou:spirit_herb")[0], "回灵汤是瞬发效果，不应有长效档");
+        assertNotNull(tiers.get("gensokyou:spirit_herb")[1], "回灵汤应保留强效档（I/II 两档）");
+        // 灵视药水：品质无意义，无强效档；保留长效档
+        assertNotNull(tiers.get("gensokyou:magic_mushroom")[0], "灵视药水应有长效档");
+        assertNull(tiers.get("gensokyou:magic_mushroom")[1], "灵视药水不应有强效档");
+        // 灵触药水：三档齐全
+        assertNotNull(tiers.get("gensokyou:gentian")[0], "灵触药水应有长效档");
+        assertNotNull(tiers.get("gensokyou:gentian")[1], "灵触药水应有强效档");
+        // 彼岸花毒：品质无意义，无强效档；保留长效档
+        assertNotNull(tiers.get("gensokyou:higanbana")[0], "彼岸花毒应有长效档");
+        assertNull(tiers.get("gensokyou:higanbana")[1], "彼岸花毒不应有强效档");
     }
 
     private static byte[] readResource(String path) {

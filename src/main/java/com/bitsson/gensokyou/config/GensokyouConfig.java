@@ -248,7 +248,7 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue HIGAN_SOIL_GROWTH_MULTIPLIER;
 
     // ---- mod 专属药水线 ----
-    public static final ModConfigSpec.IntValue REIKI_RECOVERY_PER_SECOND;
+    public static final ModConfigSpec.DoubleValue REIKI_RECOVERY_PERCENT;
     public static final ModConfigSpec.DoubleValue SPIRITUAL_SIGHT_RADIUS;
     public static final ModConfigSpec.DoubleValue SPIRIT_TOUCH_RANGE_BONUS;
     public static final ModConfigSpec.DoubleValue HIGANBANA_POISON_DAMAGE_SCALE;
@@ -261,8 +261,12 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue STAR_SILVER_SET_SPIRIT_DAMAGE_BONUS;
 
     // ---- 整地工具 / 灵力引爆器 ----
-    public static final ModConfigSpec.IntValue LANDSCAPING_RADIUS;
+    public static final ModConfigSpec.IntValue LANDSCAPING_MAX_SIZE;
+    public static final ModConfigSpec.IntValue LANDSCAPING_MAX_HEIGHT;
+    public static final ModConfigSpec.IntValue LANDSCAPING_DEFAULT_SIZE;
+    public static final ModConfigSpec.IntValue LANDSCAPING_DEFAULT_HEIGHT;
     public static final ModConfigSpec.IntValue LANDSCAPING_COOLDOWN_TICKS;
+    public static final ModConfigSpec.IntValue LANDSCAPING_BASE_COST;
     public static final ModConfigSpec.IntValue SPIRIT_BOMB_BASE_COST;
     public static final ModConfigSpec.IntValue SPIRIT_BOMB_DEFAULT_FUSE_TICKS;
     public static final ModConfigSpec.IntValue SPIRIT_BOMB_MAX_PRODUCTS;
@@ -1097,12 +1101,16 @@ public class GensokyouConfig {
                 + " spirit_touch / higanbana_poison). These are only brewed from crude_sanzu_potion in a"
                 + " brewing stand, or from sanzu_flask in the Sukuna-hikona ritual; no vanilla brewing"
                 + " path may produce them.");
-        REIKI_RECOVERY_PER_SECOND = BUILDER.comment("Spirit restored per second per amplifier while"
-                + " reiki_recovery is active. Only refills 'current', never 'max' or spirit damage.")
-                .defineInRange("reikiRecoveryPerSecond", 5000, 0, 100000000);
-        SPIRITUAL_SIGHT_RADIUS = BUILDER.comment("Horizontal radius in blocks of the spirit-sight outline"
-                + " scan. Entities inside are given a short vanilla GLOWING and tinted green via a"
-                + " dedicated scoreboard team. 0 disables the outline.")
+        REIKI_RECOVERY_PERCENT = BUILDER.comment("Fraction of the player's max spirit pool restored"
+                + " INSTANTLY by one reiki_recovery potion (fraction of max, per amplifier level)."
+                + " 0.10 = I restores 10%, II restores 20%. The effect is instantaneous (no duration)."
+                + " Only refills 'current', never 'max' or spirit damage.")
+                .defineInRange("reikiRecoveryPercent", 0.10D, 0.0D, 1.0D);
+        SPIRITUAL_SIGHT_RADIUS = BUILDER.comment("Minimum horizontal radius in blocks of the spirit-sight"
+                + " outline scan. The scan always covers at least the server view distance, so every"
+                + " entity the server tracks/renders is revealed; this config only raises the floor."
+                + " Entities inside are given a short vanilla GLOWING and tinted green via a dedicated"
+                + " scoreboard team. 0 = floor disabled (still uses view distance).")
                 .defineInRange("spiritualSightRadius", 24.0D, 0.0D, 64.0D);
         SPIRIT_TOUCH_RANGE_BONUS = BUILDER.comment("Base interaction range bonus in blocks granted by"
                 + " spirit_touch (applied to both block and entity interaction range). Amplifiers add"
@@ -1138,17 +1146,27 @@ public class GensokyouConfig {
                 .defineInRange("starSilverSetSpiritDamageBonus", 0.08D, 0.0D, 1.0D);
         BUILDER.pop();
 
-        BUILDER.push("landscaping").comment("Landscaping tool: one right-click clears a radius of common"
-                + " terrain (stone/dirt/wood/leaves/sand/plants) and flattens the ground to dirt, to open"
-                + " space for large ritual builds. Hard protection (tile entities, bedrock, obsidian,"
-                + " ores, portal frames, mod material blocks, custom-named blocks) is ALWAYS active and"
-                + " is not configurable.");
-        LANDSCAPING_RADIUS = BUILDER.comment("Horizontal clear/flatten radius in blocks. Vertical range"
-                + " is fixed at -3..+6 relative to the clicked block.")
-                .defineInRange("radius", 8, 1, 32);
-        LANDSCAPING_COOLDOWN_TICKS = BUILDER.comment("Cooldown after one use, in ticks (20 = 1s)."
+        BUILDER.push("landscaping").comment("Landscaping device: place the block, right-click to open its"
+                + " GUI, set length(X) / width(Z) / height(Y), then Activate to clear the chosen box of"
+                + " common terrain (stone/dirt/wood/leaves/sand/plants) and pave its bottom layer with"
+                + " dirt. Length and width are centered on the block; height starts AT the block and goes"
+                + " up. Hard protection (tile entities, bedrock, obsidian, ores, portal frames, mod"
+                + " material blocks) is ALWAYS active.");
+        LANDSCAPING_MAX_SIZE = BUILDER.comment("Maximum length(X)/width(Z) in blocks the GUI slider can"
+                + " reach.")
+                .defineInRange("maxSize", 32, 1, 64);
+        LANDSCAPING_MAX_HEIGHT = BUILDER.comment("Maximum height(Y) in blocks the GUI slider can reach.")
+                .defineInRange("maxHeight", 24, 1, 64);
+        LANDSCAPING_DEFAULT_SIZE = BUILDER.comment("Length(X)/width(Z) a freshly placed device starts with.")
+                .defineInRange("defaultSize", 5, 1, 64);
+        LANDSCAPING_DEFAULT_HEIGHT = BUILDER.comment("Height(Y) a freshly placed device starts with.")
+                .defineInRange("defaultHeight", 5, 1, 64);
+        LANDSCAPING_COOLDOWN_TICKS = BUILDER.comment("Cooldown after one activation, in ticks (20 = 1s)."
                 + " Creative mode bypasses this entirely.")
                 .defineInRange("cooldownTicks", 200, 0, 72000);
+        LANDSCAPING_BASE_COST = BUILDER.comment("Spirit cost per cleared block. Actual cost ="
+                + " base x sizeX x sizeZ x height. Default 4 => max box (32x32x24) ~ 98000.")
+                .defineInRange("baseCost", 4, 0, 1000000);
         BUILDER.pop();
 
         BUILDER.push("spiritBomb").comment("Spirit Bomb: a placeable, reusable detonator. Right-click to"
@@ -1156,8 +1174,8 @@ public class GensokyouConfig {
                 + " press Arm: the cost is charged to the player's own spirit pool and the bomb refuses"
                 + " to arm when short. Explosions drop every destroyed block (ExplosionInteraction.BLOCK).");
         SPIRIT_BOMB_BASE_COST = BUILDER.comment("Base spirit cost at (power 4.0, radius 6). Actual cost"
-                + " = base x (power/4)^2 x (radius/6).")
-                .defineInRange("baseCost", 20000, 0, 100000000);
+                + " = base x (power/4)^2 x (radius/6). Default 555 => max (power 12, radius 24) ~ 20000.")
+                .defineInRange("baseCost", 555, 0, 100000000);
         SPIRIT_BOMB_DEFAULT_FUSE_TICKS = BUILDER.comment("Default fuse in ticks shown when the GUI opens"
                 + " for a freshly placed bomb. 100 ticks = 5 seconds.")
                 .defineInRange("defaultFuseTicks", 100, 2, 12000);

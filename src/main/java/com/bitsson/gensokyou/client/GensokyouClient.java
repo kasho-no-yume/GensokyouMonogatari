@@ -43,10 +43,19 @@ public final class GensokyouClient {
     private GensokyouClient() {
     }
 
+    /**
+     * 整地器模型引用的是带透明像素的贴图（工具素材），默认 solid 渲染层会把透明处涂黑。
+     * 设为 cutout：透明像素直接丢弃，不再有黑色块。
+     */
+    @SubscribeEvent
+    public static void onClientSetup(net.neoforged.fml.event.lifecycle.FMLClientSetupEvent event) {
+        event.enqueueWork(() -> net.minecraft.client.renderer.ItemBlockRenderTypes.setRenderLayer(
+                com.bitsson.gensokyou.registry.ModBlocks.LANDSCAPING.get(),
+                net.minecraft.client.renderer.RenderType.cutout()));
+    }
+
     @SubscribeEvent
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerEntityRenderer(ModEntityTypes.SPIRIT_BOMB.get(),
-                com.bitsson.gensokyou.client.renderer.SpiritBombRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.DANMAKU.get(),
                 context -> new BillboardRenderer<>(context, 0.4F, GensokyouTextures.DANMAKU));
         event.registerEntityRenderer(ModEntityTypes.SPHERE_DANMAKU.get(),
@@ -85,6 +94,8 @@ public final class GensokyouClient {
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_CORE.get(), RitualCoreRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.SUKIMA.get(), SukimaPortalRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.CRYSTAL.get(), CrystalRenderer::new);
+        // 灵力筑基器的范围线框不用 BER（BER 阶段早于水，会被水盖住），改在 LandscapingBoxRenderer
+        // 的 RenderLevelStageEvent(AFTER_TRANSLUCENT_BLOCKS) 里绘制。
     }
 
 
@@ -144,5 +155,7 @@ public final class GensokyouClient {
                 com.bitsson.gensokyou.client.screen.WujinzangTerminalScreen::new);
         event.register(ModMenus.SPIRIT_BOMB.get(),
                 com.bitsson.gensokyou.client.screen.SpiritBombScreen::new);
+        event.register(ModMenus.LANDSCAPING.get(),
+                com.bitsson.gensokyou.client.screen.LandscapingScreen::new);
     }
 }
