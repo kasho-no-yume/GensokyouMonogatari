@@ -5,8 +5,9 @@
 现状：仅 3 张卡、无品质、数值与玩家成长脱节；玩家灵力强度（`AttributeKey.SPIRIT_POWER`）
 每阶 ×≈9（标准值 1/10/90/773/6523），而玩家 HP 全期仅 ×≈18。
 
-设计方法学与逐卡数值表已沉淀在 `player-spellcard-design` skill
-（`SKILL.md` + `reference/card-roster.md`），本 design 只记录技术决策，不重复数值。
+逐卡的完整设计（人设 / 机制 / 逐档数值表 / 特效·音效·UI 需求 / 接入点 / 红线）
+见**本变更内** `card-specs.md`（单源自 `player-spellcard-design` skill 的
+`reference/card-roster.md`，两者互为镜像）。本 design 只记录技术决策，不重复数值与特效清单。
 
 ## Goals / Non-Goals
 

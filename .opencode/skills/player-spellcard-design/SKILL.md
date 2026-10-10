@@ -251,6 +251,7 @@ S      = 玩家当前灵力强度（PlayerAttributes.spiritPower(player)）
 
 ## 8. 参考
 
-- 现有已定稿卡表（6 张，含逐档数值）：`reference/card-roster.md`
+- 现有已定稿卡表（6 张，含逐档数值 + 特效/音效/UI 需求）：`reference/card-roster.md`
+  （openspec 变更 `add-player-spellcards/card-specs.md` 为其镜像，改动同步两边）
 - BOSS 侧规范：`boss-dev-design`
 - 灵力/神恩数值来源：`config/GensokyouConfig` 的 `grace` 段 + `balance/MonsterStatBudget`
