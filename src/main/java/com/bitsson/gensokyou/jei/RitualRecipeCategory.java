@@ -42,14 +42,17 @@ public class RitualRecipeCategory implements IRecipeCategory<RitualRecipeCardWra
 
     private final RecipeType<RitualRecipeCardWrapper> type;
     private final @Nullable ResourceLocation patternId;
+    private final boolean showRecipeName;
     private final Component title;
     private final IDrawable icon;
     private final IDrawable arrow;
 
     public RitualRecipeCategory(IGuiHelper guiHelper, RecipeType<RitualRecipeCardWrapper> type,
-                                @Nullable ResourceLocation patternId, IDrawable icon) {
+                                @Nullable ResourceLocation patternId, IDrawable icon,
+                                boolean showRecipeName) {
         this.type = type;
         this.patternId = patternId;
+        this.showRecipeName = showRecipeName;
         this.title = patternId == null
                 ? Component.translatable("jei." + Gensokyou.MODID + ".ritual_recipe_other")
                 : Component.translatable("jei." + patternId.getNamespace() + ".ritual." + patternId.getPath());
@@ -121,7 +124,9 @@ public class RitualRecipeCategory implements IRecipeCategory<RitualRecipeCardWra
                      GuiGraphics graphics, double mouseX, double mouseY) {
         Font font = Minecraft.getInstance().font;
         RitualRecipe definition = recipe.definition();
-        graphics.drawString(font, definition.displayName(), 4, 2, TITLE_COLOR, false);
+        if (showRecipeName) {
+            graphics.drawString(font, definition.displayName(), 4, 2, TITLE_COLOR, false);
+        }
         Component tier = Component.translatable(
                 "jei." + Gensokyou.MODID + ".recipe.tier", definition.minTier());
         graphics.drawString(font, tier, WIDTH - 4 - font.width(tier), 2, SUBTLE_COLOR, false);

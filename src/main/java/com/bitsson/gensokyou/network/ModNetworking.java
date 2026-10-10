@@ -438,14 +438,14 @@ public final class ModNetworking {
             if (slot < 0 || slot >= SkillStateData.MAX_SLOTS) {
                 return;
             }
-            // 阶级门（superhuman-temper）：凡人拦"需进阶"，未解锁槽位单独提示
+            // 阶级门（superhuman-temper）：凡人拦"需进阶"，未达到解锁槽数的阶级单独提示
             int tier = com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player);
             if (tier <= 0) {
                 player.displayClientMessage(
                         Component.translatable("msg.gensokyou.grace_required"), true);
                 return;
             }
-            if (slot >= tier) {
+            if (slot >= SkillStateData.slotCountForTier(tier)) {
                 player.displayClientMessage(
                         Component.translatable("msg.gensokyou.skill_slot_locked"), true);
                 return;

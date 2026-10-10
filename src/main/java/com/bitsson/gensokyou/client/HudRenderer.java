@@ -52,18 +52,20 @@ public final class HudRenderer {
                 x + width - mc.font.width(text), y - 10, 0xFF88DDFF, false);
     }
 
-    /** 技能槽排（skill-slots-hud v2）：显示槽数=超人类阶级（凡人整排隐藏），图标按配装卡解析。 */
+    /** 技能槽排（skill-slots-hud）：显示槽数 = max(0, 阶级-2)（0 槽整排隐藏），图标按配装卡解析。 */
     private static void renderSkillSlots(GuiGraphics graphics, DeltaTracker deltaTracker) {
         Minecraft mc = Minecraft.getInstance();
-        int slotCount = Math.min(SpiritPowerClientState.temper(), SkillStateData.MAX_SLOTS);
+        int slotCount = SkillStateData.slotCountForTier(SpiritPowerClientState.temper());
         if (mc.player == null || mc.options.hideGui || slotCount <= 0) {
             return;
         }
         int size = 20;
         int gap = 2;
+        int margin = 6;
         int totalWidth = slotCount * size + (slotCount - 1) * gap;
-        int startX = graphics.guiWidth() / 2 + 91 - totalWidth;
-        int y = graphics.guiHeight() - 49 - size - 2;
+        int startX = graphics.guiWidth() - totalWidth - margin;
+        int y = graphics.guiHeight() - size - margin;
+        String modLabel = ClientKeyBindings.SKILL_MODIFIER.getTranslatedKeyMessage().getString();
 
         for (int i = 0; i < slotCount; i++) {
             int x = startX + i * (size + gap);
@@ -84,7 +86,7 @@ public final class HudRenderer {
                     graphics.drawCenteredString(mc.font, seconds,
                             x + size / 2, y + size / 2 - 4, 0xFFFFFFFF);
                 }
-                graphics.drawString(mc.font, HOTKEY_LABELS[i], x + 1, y + 1, 0xFFFFFF88, false);
+                graphics.drawString(mc.font, modLabel + "+" + (i + 1), x + 1, y + 1, 0xFFFFFF88, false);
             } else {
                 graphics.drawCenteredString(mc.font, "—",
                         x + size / 2, y + size / 2 - 4, 0xFF666666);
@@ -93,9 +95,6 @@ public final class HudRenderer {
         Component title = Component.translatable("hud.gensokyou.skills");
         graphics.drawString(mc.font, title, startX, y - 10, 0xFF88DDFF, false);
     }
-
-    /** 键位展示标签（与 ClientKeyBindings 默认键一致，可改键仅影响实际绑定）。 */
-    private static final String[] HOTKEY_LABELS = {"G", "H", "J", "K", "L"};
 
     /** 卡 id → 同名符卡物品图标（注册表缺项/空气=无图标）。 */
     private static ItemStack iconForCard(String cardId) {

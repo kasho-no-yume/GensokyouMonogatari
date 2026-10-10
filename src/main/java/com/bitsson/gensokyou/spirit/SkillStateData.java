@@ -24,6 +24,14 @@ public record SkillStateData(List<String> learned, List<Long> cooldownUntil, Lis
     /** 槽未配装占位符。 */
     public static final String EMPTY = "";
 
+    /**
+     * 阶级 → 可解锁槽数（单一事实来源）：{@code max(0, 阶级 − 2)}。
+     * 阶级 0/1/2/3/4/5 → 0/0/0/1/2/3 槽。HUD 显示槽数、学卡上限、施放校验三处共用。
+     */
+    public static int slotCountForTier(int tier) {
+        return Math.max(0, Math.min(MAX_SLOTS, tier - 2));
+    }
+
     private static final List<Long> NO_CD = List.of(0L, 0L, 0L, 0L, 0L);
     private static final List<String> NO_EQUIP =
             List.of(EMPTY, EMPTY, EMPTY, EMPTY, EMPTY);
@@ -127,9 +135,10 @@ public record SkillStateData(List<String> learned, List<Long> cooldownUntil, Lis
         return learned.contains(cardId);
     }
 
-    /** 正式学卡判据：已学数受超人类阶级上限（调试命令走 {@link #withLearned} 豁免）。 */
+    /** 正式学卡判据：已学数受可解锁槽数上限（调试命令走 {@link #withLearned} 豁免）。 */
     public boolean canLearn(String cardId, int tier) {
-        return !hasLearned(cardId) && tier > 0 && learned.size() < tier
+        return !hasLearned(cardId) && slotCountForTier(tier) > 0
+                && learned.size() < slotCountForTier(tier)
                 && SpellCardEffects.get(cardId) != null;
     }
 

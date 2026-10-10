@@ -52,7 +52,9 @@ public class GensokyouJeiPlugin implements IModPlugin {
     /** 专属页签清单：新配方仪式要独立页签在此加一行（未登记的落兜底页签）。 */
     private static final List<ResourceLocation> DEDICATED_TABS = List.of(
             RitualBehaviors.ZAOHUA,
-            RitualBehaviors.KAMI_NO_MEGUMI);
+            RitualBehaviors.KAMI_NO_MEGUMI,
+            RitualBehaviors.HYAKKI_YAGYO,
+            RitualBehaviors.SEII);
 
     /** 献祭工具仪式：各自一页签，页签内按工具材质翻页（数据源 ritual_loot）。 */
     private static final List<ResourceLocation> SACRIFICE_TABS = List.of(
@@ -127,11 +129,14 @@ public class GensokyouJeiPlugin implements IModPlugin {
         IGuiHelper guiHelper = registration.getJeiHelpers().getGuiHelper();
         List<RitualRecipeCategory> categories = new ArrayList<>();
         for (ResourceLocation patternId : DEDICATED_TABS) {
+            // 造化页签配方卡不画配方名（原料/产物已足以辨识，且旧配方名多为无本地化的机翻串）
+            boolean showName = !RitualBehaviors.ZAOHUA.equals(patternId);
             categories.add(new RitualRecipeCategory(guiHelper,
-                    RitualRecipeCategory.typeFor(patternId), patternId, tabIcon(guiHelper, patternId)));
+                    RitualRecipeCategory.typeFor(patternId), patternId, tabIcon(guiHelper, patternId),
+                    showName));
         }
         categories.add(new RitualRecipeCategory(guiHelper, FALLBACK_TYPE, null,
-                tabIcon(guiHelper, null)));
+                tabIcon(guiHelper, null), true));
         registration.addRecipeCategories(categories.toArray(new RitualRecipeCategory[0]));
 
         List<RitualLootCategory> lootCategories = new ArrayList<>();

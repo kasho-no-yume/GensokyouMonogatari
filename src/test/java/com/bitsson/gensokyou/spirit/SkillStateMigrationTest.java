@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 符卡槽 v2（skill-slots-hud 改造）：旧三固定槽档迁移映射、学习阶级上限、
- * 抽象槽配装轮换语义。对应 spec "抽象槽：已学卡可配装 / 槽数=阶级"。
+ * 抽象槽配装轮换语义。对应 spec "抽象槽：已学卡可配装 / 槽数=max(0,阶级-2)"。
  */
 class SkillStateMigrationTest {
 
@@ -66,13 +66,22 @@ class SkillStateMigrationTest {
     }
 
     @Test
-    void learnedCapEqualsTier() {
-        SkillStateData one = SkillStateData.initial()
-                .withLearned(SpellCardEffects.MUSOU_FUUIN);
-        assertTrue(one.canLearn(SpellCardEffects.ICICLE_FALL, 2));
-        assertFalse(one.canLearn(SpellCardEffects.ICICLE_FALL, 1), "1 阶上限 1 张");
+    void learnedCapFollowsSlotCount() {
+        assertEquals(0, SkillStateData.slotCountForTier(0));
+        assertEquals(0, SkillStateData.slotCountForTier(1));
+        assertEquals(0, SkillStateData.slotCountForTier(2));
+        assertEquals(1, SkillStateData.slotCountForTier(3));
+        assertEquals(2, SkillStateData.slotCountForTier(4));
+        assertEquals(3, SkillStateData.slotCountForTier(5));
+
+        SkillStateData empty = SkillStateData.initial();
+        assertFalse(empty.canLearn(SpellCardEffects.MUSOU_FUUIN, 2), "2 阶可解锁 0 槽，不可学");
+        assertTrue(empty.canLearn(SpellCardEffects.MUSOU_FUUIN, 3), "3 阶上限 1 张");
+
+        SkillStateData one = empty.withLearned(SpellCardEffects.MUSOU_FUUIN);
+        assertFalse(one.canLearn(SpellCardEffects.ICICLE_FALL, 3), "3 阶上限 1 张已满");
+        assertTrue(one.canLearn(SpellCardEffects.ICICLE_FALL, 4), "4 阶上限 2 张");
         assertFalse(one.canLearn(SpellCardEffects.MUSOU_FUUIN, 5), "重复学习拒绝");
-        assertFalse(one.canLearn(SpellCardEffects.MUSOU_FUUIN, 0), "凡人无学习容量");
     }
 
     @Test

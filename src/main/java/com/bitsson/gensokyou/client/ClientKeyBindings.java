@@ -12,21 +12,10 @@ import org.lwjgl.glfw.GLFW;
 
 public final class ClientKeyBindings {
 
-    public static final KeyMapping SKILL_SLOT_1 = new KeyMapping(
-            "key.gensokyou.skill1", KeyConflictContext.IN_GAME,
+    /** 符卡槽修饰键：按住 + 数字键 1..N 触发对应槽（可改键，默认 G）。 */
+    public static final KeyMapping SKILL_MODIFIER = new KeyMapping(
+            "key.gensokyou.skill_modifier", KeyConflictContext.IN_GAME,
             InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, "key.categories.gensokyou");
-    public static final KeyMapping SKILL_SLOT_2 = new KeyMapping(
-            "key.gensokyou.skill2", KeyConflictContext.IN_GAME,
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, "key.categories.gensokyou");
-    public static final KeyMapping SKILL_SLOT_3 = new KeyMapping(
-            "key.gensokyou.skill3", KeyConflictContext.IN_GAME,
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_J, "key.categories.gensokyou");
-    public static final KeyMapping SKILL_SLOT_4 = new KeyMapping(
-            "key.gensokyou.skill4", KeyConflictContext.IN_GAME,
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_K, "key.categories.gensokyou");
-    public static final KeyMapping SKILL_SLOT_5 = new KeyMapping(
-            "key.gensokyou.skill5", KeyConflictContext.IN_GAME,
-            InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_L, "key.categories.gensokyou");
 
     private ClientKeyBindings() {
     }
@@ -35,11 +24,7 @@ public final class ClientKeyBindings {
     public static class Registration {
         @SubscribeEvent
         public static void onRegisterKeys(RegisterKeyMappingsEvent event) {
-            event.register(SKILL_SLOT_1);
-            event.register(SKILL_SLOT_2);
-            event.register(SKILL_SLOT_3);
-            event.register(SKILL_SLOT_4);
-            event.register(SKILL_SLOT_5);
+            event.register(SKILL_MODIFIER);
         }
     }
 }
