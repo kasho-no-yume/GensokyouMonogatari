@@ -1,0 +1,7 @@
+{
+  "parent": "item/generated",
+  "textures": {
+    "layer0": "gensokyou:item/spellcard_frame",
+    "layer1": "gensokyou:item/spellcard_emblem"
+  }
+}

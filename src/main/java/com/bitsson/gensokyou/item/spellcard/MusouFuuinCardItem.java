@@ -11,7 +11,7 @@ public class MusouFuuinCardItem extends SpellCardItem {
     }
 
     @Override
-    protected void performEffect(Level level, Player player) {
-        SpellCardEffects.perform(SpellCardEffects.MUSOU_FUUIN, level, player);
+    protected void performEffect(Level level, Player player, int quality) {
+        SpellCardEffects.performItem(SpellCardEffects.MUSOU_FUUIN, quality, level, player);
     }
 }

@@ -20,6 +20,8 @@ public final class GensokyouTextures {
     public static final ResourceLocation KITSUNEBI = entity("kitsunebi");
     public static final ResourceLocation NOMEN_MASK = entity("nomen_mask");
 public static final ResourceLocation CRYSTAL = entity("crystal");
+    /** 式神狐火 / 丝弹的通用发光贴图（add-player-spellcards）。 */
+    public static final ResourceLocation FOX_FIRE = entity("fox_fire");
 
     /**
      * 「结界崩解」光斑粒子贴图：柔和的径向白色光斑。
@@ -29,7 +31,17 @@ public static final ResourceLocation CRYSTAL = entity("crystal");
      */
     public static final ResourceLocation SHATTER_GLOW = particle("shatter_glow");
 
+    /** 玩家符卡 FX（add-player-spellcards）。 */
+    public static final ResourceLocation MAGIC_CIRCLE = fx("magic_circle");
+    public static final ResourceLocation SPIDER_WEB = fx("spider_web");
+    /** 灰度火焰条带（与水晶体共用），着蓝紫色即式神狐火 / 粉色即疗愈光墙。 */
+    public static final ResourceLocation AURA_FLAME = fx("aura_flame");
+
     private GensokyouTextures() {
+    }
+
+    private static ResourceLocation fx(String name) {
+        return ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/fx/" + name + ".png");
     }
 
     private static ResourceLocation particle(String name) {

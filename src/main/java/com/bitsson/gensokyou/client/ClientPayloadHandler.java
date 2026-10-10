@@ -8,6 +8,7 @@ import com.bitsson.gensokyou.network.RitualConflictPayload;
 import com.bitsson.gensokyou.network.RitualInfoPayload;
 import com.bitsson.gensokyou.network.RitualPreviewPayload;
 import com.bitsson.gensokyou.network.SkillSyncPayload;
+import com.bitsson.gensokyou.network.SpellBuffSyncPayload;
 import com.bitsson.gensokyou.network.SpiritBombStatePayload;
 import com.bitsson.gensokyou.network.SpiritPowerSyncPayload;
 import net.neoforged.fml.ModList;
@@ -21,6 +22,12 @@ public final class ClientPayloadHandler {
     public static void handleSpiritPowerSync(SpiritPowerSyncPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> SpiritPowerClientState.update(
                 payload.current(), payload.max(), payload.temper(), payload.flightInertia()));
+    }
+
+    /** 玩家符卡即时状态（花瓣护盾/疫符窗口）。 */
+    public static void handleSpellBuffSync(SpellBuffSyncPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> ClientSpellBuffs.update(
+                payload.petals(), payload.armorTicks(), payload.plagueTicks()));
     }
 
     /**

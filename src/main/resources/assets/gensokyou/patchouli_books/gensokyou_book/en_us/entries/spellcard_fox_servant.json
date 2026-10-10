@@ -1,0 +1,10 @@
+{
+  "name": "item.gensokyou.fox_servant",
+  "category": "gensokyou:spellcards",
+  "icon": "gensokyou:fox_servant",
+  "sortnum": 6,
+  "pages": [
+    { "type": "patchouli:spotlight", "item": "gensokyou:fox_servant", "text": "gensokyou.book.entry.fox_servant.p1" },
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.fox_servant.p2" }
+  ]
+}

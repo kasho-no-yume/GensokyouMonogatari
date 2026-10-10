@@ -1,0 +1,10 @@
+{
+  "name": "item.gensokyou.flower_armor",
+  "category": "gensokyou:spellcards",
+  "icon": "gensokyou:flower_armor",
+  "sortnum": 2,
+  "pages": [
+    { "type": "patchouli:spotlight", "item": "gensokyou:flower_armor", "text": "gensokyou.book.entry.flower_armor.p1" },
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.flower_armor.p2" }
+  ]
+}

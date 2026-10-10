@@ -221,4 +221,56 @@ public final class ModEntityTypes {
                     .sized(0.9F, 1.8F)
                     .clientTrackingRange(12)
                     .build("balance_test_boss"));
+
+    // ---- 玩家符卡持续型宿主（add-player-spellcards）----
+
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.spell.FlowerGardenEntity>> FLOWER_GARDEN =
+            ENTITY_TYPES.register("flower_garden", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.spell.FlowerGardenEntity>of(
+                            com.bitsson.gensokyou.entity.spell.FlowerGardenEntity::new, MobCategory.MISC)
+                    .sized(0.1F, 0.1F)
+                    .clientTrackingRange(10)
+                    .updateInterval(10)
+                    .fireImmune()
+                    .build("flower_garden"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.spell.DarknessFieldEntity>> DARKNESS_FIELD =
+            ENTITY_TYPES.register("darkness_field", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.spell.DarknessFieldEntity>of(
+                            com.bitsson.gensokyou.entity.spell.DarknessFieldEntity::new, MobCategory.MISC)
+                    .sized(0.1F, 0.1F)
+                    .clientTrackingRange(16)
+                    .updateInterval(5)
+                    .fireImmune()
+                    .build("darkness_field"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.spell.WebFieldEntity>> WEB_FIELD =
+            ENTITY_TYPES.register("web_field", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.spell.WebFieldEntity>of(
+                            com.bitsson.gensokyou.entity.spell.WebFieldEntity::new, MobCategory.MISC)
+                    .sized(0.1F, 0.1F)
+                    .clientTrackingRange(16)
+                    .updateInterval(10)
+                    .fireImmune()
+                    .build("web_field"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.spell.SilkProjectileEntity>> SILK_PROJECTILE =
+            ENTITY_TYPES.register("silk_projectile", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.spell.SilkProjectileEntity>of(
+                            com.bitsson.gensokyou.entity.spell.SilkProjectileEntity::new, MobCategory.MISC)
+                    .sized(0.3F, 0.3F)
+                    .clientTrackingRange(10)
+                    .updateInterval(2)
+                    .fireImmune()
+                    .build("silk_projectile"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.spell.FoxServantEntity>> FOX_SERVANT =
+            ENTITY_TYPES.register("fox_servant", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.spell.FoxServantEntity>of(
+                            com.bitsson.gensokyou.entity.spell.FoxServantEntity::new, MobCategory.MISC)
+                    .sized(0.6F, 0.6F)
+                    .clientTrackingRange(12)
+                    .updateInterval(2)
+                    .fireImmune()
+                    .build("fox_servant"));
 }

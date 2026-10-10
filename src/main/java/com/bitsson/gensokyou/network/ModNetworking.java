@@ -46,6 +46,8 @@ public final class ModNetworking {
                 ClientPayloadHandler::handleSpiritPowerSync);
         registrar.playToClient(SkillSyncPayload.TYPE, SkillSyncPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleSkillSync);
+        registrar.playToClient(SpellBuffSyncPayload.TYPE, SpellBuffSyncPayload.STREAM_CODEC,
+                ClientPayloadHandler::handleSpellBuffSync);
         registrar.playToClient(RitualInfoPayload.TYPE, RitualInfoPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleRitualInfo);
         registrar.playToClient(RitualCraftFxPayload.TYPE, RitualCraftFxPayload.STREAM_CODEC,

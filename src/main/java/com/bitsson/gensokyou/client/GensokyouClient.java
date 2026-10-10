@@ -90,6 +90,17 @@ public final class GensokyouClient {
                 context -> new SkinMobRenderer<>(context, 0.5F, 1.0F, GensokyouTextures.RINNOSUKE));
         event.registerEntityRenderer(ModEntityTypes.BALANCE_TEST_BOSS.get(),
                 com.bitsson.gensokyou.client.renderer.TestBossGeoRenderer::new);
+        // 玩家符卡宿主：范围场画贴地光盘，狐火/丝弹画发光billboard
+        event.registerEntityRenderer(ModEntityTypes.FLOWER_GARDEN.get(),
+                com.bitsson.gensokyou.client.renderer.FlowerGardenRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.DARKNESS_FIELD.get(),
+                context -> new com.bitsson.gensokyou.client.renderer.SpellFieldRenderer<>(context, 0x66101018));
+        event.registerEntityRenderer(ModEntityTypes.WEB_FIELD.get(),
+                com.bitsson.gensokyou.client.renderer.SpiderWebRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.FOX_SERVANT.get(),
+                com.bitsson.gensokyou.client.renderer.FoxServantRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.SILK_PROJECTILE.get(),
+                context -> new BillboardRenderer<>(context, 0.3F, GensokyouTextures.FOX_FIRE));
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_PEDESTAL.get(), RitualPedestalRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_CORE.get(), RitualCoreRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.SUKIMA.get(), SukimaPortalRenderer::new);

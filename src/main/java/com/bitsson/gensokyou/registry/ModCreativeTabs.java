@@ -24,6 +24,13 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.MUSOU_FUUIN.get());
                         output.accept(ModItems.LIGHT_REFLECT.get());
                         output.accept(ModItems.ICICLE_FALL.get());
+                        // 前期 BOSS 主题玩家符卡（add-player-spellcards）
+                        output.accept(ModItems.HEALING_GARDEN.get());
+                        output.accept(ModItems.FLOWER_ARMOR.get());
+                        output.accept(ModItems.DEMARCATION.get());
+                        output.accept(ModItems.SPIDER_WEB.get());
+                        output.accept(ModItems.PLAGUE_REPAY.get());
+                        output.accept(ModItems.FOX_SERVANT.get());
                         output.accept(ModItems.PPOINT.get());
                         output.accept(ModItems.BPOINT.get());
                         output.accept(ModItems.SPELLCARD_STAR.get());

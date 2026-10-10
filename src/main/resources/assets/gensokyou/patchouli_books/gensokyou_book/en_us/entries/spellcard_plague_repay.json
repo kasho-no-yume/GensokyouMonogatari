@@ -1,0 +1,10 @@
+{
+  "name": "item.gensokyou.plague_repay",
+  "category": "gensokyou:spellcards",
+  "icon": "gensokyou:plague_repay",
+  "sortnum": 5,
+  "pages": [
+    { "type": "patchouli:spotlight", "item": "gensokyou:plague_repay", "text": "gensokyou.book.entry.plague_repay.p1" },
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.plague_repay.p2" }
+  ]
+}

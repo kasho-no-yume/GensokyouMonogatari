@@ -1,0 +1,10 @@
+{
+  "name": "item.gensokyou.healing_garden",
+  "category": "gensokyou:spellcards",
+  "icon": "gensokyou:healing_garden",
+  "sortnum": 1,
+  "pages": [
+    { "type": "patchouli:spotlight", "item": "gensokyou:healing_garden", "text": "gensokyou.book.entry.healing_garden.p1" },
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.healing_garden.p2" }
+  ]
+}

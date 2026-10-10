@@ -1,0 +1,10 @@
+{
+  "name": "item.gensokyou.demarcation",
+  "category": "gensokyou:spellcards",
+  "icon": "gensokyou:demarcation",
+  "sortnum": 3,
+  "pages": [
+    { "type": "patchouli:spotlight", "item": "gensokyou:demarcation", "text": "gensokyou.book.entry.demarcation.p1" },
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.demarcation.p2" }
+  ]
+}

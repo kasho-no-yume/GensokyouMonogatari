@@ -1,0 +1,10 @@
+{
+  "name": "item.gensokyou.spider_web",
+  "category": "gensokyou:spellcards",
+  "icon": "gensokyou:spider_web",
+  "sortnum": 4,
+  "pages": [
+    { "type": "patchouli:spotlight", "item": "gensokyou:spider_web", "text": "gensokyou.book.entry.spider_web.p1" },
+    { "type": "patchouli:text", "text": "gensokyou.book.entry.spider_web.p2" }
+  ]
+}

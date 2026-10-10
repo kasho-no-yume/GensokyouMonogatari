@@ -51,7 +51,9 @@ public final class GensokyouItemColors {
             }
             return NO_TINT;
         }, ModItems.AMP_CORE_T1.get(), ModItems.AMP_CORE_T2.get(), ModItems.AMP_CORE_T3.get(),
-                ModItems.MUSOU_FUUIN.get(), ModItems.LIGHT_REFLECT.get(), ModItems.ICICLE_FALL.get());
+                ModItems.MUSOU_FUUIN.get(), ModItems.LIGHT_REFLECT.get(), ModItems.ICICLE_FALL.get(),
+                ModItems.HEALING_GARDEN.get(), ModItems.FLOWER_ARMOR.get(), ModItems.DEMARCATION.get(),
+                ModItems.SPIDER_WEB.get(), ModItems.PLAGUE_REPAY.get(), ModItems.FOX_SERVANT.get());
     }
 
     private GensokyouItemColors() {

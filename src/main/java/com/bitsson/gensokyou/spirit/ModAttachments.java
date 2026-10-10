@@ -80,6 +80,14 @@ public final class ModAttachments {
                     .copyOnDeath()
                     .build());
 
+    /** 玩家符卡即时状态（花瓣护盾/疫符窗口）：持久化 + 死亡保留。 */
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<SpellBuffData>> SPELL_BUFFS =
+            ATTACHMENTS.register("spell_buffs", () -> AttachmentType
+                    .<SpellBuffData>builder(SpellBuffData::initial)
+                    .serialize(SpellBuffData.CODEC)
+                    .copyOnDeath()
+                    .build());
+
     private ModAttachments() {
     }
 
@@ -109,6 +117,27 @@ public final class ModAttachments {
 
     public static SkillStateData skills(ServerPlayer player) {
         return player.getData(SKILL_STATE.get());
+    }
+
+    /** 玩家符卡即时状态（花瓣护盾/疫符窗口）。 */
+    public static SpellBuffData spellBuffs(ServerPlayer player) {
+        return player.getData(SPELL_BUFFS.get());
+    }
+
+    public static void setSpellBuffs(ServerPlayer player, SpellBuffData data) {
+        player.setData(SPELL_BUFFS.get(), data);
+        syncSpellBuffs(player);
+    }
+
+    /** 下发符卡即时状态（花瓣护盾余量 + 疫符窗口剩余 tick）。 */
+    public static void syncSpellBuffs(ServerPlayer player) {
+        SpellBuffData data = spellBuffs(player);
+        long now = player.level().getGameTime();
+        boolean armorActive = data.hasFlowerArmor(now);
+        int armorTicks = (int) Math.max(0, data.flowerArmorUntil() - now);
+        int plagueTicks = (int) Math.max(0, data.plagueRepayUntil() - now);
+        PacketDistributor.sendToPlayer(player, new com.bitsson.gensokyou.network.SpellBuffSyncPayload(
+                armorActive ? data.flowerArmorPetals() : 0, armorTicks, plagueTicks));
     }
 
     /** 《幻想乡物语》序言是否已读。 */

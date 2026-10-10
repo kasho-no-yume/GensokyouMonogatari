@@ -174,6 +174,26 @@ public final class ModItems {
     public static final DeferredItem<IcicleFallCardItem> ICICLE_FALL =
             ITEMS.register("icicle_fall", () -> new IcicleFallCardItem(new Item.Properties()));
 
+    // 前期 BOSS 主题玩家符卡（add-player-spellcards）
+    public static final DeferredItem<com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem> HEALING_GARDEN =
+            ITEMS.register("healing_garden", () -> new com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem(
+                    new Item.Properties(), com.bitsson.gensokyou.spirit.SpellCardEffects.HEALING_GARDEN));
+    public static final DeferredItem<com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem> FLOWER_ARMOR =
+            ITEMS.register("flower_armor", () -> new com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem(
+                    new Item.Properties(), com.bitsson.gensokyou.spirit.SpellCardEffects.FLOWER_ARMOR));
+    public static final DeferredItem<com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem> DEMARCATION =
+            ITEMS.register("demarcation", () -> new com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem(
+                    new Item.Properties(), com.bitsson.gensokyou.spirit.SpellCardEffects.DEMARCATION));
+    public static final DeferredItem<com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem> SPIDER_WEB =
+            ITEMS.register("spider_web", () -> new com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem(
+                    new Item.Properties(), com.bitsson.gensokyou.spirit.SpellCardEffects.SPIDER_WEB));
+    public static final DeferredItem<com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem> PLAGUE_REPAY =
+            ITEMS.register("plague_repay", () -> new com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem(
+                    new Item.Properties(), com.bitsson.gensokyou.spirit.SpellCardEffects.PLAGUE_REPAY));
+    public static final DeferredItem<com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem> FOX_SERVANT =
+            ITEMS.register("fox_servant", () -> new com.bitsson.gensokyou.item.spellcard.SimpleSpellCardItem(
+                    new Item.Properties(), com.bitsson.gensokyou.spirit.SpellCardEffects.FOX_SERVANT));
+
     public static final DeferredItem<BlockItem> RITUAL_CORE_ITEM =
             ITEMS.registerSimpleBlockItem("ritual_core", ModBlocks.RITUAL_CORE);
     /** 仪式石物品（品阶 0-5，名字染品阶色）。 */

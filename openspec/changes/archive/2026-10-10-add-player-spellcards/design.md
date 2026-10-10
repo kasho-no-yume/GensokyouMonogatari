@@ -38,6 +38,12 @@
 `SpellCardEffects.Entry` 扩展为携带 `Base` 与 `α_card`；求值入口按"是否道具 + 品"分派：
 已学取 `PlayerAttributes.spiritPower`，道具取 `S_std(品)`。**无额外倍率**（同品同值）。
 
+道具的**品由物品上的 `spellcard_quality` DataComponent 承载**（1.21.1 的"NBT 等价物"，
+镜像既有 `CRYSTAL_COLOR`：`DataComponentType<Integer>`、persistent + networkSynchronized）。
+掉落/生成时写入 1~5，物品使用与 tooltip 均读取；**缺省（无组件）视为品 1**——既有
+无想封印/冰符/光反不设组件，自动落品 1，行为不变。`perform` 增加带品重载供道具形态调用，
+技能槽形态走带玩家重载（取 `spiritPower`）。
+
 ### D4 持续型效果一律落宿主实体或玩家附件
 `perform(level, player)` 只做一次性投放。范围场/召唤物走**宿主实体**（参照
 `OrbitYinYangOrb`：`DATA_HOST` 存 UUID、双端各自定位、NBT 持久化）；护盾计数与

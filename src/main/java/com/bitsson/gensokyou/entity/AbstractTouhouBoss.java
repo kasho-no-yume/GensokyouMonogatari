@@ -100,9 +100,13 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
     /** 卡墙检测：上次确认「确实在动」时的 tick 与位置。 */
     private int lastProgressTick;
     private Vec3 lastProgressPos;
+    /** 玩家符卡控制（add-player-spellcards）：被致盲（禁锁定）的截止 gameTime。 */
+    private long spellControlUntil;
+    /** 被减速的截止 gameTime 与倍率（自定义修饰，不用原版 Slowness）。 */
+    private long spellSlowUntil;
+    private double spellSlowFactor = 1.0D;
 
-    protected AbstractTouhouBoss(EntityType<? extends AbstractTouhouBoss> type, Level level) {
-        super(type, level);
+    protected AbstractTouhouBoss(EntityType<? extends AbstractTouhouBoss> type, Level level) {        super(type, level);
         this.xpReward = 200;
         this.moveControl = new FairyMoveControl(this);
         this.setNoGravity(true);
@@ -111,6 +115,46 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
         // 覆盖（读档即变）。TouhouBossBar 内部懒解析 UUID，抓构造期快照会静默失配。
         this.bossBar = new TouhouBossBar(this, this.getDisplayName(),
                 BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.NOTCHED_10);
+    }
+
+    // ------------------------------------------------------------------
+    // 玩家符卡控制接入（add-player-spellcards D5）：独立的"被控制"开关，
+    // 不改 refreshTargets / BossSteering 的调度结构。
+    // ------------------------------------------------------------------
+
+    /** 致盲：清当前目标并在给的 tick 内抑制重新锁定（黑暗结界每 tick 调用刷新）。 */
+    public void applySpellControl(int ticks) {
+        this.spellControlUntil = Math.max(this.spellControlUntil, this.level().getGameTime() + ticks);
+        if (this.getTarget() != null) {
+            super.setTarget(null);
+        }
+    }
+
+    /** 减速：给自定义移速倍率，持续给的 tick（蛛网每 tick 调用刷新）。 */
+    public void applySpellSlow(int ticks, double factor) {
+        this.spellSlowUntil = Math.max(this.spellSlowUntil, this.level().getGameTime() + ticks);
+        this.spellSlowFactor = Math.max(0.01D, Math.min(1.0D, factor));
+    }
+
+    /** 当前是否处于"被控制（禁锁定）"窗口内。 */
+    public boolean isSpellControlled() {
+        return this.level().getGameTime() < this.spellControlUntil;
+    }
+
+    private double spellSpeedFactor() {
+        return this.level().getGameTime() < this.spellSlowUntil ? this.spellSlowFactor : 1.0D;
+    }
+
+    /**
+     * 被控制期间拒绝一切目标注入（{@code NearestAttackableTargetGoal} 与外部代码都走这里）。
+     * 显式 {@code setTarget(null)} 放行（清目标）。
+     */
+    @Override
+    public void setTarget(net.minecraft.world.entity.LivingEntity target) {
+        if (target != null && isSpellControlled()) {
+            return;
+        }
+        super.setTarget(target);
     }
 
     // ------------------------------------------------------------------
@@ -428,6 +472,13 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
     // ------------------------------------------------------------------
 
     private void refreshTargets() {
+        if (isSpellControlled()) {
+            // 黑暗结界内：丢弃全部目标，且本 tick 不重新锁定
+            if (!this.lockedTargets.isEmpty()) {
+                this.lockedTargets = new ArrayList<>();
+            }
+            return;
+        }
         if (tickCount - lastTargetScanTick < TARGET_REFRESH_TICKS) {
             return;
         }
@@ -492,7 +543,7 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
                 hoverBase() + hoverFloor(), hoverBase() + hoverCeiling());
         // speedModifier MUST 来自 moveSpeed()（= config bossMoveSpeed）。
         // 曾经传字面量 1.0D，使 config 完全失效、BOSS 实际跑在约 10~12 格/秒。
-        this.moveControl.setWantedPosition(wanderTarget.x, y, wanderTarget.z, moveSpeed());
+        this.moveControl.setWantedPosition(wanderTarget.x, y, wanderTarget.z, moveSpeed() * spellSpeedFactor());
     }
 
     /**

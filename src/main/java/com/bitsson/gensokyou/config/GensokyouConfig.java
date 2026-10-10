@@ -383,6 +383,52 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue SKILL_ICICLE_SP_COST;
     public static final ModConfigSpec.IntValue SKILL_ICICLE_COOLDOWN;
 
+    // ---- spellcards：前期 BOSS 主题玩家符卡（add-player-spellcards）----
+    public static final ModConfigSpec.DoubleValue SPELLCARD_SCALE_MIN_FACTOR;
+    public static final ModConfigSpec.DoubleValue SPELLCARD_SCALE_MAX_FACTOR;
+    // 花符『疗愈花园』
+    public static final ModConfigSpec.DoubleValue HEALING_GARDEN_BASE;
+    public static final ModConfigSpec.DoubleValue HEALING_GARDEN_ALPHA;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> HEALING_GARDEN_RADIUS;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> HEALING_GARDEN_DURATION_SECONDS;
+    public static final ModConfigSpec.IntValue HEALING_GARDEN_INTERVAL_TICKS;
+    public static final ModConfigSpec.IntValue HEALING_GARDEN_SP_COST;
+    public static final ModConfigSpec.IntValue HEALING_GARDEN_COOLDOWN;
+    // 花符『鲜花之铠』
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> FLOWER_ARMOR_BLOCKS;
+    public static final ModConfigSpec.DoubleValue FLOWER_ARMOR_DURATION_SECONDS;
+    public static final ModConfigSpec.IntValue FLOWER_ARMOR_SP_COST;
+    public static final ModConfigSpec.IntValue FLOWER_ARMOR_COOLDOWN;
+    // 暗符『划界』
+    public static final ModConfigSpec.DoubleValue DEMARCATION_ALPHA;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> DEMARCATION_RADIUS;
+    public static final ModConfigSpec.DoubleValue DEMARCATION_DURATION_SECONDS;
+    public static final ModConfigSpec.IntValue DEMARCATION_SP_COST;
+    public static final ModConfigSpec.IntValue DEMARCATION_COOLDOWN;
+    // 网符『蜘蛛之巢』
+    public static final ModConfigSpec.DoubleValue SPIDER_WEB_ALPHA;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> SPIDER_WEB_EDGE;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> SPIDER_WEB_DURATION_SECONDS;
+    public static final ModConfigSpec.DoubleValue SPIDER_WEB_SPEED_MULT;
+    public static final ModConfigSpec.IntValue SPIDER_WEB_SP_COST;
+    public static final ModConfigSpec.IntValue SPIDER_WEB_COOLDOWN;
+    // 疫符『病之返』
+    public static final ModConfigSpec.DoubleValue PLAGUE_REPAY_ALPHA;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> PLAGUE_REPAY_DURATION_SECONDS;
+    public static final ModConfigSpec.IntValue PLAGUE_REPAY_DEBUFF_COUNT;
+    public static final ModConfigSpec.IntValue PLAGUE_REPAY_DEBUFF_DURATION_SECONDS;
+    public static final ModConfigSpec.IntValue PLAGUE_REPAY_SP_COST;
+    public static final ModConfigSpec.IntValue PLAGUE_REPAY_COOLDOWN;
+    // 式神『狐之从者』
+    public static final ModConfigSpec.DoubleValue FOX_SERVANT_BASE;
+    public static final ModConfigSpec.DoubleValue FOX_SERVANT_ALPHA;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> FOX_SERVANT_RANGE;
+    public static final ModConfigSpec.ConfigValue<List<? extends Double>> FOX_SERVANT_DURATION_SECONDS;
+    public static final ModConfigSpec.IntValue FOX_SERVANT_INTERVAL_TICKS;
+    public static final ModConfigSpec.DoubleValue FOX_SERVANT_DAMAGE_CAP;
+    public static final ModConfigSpec.IntValue FOX_SERVANT_SP_COST;
+    public static final ModConfigSpec.IntValue FOX_SERVANT_COOLDOWN;
+
     // ---- superhuman-temper：八百万神恩（玩家 0-5 阶级进阶/洗练/飞行）----
     public static final ModConfigSpec.ConfigValue<List<? extends String>> GRACE_TIER_TABLE;
     public static final ModConfigSpec.ConfigValue<List<? extends Double>> GRACE_FLIGHT_COST_PCT;
@@ -1336,6 +1382,64 @@ public class GensokyouConfig {
         SKILL_ICICLE_COOLDOWN = BUILDER.defineInRange("icicleCooldownTicks", 100, 1, 120000);
         BUILDER.pop();
 
+        BUILDER.push("spellcards").comment("add-player-spellcards: quality x spirit-power scaling and early-boss cards");
+        SPELLCARD_SCALE_MIN_FACTOR = BUILDER.comment("Lower clamp on the S^alpha multiplier (guards misconfigured spirit power)")
+                .defineInRange("scaleMinFactor", 0D, 0D, 1D);
+        SPELLCARD_SCALE_MAX_FACTOR = BUILDER.comment("Upper clamp on the S^alpha multiplier (guards misconfigured spirit power)")
+                .defineInRange("scaleMaxFactor", 100000D, 1D, 1.0E9D);
+        // 花符『癒しの花園』
+        HEALING_GARDEN_BASE = BUILDER.comment("Healing Garden: Base heal per second at S=1").defineInRange("healingGardenBase", 0.6D, 0D, 1000D);
+        HEALING_GARDEN_ALPHA = BUILDER.comment("Healing Garden: scaling exponent (recovery band 0.15-0.2)").defineInRange("healingGardenAlpha", 0.20D, 0D, 2D);
+        HEALING_GARDEN_RADIUS = BUILDER.comment("Healing Garden: field radius per quality (1..5)")
+                .defineListAllowEmpty("healingGardenRadius", List.of(4D, 5D, 6D, 7D, 8D), o -> o instanceof Double);
+        HEALING_GARDEN_DURATION_SECONDS = BUILDER.comment("Healing Garden: duration seconds per quality (1..5)")
+                .defineListAllowEmpty("healingGardenDurationSeconds", List.of(20D, 30D, 40D, 50D, 60D), o -> o instanceof Double);
+        HEALING_GARDEN_INTERVAL_TICKS = BUILDER.comment("Healing Garden: heal pulse interval ticks").defineInRange("healingGardenIntervalTicks", 20, 1, 200);
+        HEALING_GARDEN_SP_COST = BUILDER.defineInRange("healingGardenSpCost", 80, 0, 100000);
+        HEALING_GARDEN_COOLDOWN = BUILDER.defineInRange("healingGardenCooldownTicks", 240, 1, 120000);
+        // 花符『鲜花之铠』
+        FLOWER_ARMOR_BLOCKS = BUILDER.comment("Flower Armor: blockable projectile count per quality (1..5)")
+                .defineListAllowEmpty("flowerArmorBlocks", List.of(3D, 5D, 7D, 10D, 15D), o -> o instanceof Double);
+        FLOWER_ARMOR_DURATION_SECONDS = BUILDER.comment("Flower Armor: duration seconds (quality-independent)").defineInRange("flowerArmorDurationSeconds", 20D, 1D, 600D);
+        FLOWER_ARMOR_SP_COST = BUILDER.defineInRange("flowerArmorSpCost", 60, 0, 100000);
+        FLOWER_ARMOR_COOLDOWN = BUILDER.defineInRange("flowerArmorCooldownTicks", 300, 1, 120000);
+        // 闇符『ディマーケイション』
+        DEMARCATION_ALPHA = BUILDER.comment("Demarcation: scaling exponent (control band 0.1-0.15)").defineInRange("demarcationAlpha", 0.12D, 0D, 2D);
+        DEMARCATION_RADIUS = BUILDER.comment("Demarcation: field radius per quality (1..5)")
+                .defineListAllowEmpty("demarcationRadius", List.of(8D, 10D, 12D, 14D, 16D), o -> o instanceof Double);
+        DEMARCATION_DURATION_SECONDS = BUILDER.comment("Demarcation: fixed duration seconds").defineInRange("demarcationDurationSeconds", 10D, 1D, 600D);
+        DEMARCATION_SP_COST = BUILDER.defineInRange("demarcationSpCost", 100, 0, 100000);
+        DEMARCATION_COOLDOWN = BUILDER.defineInRange("demarcationCooldownTicks", 360, 1, 120000);
+        // 網符『蜘蛛の巣』
+        SPIDER_WEB_ALPHA = BUILDER.comment("Spider Web: scaling exponent (control band 0.1-0.15)").defineInRange("spiderWebAlpha", 0.15D, 0D, 2D);
+        SPIDER_WEB_EDGE = BUILDER.comment("Spider Web: cube edge per quality (1..5); silk travels the same distance")
+                .defineListAllowEmpty("spiderWebEdge", List.of(6D, 8D, 10D, 12D, 14D), o -> o instanceof Double);
+        SPIDER_WEB_DURATION_SECONDS = BUILDER.comment("Spider Web: field duration seconds per quality (1..5)")
+                .defineListAllowEmpty("spiderWebDurationSeconds", List.of(10D, 15D, 20D, 25D, 30D), o -> o instanceof Double);
+        SPIDER_WEB_SPEED_MULT = BUILDER.comment("Spider Web: movement speed multiplier inside field (never 0)").defineInRange("spiderWebSpeedMult", 0.2D, 0.01D, 1D);
+        SPIDER_WEB_SP_COST = BUILDER.defineInRange("spiderWebSpCost", 60, 0, 100000);
+        SPIDER_WEB_COOLDOWN = BUILDER.defineInRange("spiderWebCooldownTicks", 200, 1, 120000);
+        // 疫符『病の返し』
+        PLAGUE_REPAY_ALPHA = BUILDER.comment("Plague Repay: scaling exponent (control/counter band 0.1-0.15)").defineInRange("plagueRepayAlpha", 0.12D, 0D, 2D);
+        PLAGUE_REPAY_DURATION_SECONDS = BUILDER.comment("Plague Repay: immunity window seconds per quality (1..5)")
+                .defineListAllowEmpty("plagueRepayDurationSeconds", List.of(10D, 15D, 20D, 25D, 30D), o -> o instanceof Double);
+        PLAGUE_REPAY_DEBUFF_COUNT = BUILDER.comment("Plague Repay: total debuffs dealt to attacker = this - attacker's current debuff count").defineInRange("plagueRepayDebuffCount", 3, 0, 32);
+        PLAGUE_REPAY_DEBUFF_DURATION_SECONDS = BUILDER.defineInRange("plagueRepayDebuffDurationSeconds", 60, 1, 3600);
+        PLAGUE_REPAY_SP_COST = BUILDER.defineInRange("plagueRepaySpCost", 70, 0, 100000);
+        PLAGUE_REPAY_COOLDOWN = BUILDER.defineInRange("plagueRepayCooldownTicks", 400, 1, 120000);
+        // 式神『狐の従者』
+        FOX_SERVANT_BASE = BUILDER.comment("Fox Servant: Base fire damage at S=1").defineInRange("foxServantBase", 3D, 0D, 1000000D);
+        FOX_SERVANT_ALPHA = BUILDER.comment("Fox Servant: scaling exponent (damage band 0.85-1.0)").defineInRange("foxServantAlpha", 0.90D, 0D, 2D);
+        FOX_SERVANT_RANGE = BUILDER.comment("Fox Servant: target search radius per quality (1..5)")
+                .defineListAllowEmpty("foxServantRange", List.of(16D, 20D, 24D, 28D, 32D), o -> o instanceof Double);
+        FOX_SERVANT_DURATION_SECONDS = BUILDER.comment("Fox Servant: summon duration seconds per quality (1..5)")
+                .defineListAllowEmpty("foxServantDurationSeconds", List.of(30D, 50D, 70D, 90D, 120D), o -> o instanceof Double);
+        FOX_SERVANT_INTERVAL_TICKS = BUILDER.comment("Fox Servant: attack interval ticks (possession burn tick)").defineInRange("foxServantIntervalTicks", 20, 1, 600);
+        FOX_SERVANT_DAMAGE_CAP = BUILDER.comment("Fox Servant: hard per-shot damage cap (guards extreme config)").defineInRange("foxServantDamageCap", 100000D, 1D, 1.0E9D);
+        FOX_SERVANT_SP_COST = BUILDER.defineInRange("foxServantSpCost", 150, 0, 100000);
+        FOX_SERVANT_COOLDOWN = BUILDER.defineInRange("foxServantCooldownTicks", 400, 1, 120000);
+        BUILDER.pop();
+
         BUILDER.push("grace").comment("superhuman-temper: yaoorozu no megumi advancement/refinement/flight");
         GRACE_TIER_TABLE = BUILDER.comment("Per-tier attribute increments rolled on advancement, entries 'tier,key,base,roll'"
                         + " (roll fraction: final = base*(1±roll)). balance-player-monster-stats v1:"
@@ -1379,7 +1483,7 @@ public class GensokyouConfig {
         ATTR_CRIT_CHANCE_CAP = BUILDER.defineInRange("critChanceCap", 0.5D, 0D, 1D);
         ATTR_BASE_CRIT_DAMAGE = BUILDER.comment("Extra damage fraction on crit, 0.5 = x1.5").defineInRange("baseCritDamage", 0.5D, 0D, 10D);
         ATTR_CRIT_DAMAGE_CAP = BUILDER.defineInRange("critDamageCap", 2D, 0D, 10D);
-        ATTR_BASE_SPELL_AMP = BUILDER.comment("Spell card damage amplification (reserved zone; no current consumer)")
+        ATTR_BASE_SPELL_AMP = BUILDER.comment("Spell card damage/heal amplification; first consumer = player spell cards (SpellCardScaling, add-player-spellcards)")
                 .defineInRange("baseSpellAmp", 0D, 0D, 10D);
         ATTR_SPELL_AMP_CAP = BUILDER.defineInRange("spellAmpCap", 10D, 0D, 100D);
         ATTR_BASE_SPELL_CDR = BUILDER.comment("Learned spell cooldown reduction fraction").defineInRange("baseSpellCdr", 0D, 0D, 1D);

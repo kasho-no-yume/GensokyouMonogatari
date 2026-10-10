@@ -78,6 +78,16 @@ public final class ModDataComponents {
                             .networkSynchronized(com.bitsson.gensokyou.spirit.SpiritCoreData.STREAM_CODEC)
                             .build());
 
+    /**
+     * 道具符卡品质（1~5，player-spellcard-quality）。掉落/生成时写入；
+     * 缺失（无组件）视为品 1——既有符卡（无想封印/冰符/光反）不设组件，自动落品 1。
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> SPELLCARD_QUALITY =
+            DATA_COMPONENTS.register("spellcard_quality", () -> DataComponentType.<Integer>builder()
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .build());
+
     /** 众生典籍收容状态（mob 类型 + 数量 + 驯服警告标记）。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<CodexData>> CODEX_DATA =
             DATA_COMPONENTS.register("codex_data", () -> DataComponentType.<CodexData>builder()
