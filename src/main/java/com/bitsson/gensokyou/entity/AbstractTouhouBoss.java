@@ -7,11 +7,15 @@ import com.bitsson.gensokyou.danmaku.track.SpellCard;
 import com.bitsson.gensokyou.danmaku.track.TrackLint;
 import com.bitsson.gensokyou.danmaku.track.TrackRunner;
 import com.bitsson.gensokyou.network.ModNetworking;
+import com.bitsson.gensokyou.netprof.NetProfile;
 import com.bitsson.gensokyou.registry.ModAttributes;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
+import com.bitsson.gensokyou.registry.ModItems;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -26,8 +30,10 @@ import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
@@ -452,6 +458,7 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
         }
         lastAnnouncedCard = index;
         ModNetworking.broadcastSpellCardName(this, index);
+        NetProfile.onCardChanged(this, index);
     }
 
     /** 换符卡时的钩子。子类可在此触发 cast 动画等演出。 */
@@ -639,10 +646,40 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
     // 掉落
     // ------------------------------------------------------------------
 
+    /** 新签名素材标签：只有标签成员才由击杀保底掉落（复用既有物的信物不在此列）。 */
+    private static final TagKey<Item> BOSS_SIGNATURE_TAG =
+            TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("gensokyou", "boss_signature"));
+
     @Override
     protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean recentlyHit) {
         super.dropCustomDeathLoot(level, source, recentlyHit);
         dropStarFragments(level);
+        dropSignature(level);
+        dropThemedCard(level);
+    }
+
+    /**
+     * 击杀保底掉落主题信物——仅限 {@code #gensokyou:boss_signature} 标签成员。
+     *
+     * <p>有主题归属但信物不在标签内的 BOSS（当前无）不掉；未声明归属者亦不掉。
+     */
+    protected void dropSignature(ServerLevel level) {
+        int count = Math.max(0, GensokyouConfig.SIGNATURE_DROP_COUNT.get());
+        if (count <= 0) {
+            return;
+        }
+        signatureItem()
+                .filter(item -> item.builtInRegistryHolder().is(BOSS_SIGNATURE_TAG))
+                .ifPresent(item -> this.spawnAtLocation(new ItemStack(item, count)));
+    }
+
+    /** 低概率直掉主题成品道具卡（config 概率，0 关闭）。 */
+    protected void dropThemedCard(ServerLevel level) {
+        double chance = GensokyouConfig.BOSS_CARD_DROP_CHANCE.get();
+        if (chance <= 0D || this.getRandom().nextDouble() >= chance) {
+            return;
+        }
+        themedCard().ifPresent(item -> this.spawnAtLocation(new ItemStack(item)));
     }
 
     /** 四只召唤 BOSS 全部掉碎符卡星；数量可覆写。 */

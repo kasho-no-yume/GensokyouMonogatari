@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.danmaku.track;
 
 import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
+import com.bitsson.gensokyou.danmaku.motion.FormationFrame;
 import net.minecraft.network.chat.Component;
 
 import static com.bitsson.gensokyou.danmaku.track.Track.of;
@@ -86,28 +87,10 @@ public final class BossCards {
     private static final int FLOWER_HOLD = 40;
     private static final int FLOWER_BURST_AGE = FLOWER_RAMP + FLOWER_HOLD;
     /**
-     * 阶段 2 单朵花的寿命：<b>MUST 不小于 {@link #FLOWER_CARD_CYCLE}</b>。
-     *
-     * <p>原为 {@code 2 * FLOWER_BURST_AGE = 200}，比循环 240 短 40 tick。这个差值就是
-     * 「画面陆续减少、逐渐变空」的<b>全部</b>原因，而且它与发射密度无关：在场花朵数
-     * {@code = 每周期朵数 × 寿命 / 周期}，{@link #FLOWER_STEP} 改多少都动不了它。
-     *
-     * <p>寿命 200 / 周期 240 时，每轮第 201~261 tick 没有任何新发射、而上一批正在陆续到期，
-     * 画面从 736 枚排空到 276 枚（峰值的 37%），然后再涨回来。取 240 后，
-     * 下一轮的第 0 朵恰好在上一轮第 0 朵到期的那一 tick 补上，在场数稳定在 16~17 朵。
-     *
-     * <p><b>为什么不能用「把间隔调稀」来代替</b>——那样会把同时开花的朵数从 16 压到 4：
-     * {@code TrackLint} 的密度按 50 tick 危险窗口的重叠数计，峰值会从 736 掉到 184。
-     * 补间隔治的是症状，掉的是这张卡本来就该有的压迫感。
-     *
-     * <p>本文件对「循环留余量」已有既定态度（见 {@link #RAIN_CARD_CYCLE}：循环 MUST 等于
-     * 内容跨度，余量就是「放一段然后哑掉」）。花卡的 80 tick 余量本该一并去掉，但去掉会把
-     * 12 秒压成 10 秒——那是节奏选择，不是 bug，所以留在这里，只把寿命补到与之匹配。
-     *
-     * <p>代价：爆散后的滑行余量由 100 tick 变成 140 tick（花瓣滑行 20 格 → 28 格）。
-     * {@code harmlessTicks} 仍是 100，即爬升与悬停全程无害这一点没有被改动。
+     * 花弹从出生起存活 20 秒（400 tick），寿命独立于符卡的 12 秒发射循环。
+     * 第 100 tick 爆散后仍有 300 tick 的飞行时间。
      */
-    private static final int FLOWER_LIFETIME = FLOWER_CARD_CYCLE;
+    private static final int FLOWER_LIFETIME = 400;
     /**
      * 阶段 3 的循环长度：<b>MUST 等于内容跨度</b>（10 拍 × 20 tick = 200），不得留余量。
      *
@@ -180,7 +163,7 @@ private static SpellCard ringCard() {
      * 反方向以 4 格/秒射出，中心弹因恰好落在参考点上（连线退化）改朝随机目标玩家
      * 以 6 格/秒射出。
      *
-     * <p>寿命 10 秒（5 秒成形 + 5 秒散开）。整朵共享一条编队帧作参考点，
+     * <p>寿命 60 秒（5 秒成形 + 55 秒散开）。整朵共享一条编队帧作参考点，
      * 该帧在爆散时被解除——否则弹会被拽回队形里继续转，现象是「炸开了又缩回去」。
      */
     private static SpellCard flowerCard() {
@@ -265,27 +248,37 @@ private static SpellCard ringCard() {
     // ==================================================================
     // 黑谷山女（土蜘蛛） —— T1，接在大妖精之后。
     //
-    // 母题来自原作地霊殿 1 面：罠符「キャプチャーウェブ」（网）与
-    // 瘴符「フィルドミアズマ」（瘴气）。
+    // 设计基准见 change redesign-yamame-spellcards 的 design.md D4~D8。
+    // 两组母题：第 1、3 张「蛛丝编织」，第 2、4 张「瘴气螺旋」。
     //
-    // **红线：每一发都得是朝着玩家去的。** 只用「朝着玩家/绕着玩家/压在玩家脚下」
-    // 的几何——AIMED 瞄准扇、AROUND_TARGET 绕玩家收拢、LATTICE 绕玩家的激光网、
-    // DISC_RING 悬停后朝玩家压来的墙、PLAYER_GROUND 从玩家脚下炸起的光柱。
-    // 绝不用往 BOSS 侧边放的 RING / RADIAL_BURST / SHELL / CAGE——那打不到人、
-    // 也不逼走位，是纯粹的花瓶。
+    //  - 蛛丝 = FAN 射出的引线弹挂 Trail，沿线每 N tick 留一颗静止尾珠；
+    //  - 螺旋 = Shape.SPIRAL，编队呼吸表现膨胀、SPEED_PROFILE 表现「停批」凝结。
     //
-    // 颜色：at(0) 金（蛛丝）／at(1) 陶土（地蜘蛛）／at(2) 赤・at(3) 紫（奇偶波的瘴）
-    //      ／at(4) 病黄绿（毒/热病）。容量 6 ≥ 最大并发 3。
+    // 每张卡都有独立循环长度；织网 / 展开阶段由 YamameEntity#movementLocked 锁位，
+    // 使多批共享同一中心、图案不随 BOSS 游走漂移。
+    //
+    // 颜色：at(0) 金（丝/压网）／at(1) 陶土（石窟丝）／at(2) 赤・at(3) 紫（瘴的走/停两批）
+    //      ／at(4) 病黄绿（热病副螺旋）。容量 6 ≥ 最大并发 3。
     // ==================================================================
 
     public static final SignaturePalette YAMAME_PALETTE =
             SignaturePalette.of(0xE0A24B, 0xD9683A, 0xC8383E, 0x8E5FD8, 0xB8D24A, 0x5FBF7A);
 
     /** 各卡循环长度（tick）。显式时间轴靠它重放，符卡切换也挂起到它的边界。 */
-    private static final int YAMAME_WEB_CYCLE = 160;
-    private static final int YAMAME_MIASMA_CYCLE = 240;
-    private static final int YAMAME_NEST_CYCLE = 220;
-    private static final int YAMAME_FEVER_CYCLE = 240;
+    public static final int YAMAME_WEB_CYCLE = 200;
+    public static final int YAMAME_MIASMA_CYCLE = 260;
+    public static final int YAMAME_NEST_CYCLE = 260;
+    public static final int YAMAME_FEVER_CYCLE = 260;
+
+    /** 引线弹保留 5 秒；尾珠使用 BOSS 基础弹幕的 20 秒寿命。 */
+    private static final int YAMAME_SPINNER_LIFETIME = 100;
+    private static final int YAMAME_NODE_LIFETIME = 400;
+    /** 尾珠生成间隔（tick）。 */
+    private static final int YAMAME_TRAIL_EVERY = 4;
+    /** 尾珠静止多少 tick 后开始漂移（约 2 秒）。 */
+    private static final int YAMAME_NODE_HOLD = 40;
+    /** 尾珠漂移速率（格/tick）——缓慢飘散。 */
+    private static final double YAMAME_NODE_DRIFT = 0.06D;
 
     public static List<SpellCard> yamame() {
         return List.of(webCard(), miasmaCard(), nestCard(), feverCard());
@@ -294,129 +287,160 @@ private static SpellCard ringCard() {
     /**
      * 1 阶段 · 罠符「キャプチャーウェブ」（100%~75%）
      *
-     * <p>意念：蛛丝朝着你收拢。一道瞄准扇直取当前站位；同时一圈蛛丝绕着你生成、
-     * 从四面八方朝你合拢——站在原点必死，必须踩着缝走位。
+     * <p>稀疏蛛丝：从她手中散出一把引线弹（{@code FAN}），每颗沿线每 N tick 留下静止尾珠，
+     * 尾珠连成一张宽缝的网。缺口相位逐轮推进，玩家踩着缝换位即可，不必撤离。
      */
     private static SpellCard webCard() {
-        Track.Builder net = of("張網", YAMAME_PALETTE.at(0))
+        Track.Builder weave = of("织丝", YAMAME_PALETTE.at(0))
                 .identity(0, 0, 0)
-                .repeatEvery(20)
-                .phaseStep(9.0D);
-        net.at(0, Shape.AROUND_TARGET, Shape.Params.defaults()
-                        .count(18).radius(7.0D).spread(14.0D).speed(0.30D).size(0.6D),
-                Behaviour.NONE, TargetMode.AIMED);
+                .repeatEvery(60)
+                .phaseStep(24.0D);
+        // 半球随机散射：3 条子拍各 6 根，合计 18 根/轮；单拍 6 发低于 R2 封死阈值，
+        // 且方向被限制在「BOSS → 玩家」的半球包络内，故 SELF_AXIS 单份即可，不按人复制。
+        for (int sub = 0; sub < 3; sub++) {
+            weave.at(sub * 20, Shape.CONE_RANDOM, Shape.Params.defaults()
+                            .count(6).spread(180.0D).speed(0.70D).size(0.75D),
+                    Behaviour.NONE.withTrail(Behaviour.Trail.drifting(
+                            YAMAME_TRAIL_EVERY, YAMAME_NODE_LIFETIME,
+                            YAMAME_NODE_HOLD, YAMAME_NODE_DRIFT)),
+                    TargetMode.SELF_AXIS, Projectile.piercingSphere(),
+                    YAMAME_SPINNER_LIFETIME, 0, Track.Beat.SpawnAnchor.NONE, 1.0D, 1.0D);
+        }
 
-        Track.Builder thread = of("追い糸", YAMAME_PALETTE.at(1))
+        Track.Builder chase = of("追丝", YAMAME_PALETTE.at(1))
                 .identity(1, 1, 1)
-                .repeatEvery(20);
-        thread.at(0, Shape.FAN, Shape.Params.defaults()
-                        .count(7).spread(22.0D).speed(0.45D).size(0.55D),
+                .repeatEvery(70)
+                .phaseStep(30.0D);
+        chase.at(0, Shape.FAN, Shape.Params.defaults()
+                        .count(3).spread(24.0D).speed(0.5D).size(0.4D),
                 Behaviour.NONE, TargetMode.AIMED);
 
         return new SpellCard(card("yamame", 1), 1.00D,
-                List.of(net.build(), thread.build()), YAMAME_WEB_CYCLE);
+                List.of(weave.build(), chase.build()), YAMAME_WEB_CYCLE);
     }
 
     /**
      * 2 阶段 · 瘴符「フィルドミアズマ」（75%~50%）
      *
-     * <p>意念：瘴气充满你所在的洞窟。绕着你自转的瘴气涡旋逐拍推进、不断收拢；
-     * 同时一圈**凌乱激光网**在你四周亮起——有的直指你（不动就中），有的只封路，
-     * 必须在一堆交叉线里找活口。
+     * <p>中央瘴气螺旋：以 BOSS 为编队中心的确定性螺旋（{@code SPIRAL}）向外膨胀；
+     * 另加一轨「毒雾」——半球内随机方向的缓速分散弹，飘向玩家。
      */
     private static SpellCard miasmaCard() {
-        Track.Builder vortex = of("瘴気の渦", YAMAME_PALETTE.at(2))
+        Track.Builder flow = of("瘴涡", YAMAME_PALETTE.at(2))
                 .identity(0, 0, 0)
-                .repeatEvery(16)
-                .phaseStep(12.0D);
-        vortex.at(0, Shape.AROUND_TARGET, Shape.Params.defaults()
-                        .count(20).radius(7.0D).spread(16.0D).speed(0.32D).size(0.6D),
-                Behaviour.NONE, TargetMode.AIMED);
+                .formation(Behaviour.Formation.breathing(0.0D, FormationFrame.HORIZONTAL_PITCH_DEG,
+                        0.0D, 1.0D, 0.4D, 80.0D))
+                .repeatEvery(60)
+                .phaseStep(9.0D);
+        flow.at(0, Shape.SPIRAL, Shape.Params.defaults()
+                        .count(20).radius(8.0D).rose(1, 3.0D).speed(0.18D).size(0.55D),
+                Behaviour.NONE, TargetMode.SELF_AXIS, Projectile.piercingSphere());
 
-        Track.Builder web = of("瘴気の網", YAMAME_PALETTE.at(4))
-                .identity(1, 1, 0)
-                .repeatEvery(46);
-        web.at(0, Shape.LATTICE, Shape.Params.defaults()
-                        .count(14).radius(9.0D).spread(40.0D).aimBias(0.4D).speed(0.0D),
-                Behaviour.NONE, TargetMode.AIMED, Projectile.laser(36.0D, 0.3D, 1.4D, 2.4D));
+        // 毒雾：半球内随机方向的缓速分散弹——螺旋绕在 BOSS 身边，毒雾则飘向玩家。
+        // （原「凝瘴」是减速定住的螺旋，实测完全不动、无威胁，改为会飘的毒雾。）
+        Track.Builder mist = of("毒雾", YAMAME_PALETTE.at(3))
+                .identity(1, 1, 1)
+                .repeatEvery(30)
+                .phaseStep(41.0D);
+        mist.at(0, Shape.CONE_RANDOM, Shape.Params.defaults()
+                        .count(7).spread(180.0D).speed(0.12D).size(0.5D),
+                Behaviour.NONE, TargetMode.SELF_AXIS, Projectile.piercingSphere());
 
         return new SpellCard(card("yamame", 2), 0.75D,
-                List.of(vortex.build(), web.build()), YAMAME_MIASMA_CYCLE);
+                List.of(flow.build(), mist.build()), YAMAME_MIASMA_CYCLE);
     }
 
     /**
      * 3 阶段 · 蜘蛛「石窟の蜘蛛の巣」（50%~25%）
      *
-     * <p>意念：蜘蛛收网。她在身后立起一面蛛丝墙、悬停两秒后整面朝你压来；
-     * 你的脚底炸起垂丝光柱；同时一圈络丝持续绕你收拢。三种威胁叠在一起，
-     * 逼着你不停换位。
+     * <p>密集蛛丝：同第 1 张的语法，蛛丝更密、速度更快；辅以「石窟吐丝」——
+     * 朝玩家方向 60° 内的随机散射，逼走位。不使用脚下光柱与随机激光网。
      */
     private static SpellCard nestCard() {
-        Track.Builder wall = of("結界網", YAMAME_PALETTE.at(1))
+        Track.Builder weave = of("石窟织网", YAMAME_PALETTE.at(1))
                 .identity(0, 0, 0)
-                .repeatEvery(50);
-        wall.at(0, Shape.DISC_RING, Shape.Params.defaults()
-                        .count(30).radius(5.0D).offsetForward(-8.0D).speed(0.4D).size(0.65D),
-                Behaviour.NONE.withMotion(Behaviour.Motion.reclaim(
-                        DanmakuSpeedProfile.decelerateAndHold(0.4D, 1.0D),
-                        46, 0.4D, Behaviour.TARGET_AUTO)),
-                TargetMode.AIMED);
+                .repeatEvery(60)
+                .phaseStep(28.0D);
+        // 同第 1 张的半球随机散射，蛛丝更密：3 条子拍各 7 根，合计 21 根/轮。
+        for (int sub = 0; sub < 3; sub++) {
+            weave.at(sub * 20, Shape.CONE_RANDOM, Shape.Params.defaults()
+                            .count(7).spread(180.0D).speed(0.64D).size(0.75D),
+                    Behaviour.NONE.withTrail(Behaviour.Trail.drifting(
+                            YAMAME_TRAIL_EVERY, YAMAME_NODE_LIFETIME,
+                            YAMAME_NODE_HOLD, YAMAME_NODE_DRIFT)),
+                    TargetMode.SELF_AXIS, Projectile.piercingSphere(),
+                    YAMAME_SPINNER_LIFETIME, 0, Track.Beat.SpawnAnchor.NONE, 1.0D, 1.0D);
+        }
 
-        Track.Builder pillar = of("垂れ糸", YAMAME_PALETTE.at(0))
-                .identity(1, 1, 0)
-                .repeatEvery(44);
-        pillar.at(0, Shape.PILLAR_UP, Shape.Params.defaults()
-                        .count(2).radius(2.0D).speed(0.0D),
-                Behaviour.NONE, TargetMode.SELF_AXIS, Projectile.laser(44.0D, 0.35D, 1.6D, 3.0D),
-                0, 0, Track.Beat.SpawnAnchor.PLAYER_GROUND, 1.0D, 1.0D);
-
-        Track.Builder tangle = of("絡み糸", YAMAME_PALETTE.at(3))
-                .identity(2, 2, 0)
-                .repeatEvery(22)
-                .phaseStep(45.0D);
-        tangle.at(0, Shape.AROUND_TARGET, Shape.Params.defaults()
-                        .count(16).radius(6.0D).spread(16.0D).speed(0.30D).size(0.55D),
-                Behaviour.NONE, TargetMode.AIMED);
+        // 石窟吐丝：朝玩家方向 60° 内的随机散射（spread=120 ⇒ 半角 60°）。
+        // 取代原「压网」的环形追踪——那圈弹打不到人也不逼走位。
+        Track.Builder spit = of("石窟吐丝", YAMAME_PALETTE.at(0))
+                .identity(1, 1, 1)
+                .repeatEvery(50)
+                .phaseStep(33.0D);
+        spit.at(0, Shape.CONE_RANDOM, Shape.Params.defaults()
+                        .count(6).spread(120.0D).speed(0.45D).size(0.55D),
+                Behaviour.NONE, TargetMode.SELF_AXIS, Projectile.piercingSphere());
 
         return new SpellCard(card("yamame", 3), 0.50D,
-                List.of(wall.build(), pillar.build(), tangle.build()), YAMAME_NEST_CYCLE);
+                List.of(weave.build(), spit.build()), YAMAME_NEST_CYCLE);
     }
 
     /**
      * 4 阶段 · 瘴気「原因不明の熱病」（25%~0%）
      *
-     * <p>意念：高热之涡。更密更快的收拢涡旋、更密的激光网、脚下毒柱连发——
-     * 三种威胁同时压上来。靠后的卡以 damageScale 加压，而非无限加弹数。
+     * <p>三重瘴气螺旋：中央大螺旋 + 左右两个小螺旋（以横向偏移并排）同步展开。
+     * 难度来自安全区变化速度与三组图案的空间关系，而非弹数——靠后的卡用
+     * {@code damageScale} 加压。左右小螺旋一正一反旋向，读起来是一对。
      */
     private static SpellCard feverCard() {
-        Track.Builder heat = of("熱病", YAMAME_PALETTE.at(2))
-                .damageScale(1.3D)
+        Track.Builder centre = of("热病中心", YAMAME_PALETTE.at(2))
+                .damageScale(1.25D)
                 .identity(0, 0, 0)
-                .repeatEvery(16)
-                .phaseStep(14.0D);
-        heat.at(0, Shape.AROUND_TARGET, Shape.Params.defaults()
-                        .count(20).radius(8.0D).spread(14.0D).speed(0.32D).size(0.55D),
-                Behaviour.NONE, TargetMode.AIMED);
+                .formation(Behaviour.Formation.breathing(0.0D, FormationFrame.HORIZONTAL_PITCH_DEG,
+                        0.0D, 1.0D, 0.45D, 70.0D))
+                .repeatEvery(50)
+                .phaseStep(11.0D);
+        centre.at(0, Shape.SPIRAL, Shape.Params.defaults()
+                        .count(14).radius(9.0D).rose(1, 3.0D).speed(0.20D).size(0.5D),
+                Behaviour.NONE, TargetMode.SELF_AXIS, Projectile.piercingSphere());
 
-        Track.Builder web = of("瘴気の網", YAMAME_PALETTE.at(3))
-                .damageScale(1.3D)
-                .identity(1, 1, 0)
-                .repeatEvery(38);
-        web.at(0, Shape.LATTICE, Shape.Params.defaults()
-                        .count(18).radius(10.0D).spread(45.0D).aimBias(0.45D).speed(0.0D),
-                Behaviour.NONE, TargetMode.AIMED, Projectile.laser(40.0D, 0.32D, 1.2D, 2.4D));
+        Track.Builder left = of("热病左", YAMAME_PALETTE.at(4))
+                .damageScale(1.25D)
+                .identity(1, 1, 1)
+                .formation(Behaviour.Formation.breathing(0.0D, FormationFrame.HORIZONTAL_PITCH_DEG,
+                        0.0D, 1.0D, 0.4D, 60.0D))
+                .repeatEvery(50);
+        left.at(0, Shape.SPIRAL, Shape.Params.defaults()
+                        .count(6).radius(4.0D).rose(1, 1.5D).offsetRight(6.0D)
+                        .speed(0.22D).size(0.45D),
+                Behaviour.NONE, TargetMode.SELF_AXIS, Projectile.piercingSphere());
 
-        Track.Builder rain = of("毒雨", YAMAME_PALETTE.at(4))
-                .damageScale(1.35D)
-                .identity(2, 2, 1)
-                .repeatEvery(30);
-        rain.at(0, Shape.PILLAR_UP, Shape.Params.defaults()
-                        .count(3).radius(3.0D).speed(0.0D),
-                Behaviour.NONE, TargetMode.SELF_AXIS, Projectile.laser(40.0D, 0.4D, 1.0D, 2.6D),
-                0, 0, Track.Beat.SpawnAnchor.PLAYER_GROUND, 1.0D, 1.0D);
+        Track.Builder right = of("热病右", YAMAME_PALETTE.at(3))
+                .damageScale(1.25D)
+                .identity(2, 2, 2)
+                .formation(Behaviour.Formation.breathing(0.0D, FormationFrame.HORIZONTAL_PITCH_DEG,
+                        0.0D, 1.0D, 0.4D, 60.0D))
+                .repeatEvery(50);
+        right.at(0, Shape.SPIRAL, Shape.Params.defaults()
+                        .count(6).radius(4.0D).rose(-1, 1.5D).offsetRight(-6.0D)
+                        .speed(0.22D).size(0.45D),
+                Behaviour.NONE, TargetMode.SELF_AXIS, Projectile.piercingSphere());
+
+        // 毒雾（更浓）：半球内随机方向的缓速分散弹。三重螺旋都在 BOSS 身边，
+        // 只靠它们玩家绕圈即可规避；这轨把威胁铺向玩家所在的方向，逼其不能一味绕场。
+        Track.Builder mist = of("毒雾", YAMAME_PALETTE.at(5))
+                .damageScale(1.25D)
+                .identity(3, 3, 3)
+                .repeatEvery(26)
+                .phaseStep(53.0D);
+        mist.at(0, Shape.CONE_RANDOM, Shape.Params.defaults()
+                        .count(7).spread(180.0D).speed(0.12D).size(0.5D),
+                Behaviour.NONE, TargetMode.SELF_AXIS, Projectile.piercingSphere());
 
         return new SpellCard(card("yamame", 4), 0.25D,
-                List.of(heat.build(), web.build(), rain.build()), YAMAME_FEVER_CYCLE);
+                List.of(centre.build(), left.build(), right.build(), mist.build()),
+                YAMAME_FEVER_CYCLE);
     }
 
     // ==================================================================

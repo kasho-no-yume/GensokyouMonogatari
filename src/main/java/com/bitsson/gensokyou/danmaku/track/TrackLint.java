@@ -62,8 +62,14 @@ public final class TrackLint {
     public static final int R2_SEAL_COUNT = 8;
     /** 轨轨道数下限。 */
     public static final int MIN_TRACKS = 1;
-    /** 轨道数上限。 */
-    public static final int MAX_TRACKS = 3;
+    /**
+     * 轨道数上限。
+     *
+     * <p>由 3 提升到 5（change {@code extend-danmaku-track-primitives}）：原上限不足以容纳
+     * 「主图案 + 辅助 + 多实例子图案」的编排。它只是**容量护栏**——实际并发密度仍受
+     * R3 稳态预算与轨道视觉独占约束，提高上限不等于鼓励堆轨。
+     */
+    public static final int MAX_TRACKS = 5;
 
     /** R4：单个可见段的最短时长（tick）。低于此玩家来不及反应，隐藏会读作「突然无敌」。 */
     public static final double MIN_VISIBLE_TICKS = 20.0D;
@@ -366,6 +372,13 @@ public final class TrackLint {
         Shape.Params params = beat.params();
         String where = String.format("%s 轨「%s」t=%d %s", tag, track.name(), beat.tick(), shape);
         // 显影/可见性：激光有自己的生命周期，隐藏态对它另有语义时由下面单独判。
+
+        // 拖尾与分裂互斥：两者都「生成子代」，同时开会语义打架
+        // （Split 是一次性炸开且母弹消失，Trail 是周期性且母弹续飞）。
+        if (beat.behaviour().trail().active() && beat.behaviour().split().active()) {
+            violations.add(where + ": 同一拍同时声明了拖尾(Trail)与分裂(Split)"
+                    + "——两者都生成子代，语义冲突，MUST 二选一");
+        }
 
         // 段式运动：末段零速率 ⇒ 弹在段表走完后<b>永久悬停</b>。
         //

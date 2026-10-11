@@ -9,10 +9,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 狐火「無序」——主题：起手即峰值、没有预备拍。
@@ -79,6 +81,21 @@ public class KitsuneBiEntity extends AbstractTouhouBoss {
     @Override
     protected int starDropCount() {
         return 4;
+    }
+
+    /**
+     * 主题信物：隙间碎片（复用既有物）。它属 {@code #gensokyou:boss_signature} 标签，
+     * 故击杀本 BOSS 会保底掉落（config 数量），与山女并列构成隙间碎片来源。
+     */
+    @Override
+    public Optional<Item> signatureItem() {
+        return Optional.of(ModItems.SUKIMA_FRAGMENT.get());
+    }
+
+    /** 主题卡代表：式神『狐の従者』（低概率直掉）。 */
+    @Override
+    public Optional<Item> themedCard() {
+        return Optional.of(ModItems.FOX_SERVANT.get());
     }
 
     @Override

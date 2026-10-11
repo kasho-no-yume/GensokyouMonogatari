@@ -51,6 +51,7 @@ public final class DanmakuPreview {
         final int ticksPerCard;
         final int endTick;
         int currentCard;
+        final int[] traceCounts = new int[4];
 
         Session(ArmorStand rig, TrackRunner runner, List<SpellCard> cards, float damage,
                 int startTick, int ticksPerCard, int endTick) {
@@ -114,6 +115,28 @@ public final class DanmakuPreview {
         SESSIONS.put(player.getUUID(), new Session(
                 rig, new TrackRunner(cards, set.palette()), cards, damage,
                 (int) now, ticksPerCard, (int) (now + seconds * 20L)));
+        Gensokyou.LOGGER.info("[danmaku-preview] START viewer={} rig={} cards={} seconds={} damage={} origin={}",
+                player.getUUID(), rig.getUUID(), cards.stream().map(c -> c.name().getString()).toList(),
+                seconds, damage, anchor);
+    }
+
+    /** Four samples per category/card, plus two children per sampled trail head. */
+    public static void traceEmission(net.minecraft.world.entity.LivingEntity owner,
+                                     com.bitsson.gensokyou.entity.AbstractDanmakuProjectile bullet) {
+        if (!(owner instanceof ArmorStand)) {
+            return;
+        }
+        for (Session session : SESSIONS.values()) {
+            if (session.rig != owner) {
+                continue;
+            }
+            int category = bullet.isTrailing() ? 0 : bullet.isBursting()
+                    ? (bullet.getBbWidth() > 0.8F ? 1 : 2) : 3;
+            if (session.traceCounts[category]++ < 4) {
+                bullet.enablePreviewTrace(0);
+            }
+            return;
+        }
     }
 
     /**
@@ -127,6 +150,7 @@ public final class DanmakuPreview {
     public static void stop(ServerPlayer player) {
         Session session = SESSIONS.remove(player.getUUID());
         if (session != null && !session.rig.isRemoved()) {
+            Gensokyou.LOGGER.info("[danmaku-preview] STOP rig={} reason=replaced-or-command", session.rig.getUUID());
             session.rig.discard();
         }
     }
@@ -159,6 +183,8 @@ public final class DanmakuPreview {
             ServerPlayer viewer = level.getServer().getPlayerList().getPlayer(entry.getKey());
             if (viewer == null || viewer.isRemoved() || viewer.level() != level
                     || now >= session.endTick || session.rig.isRemoved()) {
+                Gensokyou.LOGGER.info("[danmaku-preview] STOP rig={} gameTime={} endTick={}",
+                        session.rig.getUUID(), now, session.endTick);
                 if (!session.rig.isRemoved()) {
                     session.rig.discard();
                 }
@@ -171,6 +197,9 @@ public final class DanmakuPreview {
                     session.cards.size() - 1);
             if (slot != session.currentCard) {
                 session.currentCard = slot;
+                java.util.Arrays.fill(session.traceCounts, 0);
+                Gensokyou.LOGGER.info("[danmaku-preview] CARD rig={} name={} gameTime={}",
+                        session.rig.getUUID(), session.cards.get(slot).name().getString(), now);
                 session.runner.stop();
                 session.runner.selectCard(session.cards.get(slot).hpFraction());
             }

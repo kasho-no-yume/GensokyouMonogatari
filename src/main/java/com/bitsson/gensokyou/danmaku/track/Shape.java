@@ -186,7 +186,20 @@ public enum Shape {
      * <p>刚体性由「同速同刻发射」物理地给出，MUST NOT 依赖编队帧：
      * 编队帧的价值在自转与呼吸，而本形态刻意不自转（花瓣长短已编码在出生点里）。
      */
-    FLOWER;
+    FLOWER,
+    /**
+     * 螺旋排布：在<b>面向目标</b>的平面内，按阿基米德螺线
+     * {@code r = r_in + (r_out − r_in)·θ/θ_max} 排布 {@code count} 颗弹。
+     *
+     * <p>参数复用（沿用本模组「同字段在不同形状各有各的含义」的既定做法）：
+     * {@code count} = 弹数、{@code radius} = 外半径 {@code r_out}、
+     * {@code radialAmp} = 内半径 {@code r_in}、{@code petals} = 圈数
+     * （<b>符号决定旋向</b>，与「负幅度只换朝向」的既有约定一致，越界由 {@code Geometry} 夹取）。
+     *
+     * <p>每颗弹的初速方向 = 平面法线（{@code forward}），与 {@link #ROSETTE} 一致：
+     * 平面内形状由编队帧负责，行进沿法线。膨胀由 {@code Formation} 的呼吸缩放给出。
+     */
+    SPIRAL;
 
     /**
      * 一个形状的<b>几何</b>参数——纯几何，<b>不含任何行为参数</b>。
@@ -238,32 +251,40 @@ public enum Shape {
              * 与 {@code offsetForward} 一起覆盖了绝大多数「换个地方冒出来」的需求，
              * 而不必为此新增几何。
              */
-            double offsetUp) {
+            double offsetUp,
+            /**
+             * 生成点沿「发射者→目标」<b>水平右方向</b>的偏移（格）。
+             *
+             * <p>正 = 在发射者右手侧。它与 {@code offsetForward}（前后）、{@code offsetUp}
+             * （上下）正交，补齐「让多实例子图案左右并排」这一构图需求（如第四张卡的两个
+             * 副螺旋）。它同样只改「弹在哪儿冒出来」，不改弹的方位——故仍是纯几何。
+             */
+            double offsetRight) {
 
         /** 全零 / 全默认参数。 */
         public static Params defaults() {
             return new Params(1, 0.0D, 0.0D, 0.0D, 0.0D, 1.0D, 0.5D, 0.4D, 0, 0.0D, 0.3D,
-                    0.0D, 0.0D);
+                    0.0D, 0.0D, 0.0D);
         }
 
         public Params count(int value) {
             return new Params(value, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
+                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp, offsetRight);
         }
 
         public Params spread(double value) {
             return new Params(count, value, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
+                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp, offsetRight);
         }
 
         public Params gap(double value) {
             return new Params(count, spreadDeg, value, radius, radiusPerTick, riseFactor,
-                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
+                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp, offsetRight);
         }
 
         public Params radius(double value, double perTick) {
             return new Params(count, spreadDeg, gapDeg, value, perTick, riseFactor,
-                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
+                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp, offsetRight);
         }
 
         public Params radius(double value) {
@@ -272,17 +293,17 @@ public enum Shape {
 
         public Params rise(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, value,
-                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
+                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp, offsetRight);
         }
 
         public Params speed(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    value, size, petals, radialAmp, aimBias, offsetForward, offsetUp);
+                    value, size, petals, radialAmp, aimBias, offsetForward, offsetUp, offsetRight);
         }
 
         public Params size(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, value, petals, radialAmp, aimBias, offsetForward, offsetUp);
+                    speed, value, petals, radialAmp, aimBias, offsetForward, offsetUp, offsetRight);
         }
 
         /**
@@ -294,7 +315,7 @@ public enum Shape {
         public Params aimBias(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
                     speed, size, petals, radialAmp, Math.min(1.0D, Math.max(0.0D, value)),
-                    offsetForward, offsetUp);
+                    offsetForward, offsetUp, offsetRight);
         }
 
         /**
@@ -311,19 +332,25 @@ public enum Shape {
          */
         public Params rose(int petalCount, double amplitude) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, size, petalCount, amplitude, aimBias, offsetForward, offsetUp);
+                    speed, size, petalCount, amplitude, aimBias, offsetForward, offsetUp, offsetRight);
         }
 
         /** 沿发射者→目标方向的生成点偏移（负 = 在发射者后方）。 */
         public Params offsetForward(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, size, petals, radialAmp, aimBias, value, offsetUp);
+                    speed, size, petals, radialAmp, aimBias, value, offsetUp, offsetRight);
         }
 
         /** 沿世界竖直的生成点偏移（正 = 在发射者上方）。 */
         public Params offsetUp(double value) {
             return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
-                    speed, size, petals, radialAmp, aimBias, offsetForward, value);
+                    speed, size, petals, radialAmp, aimBias, offsetForward, value, offsetRight);
+        }
+
+        /** 沿「发射者→目标」水平右方向的生成点偏移（正 = 右手侧）。 */
+        public Params offsetRight(double value) {
+            return new Params(count, spreadDeg, gapDeg, radius, radiusPerTick, riseFactor,
+                    speed, size, petals, radialAmp, aimBias, offsetForward, offsetUp, value);
         }
 
         /** 返回一份把 {@code radiusPerTick} 换掉的副本——SHELL 的逐拍收拢由 Geometry 施加。 */
@@ -333,7 +360,7 @@ public enum Shape {
 
         /** 返回一份把生成点偏移清零的副本——偏移只对声明它的那个形状有意义。 */
         public Params withoutOffsets() {
-            return offsetForward(0.0D).offsetUp(0.0D);
+            return offsetForward(0.0D).offsetUp(0.0D).offsetRight(0.0D);
         }
     }
 
@@ -352,7 +379,7 @@ public enum Shape {
             // GRID_FACING 是稀疏点阵，DISC_RING 是一圈弹之间的缝隙，SCATTER_FALL / PILLAR_UP
             // 是地面上的落点，FLOWER 是花瓣簇——它们弹与弹之间处处是解。
             case AXIAL_STAR, SHELL, RING, ROSETTE, RADIAL_BURST, SCATTER_STATIC, FALL_FROM_ABOVE,
-                    GRID_FACING, DISC_RING, SCATTER_FALL, PILLAR_UP, FLOWER -> true;
+                    GRID_FACING, DISC_RING, SCATTER_FALL, PILLAR_UP, FLOWER, SPIRAL -> true;
             // AROUND_TARGET 是「每发各自指向目标」，指向性由该发自己的原点决定，
             // 全批不共享缺口方位，故不按「必有缺口」论。
             case AIMED_SINGLE, FAN, GAP_FAN, CONE_RANDOM, AROUND_TARGET, LATTICE -> false;
@@ -384,7 +411,7 @@ public enum Shape {
     public boolean needsFacing() {
         return this == AIMED_SINGLE || this == FAN || this == RING_FACING
                 || this == FALL_FROM_ABOVE || this == RING || this == ROSETTE
-                || this == GRID_FACING;
+                || this == GRID_FACING || this == SPIRAL;
     }
 
     /** 本形状是否发出零方向的弹（静止待发，靠行为决定其语义）。 */
@@ -395,7 +422,7 @@ public enum Shape {
     /** 本形状的生成点是否被 {@code offsetForward} / {@code offsetUp} 挪过位置。 */
     public boolean usesSpawnOffset() {
         return this == GRID_FACING || this == DISC_RING || this == SCATTER_FALL
-                || this == PILLAR_UP;
+                || this == PILLAR_UP || this == SPIRAL;
     }
 
     /**

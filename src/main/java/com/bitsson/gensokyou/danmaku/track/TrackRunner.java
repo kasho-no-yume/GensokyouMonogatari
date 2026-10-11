@@ -25,6 +25,15 @@ import java.util.List;
  */
 public final class TrackRunner {
 
+    /**
+     * BOSS 符卡弹幕的默认存活时长（tick）——20 秒。
+     *
+     * <p>节拍未显式声明寿命时用它。与武器弹幕的默认
+     * （{@code AbstractDanmakuProjectile.MAX_LIFETIME_TICKS} = 60 秒）刻意分开：
+     * 「boss 弹幕 20 秒」是一条内容决策，不该顺带改武器。
+     */
+    public static final int DEFAULT_BOSS_DANMAKU_LIFETIME = 400;
+
     private final List<SpellCard> cards;
     private final SignaturePalette palette;
     private int tick;
@@ -334,7 +343,10 @@ public final class TrackRunner {
                     // 「自身即参考点 → 改朝目标射」这条退化分支永不成立。
                     DanmakuEmitter.emit(boss, shot, beat.behaviour(), track.color(), baseDamage,
                             formation, formation.active() ? boss.getEyePosition() : null,
-                            beat.projectile(), beat.anchor(), beat.lifetimeTicks(), turnTarget,
+                            beat.projectile(), beat.anchor(),
+                            beat.lifetimeTicks() > 0 ? beat.lifetimeTicks()
+                                    : DEFAULT_BOSS_DANMAKU_LIFETIME,
+                            turnTarget,
                             beat.legSpec());
                 }
             }

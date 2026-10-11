@@ -16,7 +16,7 @@ metadata:
 ## 0. 铁律（违反了就是设计错误，不是实现瑕疵）
 
 1. **二维合法 ≠ 三维合法。** 满向水平环在 3D 里等于「一半弹在玩家背后」。新写弹幕必须过 R1/R2/R3。
-2. **BOSS 符卡 = 一个阶段 = 1~3 条并发轨道。** 符卡之间**永不叠加**；
+2. **BOSS 符卡 = 一个阶段 = 1~5 条并发轨道。** 符卡之间**永不叠加**；
    默认攻击**可以**与符卡同时跑（见第 6 节）。与玩家符卡语义无关（玩家符卡 = 技能）。
 3. **一个祭品台 = 一个物品，不可堆叠。** 配方 `Σcount ≤ 该阶祭品台数`。
 4. **不要用「远离玩家」当位移方向。** 玩家把 BOSS 逼到墙边它就永远顶着墙。距离带只能是**候选点的评分项**。
@@ -71,7 +71,7 @@ metadata:
 ## 3. 轨道编排模型（`danmaku/track/`）
 
 ```
-BOSS → 符卡 SpellCard（= 阶段，血量阈值切分）→ 轨道 Track ×1~3（并发）
+BOSS → 符卡 SpellCard（= 阶段，血量阈值切分）→ 轨道 Track ×1~5（并发）
      → 节拍 Beat（tick + Shape + Params + TargetMode）→ 轨道器 TrackRunner
 ```
 
@@ -486,7 +486,7 @@ emitted=? entityHits=? blockHits=? damageSum=? live=? cap=? rejected=[...]
 
 ```
 数据/资源
-  □ BossCards 加符卡表（名称 + 起始占比递减 + 1~3 轨 + damageScale）
+  □ BossCards 加符卡表（名称 + 起始占比递减 + 1~5 轨 + damageScale）
   □ 符卡数落在 3~15（第 5 节）
   □ 签名色盘（容量 ≥ 最大并发轨道数）
   □ ModEntityTypes 注册

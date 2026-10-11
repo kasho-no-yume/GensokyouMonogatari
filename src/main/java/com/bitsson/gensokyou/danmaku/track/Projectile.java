@@ -23,7 +23,8 @@ package com.bitsson.gensokyou.danmaku.track;
 public record Projectile(Kind kind,
                          double laserLength, double laserRadius,
                          double laserDelaySeconds, double laserDurationSeconds,
-                         boolean laserPiercesBlocks) {
+                         boolean laserPiercesBlocks,
+                         boolean spherePiercesBlocks) {
 
     /** 弹种。 */
     public enum Kind {
@@ -34,11 +35,22 @@ public record Projectile(Kind kind,
     }
 
     /** 球弹。球弹没有自己的参数，故那五项恒为 0 / false。 */
-    public static final Projectile SPHERE = new Projectile(Kind.SPHERE, 0, 0, 0, 0, false);
+    public static final Projectile SPHERE = new Projectile(Kind.SPHERE, 0, 0, 0, 0, false, false);
 
     /** 球弹（显式构造，便于在符卡表里读出来）。 */
     public static Projectile sphere() {
         return SPHERE;
+    }
+
+    /**
+     * 穿透方块的球弹——线状的蛛丝等。
+     *
+     * <p>普通球弹撞到方块即销毁（`DanmakuHitScan` 每 tick 做一次方块 clip）。
+     * 蛛丝要在空中拉出长线，若被地面/墙截断就会「只飞几格」，故这一档跳过方块 clip：
+     * 只判实体命中，方块不再截断它。
+     */
+    public static Projectile piercingSphere() {
+        return new Projectile(Kind.SPHERE, 0, 0, 0, 0, false, true);
     }
 
     /**
@@ -70,11 +82,16 @@ public record Projectile(Kind kind,
         return new Projectile(Kind.LASER,
                 Math.max(1.0D, length), Math.max(0.05D, radius),
                 Math.max(0.0D, delaySeconds), Math.max(1.0D, durationSeconds),
-                piercesBlocks);
+                piercesBlocks, false);
     }
 
     public boolean isLaser() {
         return kind == Kind.LASER;
+    }
+
+    /** 本弹种是否穿透方块（作用于碰撞判定与射程裁剪）。 */
+    public boolean piercesBlocks() {
+        return kind == Kind.LASER ? laserPiercesBlocks : spherePiercesBlocks;
     }
 
     /** 穿墙形态的激光。语义化的便捷入口，便于在符卡表里读出来。 */

@@ -154,6 +154,14 @@ public final class ModItems {
     public static final DeferredItem<Item> TALISMAN_PAPER = simpleMaterial("talisman_paper");
     public static final DeferredItem<Item> SUKIMA_FRAGMENT = simpleMaterial("sukima_fragment");
 
+    // ---------------- BOSS 主题信物（spellcard-crafting-and-boss-signatures）----------------
+    /** 花精之滴：大妖精主题信物，主题符卡合成料（击杀大妖精保底掉落）。 */
+    public static final DeferredItem<Item> FAIRY_NECTAR = simpleMaterial("fairy_nectar");
+    /** 土蜘蛛之丝：黑谷山女主题信物，主题符卡合成料（击杀黑谷山女保底掉落）。 */
+    public static final DeferredItem<Item> EARTH_SPIDER_SILK = simpleMaterial("earth_spider_silk");
+    /** 宵暗之核：露米娅（未实现）的预注册主题信物——本变更无掉源，待 Rumia 实现时接入。 */
+    public static final DeferredItem<Item> NIGHTFALL_CORE = simpleMaterial("nightfall_core");
+
     private static DeferredItem<Item> simpleMaterial(String id) {
         return ITEMS.registerSimpleItem(id, new Item.Properties().stacksTo(64));
     }

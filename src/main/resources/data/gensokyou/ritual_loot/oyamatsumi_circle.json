@@ -34,6 +34,8 @@
       "special": [["minecraft:coal", 1]],
       "nether": [
         ["minecraft:netherrack", 12],
+        ["minecraft:blackstone", 4],
+        ["minecraft:basalt", 4],
         ["minecraft:magma_block", 0.2]
       ]
     },
@@ -42,6 +44,8 @@
       "special": [["minecraft:coal_ore", 2], ["minecraft:iron_ore", 0.5], ["minecraft:copper_ore", 1]],
       "nether": [
         ["minecraft:netherrack", 12],
+        ["minecraft:blackstone", 4],
+        ["minecraft:basalt", 4],
         ["minecraft:magma_block", 0.2]
       ]
     },
@@ -50,6 +54,8 @@
       "special": [["minecraft:lapis_ore", 1], ["minecraft:coal_ore", 3]],
       "nether": [
         ["minecraft:netherrack", 12],
+        ["minecraft:blackstone", 4],
+        ["minecraft:basalt", 4],
         ["minecraft:magma_block", 0.2],
         ["minecraft:nether_quartz_ore", 1]
       ]
@@ -66,6 +72,8 @@
       ],
       "nether": [
         ["minecraft:netherrack", 12],
+        ["minecraft:blackstone", 4],
+        ["minecraft:basalt", 4],
         ["minecraft:magma_block", 0.2],
         ["minecraft:nether_quartz_ore", 3]
       ]
@@ -80,6 +88,8 @@
       ],
       "nether": [
         ["minecraft:netherrack", 12],
+        ["minecraft:blackstone", 4],
+        ["minecraft:basalt", 4],
         ["minecraft:magma_block", 0.2],
         ["minecraft:ancient_debris", 0.1]
       ]
@@ -96,6 +106,8 @@
       ],
       "nether": [
         ["minecraft:netherrack", 12],
+        ["minecraft:blackstone", 4],
+        ["minecraft:basalt", 4],
         ["minecraft:magma_block", 0.2],
         ["minecraft:nether_quartz_ore", 30],
         ["minecraft:ancient_debris", 0.5]

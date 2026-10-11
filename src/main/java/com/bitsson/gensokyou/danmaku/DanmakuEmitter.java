@@ -41,6 +41,7 @@ import java.util.Set;
  *   Motion.MINE        → configureMine(radius)          埋设期不接触判伤，近身才结算
  *   Motion.GROUND_HUG  → 抹掉竖直分量、保留水平分量
  *   Split              → configureSplit(tick, count)
+ *   Trail              → configureTrail(every, childLifetime)  引线弹沿线留静止尾珠
  *   Visibility         → configurePhaseHide(period, duty, offset)
  * </pre>
  *
@@ -133,6 +134,9 @@ public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behavio
         if (bullet == null) {
             return;
         }
+        if (projectile != null && projectile.piercesBlocks()) {
+            bullet.configurePierceBlocks(true);
+        }
         if (lifetimeTicks > 0) {
             bullet.setLifetimeTicks(lifetimeTicks);
         }
@@ -144,12 +148,14 @@ public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behavio
             bullet.setLegMotion(legSpec.toMotion(shot.direction()), legSpec.randomState());
         }
         applySplit(bullet, behaviour.split());
+        applyTrail(bullet, behaviour.trail());
         applyVisibility(bullet, behaviour.visibility());
         // MUST 在 setDirection 之后：编队帧会接管位置，几何给的初速随即失效。
         // 形状（「花瓣长短」）编码在 shot.origin 与 center 的差里，故两者都传进去。
         if (formation != null && formation.active() && center != null) {
             bullet.bindToFrame(formation.frameFor(center, shot.origin()));
         }
+        com.bitsson.gensokyou.command.DanmakuPreview.traceEmission(boss, bullet);
         server.addFreshEntity(bullet);
         DanmakuBudget.recordEmit();
     }
@@ -328,6 +334,14 @@ public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behavio
     private static void applySplit(AbstractDanmakuProjectile bullet, Behaviour.Split split) {
         if (split.active()) {
             bullet.configureSplit(split.tick(), split.count());
+        }
+    }
+
+    /** 拖尾：引线弹每 N tick 在当前位置留一颗静止尾珠（子代由弹体在服务端生成）。 */
+    private static void applyTrail(AbstractDanmakuProjectile bullet, Behaviour.Trail trail) {
+        if (trail.active()) {
+            bullet.configureTrail(trail.everyTicks(), trail.childLifetimeTicks(),
+                    trail.holdTicks(), trail.driftSpeed());
         }
     }
 

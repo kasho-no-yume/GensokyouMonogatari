@@ -143,6 +143,7 @@ import java.util.List;
         public int behaviourIndex() {
             return behaviour.motion().kind().ordinal() * 100
                     + (behaviour.split().active() ? 10 : 0)
+                    + (behaviour.trail().active() ? 20 : 0)
                     + (behaviour.visibility().periodicallyHarmless() ? 1 : 0);
         }
     }

@@ -285,6 +285,8 @@ public final class DanmakuBudget {
         DAMAGE_SUM.set(0L);
         SPLIT_REQUESTED.set(0L);
         SPLIT_CAPPED.set(0L);
+        TRAIL_REQUESTED.set(0L);
+        TRAIL_CAPPED.set(0L);
         REJECTED.clear();
         resetRemoval();
         resetTiming();
@@ -356,10 +358,11 @@ public final class DanmakuBudget {
     public static String stats(ServerLevel level) {
         return String.format(
                 "emitted=%d entityHits=%d blockHits=%d damageSum=%d live=%d cap=%d "
-                        + "splitReq=%d splitCapped=%d rejected=%s",
+                        + "splitReq=%d splitCapped=%d trailReq=%d trailCapped=%d rejected=%s",
                 EMITTED.get(), ENTITY_HITS.get(), BLOCK_HITS.get(), DAMAGE_SUM.get(),
                 live(level), GensokyouConfig.DANMAKU_ENTITY_CAP.get(),
-                SPLIT_REQUESTED.get(), SPLIT_CAPPED.get(), REJECTED);
+                SPLIT_REQUESTED.get(), SPLIT_CAPPED.get(),
+                TRAIL_REQUESTED.get(), TRAIL_CAPPED.get(), REJECTED);
     }
 
     // ------------------------------------------------------------------
@@ -776,6 +779,24 @@ public final class DanmakuBudget {
             new java.util.concurrent.atomic.AtomicLong();
     private static final java.util.concurrent.atomic.AtomicLong SPLIT_REQUESTED =
             new java.util.concurrent.atomic.AtomicLong();
+
+    private static final java.util.concurrent.atomic.AtomicLong TRAIL_CAPPED =
+            new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.concurrent.atomic.AtomicLong TRAIL_REQUESTED =
+            new java.util.concurrent.atomic.AtomicLong();
+
+    /**
+     * 记录一次拖尾结算，供诊断分辨「尾珠达上限停发」与「正常留点」。
+     *
+     * <p>尾珠由行为在运行时生成、不经由节拍的发数声明，故稳态密度估值看不到它们；
+     * 本计数是它唯一可观测的落点。
+     */
+    public static void recordTrail(int emitted, int requested) {
+        if (emitted < requested) {
+            TRAIL_CAPPED.incrementAndGet();
+        }
+        TRAIL_REQUESTED.addAndGet(requested);
+    }
 
     // ------------------------------------------------------------------
     // 冻结弹过期清理扫（fix-danmaku-laser-render-and-frozen-expiry）

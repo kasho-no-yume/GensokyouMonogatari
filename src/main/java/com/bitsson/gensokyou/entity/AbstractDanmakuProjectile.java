@@ -125,11 +125,14 @@ import java.util.Set;
         return Math.max(1, chunks) * 16.0;
     }
 
-    /** 最大存活时间：60 秒。 */
     /**
-     * 弹丸存活上限（tick）。{@code FirePattern.lifetimeSeconds <= 0} 表示"不覆盖"，
-     * 此时沿用本值。公开它是为了让 tooltip 能报出<b>真实</b>存活与有效距离
+     * 弹丸存活上限（tick）——<b>武器 / 通用弹幕</b>的默认（60 秒）。
+     * {@code FirePattern.lifetimeSeconds <= 0} 表示"不覆盖"，此时沿用本值。
+     * 公开它是为了让 tooltip 能报出<b>真实</b>存活与有效距离
      * （否则不覆盖的核会显示成 0.00s / 0.00 格）。
+     *
+     * <p><b>BOSS 符卡弹幕的默认另算</b>：{@code TrackRunner.DEFAULT_BOSS_DANMAKU_LIFETIME}
+     * （20 秒）。两者刻意分开——改武器默认不该顺带改 boss 弹幕，反之亦然。
      */
     public static final int MAX_LIFETIME_TICKS = 1200;
 
@@ -149,6 +152,40 @@ import java.util.Set;
      */
     private static final EntityDataAccessor<Integer> DATA_LIFETIME =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+
+    /** Preview-only identity, synchronized for correlated client/server diagnostics. */
+    private static final EntityDataAccessor<Integer> DATA_PREVIEW_TRACE =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    private static final java.util.concurrent.atomic.AtomicInteger NEXT_PREVIEW_TRACE =
+            new java.util.concurrent.atomic.AtomicInteger();
+    private int tracedTrailChildren;
+    private int tracedSnapshots;
+
+    public void enablePreviewTrace(int parentTrace) {
+        this.entityData.set(DATA_PREVIEW_TRACE, NEXT_PREVIEW_TRACE.incrementAndGet());
+        this.tracePreview("SPAWN parent=" + parentTrace);
+    }
+
+    protected void tracePreviewChild(AbstractDanmakuProjectile child) {
+        int parent = this.entityData.get(DATA_PREVIEW_TRACE);
+        if (parent > 0 && this.tracedTrailChildren++ < 2) {
+            child.enablePreviewTrace(parent);
+        }
+    }
+
+    private void tracePreview(String event) {
+        int trace = this.entityData.get(DATA_PREVIEW_TRACE);
+        if (trace == 0) {
+            return;
+        }
+        Gensokyou.LOGGER.info(
+                "[danmaku-preview] side={} trace={} uuid={} event={} gameTime={} tick={} age={} lifetime={} pos={} velocity={} frame={} burstAt={} burstFired={} trail={} profile={} removed={}",
+                this.level().isClientSide ? "CLIENT" : "SERVER", trace, this.getUUID(), event,
+                this.level().getGameTime(), this.tickCount, this.age(), this.getLifetimeTicks(),
+                this.position(), this.getDeltaMovement(), this.hasFormationFrame(),
+                this.burstAtTick(), this.burstFired(), this.isTrailing(), this.hasSpeedProfile(),
+                this.isRemoved());
+    }
 
     // ---- 速率曲线（两段：v0→v1 用 p0 tick，v1→v2 用 p1 tick，之后保持 v2）----
     // 只用四则运算，不用 Math.sin/cos：双端各自推进同一颗弹，超越函数不保证跨平台一致。
@@ -498,6 +535,15 @@ import java.util.Set;
     private static final EntityDataAccessor<Integer> DATA_FACTION =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
 
+    /**
+     * 是否穿透方块（跳过方块碰撞）。默认 false。
+     *
+     * <p>用于「线状弹」——蛛丝这类要在空中拉出长线的弹。普通球弹撞到方块即销毁，
+     * 线状弹若被地面/墙截断就只飞几格，故这一档只判实体命中、方块不再截断它。
+     */
+    private static final EntityDataAccessor<Boolean> DATA_PIERCE_BLOCKS =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.BOOLEAN);
+
     // ------------------------------------------------------------------
     // 扩展行为：曲射 / 分裂 / 悬停 / 溜め
     // ------------------------------------------------------------------
@@ -523,11 +569,24 @@ import java.util.Set;
     /** 溜め触发半径（格）。0 = 不是溜め。 */
     private static final EntityDataAccessor<Float> DATA_MINE_RADIUS =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.FLOAT);
+    /** 拖尾间隔（tick）。0 = 无拖尾。每该间隔在当前位置生成一颗静止子代。 */
+    private static final EntityDataAccessor<Integer> DATA_TRAIL_EVERY =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /** 拖尾尾珠寿命（tick）。0 = 沿用弹体默认寿命。 */
+    private static final EntityDataAccessor<Integer> DATA_TRAIL_CHILD_LIFETIME =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /** 尾珠静止多少 tick 后开始漂移。0 = 不漂移（恒静止）。 */
+    private static final EntityDataAccessor<Integer> DATA_TRAIL_HOLD =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /** 尾珠漂移速率（格/tick），float 位模式。0 = 不漂移。 */
+    private static final EntityDataAccessor<Integer> DATA_TRAIL_DRIFT =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
 
     public static final int FLAG_CURVE = 1;
     public static final int FLAG_SPLIT = 2;
     public static final int FLAG_HOVER = 4;
     public static final int FLAG_MINE = 8;
+    public static final int FLAG_TRAIL = 16;
 
     // ------------------------------------------------------------------
     // 年龄
@@ -710,7 +769,6 @@ import java.util.Set;
      * 并纳入存档。
      */
     private boolean splitFired = false;
-
     /** 伤害值，仅服务端使用。 */
     protected float damage = 4.0F;
 
@@ -741,6 +799,7 @@ import java.util.Set;
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(DATA_COLOR, 0xFFFFFF);
         builder.define(DATA_FACTION, 0);
+        builder.define(DATA_PIERCE_BLOCKS, false);
         builder.define(DATA_FLAGS, (byte) 0);
         builder.define(DATA_HOVER_TICK, 0);
         builder.define(DATA_SPLIT_TICK, -1);
@@ -748,7 +807,12 @@ import java.util.Set;
         builder.define(DATA_CURVE_AXIS, 0);
         builder.define(DATA_CURVE_RATE, 0.0F);
         builder.define(DATA_MINE_RADIUS, 0.0F);
+        builder.define(DATA_TRAIL_EVERY, 0);
+        builder.define(DATA_TRAIL_CHILD_LIFETIME, 0);
+        builder.define(DATA_TRAIL_HOLD, 0);
+        builder.define(DATA_TRAIL_DRIFT, 0);
         builder.define(DATA_LIFETIME, MAX_LIFETIME_TICKS);
+        builder.define(DATA_PREVIEW_TRACE, 0);
         builder.define(DATA_PROFILE_V0, 0);
         builder.define(DATA_PROFILE_P0, 0);
         builder.define(DATA_PROFILE_V1, 0);
@@ -804,6 +868,10 @@ import java.util.Set;
         try {
             tickDanmaku();
         } finally {
+            if (this.entityData.get(DATA_PREVIEW_TRACE) > 0
+                    && (this.tickCount <= 1 || this.tickCount % 20 == 0)) {
+                this.tracePreview("TICK");
+            }
             DanmakuBudget.recordTickNanos(System.nanoTime() - started);
         }
     }
@@ -868,6 +936,17 @@ import java.util.Set;
             this.splitFired = true;
             this.fireSplit();
             return;
+        }
+
+        // 拖尾：每 trailEvery tick 在当前位置留一颗零速静止尾珠。仅服务端生成实体
+        // （子代是服务端 new 出来的），客户端仅收到它。达上限由 spawnTrailChild 内的
+        // DanmakuBudget.canEmit 兜底，不在此处判。
+        if (isTrailing() && !this.level().isClientSide) {
+            int every = this.trailEvery();
+            int trailAge = this.age();
+            if (trailAge > 0 && every > 0 && trailAge % every == 0) {
+                this.spawnTrailChild();
+            }
         }
 
         Vec3 velocity = this.getDeltaMovement();
@@ -968,6 +1047,7 @@ import java.util.Set;
                 this.entityData.set(DATA_HAS_FRAME, false);
             }
             this.entityData.set(DATA_BURST_FIRED, true);
+            this.tracePreview("BURST");
 
             }
         }
@@ -977,7 +1057,8 @@ import java.util.Set;
             return;
         }
 
-        HitResult hitResult = DanmakuHitScan.sweep(this, LivingEntity.class, this::canHitEntity);
+        HitResult hitResult = DanmakuHitScan.sweep(this, LivingEntity.class, this::canHitEntity,
+                !this.piercesBlocks());
         if (hitResult != null) {
             this.onHit(hitResult);
             if (this.isRemoved()) {
@@ -1019,6 +1100,10 @@ import java.util.Set;
         return (this.flags() & FLAG_MINE) != 0 && this.mineRadius() > 0.0F;
     }
 
+    public boolean isTrailing() {
+        return (this.flags() & FLAG_TRAIL) != 0 && this.trailEvery() > 0;
+    }
+
     public int hoverTick() {
         return this.entityData.get(DATA_HOVER_TICK);
     }
@@ -1037,6 +1122,26 @@ import java.util.Set;
 
     public float mineRadius() {
         return this.entityData.get(DATA_MINE_RADIUS);
+    }
+
+    /** 拖尾间隔（tick）。0 = 无拖尾。 */
+    public int trailEvery() {
+        return this.entityData.get(DATA_TRAIL_EVERY);
+    }
+
+    /** 拖尾尾珠寿命（tick）。0 = 沿用弹体默认寿命。 */
+    public int trailChildLifetime() {
+        return this.entityData.get(DATA_TRAIL_CHILD_LIFETIME);
+    }
+
+    /** 尾珠静止多少 tick 后开始漂移。0 = 恒静止。 */
+    public int trailHoldTicks() {
+        return this.entityData.get(DATA_TRAIL_HOLD);
+    }
+
+    /** 尾珠漂移速率（格/tick）。0 = 不漂移。 */
+    public double trailDriftSpeed() {
+        return unscale(this.entityData.get(DATA_TRAIL_DRIFT));
     }
 
     /**
@@ -1088,6 +1193,42 @@ import java.util.Set;
         }
         this.entityData.set(DATA_MINE_RADIUS, (float) radius);
         this.addFlag(FLAG_MINE);
+    }
+
+    /**
+     * 挂拖尾：自身每 {@code everyTicks} tick 在当前位置生成一颗零速静止子代。
+     *
+     * <p>子代由服务端生成（{@link #spawnTrailChild}），受全局实体上限约束。
+     *
+     * @param everyTicks         生成间隔（tick）；{@code <= 0} 不生效
+     * @param childLifetimeTicks 尾珠寿命（tick）；{@code <= 0} 沿用弹体默认寿命
+     */
+    public void configureTrail(int everyTicks, int childLifetimeTicks) {
+        configureTrail(everyTicks, childLifetimeTicks, 0, 0.0D);
+    }
+
+    /**
+     * 完整拖尾声明：尾珠静止 {@code holdTicks} 后以 {@code driftSpeed} 沿随机方向漂移。
+     */
+    public void configureTrail(int everyTicks, int childLifetimeTicks,
+                              int holdTicks, double driftSpeed) {
+        if (everyTicks <= 0) {
+            return;
+        }
+        this.entityData.set(DATA_TRAIL_EVERY, everyTicks);
+        this.entityData.set(DATA_TRAIL_CHILD_LIFETIME, Math.max(0, childLifetimeTicks));
+        this.entityData.set(DATA_TRAIL_HOLD, Math.max(0, holdTicks));
+        this.entityData.set(DATA_TRAIL_DRIFT, scale(Math.max(0.0D, driftSpeed)));
+        this.addFlag(FLAG_TRAIL);
+    }
+
+    /**
+     * 生成一颗静止尾珠。默认无操作，由具体弹种覆写。
+     *
+     * <p>仅服务端调用。实现 MUST 自行检查 {@code DanmakuBudget.canEmit} 并计入预算，
+     * 与 {@code spawnSplitChildren} 同一路径。
+     */
+    protected void spawnTrailChild() {
     }
 
     public void configureSpeedProfile(DanmakuSpeedProfile profile) {
@@ -1466,6 +1607,7 @@ import java.util.Set;
      * 而猜错方向比查不出来更贵。
      */
     protected void discard(DanmakuBudget.RemovalCause cause) {
+        this.tracePreview("DISCARD cause=" + cause);
         if (this.level() instanceof ServerLevel) {
             DanmakuBudget.recordRemoval(cause, this.age());
         }
@@ -1517,6 +1659,9 @@ import java.util.Set;
             }
         }
         if (nearest != null) {
+            if (this.entityData.get(DATA_PREVIEW_TRACE) > 0) {
+                this.tracePreview("STATIONARY_HIT target=" + nearest.getUUID());
+            }
             this.onHitEntity(new EntityHitResult(nearest,
                     nearest.position().subtract(this.position().add(0.0D, this.getBbHeight() * 0.5D, 0.0D))));
         }
@@ -1669,6 +1814,9 @@ import java.util.Set;
         this.ageAnchored = true;
         this.setDeltaMovement(velocity);
         this.setPos(position.x, position.y, position.z);
+        if (this.entityData.get(DATA_PREVIEW_TRACE) > 0 && this.tracedSnapshots++ < 8) {
+            this.tracePreview("SNAPSHOT");
+        }
         this.updateRotationFromVelocity();
         boolean applied = state.acceptSnapshot(token, serverGameTime, snapshotAge, revision,
                 fingerprint, oldPosition, position, this.tickCount);
@@ -1709,6 +1857,7 @@ import java.util.Set;
      */
     @Override
     public void remove(Entity.RemovalReason reason) {
+        this.tracePreview("REMOVE reason=" + reason);
         if (this.level().isClientSide && this.clientRenderState != null) {
             this.clientRenderState.clear();
             this.clientRenderState = null;
@@ -1940,6 +2089,11 @@ import java.util.Set;
 
     @Override
     protected void onHit(HitResult result) {
+        if (this.entityData.get(DATA_PREVIEW_TRACE) > 0) {
+            this.tracePreview("HIT type=" + result.getType() + " at=" + result.getLocation()
+                    + (result instanceof EntityHitResult entityHit
+                    ? " target=" + entityHit.getEntity().getUUID() : ""));
+        }
         if (result.getType() == HitResult.Type.ENTITY) {
             this.onHitEntity((EntityHitResult) result);
         } else if (result.getType() == HitResult.Type.BLOCK) {
@@ -2106,6 +2260,16 @@ import java.util.Set;
         this.entityData.set(DATA_FACTION, faction);
     }
 
+    /** 是否穿透方块。 */
+    public boolean piercesBlocks() {
+        return this.entityData.get(DATA_PIERCE_BLOCKS);
+    }
+
+    /** 设置是否穿透方块（跳过方块碰撞）。 */
+    public void configurePierceBlocks(boolean pierce) {
+        this.entityData.set(DATA_PIERCE_BLOCKS, pierce);
+    }
+
     @Override
     protected void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
@@ -2118,9 +2282,18 @@ import java.util.Set;
             tag.putBoolean("FromWeapon", true);
         }
         tag.putByte("Flags", this.entityData.get(DATA_FLAGS));
+        if (this.piercesBlocks()) {
+            tag.putBoolean("PierceBlocks", true);
+        }
         tag.putInt("HoverTick", hoverTick());
         tag.putInt("SplitTick", splitTick());
         tag.putInt("SplitCount", splitCount());
+        if (isTrailing()) {
+            tag.putInt("TrailEvery", trailEvery());
+            tag.putInt("TrailChildLifetime", trailChildLifetime());
+            tag.putInt("TrailHold", trailHoldTicks());
+            tag.putInt("TrailDrift", this.entityData.get(DATA_TRAIL_DRIFT));
+        }
         tag.putInt("CurveAxis", this.entityData.get(DATA_CURVE_AXIS));
         tag.putFloat("CurveRate", curveRate());
         tag.putFloat("MineRadius", mineRadius());
@@ -2239,6 +2412,9 @@ import java.util.Set;
         if (tag.contains("Flags")) {
             this.entityData.set(DATA_FLAGS, tag.getByte("Flags"));
         }
+        if (tag.getBoolean("PierceBlocks")) {
+            this.entityData.set(DATA_PIERCE_BLOCKS, true);
+        }
         if (tag.contains("HoverTick")) {
             this.entityData.set(DATA_HOVER_TICK, tag.getInt("HoverTick"));
         }
@@ -2247,6 +2423,18 @@ import java.util.Set;
         }
         if (tag.contains("SplitCount")) {
             this.entityData.set(DATA_SPLIT_COUNT, tag.getInt("SplitCount"));
+        }
+        if (tag.contains("TrailEvery")) {
+            this.entityData.set(DATA_TRAIL_EVERY, tag.getInt("TrailEvery"));
+        }
+        if (tag.contains("TrailChildLifetime")) {
+            this.entityData.set(DATA_TRAIL_CHILD_LIFETIME, tag.getInt("TrailChildLifetime"));
+        }
+        if (tag.contains("TrailHold")) {
+            this.entityData.set(DATA_TRAIL_HOLD, tag.getInt("TrailHold"));
+        }
+        if (tag.contains("TrailDrift")) {
+            this.entityData.set(DATA_TRAIL_DRIFT, tag.getInt("TrailDrift"));
         }
         if (tag.contains("CurveAxis")) {
             this.entityData.set(DATA_CURVE_AXIS, tag.getInt("CurveAxis"));

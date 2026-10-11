@@ -5,8 +5,12 @@ TBD - created by archiving change add-balance-test-harness. Update Purpose after
 ## Requirements
 ### Requirement: 测试命令集
 模组 SHALL 提供命令 `/gs_test`（权限等级 2），包含子命令：
-`player <tier:1..5> [infinite]`、`boss <tier:1..5> <min|max>`、`clear`、`reset`。
+`player <tier:0..5> [infinite]`、`boss <tier:1..5> <min|max>`、`clear`、`reset`。
 命令 SHALL 仅作用于执行者本人及其实体；`tier` 越界时拒绝并提示。命令 MUST NOT 影响其他玩家。
+
+`player 0` SHALL 取消该玩家的神恩：清空全部 `grace_tier_N` 与 `test_standard` 贡献、池台账清零、
+`temperLevel` 归 0、撤创造飞行权限并关闭测试无限灵力，行为与 `reset` 等价（仅提示文案不同）。
+`player 0` MUST NOT 发放标准装备；`player 0 infinite` SHALL 按 `player 0` 处理（无限灵力随之关闭）。
 
 #### Scenario: 一键配置玩家
 - **WHEN** 2 阶玩家执行 `/gs_test player 4`
@@ -15,6 +19,12 @@ TBD - created by archiving change add-balance-test-harness. Update Purpose after
 #### Scenario: 越界拒绝
 - **WHEN** 执行 `/gs_test player 9`
 - **THEN** 命令拒绝并提示合法取值范围，无任何属性变化
+
+#### Scenario: player 0 取消神恩
+- **WHEN** 4 阶玩家执行 `/gs_test player 0`
+- **THEN** 该玩家神恩被取消（贡献/台账清零、阶级 0、撤飞行、关无限灵力），不发放标准装备
+- **AND** 行为与 `/gs_test reset` 等价，仅提示文案不同
+- **AND** 其余玩家不受影响
 
 #### Scenario: 生成指定变体BOSS
 - **WHEN** 执行 `/gs_test boss 3 max`

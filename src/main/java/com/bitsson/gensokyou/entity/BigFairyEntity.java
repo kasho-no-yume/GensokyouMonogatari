@@ -17,6 +17,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -31,6 +32,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 大妖精（正式化）。
@@ -113,6 +115,18 @@ public class BigFairyEntity extends AbstractTouhouBoss implements GeoEntity {
     @Override
     protected int starDropCount() {
         return 2;
+    }
+
+    /** 主题信物：花精之滴（击杀保底掉，见 {@code #gensokyou:boss_signature}）。 */
+    @Override
+    public Optional<Item> signatureItem() {
+        return Optional.of(ModItems.FAIRY_NECTAR.get());
+    }
+
+    /** 主题卡代表：花符『癒しの花園』（低概率直掉）。 */
+    @Override
+    public Optional<Item> themedCard() {
+        return Optional.of(ModItems.HEALING_GARDEN.get());
     }
 
     @Override

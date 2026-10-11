@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ISI",
+    "SCS",
+    "ISI"
+  ],
+  "key": {
+    "I": { "item": "minecraft:iron_ingot" },
+    "S": { "item": "gensokyou:ritual_stone_0" },
+    "C": { "item": "gensokyou:refined_cinnabar" }
+  },
+  "result": {
+    "id": "gensokyou:landscaping_tool",
+    "count": 1
+  }
+}

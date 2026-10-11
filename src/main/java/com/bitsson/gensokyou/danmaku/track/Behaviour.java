@@ -32,30 +32,40 @@ import net.minecraft.world.phys.Vec3;
  * 行为」就得扩大几何参数记录，而该记录有 11 个 copy-wither 各写一遍全字段。
  * 行为参数只在本类与 {@link Motion} / {@link Split} / {@link Visibility} 上。
  */
-public record Behaviour(Motion motion, Split split, Visibility visibility) {
+public record Behaviour(Motion motion, Split split, Trail trail, Visibility visibility) {
 
-    /** 无行为：匀速直线、无分裂、恒可见。绝大多数拍用这个。 */
-    public static final Behaviour NONE = new Behaviour(Motion.none(), Split.NONE, Visibility.ALWAYS);
+    /** 无行为：匀速直线、无分裂、无拖尾、恒可见。绝大多数拍用这个。 */
+    public static final Behaviour NONE = new Behaviour(Motion.none(), Split.NONE, Trail.NONE, Visibility.ALWAYS);
+
+    /** 三参兼容构造：拖尾缺省为无。既有调用点因此零改动。 */
+    public Behaviour(Motion motion, Split split, Visibility visibility) {
+        this(motion, split, Trail.NONE, visibility);
+    }
 
     public Behaviour {
-        if (motion == null || split == null || visibility == null) {
-            throw new IllegalArgumentException("行为三要素（MOTION/SPLIT/显隐）MUST 非空");
+        if (motion == null || split == null || trail == null || visibility == null) {
+            throw new IllegalArgumentException("行为四要素（MOTION/SPLIT/TRAIL/显隐）MUST 非空");
         }
     }
 
     /** 返回一个只改了运动的行为（其余保持）。 */
     public Behaviour withMotion(Motion newMotion) {
-        return new Behaviour(newMotion, split, visibility);
+        return new Behaviour(newMotion, split, trail, visibility);
     }
 
     /** 返回一个只改了分裂的行为（其余保持）。 */
     public Behaviour withSplit(Split newSplit) {
-        return new Behaviour(motion, newSplit, visibility);
+        return new Behaviour(motion, newSplit, trail, visibility);
+    }
+
+    /** 返回一个只改了拖尾的行为（其余保持）。 */
+    public Behaviour withTrail(Trail newTrail) {
+        return new Behaviour(motion, split, newTrail, visibility);
     }
 
     /** 返回一个只改了显隐的行为（其余保持）。 */
     public Behaviour withVisibility(Visibility newVisibility) {
-        return new Behaviour(motion, split, newVisibility);
+        return new Behaviour(motion, split, trail, newVisibility);
     }
 
     /** 定时换向的目标：解析成「本份所对的那名玩家」。 */
@@ -338,6 +348,51 @@ public record Behaviour(Motion motion, Split split, Visibility visibility) {
 
         public boolean active() {
             return tick >= 0 && count > 1;
+        }
+    }
+
+    /**
+     * 拖尾：移动弹每 {@code everyTicks} tick 在<b>当前所在位置</b>生成一颗零速静止子代。
+     *
+     * <p>网线由它画出——「引线弹」沿线留下「尾珠」。它是行为轴上与 {@link Split} 并列的一项，
+     * 但语义不同：{@code Split} 是一次性炸开且母弹消失，{@code Trail} 是周期性、母弹继续飞。
+     *
+     * <p>与 {@code Split} <b>互斥</b>（都生成子代，语义冲突），由 {@code TrackLint} 静态拒绝。
+     *
+     * <p>{@code everyTicks <= 0} 表示无拖尾。子代寿命 {@code childLifetimeTicks}
+     * 决定尾珠存活时长；{@code <= 0} 时沿用子代弹体默认寿命。
+     */
+    public record Trail(int everyTicks, int childLifetimeTicks, int holdTicks, double driftSpeed) {
+
+        /** 不拖尾。 */
+        public static final Trail NONE = new Trail(0, 0, 0, 0.0D);
+
+        public static Trail none() {
+            return NONE;
+        }
+
+        /** 静止尾珠（不漂移）。 */
+        public static Trail every(int everyTicks, int childLifetimeTicks) {
+            return new Trail(Math.max(0, everyTicks), Math.max(0, childLifetimeTicks), 0, 0.0D);
+        }
+
+        /**
+         * 尾珠静止 {@code holdTicks} 后，以 {@code driftSpeed} 沿各自的<b>随机方向</b>
+         * 缓慢漂移——「织好的网过一会儿开始飘散」。
+         */
+        public static Trail drifting(int everyTicks, int childLifetimeTicks,
+                                     int holdTicks, double driftSpeed) {
+            return new Trail(Math.max(0, everyTicks), Math.max(0, childLifetimeTicks),
+                    Math.max(0, holdTicks), Math.max(0.0D, driftSpeed));
+        }
+
+        public boolean active() {
+            return everyTicks > 0;
+        }
+
+        /** 尾珠是否会在静止后漂移。 */
+        public boolean drifts() {
+            return holdTicks > 0 && driftSpeed > 0.0D;
         }
     }
 

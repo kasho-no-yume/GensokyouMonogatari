@@ -64,6 +64,18 @@ public final class DanmakuHitScan {
      */
     public static <T extends Entity> HitResult sweep(Entity bullet, Class<T> hitType,
                                                       Predicate<? super T> canHit) {
+        return sweep(bullet, hitType, canHit, true);
+    }
+
+    /**
+     * 同 {@link #sweep(Entity, Class, Predicate)}，但可关闭方块碰撞。
+     *
+     * <p>{@code clipBlocks=false} 时跳过方块 clip，只判实体——用于「穿透方块的线状弹」
+     * （蛛丝等）。方块命中与否不影响实体命中语义，故关闭它不会改变判伤规则。
+     */
+    public static <T extends Entity> HitResult sweep(Entity bullet, Class<T> hitType,
+                                                      Predicate<? super T> canHit,
+                                                      boolean clipBlocks) {
         Vec3 delta = bullet.getDeltaMovement();
         if (delta.lengthSqr() < ZERO_MOTION_SQR) {
             // 零位移下原版亦返回 MISS，与原版一致。定住弹由调用方另走 AABB 相交。
@@ -74,9 +86,9 @@ public final class DanmakuHitScan {
         Vec3 end = start.add(delta);
         AABB query = queryBox(bullet.getBoundingBox(), delta);
 
-        BlockHitResult blockHit = level.clip(new ClipContext(
-                start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, bullet));
-        boolean hitBlock = blockHit.getType() == HitResult.Type.BLOCK;
+        BlockHitResult blockHit = clipBlocks ? level.clip(new ClipContext(
+                start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, bullet)) : null;
+        boolean hitBlock = blockHit != null && blockHit.getType() == HitResult.Type.BLOCK;
         double blockDistSqr = hitBlock ? blockHit.getLocation().distanceToSqr(start)
                 : Double.MAX_VALUE;
 

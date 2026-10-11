@@ -78,6 +78,10 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.SPIRIT_CHARCOAL.get());
                         output.accept(ModItems.TALISMAN_PAPER.get());
                         output.accept(ModItems.SUKIMA_FRAGMENT.get());
+                        // BOSS 主题信物（spellcard-crafting-and-boss-signatures）
+                        output.accept(ModItems.FAIRY_NECTAR.get());
+                        output.accept(ModItems.EARTH_SPIDER_SILK.get());
+                        output.accept(ModItems.NIGHTFALL_CORE.get());
                         // 灵铁 / 星银装备阶梯（add-gensokyou-material-uses）
                         output.accept(ModItems.SPIRIT_IRON_PICKAXE.get());
                         output.accept(ModItems.SPIRIT_IRON_AXE.get());

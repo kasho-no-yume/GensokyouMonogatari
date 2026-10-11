@@ -8,7 +8,8 @@
 
 | 命令 | 作用 |
 |---|---|
-| `/gs_test player <1..5>` | 一键把玩家配置为该阶**标准数值**（grace 表 base 中点、无 roll），并发放该武器带的标准装备 |
+| `/gs_test player <0..5>` | 一键把玩家配置为该阶**标准数值**（grace 表 base 中点、无 roll），并发放该武器带的标准装备 |
+| `/gs_test player 0` | **取消神恩**：清空全部神恩贡献与池台账，回退凡人测试态（撤飞行、关无限灵力） |
 | `/gs_test player <1..5> infinite` | 同上，另开"测试无限灵力"（tick 补满），用于持续 DPS 观测 |
 | `/gs_test boss <1..5> <min\|max>` | 在玩家上方生成该阶测试 BOSS（min=区间最低值，max=最高值） |
 | `/gs_test clear` | 清除附近（160 格）的测试 BOSS |
@@ -19,6 +20,8 @@
 - "标准数值" = grace 表 **base 中点**（不做随机 roll），确定性、可复现。
 - 非池键写入独立 sourceId `test_standard`，与 `grace_tier_N` / `command` 隔离；
   池两键（最大灵力/灵力强度）受单写规约约束，只能经阶级台账写入——命令会覆盖 1..N 阶台账份额。
+- `player 0` 与 `reset` 等价（均为取消神恩回凡人）：清空 `grace_tier_1..5` 与 `test_standard`
+  全部贡献、池台账清零、撤飞行权限、关无限灵力。
 - 标准装备按武器带发放：`阶1-2→Lv1/T1`、`阶3-4→Lv2/T2`、`阶5→Lv3/T3`（主武器 + 等级核 + 球核 + 增幅核）。
 
 ## 测试 BOSS 标定

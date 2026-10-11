@@ -125,6 +125,10 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue BOSS_STAR_DROP_MIN;
     /** 碎符卡星掉落上界。 */
     public static final ModConfigSpec.IntValue BOSS_STAR_DROP_MAX;
+    /** 击杀主题 BOSS 保底掉落的**新签名素材**数量。 */
+    public static final ModConfigSpec.IntValue SIGNATURE_DROP_COUNT;
+    /** 击杀主题 BOSS 时**低概率直掉成品道具卡**的概率（0 = 关闭）。 */
+    public static final ModConfigSpec.DoubleValue BOSS_CARD_DROP_CHANCE;
 
     public static final ModConfigSpec.DoubleValue BASE_REGEN_PER_SECOND;
     public static final ModConfigSpec.IntValue RESONANCE_BASE_IN_QUOTA;
@@ -893,10 +897,12 @@ public class GensokyouConfig {
         BIG_FAIRY_WALL_SIZE = BUILDER.defineInRange("bigFairyWallSize", 0.7D, 0.05D, 4.0D);
         BIG_FAIRY_WALL_OFFSET = BUILDER.defineInRange("bigFairyWallForwardOffset", 3.0D, 0.0D, 32.0D);
         // 黑谷山女的默认攻击（蛛丝扇）。同样不进 BossCards：它是全程在符卡底下继续跑的底噪。
+        // 改前 40 tick / 5 发与第一张符卡的「追丝」轨视觉重复，读成第二张符卡；现降为
+        // 低频、少量的宽间隔点名，符卡主图案（蛛丝网 / 瘴气螺旋）保持视觉中心。
         YAMAME_WEB_INTERVAL = BUILDER.comment("Yamame default attack: ticks between spider-strand volleys")
-                .defineInRange("yamameWebInterval", 40, 5, Integer.MAX_VALUE);
-        YAMAME_WEB_COUNT = BUILDER.defineInRange("yamameWebCount", 5, 1, 32);
-        YAMAME_WEB_SPREAD_DEG = BUILDER.defineInRange("yamameWebSpreadDeg", 40.0D, 1.0D, 180.0D);
+                .defineInRange("yamameWebInterval", 80, 5, Integer.MAX_VALUE);
+        YAMAME_WEB_COUNT = BUILDER.defineInRange("yamameWebCount", 3, 1, 32);
+        YAMAME_WEB_SPREAD_DEG = BUILDER.defineInRange("yamameWebSpreadDeg", 55.0D, 1.0D, 180.0D);
         YAMAME_WEB_SPEED = BUILDER.defineInRange("yamameWebSpeed", 0.35D, 0.01D, 2.0D);
         YAMAME_WEB_SIZE = BUILDER.defineInRange("yamameWebSize", 0.55D, 0.05D, 4.0D);
 
@@ -994,6 +1000,8 @@ public class GensokyouConfig {
         YAMAME_BOSS_HITS = BUILDER.defineInRange("yamameBossHits", 8, 1, 200);
         BOSS_STAR_DROP_MIN = BUILDER.comment("碎符卡星 drop count, lower bound").defineInRange("bossStarDropMin", 1, 0, 64);
         BOSS_STAR_DROP_MAX = BUILDER.defineInRange("bossStarDropMax", 2, 0, 64);
+        SIGNATURE_DROP_COUNT = BUILDER.comment("spellcard-crafting-and-boss-signatures: new signature material drop count per themed BOSS kill").defineInRange("signatureDropCount", 1, 0, 64);
+        BOSS_CARD_DROP_CHANCE = BUILDER.comment("spellcard-crafting-and-boss-signatures: chance a themed BOSS directly drops its finished item spell card (0 disables)").defineInRange("bossCardDropChance", 0D, 0D, 1D);
         BUILDER.pop();
 
         BUILDER.push("power").comment("Spirit power pool & infrastructure");

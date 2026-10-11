@@ -78,6 +78,21 @@
       "result": { "item": "gensokyou:spellcard_star", "count": 1 }
     },
     {
+      "name": "zaohua_spirit_bomb",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 20000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_1", "count": 1 },
+        { "item": "gensokyou:spirit_iron", "count": 2 },
+        { "item": "gensokyou:refined_cinnabar", "count": 2 },
+        { "item": "minecraft:gunpowder", "count": 4 },
+        { "item": "minecraft:amethyst_shard", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:spirit_bomb", "count": 1 }
+    },
+    {
       "name": "zaohua_danmaku_weapon_frame",
       "mode": "activation",
       "match": "max",
@@ -467,6 +482,114 @@
         { "item": "minecraft:diamond", "count": 2 }
       ],
       "result": { "item": "gensokyou:star_silver_boots", "count": 1 }
+    },
+    {
+      "_comment": "玩家符卡获取（spellcard-crafting-and-boss-signatures）：低档=碎符卡星mod门；中/高档=符卡星门。主题卡另含对应主题信物。",
+      "name": "zaohua_spellcard_spider_web",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 12000,
+      "ingredients": [
+        { "item": "gensokyou:broken_spell_card_star", "count": 2 },
+        { "item": "gensokyou:earth_spider_silk", "count": 1 },
+        { "item": "minecraft:string", "count": 4 },
+        { "item": "gensokyou:talisman_paper", "count": 2 },
+        { "item": "gensokyou:memory_fragment", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:spider_web", "count": 1 }
+    },
+    {
+      "name": "zaohua_spellcard_plague_repay",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 12000,
+      "ingredients": [
+        { "item": "gensokyou:broken_spell_card_star", "count": 2 },
+        { "item": "gensokyou:earth_spider_silk", "count": 1 },
+        { "item": "gensokyou:higanbana", "count": 2 },
+        { "item": "gensokyou:magic_mushroom", "count": 1 },
+        { "item": "gensokyou:memory_fragment", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:plague_repay", "count": 1 }
+    },
+    {
+      "name": "zaohua_spellcard_light_reflect",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 12000,
+      "ingredients": [
+        { "item": "gensokyou:broken_spell_card_star", "count": 2 },
+        { "item": "minecraft:glowstone", "count": 2 },
+        { "item": "gensokyou:talisman_paper", "count": 2 },
+        { "item": "gensokyou:memory_fragment", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:light_reflect", "count": 1 }
+    },
+    {
+      "name": "zaohua_spellcard_healing_garden",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 24000,
+      "ingredients": [
+        { "item": "gensokyou:spellcard_star", "count": 1 },
+        { "item": "gensokyou:fairy_nectar", "count": 1 },
+        { "item": "gensokyou:spirit_herb", "count": 4 },
+        { "item": "gensokyou:gentian", "count": 2 },
+        { "item": "gensokyou:memory_fragment", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:healing_garden", "count": 1 }
+    },
+    {
+      "name": "zaohua_spellcard_flower_armor",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 24000,
+      "ingredients": [
+        { "item": "gensokyou:spellcard_star", "count": 1 },
+        { "item": "gensokyou:fairy_nectar", "count": 1 },
+        { "item": "gensokyou:spirit_herb", "count": 2 },
+        { "item": "minecraft:amethyst_shard", "count": 4 },
+        { "item": "gensokyou:talisman_paper", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:flower_armor", "count": 1 }
+    },
+    {
+      "_comment": "demarcation：露米娅主题卡，吃宵暗之核（Rumia 落地前该信物无掉源，故本卡暂不可合成）。",
+      "name": "zaohua_spellcard_demarcation",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 24000,
+      "ingredients": [
+        { "item": "gensokyou:spellcard_star", "count": 1 },
+        { "item": "gensokyou:nightfall_core", "count": 1 },
+        { "item": "minecraft:coal", "count": 4 },
+        { "item": "gensokyou:talisman_paper", "count": 2 },
+        { "item": "gensokyou:memory_fragment", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:demarcation", "count": 1 }
+    },
+    {
+      "name": "zaohua_spellcard_icicle_fall",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 24000,
+      "ingredients": [
+        { "item": "gensokyou:spellcard_star", "count": 1 },
+        { "item": "minecraft:blue_ice", "count": 2 },
+        { "item": "minecraft:snowball", "count": 2 },
+        { "item": "gensokyou:memory_fragment", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:icicle_fall", "count": 1 }
+    },
+    {
+      "_comment": "fox_servant：主题信物为既有隙间碎片。",
+      "name": "zaohua_spellcard_fox_servant",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 48000,
+      "ingredients": [
+        { "item": "gensokyou:spellcard_star", "count": 2 },
+        { "item": "gensokyou:sukima_fragment", "count": 1 },
+        { "item": "minecraft:blaze_powder", "count": 4 },
+        { "item": "minecraft:glowstone", "count": 2 },
+        { "item": "gensokyou:memory_fragment", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:fox_servant", "count": 1 }
+    },
+    {
+      "name": "zaohua_spellcard_musou_fuuin",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 48000,
+      "ingredients": [
+        { "item": "gensokyou:spellcard_star", "count": 2 },
+        { "item": "minecraft:amethyst_shard", "count": 4 },
+        { "item": "gensokyou:talisman_paper", "count": 4 },
+        { "item": "gensokyou:memory_fragment", "count": 4 }
+      ],
+      "result": { "item": "gensokyou:musou_fuuin", "count": 1 }
     }
   ]
 }

@@ -16,6 +16,7 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -30,6 +31,7 @@ import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 黑谷山女（黒谷ヤマメ）——土蜘蛛妖怪本人，T1 野生召唤 BOSS。
@@ -95,9 +97,40 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
         return 26.0D;
     }
 
+    /**
+     * 织网 / 展开阶段锁定位置。
+     *
+     * <p>蛛丝与螺旋都是「多批共享同一中心」的图案：BOSS 一边游走一边分批发，
+     * 各批圆心会随游走偏移，图案当场散架（大妖精环卡记过同一现象）。
+     * 故每张卡的前半循环锁位，后半（收束与喘息）恢复游走。
+     */
+    @Override
+    protected boolean movementLocked() {
+        if (runner() == null) {
+            return false;
+        }
+        int cycle = runner().cycleTicks();
+        if (cycle <= 0) {
+            return false;
+        }
+        return runner().cycleTick() < cycle / 2;
+    }
+
     @Override
     protected int starDropCount() {
         return 3;
+    }
+
+    /** 主题信物：土蜘蛛之丝（击杀保底掉，见 {@code #gensokyou:boss_signature}）。 */
+    @Override
+    public Optional<Item> signatureItem() {
+        return Optional.of(ModItems.EARTH_SPIDER_SILK.get());
+    }
+
+    /** 主题卡代表：網符『蜘蛛の巣』（低概率直掉）。 */
+    @Override
+    public Optional<Item> themedCard() {
+        return Optional.of(ModItems.SPIDER_WEB.get());
     }
 
     @Override

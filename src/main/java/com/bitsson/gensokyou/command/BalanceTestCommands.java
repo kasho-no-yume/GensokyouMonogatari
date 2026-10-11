@@ -12,6 +12,8 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 /**
  * 数值测试台命令（add-balance-test-harness，权限 2）：
  * /gs_test player &lt;tier&gt; [infinite] | boss &lt;tier&gt; &lt;min|max&gt; | clear | reset
+ *
+ * <p>{@code player 0} = 取消该玩家的神恩（回凡人测试态，与 {@code reset} 等价）。
  */
 @EventBusSubscriber(modid = Gensokyou.MODID)
 public final class BalanceTestCommands {
@@ -24,7 +26,7 @@ public final class BalanceTestCommands {
         event.getDispatcher().register(Commands.literal("gs_test")
                 .requires(source -> source.hasPermission(2))
                 .then(Commands.literal("player")
-                        .then(Commands.argument("tier", IntegerArgumentType.integer(1, 5))
+                        .then(Commands.argument("tier", IntegerArgumentType.integer(0, 5))
                                 .executes(ctx -> configurePlayer(ctx, false))
                                 .then(Commands.literal("infinite")
                                         .executes(ctx -> configurePlayer(ctx, true)))))

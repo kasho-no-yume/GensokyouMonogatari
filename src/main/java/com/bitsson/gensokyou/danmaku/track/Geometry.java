@@ -218,6 +218,13 @@ public final class Geometry {
         if (params.offsetUp() != 0.0D) {
             out = out.add(worldUp.scale(params.offsetUp()));
         }
+        if (params.offsetRight() != 0.0D) {
+            // 水平右方向 = forward × worldUp（与本类其它形状对 right 的定义一致）。
+            Vec3 right = forward.cross(worldUp);
+            if (right.lengthSqr() > 1.0E-6D) {
+                out = out.add(right.normalize().scale(params.offsetRight()));
+            }
+        }
         return out;
     }
 
@@ -516,6 +523,29 @@ public final class Geometry {
                     double r = base + amp * Math.cos(petals * theta);
                     Vec3 radial = right.scale(Math.cos(theta)).add(up.scale(Math.sin(theta)));
                     out.add(new Shot(origin.add(radial.scale(r)), forward, forward, params));
+                }
+                yield List.copyOf(out);
+            }
+
+            case SPIRAL -> {
+                // 螺旋排布：面向目标的竖直平面内，按阿基米德螺线排 count 颗。
+                // 参数复用：radius = 外半径，radialAmp = 内半径，petals = 圈数（符号定旋向）。
+                // 每颗弹初速方向 = 平面法线（forward），与 ROSETTE 一致——平面内形状由编队帧负责。
+                int n = Math.max(1, params.count());
+                double outer = Math.max(0.5D, params.radius());
+                double inner = Math.min(outer, Math.max(0.0D, params.radialAmp()));
+                int turnsRaw = params.petals();
+                double turns = Math.max(1.0D, Math.abs(turnsRaw));
+                double handed = turnsRaw < 0 ? -1.0D : 1.0D;
+                double totalAngle = turns * Math.PI * 2.0D * handed;
+                Vec3 spiralOrigin = offsetOrigin(origin, forward, worldUp, params);
+                List<Shot> out = new ArrayList<>(n);
+                for (int i = 0; i < n; i++) {
+                    double frac = n <= 1 ? 0.0D : (double) i / (n - 1);
+                    double theta = frac * totalAngle + phase;
+                    double r = inner + (outer - inner) * frac;
+                    Vec3 radial = right.scale(Math.cos(theta)).add(up.scale(Math.sin(theta)));
+                    out.add(new Shot(spiralOrigin.add(radial.scale(r)), forward, forward, params));
                 }
                 yield List.copyOf(out);
             }

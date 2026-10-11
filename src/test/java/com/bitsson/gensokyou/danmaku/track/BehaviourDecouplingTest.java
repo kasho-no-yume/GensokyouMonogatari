@@ -47,11 +47,10 @@ class BehaviourDecouplingTest {
                         "Shape.Params 是纯几何，MUST NOT 含行为字段 —— 发现: " + component.getName());
             }
         }
-        assertEquals(13, Shape.Params.class.getRecordComponents().length,
-                "几何参数应为 13 个字段（改前是 14，因混入了 7 个行为参数；"
-                        + "现为 8 基础 + ROSETTE/FLOWER 的花瓣数与径向幅度 + LATTICE 的直瞄比例"
-                        + " + 生成点的两个偏移 offsetForward/offsetUp。"
-                        + "后两个是纯几何——它们只改「弹在哪儿冒出来」，不改「怎么动」；"
+        assertEquals(14, Shape.Params.class.getRecordComponents().length,
+                "几何参数应为 14 个字段（8 基础 + ROSETTE/FLOWER 的花瓣数与径向幅度"
+                        + " + LATTICE 的直瞄比例 + 生成点的三个偏移 offsetForward/offsetUp/offsetRight）。"
+                        + "三个偏移是纯几何——它们只改「弹在哪儿冒出来」，不改「怎么动」；"
                         + "「中心弹的伤害/尺寸」刻意放在 Beat 而非此处，"
                         + "因为那是本批弹的旋钮而不是形状的形状）");
     }

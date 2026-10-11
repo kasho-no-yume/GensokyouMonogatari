@@ -2,6 +2,7 @@ package com.bitsson.gensokyou.entity;
 
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.SplitSpread;
+import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
@@ -109,6 +110,81 @@ public class SphereDanmaku extends AbstractDanmakuProjectile {
             com.bitsson.gensokyou.danmaku.DanmakuBudget.recordBlockHit();
             this.discard(DanmakuBudget.RemovalCause.BLOCK);
         }
+    }
+
+    @Override
+    protected void spawnTrailChild() {
+        if (!(this.level() instanceof ServerLevel server)) {
+            return;
+        }
+        if (!DanmakuBudget.canEmit(server)) {
+            DanmakuBudget.recordTrail(0, 1);
+            return;
+        }
+        SphereDanmaku node = new SphereDanmaku(server, this.getOwner() instanceof LivingEntity owner
+                ? owner : null, this.damage, lighter(this.getColor(), 0.5D),
+                (float) Math.max(0.15D, this.getSize() * 0.55D), Set.of());
+        node.setFromWeapon(this.isFromWeapon());
+        node.setCritMult(this.getCritMult());
+        int life = this.trailChildLifetime();
+        if (life > 0) {
+            node.setLifetimeTicks(life);
+        }
+        node.moveTo(this.getX(), this.getY(), this.getZ(), 0F, 0F);
+        int hold = this.trailHoldTicks();
+        double drift = this.trailDriftSpeed();
+        if (hold > 0 && drift > 0.0D) {
+            // 尾珠先静止 hold tick（此间按 AABB 静止判伤），之后沿各自的随机方向缓慢漂移。
+            // 用速率曲线承载「先停后动」：0 速段被 tick 判为 stationary，故停在原地仍判伤；
+            // 段后 alongAxis 回落到出生时记下的随机轴，于是方向是「一个随机方向」而非乱窜。
+            node.setDirection(awayFromBoss(this.getRandom()), drift);
+            node.configureSpeedProfile(new DanmakuSpeedProfile(
+                    0.0D, hold, drift, 0, drift, 0, drift));
+        } else {
+            // 纯静止尾珠：以悬停语义承载，从而走既有静止 AABB 判伤路径。
+            // 不能只把速度设 0 —— 零位移扫掠恒 MISS，尾珠会变成打不到人的摆设（坑 6）。
+            node.setDeltaMovement(Vec3.ZERO);
+            node.configureHover(1);
+        }
+        this.tracePreviewChild(node);
+        server.addFreshEntity(node);
+        DanmakuBudget.recordEmit();
+        DanmakuBudget.recordTrail(1, 1);
+    }
+
+    /** 球面均匀随机单位向量。 */
+    private static Vec3 randomUnit(net.minecraft.util.RandomSource rng) {
+        double z = rng.nextDouble() * 2.0D - 1.0D;
+        double phi = rng.nextDouble() * Math.PI * 2.0D;
+        double radial = Math.sqrt(Math.max(0.0D, 1.0D - z * z));
+        return new Vec3(radial * Math.cos(phi), z, radial * Math.sin(phi));
+    }
+
+    /**
+     * 偏向「远离 BOSS」的随机单位方向。
+     *
+     * <p>以「本弹位置 → 远离 owner」为基准，再叠加一层随机扰动（约 ±35°），
+     * 使网线整体朝外扩散，而不是全随机地原地乱窜——全随机会让弹幕只堆在 BOSS 身边。
+     * 本弹恰在 BOSS 身上（径向退化）时回落到全随机。
+     */
+    private Vec3 awayFromBoss(net.minecraft.util.RandomSource rng) {
+        Vec3 bossPos = this.getOwner() != null ? this.getOwner().position() : this.position();
+        Vec3 radial = this.position().subtract(bossPos);
+        if (radial.lengthSqr() < 1.0E-6D) {
+            return randomUnit(rng);
+        }
+        return radial.normalize().add(randomUnit(rng).scale(0.7D)).normalize();
+    }
+
+    /** 把颜色向白色混 {@code t}（0..1），用于把尾珠调浅以区别于头弹。 */
+    private static int lighter(int rgb, double t) {
+        int r = (rgb >> 16) & 0xFF;
+        int g = (rgb >> 8) & 0xFF;
+        int b = rgb & 0xFF;
+        r = (int) Math.round(r + (255 - r) * t);
+        g = (int) Math.round(g + (255 - g) * t);
+        b = (int) Math.round(b + (255 - b) * t);
+        return (r << 16) | (g << 8) | b;
     }
 
     @Override

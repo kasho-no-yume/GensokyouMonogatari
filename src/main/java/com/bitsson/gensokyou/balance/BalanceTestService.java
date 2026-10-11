@@ -29,7 +29,8 @@ import java.util.List;
  *
  * <p>"标准数值" = grace 表 base 中点（不做 roll）；非池键写独立 sourceId {@code test_standard}
  * （与 {@code grace_tier_N}/command 隔离）。池两键受单写规约约束，只能经阶级台账写入——
- * 故本命令会覆盖 1..N 阶台账份额（以 {@code test_standard} 之外的方式），{@code reset} 时清空。
+ * 故本命令会覆盖 1..N 阶台账份额（以 {@code test_standard} 之外的方式）；{@code reset}
+ * 与 {@code player 0}（取消神恩）时清空。
  */
 @EventBusSubscriber(modid = com.bitsson.gensokyou.Gensokyou.MODID)
 public final class BalanceTestService {
@@ -45,6 +46,10 @@ public final class BalanceTestService {
     // ---------------------------------------------------------------
 
     public static void configurePlayer(ServerPlayer player, int tier, boolean infinite) {
+        if (tier <= 0) {
+            cancelGrace(player); // tier 0 = 取消神恩（回凡人测试态）
+            return;
+        }
         clearContributions(player);
 
         SpiritPowerData data = ModAttachments.get(player);
@@ -82,17 +87,24 @@ public final class BalanceTestService {
                 tier, infinite ? "infinite" : "normal"), false);
     }
 
-    public static void resetPlayer(ServerPlayer player) {
+    /** 取消神恩（{@code /gs_test player 0}）：清空全部贡献与池台账、回凡人态、撤飞行权限、关无限灵力。 */
+    public static void cancelGrace(ServerPlayer player) {
         clearContributions(player);
         SpiritPowerData data = ModAttachments.get(player);
         ModAttachments.set(player, new SpiritPowerData(0F, 0F, 0, 0F, 0F, List.of(), 0F, data.flightInertia()));
         PlayerAttributes.refreshBridged(player);
         GraceFlight.revoke(player);
         ModAttachments.setTestInfiniteSpirit(player, false);
+        player.displayClientMessage(
+                Component.translatable("msg.gensokyou.test_player_grace_cancelled"), false);
+    }
+
+    public static void resetPlayer(ServerPlayer player) {
+        cancelGrace(player);
         player.displayClientMessage(Component.translatable("msg.gensokyou.test_player_reset"), false);
     }
 
-    /** 清空 grace_tier_1..5 与 test_standard 的全部贡献（池台账随 configure 覆盖 / reset 清空）。 */
+    /** 清空 grace_tier_1..5 与 test_standard 的全部贡献（池台账随 configure 覆盖 / cancelGrace 清空）。 */
     private static void clearContributions(ServerPlayer player) {
         for (AttributeKey key : AttributeKey.values()) {
             PlayerAttributes.setPermanent(player, key, TEST_SOURCE, 0F);

@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
 
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -66,6 +67,29 @@ public interface TouhouBoss {
      * HUD 据此不绘制该行。
      */
     default Optional<Component> spellCardName(int index) {
+        return Optional.empty();
+    }
+
+    /**
+     * 本 BOSS 的**主题信物**（主题符卡的合成料），无归属返回 {@link Optional#empty()}。
+     *
+     * <p>大妖精→花精之滴、黑谷山女→土蜘蛛之丝、八云蓝(伪)→隙间碎片（复用既有物）。
+     * 击杀保底掉落由 {@code AbstractTouhouBoss} 侧按信物标签筛选：只有**新签名素材**
+     * （标签 {@code #gensokyou:boss_signature} 成员）会掉；复用既有物的信物（如隙间碎片）
+     * SHALL NOT 因本机制新增掉源。
+     *
+     * <p><b>必须带缺省实现</b>：未声明归属的 BOSS（芙兰朵露、无面等）不掉主题信物。
+     */
+    default Optional<Item> signatureItem() {
+        return Optional.empty();
+    }
+
+    /**
+     * 本 BOSS 的**主题成品道具卡**（击杀低概率直掉的运气捷径），无归属返回 {@link Optional#empty()}。
+     *
+     * <p>有主题归属但主题卡多于一张的 BOSS 只声明一张代表卡；概率与开关由 config 控制。
+     */
+    default Optional<Item> themedCard() {
         return Optional.empty();
     }
 }

@@ -42,6 +42,14 @@ param(
     # Hot-update a running proxy's parameters (no build, no launch).
     [switch]$SetLag,
 
+    # ---- Optional zero-delay network profiling (proxy metering mode) ----
+    # Start the proxy in metering mode (no delay added) and write per-window byte
+    # counts to -ProfilePath (default: server/net_profile/proxy_<timestamp>.jsonl).
+    # Latency/jitter default to 0 under -Profile unless given explicitly, so the
+    # measured offered load is unperturbed.
+    [switch]$Profile,
+    [string]$ProfilePath = '',
+
     # Extra args passed through to the server (e.g. -ServerArg nogui).
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$ServerArg
@@ -249,8 +257,20 @@ Write-Host "[launch] server pid: $($created.ProcessId)"
 Write-Host "[launch] log: $logFile"
 Write-Host "[launch] detached; follow with: Get-Content -Wait '$logFile'"
 
-# ---- Step 6: optional client<->server latency injection ----
-if ($LatencyMs -gt 0 -or $JitterMs -gt 0) {
+# ---- Step 6: optional client<->server latency injection / profiling ----
+# -Profile defaults the injected delay to 0 so the measured offered load is unperturbed.
+$effLatency = $LatencyMs
+$effJitter  = $JitterMs
+if ($Profile) {
+    if (-not $PSBoundParameters.ContainsKey('LatencyMs')) { $effLatency = 0 }
+    if (-not $PSBoundParameters.ContainsKey('JitterMs')) { $effJitter = 0 }
+    if (-not $ProfilePath) {
+        $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $ProfilePath = Join-Path (Join-Path $serverDir 'net_profile') "proxy_$stamp.jsonl"
+    }
+}
+
+if ($effLatency -gt 0 -or $effJitter -gt 0 -or $Profile) {
     # Idempotent: replace any existing proxy on the lag port.
     Stop-LagProxy -Port $LagPort
 
@@ -262,13 +282,18 @@ if ($LatencyMs -gt 0 -or $JitterMs -gt 0) {
     # Control file is the runtime source of truth; write the initial values.
     $controlPath = Join-Path $serverDir 'lag_control.json'
     @{
-        latency         = $LatencyMs
-        jitter          = $JitterMs
+        latency         = $effLatency
+        jitter          = $effJitter
         downstream_only = [bool]$LagDownstreamOnly
     } | ConvertTo-Json -Compress | Set-Content -LiteralPath $controlPath -Encoding Ascii
 
-    $lagArgs = "--listen $LagPort --target 25565 --latency $LatencyMs --jitter $JitterMs --control $controlPath"
+    $lagArgs = "--listen $LagPort --target 25565 --latency $effLatency --jitter $effJitter --control $controlPath"
     if ($LagDownstreamOnly) { $lagArgs += ' --downstream-only' }
+    if ($Profile) {
+        $profileDir = Split-Path -Parent $ProfilePath
+        if ($profileDir) { New-Item -ItemType Directory -Force -Path $profileDir | Out-Null }
+        $lagArgs += " --profile `"$ProfilePath`""
+    }
 
     $lagLog = Join-Path $serverDir 'lag_proxy.log'
     $quotedPy     = '"{0}"' -f $pythonExe
@@ -285,8 +310,12 @@ if ($LatencyMs -gt 0 -or $JitterMs -gt 0) {
         Select-Object -First 1
     if ($lagUp) {
         Write-Host "[lag] proxy pid: $($lagCreated.ProcessId) (port $LagPort -> 25565)"
-        Write-Host "[lag] connect your client to 127.0.0.1:$LagPort to get ${LatencyMs}ms +/-${JitterMs}ms"
+        Write-Host "[lag] connect your client to 127.0.0.1:$LagPort to get ${effLatency}ms +/-${effJitter}ms"
         Write-Host "[lag] hot-update later: .\tools\run_server_jar.ps1 -SetLag -LatencyMs <n> -JitterMs <n>"
+        if ($Profile) {
+            Write-Host "[profile] zero-delay byte metering -> $ProfilePath"
+            Write-Host "[profile] in-game: /gs_net start <label>, fight the boss, /gs_net stop"
+        }
     } else {
         Write-Warning "[lag] proxy did not come up on port $LagPort; see $lagLog"
         if (Test-Path $lagLog) { Get-Content $lagLog -Tail 10 | ForEach-Object { Write-Host "  $_" } }

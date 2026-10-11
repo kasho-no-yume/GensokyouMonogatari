@@ -23,6 +23,15 @@ its `latency` / `jitter` / `downstream_only` fields are applied to live
 connections without dropping them. Missing keys keep their current value;
 malformed JSON is ignored with a warning.
 
+Metering
+--------
+With `--profile <path>`, the proxy records relayed byte counts to a JSONL file
+without injecting any delay. Each line is one (connection, direction) per
+window (default 50ms) and carries wall-clock + monotonic timestamps. This is a
+pure byte counter -- it never parses the protocol, so it is immune to transport
+encryption and compression. Use it to profile a link's offered load; the
+packet-class breakdown is produced separately on the server side.
+
 Usage
 -----
     python tools/net_jitter_proxy.py --listen 25566 --target 25565 \
@@ -39,6 +48,7 @@ import os
 import random
 import socket
 import sys
+import time
 
 
 class LagConfig:
@@ -52,6 +62,70 @@ class LagConfig:
     def __str__(self):
         return ('latency=%dms jitter=+-%dms downstream_only=%s'
                 % (self.latency, self.jitter, self.downstream_only))
+
+
+class ProfileSink:
+    """Accumulates relayed byte counts and flushes them as JSONL windows.
+
+    One line per (connection, direction) per window that carried bytes. Each
+    line carries both wall-clock (epoch) and monotonic time so the offline
+    joiner can align with game-side markers and flag clock drift. Metering only
+    counts bytes: it never delays, buffers, or rewrites the relayed stream, so
+    it stays valid regardless of transport encryption or compression.
+    """
+
+    def __init__(self, path, window_ms):
+        self.path = path
+        self.window_s = max(1, int(window_ms)) / 1000.0
+        self._conn_seq = 0
+        self._peers = {}
+        self._acc = {}
+
+    def open_connection(self, peer):
+        self._conn_seq += 1
+        self._peers[self._conn_seq] = peer
+        return self._conn_seq
+
+    def record(self, conn_id, direction, nbytes):
+        key = (conn_id, direction)
+        slot = self._acc.get(key)
+        if slot is None:
+            slot = [0, 0]
+            self._acc[key] = slot
+        slot[0] += nbytes
+        slot[1] += 1
+
+    def _flush(self):
+        if not self._acc:
+            return
+        now_wall = time.time()
+        now_mono = time.monotonic()
+        lines = []
+        for (conn_id, direction), (nbytes, chunks) in self._acc.items():
+            if nbytes <= 0:
+                continue
+            lines.append(json.dumps({
+                'wall': now_wall,
+                'mono': now_mono,
+                'conn': conn_id,
+                'peer': self._peers.get(conn_id, ''),
+                'dir': direction,
+                'bytes': nbytes,
+                'chunks': chunks,
+            }))
+        self._acc = {}
+        if lines:
+            try:
+                with open(self.path, 'a', encoding='utf-8') as handle:
+                    handle.write('\n'.join(lines) + '\n')
+            except OSError as exc:
+                print('net_jitter_proxy: profile write failed (%s)' % exc,
+                      flush=True)
+
+    async def run(self):
+        while True:
+            await asyncio.sleep(self.window_s)
+            self._flush()
 
 
 def _set_nodelay(writer):
@@ -107,12 +181,15 @@ async def _watch_control(path, cfg):
         await asyncio.sleep(0.5)
 
 
-async def _relay(reader, writer, cfg, is_upstream):
+async def _relay(reader, writer, cfg, is_upstream, profiler=None, conn_id=0):
+    direction = 'up' if is_upstream else 'down'
     try:
         while True:
             data = await reader.read(65536)
             if not data:
                 break
+            if profiler is not None:
+                profiler.record(conn_id, direction, len(data))
             apply_delay = cfg.downstream_only is False if is_upstream else True
             if apply_delay and (cfg.latency or cfg.jitter):
                 delay = cfg.latency + random.uniform(-cfg.jitter, cfg.jitter)
@@ -129,8 +206,13 @@ async def _relay(reader, writer, cfg, is_upstream):
             pass
 
 
-async def _handle(client_reader, client_writer, target_host, target_port, cfg):
+async def _handle(client_reader, client_writer, target_host, target_port, cfg,
+                  profiler=None):
     _set_nodelay(client_writer)
+    conn_id = 0
+    if profiler is not None:
+        peer = client_writer.get_extra_info('peername')
+        conn_id = profiler.open_connection(str(peer) if peer else '')
     try:
         server_reader, server_writer = await asyncio.open_connection(
             target_host, target_port)
@@ -142,14 +224,21 @@ async def _handle(client_reader, client_writer, target_host, target_port, cfg):
     _set_nodelay(server_writer)
     # upstream = client -> server, downstream = server -> client.
     up = asyncio.create_task(
-        _relay(client_reader, server_writer, cfg, True))
+        _relay(client_reader, server_writer, cfg, True, profiler, conn_id))
     down = asyncio.create_task(
-        _relay(server_reader, client_writer, cfg, False))
+        _relay(server_reader, client_writer, cfg, False, profiler, conn_id))
     await asyncio.gather(up, down, return_exceptions=True)
 
 
 async def _run(args):
     cfg = LagConfig(args.latency, args.jitter, args.downstream_only)
+
+    profiler = None
+    if args.profile:
+        profiler = ProfileSink(args.profile, args.profile_window_ms)
+        asyncio.create_task(profiler.run())
+        print('net_jitter_proxy: profiling to %s (window %dms)'
+              % (args.profile, args.profile_window_ms), flush=True)
 
     if args.control:
         try:
@@ -162,7 +251,7 @@ async def _run(args):
         asyncio.create_task(_watch_control(args.control, cfg))
 
     handler = lambda r, w: _handle(  # noqa: E731
-        r, w, args.host, args.target, cfg)
+        r, w, args.host, args.target, cfg, profiler)
     hosts = [h.strip() for h in args.bind.split(',') if h.strip()]
     servers = []
     for host in hosts:
@@ -200,6 +289,12 @@ def main(argv=None):
                     help='delay only server->client traffic')
     ap.add_argument('--control', default=None,
                     help='path to a JSON control file polled for live updates')
+    ap.add_argument('--profile', default=None,
+                    help='path to a JSONL file for zero-delay byte metering; '
+                         'one line per connection+direction per window')
+    ap.add_argument('--profile-window-ms', type=int, default=50,
+                    help='metering window in ms (default 50; keep small so '
+                         'spawn bursts are not averaged away)')
     args = ap.parse_args(argv)
     try:
         asyncio.run(_run(args))
