@@ -136,8 +136,7 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
     @Override
     protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean recentlyHit) {
         super.dropCustomDeathLoot(level, source, recentlyHit);
-        // 保底：解锁 T2 材料带的唯一钥匙，也是召唤 L2 祭坛的前置。
-        this.spawnAtLocation(new ItemStack(ModItems.SUKIMA_FRAGMENT.get()));
+        // 隙间碎片已移交给 T2 正主八云蓝（击杀保底掉）；山女不再掉它，其信物为土蜘蛛之丝。
         this.spawnAtLocation(new ItemStack(ModItems.YEN.get(), 8 + this.getRandom().nextInt(9)));
     }
 

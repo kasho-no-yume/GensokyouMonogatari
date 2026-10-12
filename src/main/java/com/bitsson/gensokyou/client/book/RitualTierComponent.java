@@ -188,6 +188,20 @@ public class RitualTierComponent implements ICustomComponent {
                 }
                 add(out, "产出", loot);
             }
+            case "chinkon_hanshou_circle" -> {
+                long cap = (long) GensokyouConfig.CHINKON_BASE_CAPACITY.get();
+                for (int i = 1; i < L; i++) {
+                    cap *= GensokyouConfig.CHINKON_CAPACITY_MULT.get();
+                }
+                add(out, "缓存", compact(cap));
+                add(out, "受灵上限", compact(GensokyouConfig.CHINKON_SPIRIT_IN_RATE.get()) + " /秒");
+                add(out, "耗灵(品阶1)", compact((long) GensokyouConfig.CHINKON_BASE_SP_COST.get()));
+                add(out, "耗灵放大", "×" + GensokyouConfig.CHINKON_SP_COST_MULT.get() + "^(残魂品阶-1)");
+                add(out, "产出", "碎符卡星 " + GensokyouConfig.CHINKON_STAR_MIN.get()
+                        + "~" + GensokyouConfig.CHINKON_STAR_MAX.get()
+                        + "、主题信物 " + GensokyouConfig.CHINKON_SIGNATURE_MIN.get()
+                        + "~" + GensokyouConfig.CHINKON_SIGNATURE_MAX.get());
+            }
             case "houjouno_teihou_circle" -> {
                 int slots = switch (L) {
                     case 1 -> 8;

@@ -1,6 +1,9 @@
 package com.bitsson.gensokyou.entity;
 
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
+import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
+import com.bitsson.gensokyou.danmaku.motion.FormationFrame;
+import com.bitsson.gensokyou.danmaku.motion.Rotation;
 import com.bitsson.gensokyou.danmaku.render.DanmakuMotionState;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
@@ -9,6 +12,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -30,8 +34,19 @@ import java.util.Set;
  * <p>两阶段：延迟期发出半透明红色指示线（同长度同方向），延迟结束后发出激光本体，
  * 持续期内每 5 tick 对射线范围内所有实体判伤一次，实体离开射线立即停止受伤。
  *
- * <p>激光自身不移动，方向在生成时固定。所有渲染参数均通过 SynchedEntityData 同步，
- * 客户端据此独立推算阶段，无需额外的状态包。
+ * <p><b>姿态（位置 + 方向）是年龄的纯函数</b>：可以静止，也可以绕枢轴旋转与平移，
+ * 全部由已同步的参数在双端各自闭式求出，零逐 tick 包。旋转的扫过角度由一个
+ * <b>分段线性角速度曲线</b>的闭式积分给出（复用 {@link DanmakuSpeedProfile} 的
+ * {@code travelAt}，只是把「格」重解释为「度」），因此支持「以一定角速度扫射、
+ * 在 N tick 内线性减到 0、然后停住」。姿态参数复用基类既有同步字段
+ * （见 {@link #configureLaserMotion}），故不新增 accessor、不改运动输入块布局。
+ *
+ * <p><b>隐藏态</b>复用基类 {@code DanmakuPhase}（周期/占空比/相位，年龄推导），
+ * 但<b>仅作用于激活期火柱</b>：压暗渲染、跳过实体判伤；延迟期预警线不受影响
+ * （预警是玩法信息，见 {@code danmaku-laser-motion} design D6）。
+ *
+ * <p>所有渲染参数均通过 SynchedEntityData 同步，客户端据此独立推算阶段与姿态，
+ * 无需额外的状态包。
  */
 public class LaserDanmaku extends AbstractDanmakuProjectile {
     private static final int DEFAULT_COLOR = 0xFF0000;
@@ -53,18 +68,10 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
             SynchedEntityData.defineId(LaserDanmaku.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> DATA_DURATION_TICKS =
             SynchedEntityData.defineId(LaserDanmaku.class, EntityDataSerializers.INT);
-    /**
-     * 是否为<b>穿墙形态</b>。
-     *
-     * <p>默认 {@code false} = 被遮挡形态，射程裁剪到第一个方块。
-     * 两种形态并存，被遮挡形态的裁剪实现全部保留 ——
-     * 它不是遗留物，而是「可被掩体规避」这一类设计的实现。
-     *
-     * <p>本位<b>决定长度</b>，故 MUST 同时进运动指纹（见 {@link #motionParams()}）：
-     * 校准通道只比位置，两端形态不一致若不进指纹就无法被检测。
-     */
-    private static final EntityDataAccessor<Boolean> DATA_PIERCES_BLOCKS =
-            SynchedEntityData.defineId(LaserDanmaku.class, EntityDataSerializers.BOOLEAN);
+
+    // 「是否穿墙」形态位不再有自己的 accessor：它决定长度，故 MUST 进运动指纹，
+    // 现由基类的 FLAG_LASER_PIERCE（DATA_FLAGS 的空闲位）承载 —— 指纹覆盖顺带成立，
+    // 且不再与 P_BURST_AT 共用下标。见 danmaku-laser-motion design D10。
 
     /** 客户端渲染用的长度缓存，避免每帧做一次 clip。键为年龄而非 tickCount。 */
     private double cachedLength = -1.0D;
@@ -132,14 +139,14 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         this.setPiercesBlocks(piercesBlocks);
     }
 
-    /** 是否为穿墙形态（{@code false} = 被遮挡，默认）。 */
+    /** 是否为穿墙形态（{@code false} = 被遮挡，默认）。由行为标志位承载。 */
     public boolean piercesBlocks() {
-        return this.entityData.get(DATA_PIERCES_BLOCKS);
+        return this.hasBehaviorFlag(FLAG_LASER_PIERCE);
     }
 
     public void setPiercesBlocks(boolean piercesBlocks) {
-        if (this.entityData.get(DATA_PIERCES_BLOCKS) != piercesBlocks) {
-            this.entityData.set(DATA_PIERCES_BLOCKS, piercesBlocks);
+        if (this.piercesBlocks() != piercesBlocks) {
+            this.setBehaviorFlag(FLAG_LASER_PIERCE, piercesBlocks);
             // 形态一变长度就变，两套缓存都必须失效 ——
             // 否则穿墙形态会沿用被遮挡形态裁出来的长度（反之亦然）。
             this.cachedLengthTick = -1;
@@ -157,12 +164,11 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         builder.define(DATA_RADIUS, 0.3F);
         builder.define(DATA_DELAY_TICKS, 20);
         builder.define(DATA_DURATION_TICKS, 60);
-        builder.define(DATA_PIERCES_BLOCKS, false);
     }
 
     @Override
     public void tick() {
-        // 不调用 super.tick()：激光静止，不需要移动与命中判定
+        // 不调用 super.tick()：激光不做原版位移/扫掠，姿态由 applyLaserPose() 解析给出。
         this.baseTick();
 
         // 绝对寿命（服务端游戏时间）：与基类同一条存在性判据，避免冻结的激光永不销毁。
@@ -172,7 +178,12 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
             return;
         }
 
+        // 姿态先于判伤：本 tick 的位置与方向 MUST 是最新的，否则判伤用的是上一 tick 的射线。
+        this.applyLaserPose();
+
+        // 隐藏态仅免除实体判伤（延迟期预警线与方块裁剪不受影响）。
         if (this.getPhase() == Phase.ACTIVE
+                && !this.isActiveHidden()
                 && this.level() instanceof ServerLevel
                 && (this.age() - this.getDelayTicks()) % DAMAGE_INTERVAL_TICKS == 0) {
             this.damageEntitiesInBeam();
@@ -192,7 +203,7 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
     /** 对当前射线覆盖范围内的实体判伤，离开射线的实体不再受伤。 */
     private void damageEntitiesInBeam() {
         Vec3 start = this.position();
-        Vec3 end = start.add(this.getLaserDirection().scale(this.getActualLength()));
+        Vec3 end = start.add(this.getCurrentDirection().scale(this.getActualLength()));
 
         AABB scanBox = new AABB(start, end).inflate(this.getRadius() + 1.0D);
         // 带类型过滤的查询：激光所在的实体类型子表被整体跳过（见 DanmakuHitScan 的说明）。
@@ -246,7 +257,7 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         if (this.cachedLengthTick == this.age() && this.cachedLength >= 0.0D) {
             return this.cachedLength;
         }
-        double length = clipLength(this.position());
+        double length = clipLength(this.position(), this.getCurrentDirection());
         this.cachedLength = length;
         this.cachedLengthTick = this.age();
         return length;
@@ -263,16 +274,23 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
      * <p><b>逐形态不变量</b>：对同一形态，视觉长度 MUST 等于判伤长度。
      * 穿墙形态两者都恒为 {@code maxLength}（起点差异不影响长度），
      * 故该不变量自动成立。
+     *
+     * <p><b>移动激光</b>：起点与方向都取「与绘制同一时刻」的插值值（见
+     * {@link #getRenderDirection}），否则光束会从上一 tick 的位置/朝向裁，
+     * 末端抖动。方向逐帧变 ⇒ 绕过按年龄缓存。
      */
     public double getRenderLength(float partialTick) {
         if (this.piercesBlocks()) {
             return this.getMaxLength();
         }
-        Vec3 origin = this.position().add(this.renderOffset(partialTick));
-        if (this.renderCacheTick == this.age() && this.renderCacheOrigin.distanceToSqr(origin) < 1.0E-6D) {
+        Vec3 origin = this.renderOrigin(partialTick);
+        Vec3 direction = this.getRenderDirection(partialTick);
+        if (!this.hasLaserMotion()
+                && this.renderCacheTick == this.age()
+                && this.renderCacheOrigin.distanceToSqr(origin) < 1.0E-6D) {
             return this.renderCacheLength;
         }
-        double length = clipLength(origin);
+        double length = clipLength(origin, direction);
         this.renderCacheLength = length;
         this.renderCacheOrigin = origin;
         // 键为年龄而非 tickCount：重建后年龄连续，缓存不会因错位而每 tick 重算。
@@ -280,9 +298,9 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         return length;
     }
 
-    private double clipLength(Vec3 start) {
+    private double clipLength(Vec3 start, Vec3 direction) {
         double maxLength = this.getMaxLength();
-        Vec3 end = start.add(this.getLaserDirection().scale(maxLength));
+        Vec3 end = start.add(direction.scale(maxLength));
 
         BlockHitResult hit = this.level().clip(new ClipContext(
                 start, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
@@ -305,7 +323,7 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
     @Override
     protected AABB makeBoundingBox() {
         Vec3 pos = this.position().add(this.renderOffset(0.0F));
-        Vec3 dir = this.getLaserDirection();
+        Vec3 dir = this.getCurrentDirection();
         double length = this.getMaxLength();
         double radius = Math.max(this.getRadius(), 0.25D);
         return new AABB(pos, pos.add(dir.scale(length))).inflate(radius);
@@ -376,8 +394,8 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         params[b + 4] = Float.floatToRawIntBits((float) this.getRadius());
         params[b + 5] = this.getDelayTicks();
         params[b + 6] = this.getDurationTicks();
-        // 形态位进指纹：它决定长度，两端不一致必须可被检测（校准只比位置）。
-        params[b + 7] = this.piercesBlocks() ? 1 : 0;
+        // 形态位（穿墙）不再占格：它在 DATA_FLAGS 的 FLAG_LASER_PIERCE 位，
+        // 由基类写进 params[P_FLAGS]，指纹覆盖不变。
         return params;
     }
 
@@ -396,8 +414,8 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         this.entityData.set(DATA_RADIUS, Math.max(0.05F, Float.intBitsToFloat(params[b + 4])));
         this.entityData.set(DATA_DELAY_TICKS, Math.max(0, params[b + 5]));
         this.entityData.set(DATA_DURATION_TICKS, Math.max(1, params[b + 6]));
-        // 缺这一位（旧快照）⇒ 0 ⇒ 被遮挡，与默认形态一致
-        this.setPiercesBlocks(params[b + 7] != 0);
+        // 形态位（穿墙）由 super.applyMotionParams() 从 params[P_FLAGS] 写回 DATA_FLAGS，
+        // 此处无需重复读取。
         // 两套长度缓存的键都含年龄，参数一变必须失效，否则沿用旧方向的裁剪结果。
         this.cachedLengthTick = -1;
         this.renderCacheTick = -1;
@@ -419,6 +437,165 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         this.entityData.set(DATA_DIR_X, (float) normalized.x);
         this.entityData.set(DATA_DIR_Y, (float) normalized.y);
         this.entityData.set(DATA_DIR_Z, (float) normalized.z);
+    }
+
+    // ---------------------------------------------------------------
+    // 姿态（旋转 + 平移）—— 年龄的纯函数
+    // ---------------------------------------------------------------
+
+    /**
+     * 配置激光运动：绕枢轴旋转 + 沿方向平移。任一可缺省即只做另一种。
+     *
+     * <p><b>复用基类既有同步字段</b>（见 {@code danmaku-laser-motion} design D3）：
+     * <ul>
+     *   <li>枢轴与出生点 → 编队帧的 center / offset（{@link #bindToFrame}）；</li>
+     *   <li>旋转轴 → 编队帧的 axis（yaw/pitch）；</li>
+     *   <li>角速度曲线 → 速率曲线字段（{@link #configureAngularProfile}，重解释为度）；</li>
+     *   <li>平移方向 → 运动轴；平移速率 → 编队帧的推进速率。</li>
+     * </ul>
+     * 这些字段本就全在运动指纹里，故姿态输入自动获得指纹覆盖，且随存档持久化。
+     *
+     * <p>MUST 在 {@code addFreshEntity} <b>之前</b>调用：枢轴与偏移是对出生点的一次快照，
+     * 之后位置每 tick 由解析式改写，再调就取不到出生点了。
+     *
+     * @param pivotOffset      枢轴相对出生点的偏移；零向量 = 绕出生点原地旋转
+     * @param rotationAxis     旋转轴（单位向量，内部归一化）；null / 零向量 = 不旋转
+     * @param angularProfile   角速度曲线（度/tick；其 {@code travelAt} 即扫过角度）。
+     *                         恒定角速度用 {@code DanmakuSpeedProfile.constant(ω)}；
+     *                         「扫射后慢慢停」用 {@code decelerateAndHold(ω, N)}。null = 不旋转
+     * @param translationDir   平移方向；null / 零向量 = 不平移
+     * @param translationSpeed 平移速率（格/tick）；≤ 0 = 不平移
+     */
+    public void configureLaserMotion(Vec3 pivotOffset, Vec3 rotationAxis,
+                                     DanmakuSpeedProfile angularProfile,
+                                     Vec3 translationDir, double translationSpeed) {
+        Vec3 origin = this.position();
+        Vec3 pivot = origin.add(pivotOffset == null ? Vec3.ZERO : pivotOffset);
+        Vec3 offset = origin.subtract(pivot);
+        boolean rotates = rotationAxis != null && rotationAxis.lengthSqr() > 1.0E-9D
+                && angularProfile != null;
+        Vec3 axis = rotates ? rotationAxis.normalize() : new Vec3(0.0D, 1.0D, 0.0D);
+        double[] yawPitch = Rotation.anglesFromAxis(axis);
+        // 编队帧：center = 枢轴，offset = 出生点 − 枢轴，axis = 旋转轴，不自转/呼吸/公转。
+        // 本激光只借用它的 center/offset/axis 三个分量，不调用 framePositionAt。
+        FormationFrame frame = new FormationFrame(
+                pivot.x, pivot.y, pivot.z, offset.x, offset.y, offset.z,
+                yawPitch[0], yawPitch[1], 0.0D, 1.0D, 0.0D, 0.0D);
+        this.bindToFrame(frame);
+        if (rotates) {
+            this.configureAngularProfile(angularProfile);
+        }
+        if (translationDir != null && translationDir.lengthSqr() > 1.0E-9D
+                && translationSpeed > 0.0D) {
+            this.setMotionAxis(translationDir);
+            this.configureAdvanceSpeed(translationSpeed);
+        }
+    }
+
+    /** 是否配置了激光运动（旋转或平移）。未配置 ⇒ 静止，保持生成姿态。 */
+    public boolean hasLaserMotion() {
+        return this.hasFormationFrame();
+    }
+
+    /** 本 tick 是否处于<b>激活期</b>的隐藏态（延迟期不隐藏，见类注释）。 */
+    public boolean isActiveHidden() {
+        return this.getPhase() == Phase.ACTIVE && this.isHidden();
+    }
+
+    /** 扫过的角度（度）—— 角速度曲线的闭式积分；未挂曲线为 0。 */
+    private double sweptDegrees(int age) {
+        return this.hasSpeedProfile() ? this.speedProfile().travelAt(age) : 0.0D;
+    }
+
+    /** 旋转轴（由编队帧的 yaw/pitch 还原）。 */
+    private Vec3 rotationAxis() {
+        FormationFrame frame = this.formationFrame();
+        return Rotation.axisFromAngles(frame.axisYawDeg(), frame.axisPitchDeg());
+    }
+
+    /**
+     * 第 {@code age} tick 的方向 = 基准方向绕旋转轴扫过 {@code θ(age)}。
+     *
+     * <p>基准方向存于 {@link #getLaserDirection()}（它是<b>输入</b>，进运动指纹）；
+     * 本方法是<b>输出</b>。二者在静止激光上相等。
+     */
+    private Vec3 directionAt(int age) {
+        if (!this.hasLaserMotion()) {
+            return this.getLaserDirection();
+        }
+        double theta = this.sweptDegrees(age);
+        if (theta == 0.0D) {
+            return this.getLaserDirection();
+        }
+        Vec3 rotated = Rotation.about(this.getLaserDirection(), this.rotationAxis(),
+                Math.toRadians(theta));
+        return rotated.lengthSqr() < 1.0E-12D ? this.getLaserDirection() : rotated.normalize();
+    }
+
+    /** 当前（本 tick）方向——判伤与包围盒用它：权威、整数年龄。 */
+    public Vec3 getCurrentDirection() {
+        return this.directionAt(this.age());
+    }
+
+    /**
+     * <b>渲染</b>方向：与位置插值取<b>同一时刻</b>。
+     *
+     * <p>原版按 {@code Mth.lerp(partialTick, xOld, x)} 把位置从上一 tick 插到本 tick，
+     * 若方向仍取整数年龄的 {@link #getCurrentDirection()}，就会「位置平滑、朝向每 tick 跳一下」
+     * ——旋转激光看起来一顿一顿的（20 tick/s 的角步）。本方法在 {@code age−1} 与 {@code age}
+     * 两个方向之间按 {@code partialTick} 插值，使朝向与位置同步。
+     */
+    public Vec3 getRenderDirection(float partialTick) {
+        if (!this.hasLaserMotion()) {
+            return this.getLaserDirection();
+        }
+        float p = Mth.clamp(partialTick, 0.0F, 1.0F);
+        Vec3 previous = this.directionAt(this.age() - 1);
+        Vec3 current = this.directionAt(this.age());
+        Vec3 lerped = previous.lerp(current, p);
+        return lerped.lengthSqr() < 1.0E-12D ? current : lerped.normalize();
+    }
+
+    /**
+     * <b>渲染</b>起点：原版的世界位置插值（{@code xOld → x}）加纠偏量。
+     *
+     * <p>与 {@code AbstractDanmakuRenderer#renderPosition} 同一口径——被遮挡形态的视觉裁剪
+     * MUST 从「画出来的那条光束」的起点裁，否则移动激光的末端会对不上。
+     */
+    private Vec3 renderOrigin(float partialTick) {
+        return new Vec3(
+                Mth.lerp(partialTick, this.xOld, this.getX()),
+                Mth.lerp(partialTick, this.yOld, this.getY()),
+                Mth.lerp(partialTick, this.zOld, this.getZ()))
+                .add(this.renderOffset(partialTick));
+    }
+
+    /** 第 {@code age} tick 的出生点位置（旋转 + 平移的闭式解）。 */
+    private Vec3 laserOriginAt(int age) {
+        FormationFrame frame = this.formationFrame();
+        Vec3 rotatedOffset = Rotation.about(frame.offset(), this.rotationAxis(),
+                Math.toRadians(this.sweptDegrees(age)));
+        Vec3 advance = this.motionAxis().scale(this.advanceSpeed() * age);
+        return frame.center().add(rotatedOffset).add(advance);
+    }
+
+    /**
+     * 把本 tick 的解析姿态落到实体上。
+     *
+     * <p>位置每 tick 被<b>重置</b>为解析值，误差不累积（与编队帧同一纪律）。
+     * 速度写成「本 tick 与上一 tick 的解析位置之差」，使位置纠偏的容差按真实速度取值。
+     * 方向<b>不写回</b> {@code DATA_DIR_*}——那是基准方向（输入），当前方向由
+     * {@link #getCurrentDirection()} 现算。
+     */
+    private void applyLaserPose() {
+        if (!this.hasLaserMotion()) {
+            return;
+        }
+        int age = this.age();
+        Vec3 origin = this.laserOriginAt(age);
+        Vec3 previous = this.laserOriginAt(Math.max(0, age - 1));
+        this.setDeltaMovement(origin.subtract(previous));
+        this.setPos(origin.x, origin.y, origin.z);
     }
 
     public double getMaxLength() {

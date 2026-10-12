@@ -121,6 +121,20 @@ public class GensokyouConfig {
     public static final ModConfigSpec.DoubleValue YAMAME_BOSS_SECONDS;
     /** 黑谷山女的挨弹数目标。 */
     public static final ModConfigSpec.IntValue YAMAME_BOSS_HITS;
+    /** 八云蓝的战斗秒数目标（T2 偏上，确定值）。 */
+    public static final ModConfigSpec.DoubleValue RAN_BOSS_SECONDS;
+    /** 八云蓝的挨弹数目标。 */
+    public static final ModConfigSpec.IntValue RAN_BOSS_HITS;
+    /** 八云蓝默认攻击（狐火扇）的间隔（tick）。 */
+    public static final ModConfigSpec.IntValue RAN_FOXFIRE_INTERVAL;
+    /** 八云蓝默认攻击的弹数。 */
+    public static final ModConfigSpec.IntValue RAN_FOXFIRE_COUNT;
+    /** 八云蓝默认攻击的总张角（度）。 */
+    public static final ModConfigSpec.DoubleValue RAN_FOXFIRE_SPREAD_DEG;
+    /** 八云蓝默认攻击的弹速（格/tick）。 */
+    public static final ModConfigSpec.DoubleValue RAN_FOXFIRE_SPEED;
+    /** 八云蓝默认攻击的弹体直径（格）。 */
+    public static final ModConfigSpec.DoubleValue RAN_FOXFIRE_SIZE;
     /** 碎符卡星掉落下界。 */
     public static final ModConfigSpec.IntValue BOSS_STAR_DROP_MIN;
     /** 碎符卡星掉落上界。 */
@@ -219,6 +233,17 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue SHUJOU_SPIRIT_IN_RATE;
     public static final ModConfigSpec.IntValue SHUJOU_L2_OUTPUT_MULT;
     public static final ModConfigSpec.IntValue SHUJOU_LOOTING_LEVEL;
+
+    // ---- chinkon-hanshou-ritual：镇魂返照之仪（消耗残魂典籍，产出碎星 + 主题信物的激活型一次性仪式）----
+    public static final ModConfigSpec.IntValue CHINKON_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue CHINKON_CAPACITY_MULT;
+    public static final ModConfigSpec.IntValue CHINKON_BASE_SP_COST;
+    public static final ModConfigSpec.IntValue CHINKON_SP_COST_MULT;
+    public static final ModConfigSpec.IntValue CHINKON_SPIRIT_IN_RATE;
+    public static final ModConfigSpec.IntValue CHINKON_STAR_MIN;
+    public static final ModConfigSpec.IntValue CHINKON_STAR_MAX;
+    public static final ModConfigSpec.IntValue CHINKON_SIGNATURE_MIN;
+    public static final ModConfigSpec.IntValue CHINKON_SIGNATURE_MAX;
     public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_BASE_CAPACITY;
     public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_CAPACITY_MULTIPLIER;
     public static final ModConfigSpec.IntValue HOUJOUNO_TEIHOU_BASE_IN_RATE_PER_SECOND;
@@ -484,6 +509,12 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue MONSTER_BOSS_HITS_MIN;
     public static final ModConfigSpec.IntValue MONSTER_BOSS_HITS_MAX;
     public static final ModConfigSpec.DoubleValue MONSTER_TIER_SCALE;
+    /**
+     * 非 BOSS 怪物（杂兵/精英）的出生数值随机幅度。
+     *
+     * <p>BOSS 数值已确定化，<b>不再使用本项</b>（见 change {@code boss-stats-deterministic}）。
+     * 本项当前<b>无生产调用点</b>——杂兵/精英的区间 roll 尚未接线（见 {@code MonsterStatBudget.forTier}）。
+     */
     public static final ModConfigSpec.DoubleValue MONSTER_SPAWN_ROLL;
     public static final ModConfigSpec.DoubleValue MONSTER_REF_SHOTS_PER_SECOND;
 
@@ -998,6 +1029,13 @@ public class GensokyouConfig {
         BIG_FAIRY_BOSS_HITS = BUILDER.comment("大妖精 hits-to-kill target (damage = referencePlayerEhp / this)").defineInRange("bigFairyBossHits", 10, 1, 200);
         YAMAME_BOSS_SECONDS = BUILDER.comment("Yamame (黑谷山女) spell-card fight length target (4 cards, T1 reference)").defineInRange("yamameBossSeconds", 200D, 120D, 900D);
         YAMAME_BOSS_HITS = BUILDER.defineInRange("yamameBossHits", 8, 1, 200);
+        RAN_BOSS_SECONDS = BUILDER.comment("Yakumo Ran (八云蓝, T2 正主) spell-card fight length target (8 cards, T2-high)").defineInRange("ranBossSeconds", 320D, 120D, 900D);
+        RAN_BOSS_HITS = BUILDER.defineInRange("ranBossHits", 9, 1, 200);
+        RAN_FOXFIRE_INTERVAL = BUILDER.comment("Yakumo Ran default fox-fire interval (ticks)").defineInRange("ranFoxfireInterval", 40, 5, 1200);
+        RAN_FOXFIRE_COUNT = BUILDER.defineInRange("ranFoxfireCount", 3, 1, 64);
+        RAN_FOXFIRE_SPREAD_DEG = BUILDER.defineInRange("ranFoxfireSpreadDeg", 30D, 0D, 180D);
+        RAN_FOXFIRE_SPEED = BUILDER.defineInRange("ranFoxfireSpeed", 0.34D, 0.01D, 4D);
+        RAN_FOXFIRE_SIZE = BUILDER.defineInRange("ranFoxfireSize", 0.55D, 0.05D, 4D);
         BOSS_STAR_DROP_MIN = BUILDER.comment("碎符卡星 drop count, lower bound").defineInRange("bossStarDropMin", 1, 0, 64);
         BOSS_STAR_DROP_MAX = BUILDER.defineInRange("bossStarDropMax", 2, 0, 64);
         SIGNATURE_DROP_COUNT = BUILDER.comment("spellcard-crafting-and-boss-signatures: new signature material drop count per themed BOSS kill").defineInRange("signatureDropCount", 1, 0, 64);
@@ -1094,6 +1132,18 @@ public class GensokyouConfig {
         SHUJOU_SPIRIT_IN_RATE = BUILDER.comment("Shujou: routed spirit intake rate per second so the resonance network can power it as a sink (fixed across levels)").defineInRange("shujouSpiritInRate", 1000000, 0, Integer.MAX_VALUE);
         SHUJOU_L2_OUTPUT_MULT = BUILDER.comment("Shujou: level-2 output multiplier applied on top of the looting-3 roll").defineInRange("shujouL2OutputMult", 4, 1, 1000);
         SHUJOU_LOOTING_LEVEL = BUILDER.comment("Shujou: looting level simulated from level 1 onward (0 = no looting)").defineInRange("shujouLootingLevel", 3, 0, 10);
+        BUILDER.pop();
+
+        BUILDER.push("chinkon").comment("Chinkon Hanshou (Rite of the Pacified Soul's Return): one-shot activation rite that consumes a boss-residual codex and returns broken spell-card stars plus the boss signature material");
+        CHINKON_BASE_CAPACITY = BUILDER.comment("Chinkon: spirit buffer capacity at level 1 (level N multiplies by chinkonCapacityMult^(N-1))").defineInRange("chinkonBaseCapacity", 2000000, 1, Integer.MAX_VALUE);
+        CHINKON_CAPACITY_MULT = BUILDER.comment("Chinkon: capacity multiplier per level").defineInRange("chinkonCapacityMult", 4, 1, 1000);
+        CHINKON_BASE_SP_COST = BUILDER.comment("Chinkon: spirit cost per rite for a tier-1 boss residual (a boss of tier N multiplies by chinkonSpCostMult^(N-1))").defineInRange("chinkonBaseSpCost", 500000, 0, Integer.MAX_VALUE);
+        CHINKON_SP_COST_MULT = BUILDER.comment("Chinkon: spirit cost multiplier per BOSS tier (not per structure level)").defineInRange("chinkonSpCostMult", 4, 1, 1000);
+        CHINKON_SPIRIT_IN_RATE = BUILDER.comment("Chinkon: routed spirit intake rate per second so the resonance network can power it as a sink (fixed across levels)").defineInRange("chinkonSpiritInRate", 1000000, 0, Integer.MAX_VALUE);
+        CHINKON_STAR_MIN = BUILDER.comment("Chinkon: broken spell-card star output lower bound (the star is a by-product; 0 is expected)").defineInRange("chinkonStarMin", 0, 0, 64);
+        CHINKON_STAR_MAX = BUILDER.comment("Chinkon: broken spell-card star output upper bound").defineInRange("chinkonStarMax", 1, 0, 64);
+        CHINKON_SIGNATURE_MIN = BUILDER.comment("Chinkon: signature material output lower bound").defineInRange("chinkonSignatureMin", 1, 0, 64);
+        CHINKON_SIGNATURE_MAX = BUILDER.comment("Chinkon: signature material output upper bound").defineInRange("chinkonSignatureMax", 2, 0, 64);
         BUILDER.pop();
 
         BUILDER.push("houjounoTeihou");
@@ -1856,7 +1906,7 @@ public class GensokyouConfig {
         MONSTER_BOSS_HITS_MIN = BUILDER.defineInRange("bossHitsMin", 7, 1, 1000);
         MONSTER_BOSS_HITS_MAX = BUILDER.defineInRange("bossHitsMax", 10, 1, 1000);
         MONSTER_TIER_SCALE = BUILDER.comment("HP and danmaku damage multiplier per tier of monster-vs-player tier gap").defineInRange("tierScale", 10D, 1D, 1000D);
-        MONSTER_SPAWN_ROLL = BUILDER.comment("Per-spawn roll spread (fraction) applied to each rolled stat").defineInRange("spawnRoll", 0.25D, 0D, 1D);
+        MONSTER_SPAWN_ROLL = BUILDER.comment("Non-boss spawn roll spread (fraction). NOT used by bosses (boss stats are deterministic); currently unused pending non-boss roll wiring").defineInRange("spawnRoll", 0.25D, 0D, 1D);
         MONSTER_REF_SHOTS_PER_SECOND = BUILDER.comment("Reference main-weapon shots per second used to derive the player DPS curve").defineInRange("refShotsPerSecond", 2.5D, 0.1D, 100D);
         BUILDER.pop();
 

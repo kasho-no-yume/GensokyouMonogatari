@@ -1062,6 +1062,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             case 7 -> new int[]{130, 216, 196};
             // 思兼神：靛青（智慧之神）。与 5 号（灵魂紫）拉开——偏蓝不偏红。
             case 8 -> new int[]{96, 110, 220};
+            // 镇魂返照：冷青白（缚魂之理）。与 5 号（众生余录灵魂紫）成明暗对照。
+            case 9 -> new int[]{176, 232, 255};
             default -> new int[]{176, 190, 197};
         };
     }

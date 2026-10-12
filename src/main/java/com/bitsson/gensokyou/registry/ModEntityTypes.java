@@ -164,18 +164,18 @@ public final class ModEntityTypes {
                     .build("yamame"));
 
     /**
-     * 狐火「無序」：T1 召唤 BOSS。渲染走 {@code RemnantBossRenderer} 注册点。
+     * 八云蓝残影：T2 正主召唤 BOSS，带正式 GeckoLib 残影模型。
      */
-    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.KitsuneBiEntity>> KITSUNEBI =
-            ENTITY_TYPES.register("kitsunebi", () -> EntityType.Builder
-                    .<com.bitsson.gensokyou.entity.KitsuneBiEntity>of(
-                            com.bitsson.gensokyou.entity.KitsuneBiEntity::new, MobCategory.MONSTER)
-                    .sized(0.8F, 0.8F)
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.YakumoRanEntity>> YAKUMO_RAN =
+            ENTITY_TYPES.register("yakumo_ran", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.YakumoRanEntity>of(
+                            com.bitsson.gensokyou.entity.YakumoRanEntity::new, MobCategory.MONSTER)
+                    .sized(1.0F, 2.4F)
                     .clientTrackingRange(12)
-                    .build("kitsunebi"));
+                    .build("yakumo_ran"));
 
     /**
-     * 傩神楽面「無終」：T2 召唤 BOSS。压轴，生命以伤害除数承载。
+     * 露米娅：T1 召唤 BOSS（占位外观复用傩面）。压轴，生命以伤害除数承载。
      */
     public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.NomenMaskEntity>> NOMEN_MASK =
             ENTITY_TYPES.register("nomen_mask", () -> EntityType.Builder

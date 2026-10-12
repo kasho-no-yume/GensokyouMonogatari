@@ -88,6 +88,15 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
     /** 指示线闪烁频率（弧度/tick）。 */
     private static final float INDICATOR_PULSE_SPEED = 0.45F;
 
+    /**
+     * 隐藏态的暗态系数（0~1）。
+     *
+     * <p>激光各层均为加法混合，故 {@code renderActiveBeam} 对每一层同时乘 alpha 与 RGB，
+     * 使其加法贡献按本系数的<b>平方</b>下降（与 {@code danmaku-visual-profile} 的相位
+     * 隐藏口径一致）。仅降 alpha 对加法层几乎无效，会读作「隐藏态没变暗」。
+     */
+    private static final float HIDDEN_DIM = 0.18F;
+
     // ===============================================================
 
     public LaserDanmakuRenderer(EntityRendererProvider.Context context) {
@@ -124,7 +133,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
             return;
         }
 
-        Vec3 direction = entity.getLaserDirection();
+        Vec3 direction = entity.getRenderDirection(partialTick);
 
         poseStack.pushPose();
         this.alignToDirection(poseStack, direction);
@@ -188,6 +197,19 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         int coreG = (int) Mth.lerp(CORE_WHITE_MIX, g, 255);
         int coreB = (int) Mth.lerp(CORE_WHITE_MIX, b, 255);
 
+        // 隐藏态（仅激活期）：激光各层均为加法混合，故同时缩 alpha 与 RGB，
+        // 使加法贡献按暗态系数平方下降 —— 只缩 alpha 对加法层几乎无效。
+        // 延迟期不走本方法，预警线因此天然不受影响。
+        float dim = entity.isActiveHidden() ? HIDDEN_DIM : 1.0F;
+        if (dim < 1.0F) {
+            r = (int) (r * dim);
+            g = (int) (g * dim);
+            b = (int) (b * dim);
+            coreR = (int) (coreR * dim);
+            coreG = (int) (coreG * dim);
+            coreB = (int) (coreB * dim);
+        }
+
         // 外发光同样写深度：不被身后（更远）的水/云覆盖。shader discard alpha<0.1，
         // 只按发光可见轮廓写深度，不会凿出整块方形洞。
         // 注意 immediate 缓冲的别名规则：请求不同 RenderType 会立刻结束上一批，
@@ -198,7 +220,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
             DanmakuRenderProbe.pushGlow();
             try {
                 this.emitBeam(poseStack, glow, length, radius * OUTER_GLOW_RADIUS_RATIO * envelope,
-                        r, g, b, (int) (OUTER_GLOW_ALPHA * envelope), FULL_BRIGHT);
+                        r, g, b, (int) (OUTER_GLOW_ALPHA * envelope * dim), FULL_BRIGHT);
             } finally {
                 DanmakuRenderProbe.pop();
             }
@@ -206,8 +228,11 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
 
         // 法阵：发射端五芒星，取激光色的反色（与光束形成对比又同源），随包络展开/收起并自旋
         this.renderMagicCircle(entity, poseStack, bufferSource,
-                radius * envelope, 255 - r, 255 - g, 255 - b,
-                (int) (MAGIC_CIRCLE_ALPHA * envelope), partialTick);
+                radius * envelope,
+                (int) ((255 - red(color)) * dim),
+                (int) ((255 - green(color)) * dim),
+                (int) ((255 - blue(color)) * dim),
+                (int) (MAGIC_CIRCLE_ALPHA * envelope * dim), partialTick);
 
         if (DanmakuRenderProbe.effectiveBody()) {
             VertexConsumer emissive = this.getBuffer(bufferSource, this.glowRenderType());
@@ -216,12 +241,12 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
             try {
                 // 主体
                 this.emitBeam(poseStack, emissive, length, radius * envelope,
-                        r, g, b, (int) (235 * envelope), FULL_BRIGHT);
+                        r, g, b, (int) (235 * envelope * dim), FULL_BRIGHT);
 
                 if (DanmakuRenderProbe.coreEnabled) {
                     // 亮核：向白色混合，制造过曝感
                     this.emitBeam(poseStack, emissive, length, radius * CORE_RADIUS_RATIO * envelope,
-                            coreR, coreG, coreB, (int) (255 * envelope), FULL_BRIGHT);
+                            coreR, coreG, coreB, (int) (255 * envelope * dim), FULL_BRIGHT);
                 }
             } finally {
                 DanmakuRenderProbe.pop();
@@ -230,7 +255,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
 
         // 端盖：面向摄像机的圆片，模拟半球末端
         this.renderCaps(poseStack, bufferSource, length, radius * envelope,
-                coreR, coreG, coreB, (int) (235 * envelope));
+                coreR, coreG, coreB, (int) (235 * envelope * dim));
     }
 
     /**

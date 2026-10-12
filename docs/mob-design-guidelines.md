@@ -44,7 +44,10 @@
 - **秒带是弹性目标不是保证**：BOSS 的无敌时间与其移动造成的命中率下降会实打实削减有效 DPS。
   实测偏长/偏短就改 config 回写实测值，**不要**靠加弹数或加 `damageScale` 补时长。
 - 比率带与跨阶倍率全部在 config `monsterBudget` 段；工具类 `balance/MonsterStatBudget`。
-- **每次 spawn 在该区间内独立 roll（±25%），并随实体 NBT 持久化**（存活期间不重掷）。
+- **非 BOSS 怪**（杂兵/精英）每次 spawn 在该区间内独立 roll（±25%），并随实体 NBT 持久化（存活期间不重掷）。
+- **BOSS 数值确定**：BOSS 的有效生命严格等于 `playerDPS(N) × bossSeconds[N]`，MUST NOT 施加出生随机
+  （±25% 已撤销，见 change `boss-stats-deterministic`）。秒带的弹性只来自无敌时间与 BOSS 移动造成的
+  有效 DPS 下降；难度差异由 `bossHits` 与轨道 `damageScale` 表达，而不是由随机寿命表达。
 - 跨阶压制由"HP/DPS 竞速 + 弹伤量级"共同保证：越 1 阶必死、越 2 阶无望。
 - **小妖精为入门特例**：维持现状数值，不经本预算上调（保留 1~2 发秒杀的低门槛反馈）。
 - **大妖精与芙兰朵露数值待定**：仅受本规则约束，实际数值待实机观察后另行定稿。

@@ -119,6 +119,10 @@ ENTRIES = [
     # 思兼神封：附魔合并/随机打造仪式。**无任何配方**（随机池是全注册表等概率，开放式），
     # 故 no_recipes=True。阶级参数页现算缓存/受灵上限/单条耗灵/词条等级口径。
     ("shiken_circle", "minecraft:enchanted_book", True),
+    # 镇魂返照之仪：消耗残魂典籍回收 BOSS 产物的激活型一次性仪式。**无 ritual_recipes**
+    # （残魂合成/清空是原版工作台配方），产出为动态掷骰（0~1 碎星 + 1~2 信物），
+    # 故 no_recipes=True。阶级参数页现算缓存/受灵上限/单次耗灵与产出口径。
+    ("chinkon_hanshou_circle", "gensokyou:boss_residual_codex", True),
 ]
 
 ITEM_RECIPE_ENTRIES = [
@@ -137,12 +141,14 @@ ITEM_RECIPE_ENTRIES = [
     ("gensokyou:spirit_core_2", "ritual", "zaohua_spirit_core_2", "items", 42),
     ("gensokyou:ritual_pedestal", "crafting", "ritual_pedestal", "items", 43),
     ("gensokyou:danmaku_assembly_bench", "crafting", "danmaku_assembly_bench", "weapons", 44),
+    ("gensokyou:boss_residual_codex", "crafting", "boss_residual_codex_big_fairy", "items", 45),
 ]
 
 ITEM_RECIPE_TEXT_OVERRIDES = {
     "gensokyou:ritual_pedestal": "gensokyou.book.entry.item_recipe.pedestal.p1",
     "gensokyou:danmaku_weapon": "gensokyou.book.entry.item_danmaku_weapon.p1",
     "gensokyou:danmaku_assembly_bench": "gensokyou.book.entry.item_danmaku_assembly_bench.p1",
+    "gensokyou:boss_residual_codex": "gensokyou.book.entry.item_recipe.boss_residual_codex.p1",
 }
 
 

@@ -29,6 +29,7 @@
 | textures/item/bpoint.png | DONE(旧仓库复制 point/bpoint.png) | 海洋之心 |
 | textures/item/spellcard_star.png | DONE(旧仓库复制 spellcard/spellcardstar.png) | 海洋之心 |
 | textures/item/broken_spell_card_star.png | DONE(旧仓库复制 spellcard/brokenspellcardstar.png) | 海洋之心 |
+| textures/item/boss_residual_codex.png | TODO（占位期间拷贝同目录 codex_of_beings.png，待正式美术） | 海洋之心 |
 | textures/item/yen.png | TODO | 海洋之心 |
 | textures/item/memory_fragment.png | DONE(gen_tex 新绘·破损书页+符文) | 海洋之心 |
 | textures/item/laevatein.png | TODO | 三叉戟 |
@@ -102,7 +103,7 @@
 | textures/entity/lesser_fairy.*（复用） | 复用(占位) | 复用妖精 geo/动画/贴图 | balance_test_boss（测试 BOSS，GeckoLib 模型复用 lesser_fairy，仅放大） |
 | textures/entity/greater_fairy.* | DONE(Blockbench 工程，F:/blockbench/touhou_fairies/大妖精) | 外部美术资源 | big_fairy（GeckoLib：geo/animation/贴图，idle/fly/walk/cast） |
 | textures/entity/yamame.* | DONE(Blockbench 工程，F:/blockbench/kurodani) | 外部美术资源 | yamame（GeckoLib：geo/animation/贴图，idle/walk/cast） |
-| textures/entity/kitsunebi.png | TODO | 复用 danmaku.png（lightorb） | kitsunebi（残影占位，同上） |
+| textures/entity/yakumo_ran.* | DONE(Blockbench 工程，`C:\Users\spdimdriver\Documents\ran`；贴图已暗化 `yakumo_ran.png` + 自发光掩码 `yakumo_ran_glowmask.png`) | 外部美术资源 | yakumo_ran（GeckoLib：geo/animation/贴图，首版 idle） |
 | textures/entity/nomen_mask.png | TODO | 复用 danmaku.png（lightorb） | nomen_mask（残影占位，同上） |
 | textures/entity/danmaku.png | DONE(暂定旧版贴图) | 旧仓库 lightorb.png | 弹幕投射物 billboard |
 | textures/entity/orbit_orb.png | DONE(暂定旧版贴图) | 旧仓库 lightorb.png | 环绕阴阳玉 billboard |

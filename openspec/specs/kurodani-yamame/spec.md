@@ -94,27 +94,37 @@ TBD - created by archiving change add-kurodani-yamame-boss. Update Purpose after
 - **THEN** 该计数 MUST NOT 包含默认攻击轨
 
 ### Requirement: 数值以秒带与挨弹带约束
+
 黑谷山女的生命 SHALL 由「参照玩家 DPS × 战斗秒数」得出，弹伤 SHALL 由「参照玩家 EHP ÷ 挨弹数」
 得出；秒数与挨弹数 MUST 从 config（`yamameBossSeconds` / `yamameBossHits`）读取。
 
-其参照阶 SHALL 为 T1，秒数 SHALL 落在 2~15 分钟秒带内（配置区间 120~900s）。秒数为**目标值
-而非保证**：SHALL 以 `/gs_boss spawn` 实测后回写。
+其参照阶 SHALL 为 T1，秒数 SHALL 落在 2~15 分钟秒带内（配置区间 120~900s）。有效生命 SHALL 为
+**确定值**，MUST NOT 施加出生随机。秒数为**目标值而非保证**：SHALL 以 `/gs_boss spawn` 实测后回写。
 
 #### Scenario: 数值可配置
 - **WHEN** 调整 `yamameBossSeconds` 或 `yamameBossHits`
 - **THEN** 其生命与单发弹伤随之改变，无需改动实体代码
 
 #### Scenario: 秒带内
-- **WHEN** 以默认配置计算黑谷山女的战斗秒数并加 spawn ±25% roll
-- **THEN** 结果落在 2~15 分钟秒带内
+- **WHEN** 以默认配置计算黑谷山女的战斗秒数
+- **THEN** 结果落在 2~15 分钟秒带内，且两次召唤结果一致（无随机偏移）
 
 ### Requirement: 掉落与进度位
-黑谷山女死亡时 SHALL 掉落碎符卡星，并 SHALL **保底**掉落隙间碎片（`SUKIMA_FRAGMENT`）——
-她是解锁 T2 材料带与 L2 祭坛的唯一前置，掉落 MUST NOT 退化为概率。
 
-#### Scenario: 保底掉隙间碎片
+黑谷山女死亡时 SHALL 掉落配置数量的碎符卡星，并 SHALL **保底**掉落其主题信物土蜘蛛之丝
+（`gensokyou:earth_spider_silk`）。
+
+她 MUST NOT 再掉落隙间碎片（`gensokyou:sukima_fragment`）——隙间碎片的产出与
+「2→3 门槛」定位已移交给 T2 正主八云蓝（见 capability `boss-signature-materials`）。
+黑谷山女在其召唤链路中的角色 SHALL 由「隙间碎片的持有者」改为「土蜘蛛之丝的持有者」。
+
+#### Scenario: 掉碎符卡星与土蜘蛛之丝
 - **WHEN** 击杀黑谷山女
-- **THEN** 至少掉落 1 个隙间碎片与配置数量的碎符卡星
+- **THEN** 至少掉落 1 个土蜘蛛之丝与配置数量的碎符卡星
+
+#### Scenario: 不再掉隙间碎片
+- **WHEN** 击杀黑谷山女
+- **THEN** 其掉落中 MUST NOT 出现隙间碎片
 
 ### Requirement: GeckoLib 渲染接入
 黑谷山女 SHALL 由 GeckoLib 的 `GeoModel` / `GeoEntityRenderer` 渲染，使用自有命名空间的

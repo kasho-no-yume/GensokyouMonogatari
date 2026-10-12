@@ -27,7 +27,7 @@
     },
     {
       "name": "hyakki_boss_yamame",
-      "_comment": "L1 · 黑谷山女（土蜘蛛）。钥匙 = 碎符卡星：BOSS 专属。保底掉隙间碎片，是 T2 材料带与 L2 祭坛的唯一前置。",
+      "_comment": "L1 · 黑谷山女（土蜘蛛）。钥匙 = 碎符卡星：BOSS 专属。其主题信物为土蜘蛛之丝；隙间碎片已移交 T2 正主八云蓝。",
       "mode": "activation",
       "match": "max",
       "minTier": 1,
@@ -42,15 +42,15 @@
       "effect": "hyakki:yamame"
     },
     {
-      "name": "hyakki_boss_kitsunebi",
-      "_comment": "L2 · 狐火『無序』。钥匙 = 隙间碎片：山女给的、通往幻想乡的那把。",
+      "name": "hyakki_boss_yakumo_ran",
+      "_comment": "L2 · 八云蓝残影（T2 正主）。钥匙 = 花精之滴（1 阶大妖精信物，与其余配方互斥）。隙间碎片已从本配方抽出——它由蓝产出，是 2→3 的门槛。",
       "mode": "activation",
       "match": "max",
       "minTier": 2,
       "minPlayerTier": 0,
       "spCost": 1000000,
       "ingredients": [
-        { "item": "gensokyou:sukima_fragment", "count": 1 },
+        { "item": "gensokyou:fairy_nectar", "count": 1 },
         { "item": "gensokyou:tide_crystal", "count": 1 },
         { "item": "gensokyou:star_silver", "count": 1 },
         { "item": "gensokyou:ritual_stone_2", "count": 1 },
@@ -59,11 +59,11 @@
         { "item": "gensokyou:memory_fragment", "count": 1 },
         { "item": "gensokyou:yen", "count": 1 }
       ],
-      "effect": "hyakki:kitsunebi"
+      "effect": "hyakki:ran"
     },
     {
       "name": "hyakki_boss_nomen",
-      "_comment": "L2 · 傩神楽面『無終』。钥匙 = 整颗符卡星（8 碎换 1），压轴档。8 条料占满 8 个台，故与狐火互斥。",
+      "_comment": "L2 · 露米娅（占位外观复用傩面）。钥匙 = 整颗符卡星（8 碎换 1），压轴档。8 条料占满 8 个台，故与八云蓝残影互斥。",
       "mode": "activation",
       "match": "max",
       "minTier": 2,

@@ -48,10 +48,11 @@ public final class DanmakuMotionState {
     public static final int P_PHASE_DUTY = 39;
     public static final int P_PHASE_OFFSET = 40;
     public static final int P_LASER_BASE = 41;
-    // dir xyz, maxLength, radius, delay, duration, piercesBlocks。
-    // 末位是「是否穿墙」—— 它决定长度，故 MUST 被指纹覆盖：
-    // 校准通道只比位置，两端形态不一致若不进指纹就无法被检测。
-    public static final int P_LASER_COUNT = 8;
+    // dir xyz, maxLength, radius, delay, duration（6 项）。
+    // 「是否穿墙」不再占格：它决定长度、MUST 被指纹覆盖，故移进 P_FLAGS 的空闲位
+    // （FLAG_LASER_PIERCE）。激光块因此止于 47，与 P_BURST_AT = 48 不再重叠
+    //（见 danmaku-laser-motion design D10）。
+    public static final int P_LASER_COUNT = 7;
     public static final int P_BURST_AT = 48;        // 爆散年龄（tick）
     public static final int P_BURST_RADIAL = 49;    // 径向爆散速率
     public static final int P_BURST_AIM = 50;       // 「自身即参考点」时朝目标射出的速率

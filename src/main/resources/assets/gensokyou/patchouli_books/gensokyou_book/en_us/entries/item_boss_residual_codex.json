@@ -1,0 +1,17 @@
+{
+  "name": "item.gensokyou.boss_residual_codex",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:boss_residual_codex",
+  "sortnum": 45,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:boss_residual_codex",
+      "text": "gensokyou.book.entry.item_recipe.boss_residual_codex.p1"
+    },
+    {
+      "type": "patchouli:crafting",
+      "recipe": "gensokyou:boss_residual_codex_big_fairy"
+    }
+  ]
+}

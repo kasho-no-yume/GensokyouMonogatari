@@ -57,7 +57,7 @@ class TrackRepeatTimingTest {
     @Test
     void everyProductionTrackActuallyFires() {
         for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
-                BossCards.kitsuneBi(), BossCards.nomenMask())) {
+                BossCards.yakumoRan(), BossCards.nomenMask())) {
             for (SpellCard card : cards) {
                 for (Track track : card.tracks()) {
                     int fired = 0;

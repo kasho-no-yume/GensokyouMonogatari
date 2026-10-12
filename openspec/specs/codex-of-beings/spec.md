@@ -67,21 +67,6 @@
 - **WHEN** 已记录同类型 20 只后再次收容该类型
 - **THEN** count 仍为 20，不再增加
 
-### Requirement: 满态不可逆附魔形态
-当且仅当 count 达到 20 时，典籍 SHALL 呈现附魔光效（`isFoil` 为真）。满态 SHALL 为不可逆的终态：此后右键任何实体（同种、异种）SHALL 完全无功能——MUST NOT 收容、MUST NOT 改写类型、MUST NOT 重置进度。系统 MUST NOT 依赖动态写入光效组件来实现该表现。
-
-#### Scenario: 满态发光
-- **WHEN** count 达到 20
-- **THEN** 物品显示附魔光效
-
-#### Scenario: 满态右键无反应
-- **WHEN** 满态典籍右键任意合格 mob
-- **THEN** 该 mob 不被收容、书状态不变、不播放收容音效
-
-#### Scenario: 满态不换种
-- **WHEN** 满态典籍（记录僵尸）右键骷髅
-- **THEN** 类型与 count 均保持僵尸 20，不重置
-
 ### Requirement: 驯服动物防误触警告
 对已驯服动物首次右键时，系统 SHALL 仅弹出警告提示、MUST NOT 收容，并将该书的"已警告"标记置位；此后对任意驯服动物右键 SHALL 正常收容。警告粒度 SHALL 为每本书一次。驯服判定 SHALL 同时覆盖 `TamableAnimal#isTame()` 与 `AbstractHorse#isTamed()`。
 
@@ -148,4 +133,49 @@
 #### Scenario: 仪式可读取
 - **WHEN** 后续仪式代码调用该访问器读取一本典籍
 - **THEN** 得到其 species 与 count，且书本不被消耗
+
+### Requirement: 满态附魔形态与可清空
+
+当且仅当 count 达到 20 时，典籍 SHALL 呈现附魔光效（`isFoil` 为真）。满态后右键任何实体（同种、异种）SHALL 完全无功能——MUST NOT 收容、MUST NOT 改写类型、MUST NOT 重置进度。系统 MUST NOT 依赖动态写入光效组件来实现该表现。
+
+满态不再是**绝对不可逆**的终态：它 MAY 被「清空典籍」合成（见下）重置为空书，但 MUST NOT 被任何右键交互或收容行为改变。
+
+#### Scenario: 满态发光
+
+- **WHEN** count 达到 20
+- **THEN** 物品显示附魔光效
+
+#### Scenario: 满态右键无反应
+
+- **WHEN** 满态典籍右键任意合格 mob
+- **THEN** 该 mob 不被收容、书状态不变、不播放收容音效
+
+#### Scenario: 满态不换种
+
+- **WHEN** 满态典籍（记录僵尸）右键骷髅
+- **THEN** 类型与 count 均保持僵尸 20，不重置
+
+#### Scenario: 满态可被合成清空
+
+- **WHEN** 将满态典籍投入「清空典籍」合成
+- **THEN** 得到一本空的众生典籍（species 空、count 0、无光效），原满态典籍被消耗
+
+### Requirement: 清空典籍合成
+
+系统 SHALL 提供数据驱动的合成：任意众生典籍（含**满 20** 与未满态）×1 → 空的众生典籍 ×1，单物品无序配方。结果典籍 SHALL 清除 `species` 与 `count`（回到空态）并 MUST NOT 保留任何收容进度或"已警告"标记。该配方 MUST NOT 依赖仪式或灵力。
+
+#### Scenario: 满态清空
+
+- **WHEN** 用一本满 20（记录僵尸）的典籍执行清空合成
+- **THEN** 得到一本空典籍，无光效，可重新收容任意合格 mob
+
+#### Scenario: 未满清空
+
+- **WHEN** 用一本记录骷髅 7 只的典籍执行清空合成
+- **THEN** 得到一本空典籍，进度清零
+
+#### Scenario: 清空不携带仪式门槛
+
+- **WHEN** 审查清空配方
+- **THEN** 它不含灵力成本、不依赖任何仪式结构，任意工作台可执行
 

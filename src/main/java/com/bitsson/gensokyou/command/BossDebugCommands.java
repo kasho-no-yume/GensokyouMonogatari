@@ -196,7 +196,6 @@ public final class BossDebugCommands {
         created.moveTo(at.x, at.y, at.z, 0F, 0F);
         if (created instanceof AbstractTouhouBoss boss) {
             boss.setAnchor(source.getPosition());
-            boss.rollStats(level.getRandom()::nextDouble);
             if (seconds != null) {
                 boss.debugSetSeconds(seconds);
             }

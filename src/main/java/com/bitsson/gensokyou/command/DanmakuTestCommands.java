@@ -18,6 +18,7 @@ import com.bitsson.gensokyou.danmaku.motion.DanmakuLegSpec;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuRandomState;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import net.minecraft.util.RandomSource;
+import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -118,6 +119,10 @@ public final class DanmakuTestCommands {
                                         context.getSource().getPlayerOrException(),
                                         IntegerArgumentType.getInteger(context, "length"), true))))
 
+                // /danmaku spin-laser [ω°/s] [减速秒] [枢轴偏移] [平移速度] [长度] [延迟秒] [持续秒] [周期] [占空比%]
+                // 动态激光测试：绕竖直轴扫射（可减速停）、可绕外部点、可平移、可周期明灭。
+                .then(spinLaserNode())
+
                 // /danmaku leg [段数] - 生成段式随机变向弹幕
                 //
                 // 形态：朝一个随机方向快飞 → 悬停 1 秒 → 再朝一个随机方向飞 → ……
@@ -217,7 +222,7 @@ public final class DanmakuTestCommands {
         if (set == null) {
             source.sendFailure(Component.literal("未知的 BOSS id: " + bossId));
             source.sendFailure(Component.literal("可用: " + String.join(", ",
-                    "big_fairy, yamame, kitsune_bi, nomen_mask")));
+                    "big_fairy, yamame, yakumo_ran, nomen_mask")));
             return 0;
         }
         List<SpellCard> cards = set.cards();
@@ -526,6 +531,115 @@ public final class DanmakuTestCommands {
         player.sendSystemMessage(Component.literal("§a生成激光弹幕 §7(长度: " + (int) length
                 + "格, 延迟1秒, 持续3秒, " + (pierces ? "§e穿墙形态§7" : "§7被遮挡形态") + ")"));
         return 1;
+    }
+
+    /**
+     * {@code /danmaku spin-laser} 的参数树。
+     *
+     * <p>默认值只在 {@link #spin} 里出现一处：每一级 {@code .executes} 都把上下文交给它，
+     * 缺的参数由 {@link #dblArg} 回落到默认值——九个可选参数不必写九份重复的取值代码。
+     */
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> spinLaserNode() {
+        return Commands.literal("spin-laser")
+                .executes(DanmakuTestCommands::spin)
+                .then(Commands.argument("omegaDegPerSec", DoubleArgumentType.doubleArg(0.0D, 720.0D))
+                        .executes(DanmakuTestCommands::spin)
+                        .then(Commands.argument("decelSec", DoubleArgumentType.doubleArg(0.0D, 20.0D))
+                                .executes(DanmakuTestCommands::spin)
+                                .then(Commands.argument("pivotOffset", DoubleArgumentType.doubleArg(-16.0D, 16.0D))
+                                        .executes(DanmakuTestCommands::spin)
+                                        .then(Commands.argument("slideSpeed", DoubleArgumentType.doubleArg(-10.0D, 10.0D))
+                                                .executes(DanmakuTestCommands::spin)
+                                                .then(Commands.argument("length", DoubleArgumentType.doubleArg(2.0D, 120.0D))
+                                                        .executes(DanmakuTestCommands::spin)
+                                                        .then(Commands.argument("delaySec", DoubleArgumentType.doubleArg(0.0D, 10.0D))
+                                                                .executes(DanmakuTestCommands::spin)
+                                                                .then(Commands.argument("durationSec", DoubleArgumentType.doubleArg(0.5D, 30.0D))
+                                                                        .executes(DanmakuTestCommands::spin)
+                                                                        .then(Commands.argument("period", DoubleArgumentType.doubleArg(0.0D, 200.0D))
+                                                                                .executes(DanmakuTestCommands::spin)
+                                                                                .then(Commands.argument("dutyPercent", DoubleArgumentType.doubleArg(1.0D, 100.0D))
+                                                                                        .executes(DanmakuTestCommands::spin))))))))));
+    }
+
+    /** 读取 {@code spin-laser} 的全部参数（缺席者取默认值）并生成一枚动态激光。 */
+    private static int spin(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        return spawnSpinLaser(context.getSource().getPlayerOrException(),
+                dblArg(context, "omegaDegPerSec", 120.0D),
+                dblArg(context, "decelSec", 2.0D),
+                dblArg(context, "pivotOffset", 0.0D),
+                dblArg(context, "slideSpeed", 0.0D),
+                dblArg(context, "length", 40.0D),
+                dblArg(context, "delaySec", 1.0D),
+                dblArg(context, "durationSec", 6.0D),
+                (int) Math.round(dblArg(context, "period", 0.0D)),
+                dblArg(context, "dutyPercent", 100.0D));
+    }
+
+    /** 读取可能缺席的 double 参数；节点未被走到时回落默认值。 */
+    private static double dblArg(CommandContext<CommandSourceStack> context, String name, double fallback) {
+        try {
+            return context.getArgument(name, Double.class);
+        } catch (IllegalArgumentException absent) {
+            return fallback;
+        }
+    }
+
+    /**
+     * 生成动态激光（旋转 + 平移 + 明灭的测试台）。
+     *
+     * <p>绕<b>竖直轴</b>扫射（水平扫）——旋转激光最经典的形态。{@code decelSec > 0} 时用
+     * {@link DanmakuSpeedProfile#decelerateAndHold} 在若干秒内线性减速到 0（「扫射后慢慢停」），
+     * 否则用 {@link DanmakuSpeedProfile#constant} 匀速扫。{@code pivotOffset} 沿玩家水平右向
+     * 挪动枢轴（绕外部点挥扫）；{@code slideSpeed} 沿同向平移整条激光。{@code period}/{@code dutyPercent}
+     * 开启激活期周期明灭（隐藏态）。
+     */
+    private static int spawnSpinLaser(ServerPlayer player, double omegaDegPerSec, double decelSec,
+                                      double pivotOffset, double slideSpeed, double length,
+                                      double delaySec, double durationSec, int period,
+                                      double dutyPercent) {
+        Vec3 origin = player.getEyePosition();
+        Vec3 direction = player.getLookAngle().normalize();
+        Vec3 right = horizontalRight(direction);
+
+        LaserDanmaku laser = new LaserDanmaku(player.level(), origin, direction,
+                2.0F, 0x66FF66, length, 0.4D, delaySec, durationSec,
+                player, new HashSet<>(), false);
+
+        double omegaDegPerTick = omegaDegPerSec / 20.0D;
+        DanmakuSpeedProfile angular = omegaDegPerTick == 0.0D ? null
+                : (decelSec > 0.0D
+                        ? DanmakuSpeedProfile.decelerateAndHold(omegaDegPerTick, decelSec * 20.0D)
+                        : DanmakuSpeedProfile.constant(omegaDegPerTick));
+
+        laser.configureLaserMotion(
+                right.scale(pivotOffset),       // 枢轴偏移（绕外部点）
+                new Vec3(0.0D, 1.0D, 0.0D),     // 旋转轴：竖直
+                angular,                        // 角速度曲线（可减速停）
+                right,                          // 平移方向
+                slideSpeed / 20.0D);            // 平移速率（格/tick）
+        if (period > 0 && dutyPercent < 100.0D) {
+            laser.configurePhaseHide(period, dutyPercent / 100.0D, 0);
+        }
+        player.level().addFreshEntity(laser);
+
+        player.sendSystemMessage(Component.literal(String.format(
+                "§a动态激光 §7(ω %.0f°/s%s · 枢轴偏移 %.1f · 平移 %.1f 格/s · 长 %.0f · 延迟 %.1fs · 持续 %.1fs%s)",
+                omegaDegPerSec,
+                decelSec > 0.0D ? String.format(" 减速 %.1fs 后停", decelSec) : " 匀速",
+                pivotOffset, slideSpeed, length, delaySec, durationSec,
+                period > 0 ? String.format(" · 明灭 %dtick/%.0f%%", period, dutyPercent) : "")));
+        return 1;
+    }
+
+    /** 与视线水平正交的「右」向量；视线接近竖直时回落到世界 +X 的右向。 */
+    private static Vec3 horizontalRight(Vec3 direction) {
+        Vec3 flat = new Vec3(direction.x, 0.0D, direction.z);
+        if (flat.lengthSqr() < 1.0E-6D) {
+            flat = new Vec3(0.0D, 0.0D, 1.0D);
+        }
+        flat = flat.normalize();
+        return new Vec3(flat.z, 0.0D, -flat.x);
     }
 
     /**

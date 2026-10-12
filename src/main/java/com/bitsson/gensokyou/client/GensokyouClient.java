@@ -6,6 +6,7 @@ import com.bitsson.gensokyou.client.renderer.CrystalRenderer;
 import com.bitsson.gensokyou.client.renderer.FairyGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.BigFairyGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.YamameGeoRenderer;
+import com.bitsson.gensokyou.client.renderer.YakumoRanGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.RemnantBossRenderer;
 import com.bitsson.gensokyou.client.renderer.SkinMobRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualPedestalRenderer;
@@ -75,9 +76,9 @@ public final class GensokyouClient {
                 BigFairyGeoRenderer::new);
         // 黑谷山女：正式 GeckoLib 模型（不走残影占位通路）。
         event.registerEntityRenderer(ModEntityTypes.YAMAME.get(), YamameGeoRenderer::new);
+        // 八云蓝：正式 GeckoLib 残影模型（不走残影占位通路）。
+        event.registerEntityRenderer(ModEntityTypes.YAKUMO_RAN.get(), YakumoRanGeoRenderer::new);
         // 残影 BOSS：渲染由注册点按实体 id 解析，实体类内不硬编（替换零成本）。
-        event.registerEntityRenderer(ModEntityTypes.KITSUNEBI.get(),
-                context -> RemnantBossRenderer.create(ModEntityTypes.KITSUNEBI.get(), context));
         event.registerEntityRenderer(ModEntityTypes.NOMEN_MASK.get(),
                 context -> RemnantBossRenderer.create(ModEntityTypes.NOMEN_MASK.get(), context));
         event.registerEntityRenderer(ModEntityTypes.FLANDRE.get(),

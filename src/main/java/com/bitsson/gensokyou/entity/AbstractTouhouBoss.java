@@ -98,7 +98,6 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
     private Player facingTarget;
     private int wanderRepickAt;
     private double effectiveHp = -1.0D;
-    private double spawnRoll = 1.0D;
     private boolean statsApplied;
     /** 已广播给客户端的符卡下标；-1 = 还没发过。见 {@link #announceCardName()}。 */
     private int lastAnnouncedCard = -1;
@@ -291,11 +290,17 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
     // 生命与伤害除数
     // ------------------------------------------------------------------
 
-    /** 有效生命 = 参照DPS × 秒 × spawn roll。 */
+    /**
+     * 有效生命 = 参照DPS × 秒。<b>确定值，无出生随机</b>（见 change {@code boss-stats-deterministic}）。
+     *
+     * <p>BOSS 是玩家要学习、复盘、反复挑战的一段内容，其时长与难度必须是可调的确定值；
+     * 出生随机会让配平与实测无法归因，并使秒数目标失去意义。难度差异由 {@code bossHits}
+     * 与轨道 {@code damageScale} 表达，而不是由随机寿命表达。
+     */
     public double effectiveHp() {
         if (effectiveHp < 0.0D) {
             effectiveHp = MonsterStatBudget.referencePlayerDps(referenceTier())
-                    * bossSeconds() * spawnRoll;
+                    * bossSeconds();
         }
         return effectiveHp;
     }
@@ -710,7 +715,6 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        tag.putDouble("BossSpawnRoll", this.spawnRoll);
         if (this.anchor != null) {
             tag.putDouble("AnchorX", this.anchor.x);
             tag.putDouble("AnchorY", this.anchor.y);
@@ -729,22 +733,11 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
         // 属性与最大生命此时已由 LivingEntity 从 NBT 的 "attributes" 恢复，读档路径
         // MUST NOT 再动它们。
         this.statsApplied = true;
-        this.spawnRoll = tag.contains("BossSpawnRoll")
-                ? tag.getDouble("BossSpawnRoll") : 1.0D;
-        if (this.spawnRoll <= 0.0D) {
-            this.spawnRoll = 1.0D;
-        }
+        // 旧存档可能残留 "BossSpawnRoll" 键——忽略即可（BOSS 数值已确定化，不再读它）。
         if (tag.contains("AnchorX")) {
             this.anchor = new Vec3(tag.getDouble("AnchorX"), tag.getDouble("AnchorY"),
                     tag.getDouble("AnchorZ"));
         }
-    }
-
-    /** 供召唤落地时注入 spawn roll（存活期间不重掷，随 NBT 持久化）。 */
-    public void rollStats(RandomSourceLike source) {
-        double spread = Math.max(0.0D, GensokyouConfig.MONSTER_SPAWN_ROLL.get());
-        this.spawnRoll = 1.0D + (source.nextDouble() * 2.0D - 1.0D) * spread;
-        this.spawnRoll = Math.max(0.1D, this.spawnRoll);
     }
 
     // ------------------------------------------------------------------
@@ -780,10 +773,5 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
     /** 调试覆写优先，其次走子类的 config 读数。 */
     protected int bossHits() {
         return debugHits != null ? debugHits : configHits();
-    }
-
-    /** 与 {@code java.util.RandomSource} 同形的最小接口，便于测试注入。 */
-    public interface RandomSourceLike {
-        double nextDouble();
     }
 }

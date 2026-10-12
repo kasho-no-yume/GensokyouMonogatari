@@ -7,7 +7,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobSpawnType;
@@ -40,7 +39,7 @@ public final class SummonBossEffects {
     static {
         register("hyakki:big_fairy", ModEntityTypes.BIG_FAIRY);
         register("hyakki:yamame", ModEntityTypes.YAMAME);
-        register("hyakki:kitsunebi", ModEntityTypes.KITSUNEBI);
+        register("hyakki:ran", ModEntityTypes.YAKUMO_RAN);
         register("hyakki:nomen", ModEntityTypes.NOMEN_MASK);
     }
 
@@ -90,7 +89,7 @@ public final class SummonBossEffects {
     /** 出生点向上找空气的尝试次数。祭坛 L1 就有 210 块，站原地必卡在结构里。 */
     private static final int SPAWN_CLEAR_LOOKUP = 24;
 
-    /** 按实体类型落地一只 BOSS，并注入召唤锚点与 spawn roll。 */
+    /** 按实体类型落地一只 BOSS，并注入召唤锚点。 */
     public static Entity spawn(ServerLevel level, BlockPos corePos, EntityType<?> type) {
         Entity created = type.create(level);
         if (created == null) {
@@ -102,7 +101,6 @@ public final class SummonBossEffects {
                 level.getRandom().nextFloat() * 360.0F, 0F);
         if (created instanceof AbstractTouhouBoss boss) {
             boss.setAnchor(anchor);
-            boss.rollStats(level.getRandom()::nextDouble);
         }
         level.addFreshEntity(created);
         return created;

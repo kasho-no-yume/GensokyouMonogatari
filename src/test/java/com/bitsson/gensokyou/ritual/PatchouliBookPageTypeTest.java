@@ -125,7 +125,8 @@ class PatchouliBookPageTypeTest {
             }
         }
         assertEquals(Set.of("item_spirit_core_0.json", "item_ritual_pedestal.json",
-                "item_danmaku_assembly_bench.json"), craftingEntries);
+                "item_danmaku_assembly_bench.json", "item_boss_residual_codex.json"),
+                craftingEntries);
     }
 
     /**

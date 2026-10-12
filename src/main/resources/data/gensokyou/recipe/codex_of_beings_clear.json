@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    { "item": "gensokyou:codex_of_beings" }
+  ],
+  "result": {
+    "id": "gensokyou:codex_of_beings",
+    "count": 1
+  }
+}

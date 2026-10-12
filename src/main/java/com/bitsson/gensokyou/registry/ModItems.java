@@ -6,6 +6,7 @@ import com.bitsson.gensokyou.entity.KnifeDanmaku;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import com.bitsson.gensokyou.item.GuideBookItem;
+import com.bitsson.gensokyou.item.BossResidualCodexItem;
 import com.bitsson.gensokyou.item.CodexOfBeingsItem;
 import com.bitsson.gensokyou.item.GensokyouTools;
 import com.bitsson.gensokyou.item.equipment.GensokyouAxeItem;
@@ -170,6 +171,9 @@ public final class ModItems {
             ITEMS.register("guide_book", () -> new GuideBookItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<CodexOfBeingsItem> CODEX_OF_BEINGS =
             ITEMS.register("codex_of_beings", () -> new CodexOfBeingsItem(new Item.Properties().stacksTo(1)));
+    /** 寄宿残魂的众生典籍：镇魂返照之仪的供品（空典籍 + 主题信物合成）。 */
+    public static final DeferredItem<BossResidualCodexItem> BOSS_RESIDUAL_CODEX =
+            ITEMS.register("boss_residual_codex", () -> new BossResidualCodexItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<SwordItem> LAEVATEIN =
             ITEMS.register("laevatein", () -> new SwordItem(LaevateinTier.INSTANCE,
                     new Item.Properties().attributes(SwordItem.createAttributes(

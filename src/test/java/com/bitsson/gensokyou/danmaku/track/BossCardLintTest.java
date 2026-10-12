@@ -21,7 +21,7 @@ class BossCardLintTest {
     void allBossCardTablesPassLint() {
         assertLintClean("大妖精", BossCards.bigFairy(), BossCards.BIG_FAIRY_PALETTE);
         assertLintClean("黑谷山女", BossCards.yamame(), BossCards.YAMAME_PALETTE);
-        assertLintClean("狐火", BossCards.kitsuneBi(), BossCards.KITSUNEBI_PALETTE);
+        assertLintClean("八云蓝", BossCards.yakumoRan(), BossCards.RAN_PALETTE);
         assertLintClean("傩神楽面", BossCards.nomenMask(), BossCards.NOMEN_PALETTE);
     }
 
@@ -49,7 +49,7 @@ class BossCardLintTest {
         List<Entry> tables = List.of(
                 new Entry("大妖精", BossCards.bigFairy()),
                 new Entry("黑谷山女", BossCards.yamame()),
-                new Entry("狐火", BossCards.kitsuneBi()),
+                new Entry("八云蓝", BossCards.yakumoRan()),
                 new Entry("傩神楽面", BossCards.nomenMask()));
         double worst = 0.0D;
         String worstWhere = "-";
@@ -285,12 +285,12 @@ class BossCardLintTest {
         assertFalse(TargetMode.ARENA.copiesPerTarget());
     }
 
-    /** 符卡数分档：大妖精/狐火 3 张、黑谷山女 4 张，傩神楽面 5 张。 */
+    /** 符卡数分档：大妖精 3、黑谷山女 4、八云蓝 8、傩神楽面 5。 */
     @Test
     void spellCardCounts() {
         assertTrue(BossCards.bigFairy().size() == 3);
         assertTrue(BossCards.yamame().size() == 4);
-        assertTrue(BossCards.kitsuneBi().size() == 3);
+        assertTrue(BossCards.yakumoRan().size() == 8);
         assertTrue(BossCards.nomenMask().size() == 5);
     }
 
@@ -298,7 +298,7 @@ class BossCardLintTest {
     @Test
     void cardThresholdsDecrease() {
         for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
-                BossCards.kitsuneBi(), BossCards.nomenMask())) {
+                BossCards.yakumoRan(), BossCards.nomenMask())) {
             double previous = Double.MAX_VALUE;
             for (SpellCard card : cards) {
                 assertTrue(card.hpFraction() <= previous,

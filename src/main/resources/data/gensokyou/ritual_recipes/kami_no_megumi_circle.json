@@ -37,7 +37,7 @@
       "ingredients": [
         { "item": "gensokyou:star_silver", "count": 4 },
         { "item": "gensokyou:spellcard_star", "count": 2 },
-        { "item": "gensokyou:sukima_fragment", "count": 2 }
+        { "item": "gensokyou:spirit_iron", "count": 2 }
       ],
       "effect": "grace:advance_2"
     },
@@ -51,7 +51,7 @@
       "ingredients": [
         { "item": "gensokyou:star_silver", "count": 3 },
         { "item": "gensokyou:spellcard_star", "count": 1 },
-        { "item": "gensokyou:sukima_fragment", "count": 4 }
+        { "item": "gensokyou:spirit_iron", "count": 4 }
       ],
       "effect": "grace:refine_2"
     },

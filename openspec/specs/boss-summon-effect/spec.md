@@ -27,6 +27,7 @@ TBD - created by archiving change add-remnant-touhou-bosses. Update Purpose afte
 - **THEN** 会话启动、无门票、充能、容量、演出各环节语义不变
 
 ### Requirement: 召唤存活规则
+
 经百鬼夜行降临的 BOSS SHALL 按野生 BOSS 处理。召唤仪器的关闭、拆除或结构失效 MUST NOT 直接移除已降临的 BOSS 实体。
 
 BOSS 死亡时 SHALL 正常结算掉落与经验，并 MUST 清理其派生实体。
@@ -37,5 +38,5 @@ BOSS 死亡时 SHALL 正常结算掉落与经验，并 MUST 清理其派生实�
 
 #### Scenario: 死亡结算
 - **WHEN** 玩家击杀任一只召唤 BOSS
-- **THEN** 按配置掉落碎符卡星（黑谷山女额外保底掉隙间碎片），并按经验配置结算
+- **THEN** 按配置掉落碎符卡星，并按经验配置结算；各 BOSS 的保底信物掉落按其归属单独结算（黑谷山女不再额外掉隙间碎片）
 

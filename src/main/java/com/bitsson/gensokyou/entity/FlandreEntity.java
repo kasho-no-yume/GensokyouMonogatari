@@ -43,7 +43,7 @@ public class FlandreEntity extends Monster implements TouhouMonster, TouhouBoss 
      *
      * <p><b>占位待定，且比别的 BOSS 更没有依据</b>：芙兰朵露目前<b>根本召不出来</b>——
      * {@code SummonBossEffects.REGISTRY} 只注册 4 只（big_fairy / yamame /
-     * kitsunebi / nomen），她不在任何 spawn tag 或 biome modifier 里，只能 {@code /summon}。
+     * yakumo_ran / nomen），她不在任何 spawn tag 或 biome modifier 里，只能 {@code /summon}。
      *
      * <p>按 {@code boss-dev-design} §7 的定位她属「寝宫 BOSS」（专属场地、高阶），
      * 而寝宫 worldgen 尚未落地，故暂给 5 阶紫位占位。

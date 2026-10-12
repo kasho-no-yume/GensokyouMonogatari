@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "type": "neoforge:components",
+      "items": "gensokyou:codex_of_beings",
+      "components": {},
+      "strict": true
+    },
+    { "item": "gensokyou:sukima_fragment" }
+  ],
+  "result": {
+    "id": "gensokyou:boss_residual_codex",
+    "count": 1,
+    "components": {
+      "gensokyou:boss_residual_data": { "boss": "gensokyou:yakumo_ran", "tier": 2 }
+    }
+  }
+}

@@ -9,13 +9,18 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
- * 傩神楽面「無終」——主题：到点不收束。压轴。
+ * 露米娅（占位外观复用「傩神楽面」）——主题：到点不收束。压轴。
+ *
+ * <p><b>显示名已由占位的傩神楽面改为「露米娅」</b>；实体 id 仍为 {@code nomen_mask}
+ * （不重命名 id，避免破坏存档与既有引用）。符卡表暂沿用傩面五张「同一招的变奏」。
  *
  * <p>这张符<b>到点不收束</b>：节拍无限延续，玩家找不到一个可以喘口气的终点。
  *
@@ -58,15 +63,12 @@ public class NomenMaskEntity extends AbstractTouhouBoss {
     /**
      * {@inheritDoc}
      *
-     * <p><b>占位待定</b>。暂定 2 阶——四只召唤 BOSS 里它符卡最多（5 张），
-     * 故比其他三只高半档，但**远不是设计结论**：四只全是百鬼夜行的
-     * 低阶召唤物，5 阶造型目前只有这一档会被真正用到，属基础设施预付。
-     * 正式阶级表随寝宫 BOSS / 高阶内容落地后重定（见
-     * {@code openspec/changes/boss-bar-tier-and-spellcard-name} design D3）。
+     * <p>显示名为「露米娅」的 1 阶召唤 BOSS（占位外观复用傩面）。原傩神楽面占位的
+     * 「2 阶（符卡最多故高半档）」是**已弃用的占位结论**，随本改名一并按下调为 1 阶。
      */
     @Override
     public int bossTier() {
-        return 2;
+        return 1;
     }
 
 
@@ -83,6 +85,18 @@ public class NomenMaskEntity extends AbstractTouhouBoss {
     @Override
     protected int starDropCount() {
         return 6;
+    }
+
+    /** 主题信物：宵暗之核（击杀保底掉，见 {@code #gensokyou:boss_signature}）。 */
+    @Override
+    public Optional<Item> signatureItem() {
+        return Optional.of(ModItems.NIGHTFALL_CORE.get());
+    }
+
+    /** 主题卡代表：闇符『demarcation』（低概率直掉）。 */
+    @Override
+    public Optional<Item> themedCard() {
+        return Optional.of(ModItems.DEMARCATION.get());
     }
 
     @Override

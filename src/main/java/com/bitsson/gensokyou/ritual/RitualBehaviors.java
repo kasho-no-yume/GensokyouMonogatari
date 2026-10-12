@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.ritual.behavior.BousenBehavior;
 import com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior;
 import com.bitsson.gensokyou.ritual.behavior.BafangGuiyuanBehavior;
+import com.bitsson.gensokyou.ritual.behavior.ChinkonHanshouBehavior;
 import com.bitsson.gensokyou.ritual.behavior.KagutsuchiFlameBehavior;
 import com.bitsson.gensokyou.ritual.behavior.KanayamahikoBehavior;
 import com.bitsson.gensokyou.ritual.behavior.KayaNoHimeBehavior;
@@ -94,6 +95,11 @@ public final class RitualBehaviors {
      * 并行点火即吞、缓存→槽核→路由出率同迦具土口径；燃料表刻意剔除纹饰模板与装饰陶罐�?
      */
     public static final ResourceLocation OMOIKANE = Gensokyou.id("shiken_circle");
+    /**
+     * 镇魂返照之仪：消耗寄宿残魂的众生典籍，产出碎符卡星与主题信物的激活型一次性仪式。
+     * {@code toggleable:false} + {@code handlesStartViaUiAction} 独占启停。
+     */
+    public static final ResourceLocation CHINKON_HANSHOU = Gensokyou.id("chinkon_hanshou_circle");
 
     static {
         register(RESONANCE, new ResonanceRelayBehavior());
@@ -122,6 +128,7 @@ public final class RitualBehaviors {
         register(SUNAKO, new SunakoBehavior());
         register(OMOIKANE, new OmoikaneBehavior());
         register(TSUKUMOGAMI, new TsukumogamiBehavior());
+        register(CHINKON_HANSHOU, new ChinkonHanshouBehavior());
     }
 
     private RitualBehaviors() {
@@ -163,6 +170,9 @@ public final class RitualBehaviors {
         }
         if (patternId.equals(OMOIKANE)) {
             return 8;
+        }
+        if (patternId.equals(CHINKON_HANSHOU)) {
+            return 9;
         }
         return 0;
     }

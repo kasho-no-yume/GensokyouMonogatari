@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.danmaku.track;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
 import com.bitsson.gensokyou.danmaku.motion.FormationFrame;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.phys.Vec3;
 
 import static com.bitsson.gensokyou.danmaku.track.Track.of;
 
@@ -444,85 +445,194 @@ private static SpellCard ringCard() {
     }
 
     // ==================================================================
-    // 狐火「無序」 —— 主题：没有预备拍，起手即峰值。
+    // 八云蓝 —— T2 正主（妖妖梦 EX 面 BOSS）。正式 GeckoLib 残影模型 + 8 张考据符卡。
     //
-    // 可读性：起手即峰值 MUST NOT 变成「在你背后凭空刷弹」。读不出是因为没时间，
-    // 不是因为看不见，故全部轨道仍锁在玩家朝向的包络里。
+    // 签名母题（角色自身的，不是人造装置）：九尾 / 式神 / 狐火 / 狐狸妖怪激光 / 阴阳术。
+    // 八张卡按血量阈值等分递减：1.00 / 0.875 / … / 0.125。
+    //
+    // 主威胁几何一律朝玩家（AIMED 扇 / AROUND_TARGET / LATTICE / CAGE / PILLAR_UP /
+    // DISC_RING），MUST NOT 用「朝没人的地方放烟花」的自轴环形。激光的旋转/扫射由
+    // Projectile.LaserMotion 表达（轨道层接线见 capability danmaku-track-composition）。
+    //
+    // 颜色：金=九尾 / 狐火青=狐火（默认攻击）/ 白=尾尖符纸 / 靛蓝=长襟阴阳术 /
+    //      符纸黄=式弹 / 紫=隙间与终局。
     // ==================================================================
 
-    public static final SignaturePalette KITSUNEBI_PALETTE =
-            SignaturePalette.of(0x66E8FF, 0xFF7A3C, 0xC6FF5E, 0xFF4FA0, 0x9C6BFF);
+    public static final SignaturePalette RAN_PALETTE =
+            SignaturePalette.of(0xF2C14E, 0x66E8FF, 0xF5F0E6, 0x2E3A8C, 0xFFE066, 0x9C6BFF);
 
-    public static List<SpellCard> kitsuneBi() {
+    /** 各卡循环长度（tick）：显式时间线靠它重放，符卡切换也挂起到它的边界。 */
+    private static final int RAN_C1 = 120;
+    private static final int RAN_C2 = 140;
+    private static final int RAN_C3 = 160;
+    private static final int RAN_C4 = 160;
+    private static final int RAN_C5 = 200;
+    private static final int RAN_C6 = 140;
+    private static final int RAN_C7 = 160;
+    private static final int RAN_C8 = 200;
+
+    /** 八云蓝的八张签名符卡（考据见该 change 的 design.md）。 */
+    public static List<SpellCard> yakumoRan() {
         return List.of(
-                // 乱焔：绕竖轴与绕横轴两路反向曲射，交叉处密度峰值。
-                // 注意几何是同一个 RING——两轨的差别全在曲射轴与角速度，属行为层。
-                new SpellCard(card("kitsunebi", 1), 1.00D, List.of(
-                        of("縦曲", KITSUNEBI_PALETTE.at(0))
+                // 1 · 式神「仙狐思念」—— 狐灵自四周朝玩家收拢。
+                new SpellCard(card("yakumo_ran", 1), 1.000D, List.of(
+                        of("仙狐", RAN_PALETTE.at(1))
                                 .identity(0, 0, 0)
                                 .repeatEvery(40)
-                                .at(0, Shape.RING, Shape.Params.defaults()
-                                                .count(10).speed(0.26D).size(0.6D),
-                                        Behaviour.NONE.withMotion(Behaviour.Motion.curve(0.0D, 90.0D, 95.0D)),
-                                        TargetMode.SELF_AXIS)
+                                .at(0, Shape.AROUND_TARGET, Shape.Params.defaults()
+                                                .count(10).radius(9.0D).spread(15.0D)
+                                                .speed(0.30D).size(0.6D),
+                                        Behaviour.NONE, TargetMode.AIMED)
                                 .build(),
-                        of("横曲", KITSUNEBI_PALETTE.at(1))
-                                .identity(1, 1, 0)
-                                .repeatEvery(40)
-                                .at(0, Shape.RING, Shape.Params.defaults()
-                                                .count(10).speed(0.26D).size(0.6D),
-                                        Behaviour.NONE.withMotion(Behaviour.Motion.curve(90.0D, 0.0D, -80.0D)),
-                                        TargetMode.SELF_AXIS)
-                                .build())),
-                // 泡：悬停泡缓慢逼近 ‖ 泡破裂时的分裂环。没有预备拍 = 逼近即峰值。
-                new SpellCard(card("kitsunebi", 2), 0.66D, List.of(
-                        of("浮泡", KITSUNEBI_PALETTE.at(2))
-                                .identity(2, 2, 0)
-                                .repeatEvery(55)
-                                .at(0, Shape.RADIAL_BURST, Shape.Params.defaults()
-                                                .count(9).speed(0.20D).size(0.8D),
-                                        Behaviour.NONE.withMotion(Behaviour.Motion.hover(34)),
-                                        TargetMode.SELF_AXIS)
+                        of("思念", RAN_PALETTE.at(2))
+                                .identity(1, 1, 1)
+                                .repeatEvery(60)
+                                .at(0, Shape.FAN, Shape.Params.defaults()
+                                                .count(5).spread(40.0D).speed(0.36D).size(0.5D),
+                                        Behaviour.NONE, TargetMode.AIMED)
+                                .build()), RAN_C1),
+                // 2 · 式神「前鬼後鬼の守護」—— 前后护卫：相向扇 + 留缺口的笼。
+                new SpellCard(card("yakumo_ran", 2), 0.875D, List.of(
+                        of("前鬼", RAN_PALETTE.at(1))
+                                .identity(0, 0, 0)
+                                .repeatEvery(50)
+                                .at(0, Shape.FAN, Shape.Params.defaults()
+                                                .count(6).spread(60.0D).speed(0.30D).size(0.55D),
+                                        Behaviour.NONE, TargetMode.AIMED)
                                 .build(),
-                        of("破裂環", KITSUNEBI_PALETTE.at(3))
-                                .damageScale(1.1D)
-                                .identity(3, 0, 1)
-                                .repeatEvery(110)
+                        of("後鬼", RAN_PALETTE.at(5))
+                                .identity(2, 1, 1)
+                                .repeatEvery(70)
+                                .at(0, Shape.CAGE, Shape.Params.defaults()
+                                                .count(9).gap(70.0D).speed(0.26D).size(0.6D),
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
+                                .build()), RAN_C2),
+                // 3 · 式輝「狐狸妖怪レーザー」—— 绕玩家旋转的激光星（招牌）。
+                new SpellCard(card("yakumo_ran", 3), 0.750D, List.of(
+                        of("狐妖激光", RAN_PALETTE.at(1))
+                                .identity(0, 0, 0)
+                                .repeatEvery(80)
+                                .laserAt(0, Shape.AROUND_TARGET, Shape.Params.defaults()
+                                                .count(8).radius(8.0D).spread(10.0D).size(0.5D),
+                                        Projectile.laser(60.0D, 0.35D, 0.8D, 1.4D, false,
+                                                Projectile.LaserMotion.spin(
+                                                        new Vec3(0.0D, 1.0D, 0.0D), 1.5D)),
+                                        TargetMode.AIMED)
+                                .build(),
+                        of("星芒", RAN_PALETTE.at(4))
+                                .identity(3, 1, 0)
+                                .repeatEvery(100)
                                 .at(0, Shape.RING_FACING, Shape.Params.defaults()
-                                                .count(10).gap(60.0D).speed(0.22D).size(0.6D),
-                                        Behaviour.NONE.withSplit(Behaviour.Split.at(24, 3)),
-                                        TargetMode.SELF_AXIS)
-                                .build())),
-                // 散：随机，但锁在一个随 BOSS 旋转的锥里。三轨并发。
-                new SpellCard(card("kitsunebi", 3), 0.33D, List.of(
-                        of("乱焔散", KITSUNEBI_PALETTE.at(4))
-                                .identity(0, 0, 0)
-                                .repeatEvery(30)
-                                .at(0, Shape.CONE_RANDOM, Shape.Params.defaults()
-                                                .count(4).spread(110.0D).speed(0.30D).size(0.55D),
+                                                .count(10).gap(60.0D).speed(0.22D).size(0.55D),
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
+                                .build()), RAN_C3),
+                // 4 · 式輝「四面楚歌チャーミング」—— 四面合围 + 补刀。
+                new SpellCard(card("yakumo_ran", 4), 0.625D, List.of(
+                        of("合围", RAN_PALETTE.at(5))
+                                .identity(2, 0, 0)
+                                .repeatEvery(90)
+                                .at(0, Shape.CAGE, Shape.Params.defaults()
+                                                .count(12).gap(60.0D).speed(0.24D).size(0.6D),
                                         Behaviour.NONE, TargetMode.SELF_AXIS)
                                 .build(),
-                        of("泡散", KITSUNEBI_PALETTE.at(2))
-                                .damageScale(1.2D)
-                                .identity(1, 1, 0)
-                                .repeatEvery(75)
-                                .at(0, Shape.CONE_RANDOM, Shape.Params.defaults()
-                                                .count(3).spread(70.0D).speed(0.18D).size(0.9D),
-                                        Behaviour.NONE.withMotion(Behaviour.Motion.hover(30)),
-                                        TargetMode.SELF_AXIS)
-                                .build(),
-                        of("斜散", KITSUNEBI_PALETTE.at(0))
-                                .damageScale(1.35D)
-                                .identity(2, 2, 1)
+                        of("补刀", RAN_PALETTE.at(0))
+                                .damageScale(1.1D)
+                                .identity(0, 2, 1)
                                 .repeatEvery(45)
-                                .at(0, Shape.AXIAL_STAR, Shape.Params.defaults()
-                                                .count(1).speed(0.24D).size(0.6D),
+                                .at(0, Shape.FAN, Shape.Params.defaults()
+                                                .count(4).spread(24.0D).speed(0.40D).size(0.45D),
+                                        Behaviour.NONE, TargetMode.AIMED)
+                                .build()), RAN_C4),
+                // 5 · 式神「十二神将の宴」—— 分批的地柱（脚下/地面）+ 齐射。
+                new SpellCard(card("yakumo_ran", 5), 0.500D, List.of(
+                        pillars(),
+                        of("齐射", RAN_PALETTE.at(2))
+                                .identity(1, 0, 0)
+                                .repeatEvery(50)
+                                .at(0, Shape.FAN, Shape.Params.defaults()
+                                                .count(5).spread(30.0D).speed(0.34D).size(0.5D),
+                                        Behaviour.NONE, TargetMode.AIMED)
+                                .build()), RAN_C5),
+                // 6 · 式弾「ユーニラタルコンタクト」—— 单侧压来的重扇，留反向通道。
+                new SpellCard(card("yakumo_ran", 6), 0.375D, List.of(
+                        of("片面接触", RAN_PALETTE.at(0))
+                                .identity(0, 0, 0)
+                                .repeatEvery(70)
+                                .phaseStep(30.0D)
+                                .at(0, Shape.FAN, Shape.Params.defaults()
+                                                .count(7).spread(90.0D).speed(0.30D).size(0.6D),
                                         Behaviour.NONE, TargetMode.SELF_AXIS)
-                                .build())));
+                                .build(),
+                        of("逆流", RAN_PALETTE.at(2))
+                                .identity(1, 1, 1)
+                                .repeatEvery(70)
+                                .phaseStep(210.0D)
+                                .at(0, Shape.FAN, Shape.Params.defaults()
+                                                .count(7).spread(90.0D).speed(0.30D).size(0.6D),
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
+                                .build()), RAN_C6),
+                // 7 · 地妖符「式神大星」—— 十字魔方阵 + 逐颗点亮的盘环。
+                new SpellCard(card("yakumo_ran", 7), 0.250D, List.of(
+                        of("十字", RAN_PALETTE.at(1))
+                                .identity(0, 0, 0)
+                                .repeatEvery(60)
+                                .phaseStep(22.5D)
+                                .at(0, Shape.GRID_FACING, Shape.Params.defaults()
+                                                .count(9).spread(12.0D).speed(0.28D).size(0.5D),
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
+                                .build(),
+                        of("大星", RAN_PALETTE.at(5))
+                                .identity(2, 1, 1)
+                                .repeatEvery(80)
+                                .phaseStep(9.0D)
+                                .at(0, Shape.DISC_RING, Shape.Params.defaults()
+                                                .count(6).speed(0.26D).size(0.6D),
+                                        Behaviour.NONE, TargetMode.SELF_AXIS)
+                                .build()), RAN_C7),
+                // 8 · 幻神「飯綱権現降臨」—— 狐神降临：旋转激光网 + 狐火光晕。终局，最高倍率。
+                new SpellCard(card("yakumo_ran", 8), 0.125D, List.of(
+                        of("權現網", RAN_PALETTE.at(5))
+                                .damageScale(1.4D)
+                                .identity(2, 0, 0)
+                                .repeatEvery(100)
+                                .laserAt(0, Shape.LATTICE, Shape.Params.defaults()
+                                                .count(10).radius(10.0D).spread(80.0D)
+                                                .aimBias(0.3D).size(0.5D),
+                                        Projectile.laser(70.0D, 0.4D, 1.0D, 1.6D, false,
+                                                Projectile.LaserMotion.spin(
+                                                        new Vec3(0.0D, 1.0D, 0.0D), 1.0D)),
+                                        TargetMode.AIMED)
+                                .build(),
+                        of("狐火光晕", RAN_PALETTE.at(1))
+                                .damageScale(1.4D)
+                                .identity(1, 1, 1)
+                                .repeatEvery(60)
+                                .at(0, Shape.AROUND_TARGET, Shape.Params.defaults()
+                                                .count(8).radius(12.0D).spread(25.0D)
+                                                .speed(0.30D).size(0.5D),
+                                        Behaviour.NONE, TargetMode.AIMED)
+                                .build()), RAN_C8));
+    }
+
+    /** 卡 5「十二神将の宴」的地柱轨：8 根分批落点，每第 4 根压在玩家脚下。 */
+    private static Track pillars() {
+        Track.Builder b = of("神将柱", RAN_PALETTE.at(4))
+                .identity(2, 2, 1)
+                .repeatEvery(0);
+        for (int i = 0; i < 8; i++) {
+            b.at(i * 25, Shape.PILLAR_UP, Shape.Params.defaults()
+                            .count(1).radius(18.0D).size(0.6D).speed(0.0D),
+                    Behaviour.NONE, TargetMode.SELF_AXIS,
+                    Projectile.laser(50.0D, 0.6D, 1.0D, 1.6D), 0, 0,
+                    (i % 4 == 3) ? Track.Beat.SpawnAnchor.PLAYER_GROUND
+                            : Track.Beat.SpawnAnchor.GROUND_BELOW,
+                    1.0D, 1.0D);
+        }
+        return b.build();
     }
 
     // ==================================================================
-    // 傩神楽面「無終」 —— 主题：节拍无终止条件，到时不收束。
+    // 露米娅（占位外观复用傩神楽面）—— 主题：节拍无终止条件，到时不收束。
     // 五张符卡全是「同一招的变奏」：連射、乱連、急連、互不同步。
     // ==================================================================
 
@@ -640,7 +750,7 @@ private static SpellCard ringCard() {
 
     /** 全部 BOSS 的符卡表（lint / 测试遍历用）。 */
     public static List<SpellCard> all() {
-        return java.util.stream.Stream.of(bigFairy(), yamame(), kitsuneBi(), nomenMask())
+        return java.util.stream.Stream.of(bigFairy(), yamame(), yakumoRan(), nomenMask())
                 .flatMap(List::stream).toList();
     }
 }

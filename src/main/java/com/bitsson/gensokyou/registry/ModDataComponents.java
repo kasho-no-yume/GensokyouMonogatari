@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.registry;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.item.codex.CodexData;
+import com.bitsson.gensokyou.item.codex.BossResidualData;
 import com.bitsson.gensokyou.item.weapon.RuneAffix;
 import com.bitsson.gensokyou.item.weapon.WeaponSlots;
 import net.minecraft.core.component.DataComponentType;
@@ -93,6 +94,13 @@ public final class ModDataComponents {
             DATA_COMPONENTS.register("codex_data", () -> DataComponentType.<CodexData>builder()
                     .persistent(CodexData.CODEC)
                     .networkSynchronized(CodexData.STREAM_CODEC)
+                    .build());
+
+    /** 寄宿残魂的众生典籍：被寄宿 BOSS 的实体类型 id + 其自身品阶（合成时定格）。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<BossResidualData>> BOSS_RESIDUAL_DATA =
+            DATA_COMPONENTS.register("boss_residual_data", () -> DataComponentType.<BossResidualData>builder()
+                    .persistent(BossResidualData.CODEC)
+                    .networkSynchronized(BossResidualData.STREAM_CODEC)
                     .build());
 
     private ModDataComponents() {

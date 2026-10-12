@@ -266,6 +266,12 @@ public final class DebugCommands {
                                 .executes(context -> probeShujou(context.getSource(),
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument
                                                 .getLoadedBlockPos(context, "core")))))
+                .then(Commands.literal("chinkon")
+                        .then(Commands.argument("core",
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
+                                .executes(context -> probeChinkon(context.getSource(),
+                                        net.minecraft.commands.arguments.coordinates.BlockPosArgument
+                                                .getLoadedBlockPos(context, "core")))))
                 .then(Commands.literal("houjouno")
                         .then(Commands.argument("core",
                                         net.minecraft.commands.arguments.coordinates.BlockPosArgument.blockPos())
@@ -834,6 +840,32 @@ public final class DebugCommands {
                             .debugRoll(serverLevel, pos, core.activeMatch());
         } else {
             msg = "[GS-AUTO] SHUJOU NO-MATCH";
+        }
+        Gensokyou.LOGGER.info(msg);
+        source.sendSystemMessage(Component.literal(msg));
+        return 1;
+    }
+
+    /** 镇魂返照之仪探针：单行 [GS-AUTO] CHINKON，含等级/祭品台/供品/BOSS 品阶/门槛/成本/试掷。 */
+    private static int probeChinkon(net.minecraft.commands.CommandSourceStack source,
+                                    net.minecraft.core.BlockPos pos) {
+        if (!(source.getLevel() instanceof net.minecraft.server.level.ServerLevel serverLevel)) {
+            return 0;
+        }
+        String msg;
+        if (serverLevel.getBlockEntity(pos)
+                instanceof com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity core
+                && core.activeMatch() != null
+                && com.bitsson.gensokyou.ritual.RitualBehaviors.CHINKON_HANSHOU
+                        .equals(core.activeMatch().patternId())) {
+            msg = "[GS-AUTO] CHINKON "
+                    + com.bitsson.gensokyou.ritual.behavior.ChinkonHanshouBehavior
+                            .debugSummary(serverLevel, core.activeMatch())
+                    + " be=" + core.getStored() + "/" + core.getCapacity()
+                    + " " + com.bitsson.gensokyou.ritual.behavior.ChinkonHanshouBehavior
+                            .debugRoll(serverLevel, core.activeMatch());
+        } else {
+            msg = "[GS-AUTO] CHINKON NO-MATCH";
         }
         Gensokyou.LOGGER.info(msg);
         source.sendSystemMessage(Component.literal(msg));

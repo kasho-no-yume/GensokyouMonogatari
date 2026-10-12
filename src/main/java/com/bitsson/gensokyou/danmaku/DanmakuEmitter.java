@@ -155,6 +155,15 @@ public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behavio
         if (formation != null && formation.active() && center != null) {
             bullet.bindToFrame(formation.frameFor(center, shot.origin()));
         }
+        // 激光姿态（旋转/平移）：在实体入世界之前写入——枢轴与偏移是对出生点的一次快照。
+        // 放在编队绑定<b>之后</b>：激光姿态自身也用编队帧承载（center/offset + axis），
+        // 若两者同时声明，以激光姿态为准，避免编队把姿态覆盖掉。
+        if (bullet instanceof LaserDanmaku laser && projectile != null
+                && projectile.laserMotion() != null && projectile.laserMotion().active()) {
+            Projectile.LaserMotion lm = projectile.laserMotion();
+            laser.configureLaserMotion(lm.pivotOffset(), lm.rotationAxis(),
+                    lm.angularProfile(), lm.translationDir(), lm.translationSpeed());
+        }
         com.bitsson.gensokyou.command.DanmakuPreview.traceEmission(boss, bullet);
         server.addFreshEntity(bullet);
         DanmakuBudget.recordEmit();

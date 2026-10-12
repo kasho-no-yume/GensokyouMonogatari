@@ -1,5 +1,10 @@
 package com.bitsson.gensokyou.danmaku.track;
 
+import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
+import net.minecraft.world.phys.Vec3;
+
+import javax.annotation.Nullable;
+
 /**
  * 弹种——「这一拍发出什么<b>类型</b>的实体」。
  *
@@ -19,23 +24,68 @@ package com.bitsson.gensokyou.danmaku.track;
  * 被遮挡让玩家能靠掩体规避（激光打在墙上，这是可预期的战术），
  * 穿墙用于「墙面拦不住」的发光弹。被遮挡形态的实现<b>全部保留</b>，
  * 详见 {@code LaserDanmaku#getActualLength}。
+ *
+ * <p><b>激光姿态</b>（{@link LaserMotion}）是激光<b>生命周期</b>的一部分（与 delay/duration
+ * 同类），故放在弹种上，而不进 {@link Behaviour}——后者是给球弹的运动开关用的。
+ * 未声明姿态时 {@code laserMotion == null}，激光静止，行为与接线前逐位一致。
  */
 public record Projectile(Kind kind,
                          double laserLength, double laserRadius,
                          double laserDelaySeconds, double laserDurationSeconds,
                          boolean laserPiercesBlocks,
-                         boolean spherePiercesBlocks) {
+                         boolean spherePiercesBlocks,
+                         @Nullable LaserMotion laserMotion) {
 
     /** 弹种。 */
     public enum Kind {
         /** 球弹：会飞、会撞墙、会判伤。绝大多数拍用这个。 */
         SPHERE,
-        /** 激光：静止的射线，沿自身方向做长度受限的持续判伤。 */
+        /** 激光：沿自身方向做长度受限的持续判伤的射线（可静止，也可按姿态运动）。 */
         LASER
     }
 
-    /** 球弹。球弹没有自己的参数，故那五项恒为 0 / false。 */
-    public static final Projectile SPHERE = new Projectile(Kind.SPHERE, 0, 0, 0, 0, false, false);
+    /**
+     * 激光姿态：绕枢轴旋转 + 沿方向平移（任一可缺省）。
+     *
+     * <p>旋转由<b>角速度曲线</b>的闭式积分驱动（{@link DanmakuSpeedProfile} 的 {@code travelAt}
+     * 把「格」重解释为「度」），故支持「以一定角速度扫射、N tick 内线性减速到 0 后停住」。
+     * 枢轴默认是发射点；给非零 {@code pivotOffset} 即绕外部点挥扫。
+     *
+     * <p>全部零/空 ⇒ {@link #active()} 为 {@code false}，激光静止。
+     * 这些输入全部复用激光既有的同步字段，故自动获得运动指纹覆盖（见 {@code danmaku-laser}）。
+     */
+    public record LaserMotion(Vec3 pivotOffset, Vec3 rotationAxis,
+                              @Nullable DanmakuSpeedProfile angularProfile,
+                              Vec3 translationDir, double translationSpeed) {
+
+        /** 无姿态（静止）。 */
+        public static final LaserMotion NONE =
+                new LaserMotion(Vec3.ZERO, Vec3.ZERO, null, Vec3.ZERO, 0.0D);
+
+        /** 绕任意轴以恒定角速度（度/tick）原地旋转。 */
+        public static LaserMotion spin(Vec3 rotationAxis, double omegaDegPerTick) {
+            return new LaserMotion(Vec3.ZERO, rotationAxis,
+                    DanmakuSpeedProfile.constant(omegaDegPerTick), Vec3.ZERO, 0.0D);
+        }
+
+        /** 绕任意轴以给定角速度曲线旋转（可减速停）。 */
+        public static LaserMotion spin(Vec3 rotationAxis, DanmakuSpeedProfile angularProfile) {
+            return new LaserMotion(Vec3.ZERO, rotationAxis, angularProfile, Vec3.ZERO, 0.0D);
+        }
+
+        /** 是否真的会动（旋转或平移）。 */
+        public boolean active() {
+            boolean rotates = rotationAxis != null && rotationAxis.lengthSqr() > 1.0E-9D
+                    && angularProfile != null;
+            boolean moves = translationDir != null && translationDir.lengthSqr() > 1.0E-9D
+                    && translationSpeed > 0.0D;
+            return rotates || moves;
+        }
+    }
+
+    /** 球弹。球弹没有自己的参数，故那七项恒为 0 / false / null。 */
+    public static final Projectile SPHERE =
+            new Projectile(Kind.SPHERE, 0, 0, 0, 0, false, false, null);
 
     /** 球弹（显式构造，便于在符卡表里读出来）。 */
     public static Projectile sphere() {
@@ -50,7 +100,7 @@ public record Projectile(Kind kind,
      * 只判实体命中，方块不再截断它。
      */
     public static Projectile piercingSphere() {
-        return new Projectile(Kind.SPHERE, 0, 0, 0, 0, false, true);
+        return new Projectile(Kind.SPHERE, 0, 0, 0, 0, false, true, null);
     }
 
     /**
@@ -79,10 +129,27 @@ public record Projectile(Kind kind,
     public static Projectile laser(double length, double radius,
                                    double delaySeconds, double durationSeconds,
                                    boolean piercesBlocks) {
+        return laser(length, radius, delaySeconds, durationSeconds, piercesBlocks, null);
+    }
+
+    /**
+     * 激光，带<b>姿态</b>（旋转 / 平移）。
+     *
+     * @param motion 姿态；{@code null} 或 {@link LaserMotion#NONE} ⇒ 静止
+     */
+    public static Projectile laser(double length, double radius,
+                                   double delaySeconds, double durationSeconds,
+                                   boolean piercesBlocks, @Nullable LaserMotion motion) {
         return new Projectile(Kind.LASER,
                 Math.max(1.0D, length), Math.max(0.05D, radius),
                 Math.max(0.0D, delaySeconds), Math.max(1.0D, durationSeconds),
-                piercesBlocks, false);
+                piercesBlocks, false, motion);
+    }
+
+    /** 返回一份换了姿态的副本（仅对激光有意义）。 */
+    public Projectile withLaserMotion(@Nullable LaserMotion motion) {
+        return new Projectile(kind, laserLength, laserRadius, laserDelaySeconds,
+                laserDurationSeconds, laserPiercesBlocks, spherePiercesBlocks, motion);
     }
 
     public boolean isLaser() {

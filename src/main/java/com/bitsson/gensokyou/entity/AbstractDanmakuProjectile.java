@@ -587,6 +587,15 @@ import java.util.Set;
     public static final int FLAG_HOVER = 4;
     public static final int FLAG_MINE = 8;
     public static final int FLAG_TRAIL = 16;
+    /**
+     * 激光穿墙形态标志 —— 复用行为标志字节的空闲位（bit 5）。
+     *
+     * <p><b>为什么从激光专属 accessor 挪到这里</b>：它原先在运动输入块里独占一格
+     * （{@code P_LASER_BASE + 7 = 48}），与 {@code P_BURST_AT = 48} 重叠。挪进本字节后
+     * ① 下标重叠消失，② 指纹覆盖顺带由 {@code P_FLAGS} 承担，
+     * ③ 少一个同步字段。见 {@code danmaku-laser-motion} 的 design D10。
+     */
+    public static final int FLAG_LASER_PIERCE = 32;
 
     // ------------------------------------------------------------------
     // 年龄
@@ -1084,6 +1093,22 @@ import java.util.Set;
         this.entityData.set(DATA_FLAGS, (byte) (this.flags() | flag));
     }
 
+    /** 读行为标志位（{@link #FLAG_CURVE} 等）。 */
+    public boolean hasBehaviorFlag(int flag) {
+        return (this.flags() & flag) != 0;
+    }
+
+    /**
+     * 置/清行为标志位。
+     *
+     * <p>与私有 {@link #addFlag} 的区别是能<b>清位</b>——{@link #FLAG_LASER_PIERCE}
+     * 是可切换的形态位，必须能置回 false，而 {@code addFlag} 只置不撤。
+     */
+    public void setBehaviorFlag(int flag, boolean on) {
+        int next = on ? (this.flags() | flag) : (this.flags() & ~flag);
+        this.entityData.set(DATA_FLAGS, (byte) next);
+    }
+
     public boolean isCurving() {
         return (this.flags() & FLAG_CURVE) != 0 && Math.abs(this.curveRate()) > 1.0E-4F;
     }
@@ -1275,6 +1300,33 @@ import java.util.Set;
                 unscale(this.entityData.get(DATA_PROFILE_V3)));
     }
 
+    /**
+     * 写入一条<b>可能恒定</b>的速率曲线。
+     *
+     * <p>与 {@link #configureSpeedProfile} 的唯一区别：<b>不要求</b>
+     * {@link DanmakuSpeedProfile#varies()}。存在的理由是把同一条曲线
+     * <b>重解释为角速度</b>的弹种（激光：角速度曲线的闭式积分即扫过角度，
+     * 见 {@code danmaku-laser-motion} design D2）必须能挂上「恒定角速度」这一最基本的
+     * 形态——而恒速会被 {@code varies()} 判否，{@link #configureSpeedProfile} 直接拒收，
+     * 症状是「匀速扫射完全不动」，且不报任何错。
+     *
+     * <p><b>本次复用刻意不存方向轴</b>：调用方（激光）的平移方向与旋转轴各有一份来源，
+     * 由调用方自行设置，本方法只写曲线本身。
+     */
+    public void configureAngularProfile(DanmakuSpeedProfile profile) {
+        if (profile == null) {
+            return;
+        }
+        this.entityData.set(DATA_PROFILE_V0, scale(profile.v0()));
+        this.entityData.set(DATA_PROFILE_P0, scale(profile.p0()));
+        this.entityData.set(DATA_PROFILE_V1, scale(profile.v1()));
+        this.entityData.set(DATA_PROFILE_P1, scale(profile.p1()));
+        this.entityData.set(DATA_PROFILE_V2, scale(profile.v2()));
+        this.entityData.set(DATA_PROFILE_P2, scale(profile.p2()));
+        this.entityData.set(DATA_PROFILE_V3, scale(profile.v3()));
+        this.entityData.set(DATA_HAS_PROFILE, true);
+    }
+
     private void setAxis(Vec3 axis) {
         this.entityData.set(DATA_AXIS_X, (float) axis.x);
         this.entityData.set(DATA_AXIS_Y, (float) axis.y);
@@ -1284,6 +1336,38 @@ import java.util.Set;
     private Vec3 axis() {
         return new Vec3(this.entityData.get(DATA_AXIS_X), this.entityData.get(DATA_AXIS_Y),
                 this.entityData.get(DATA_AXIS_Z));
+    }
+
+    /**
+     * 运动方向轴（{@link #DATA_AXIS_X}）。
+     *
+     * <p>对球弹它是速率曲线的方向；对激光它是<b>平移方向</b>（同一个字段，重解释，
+     * 见 {@code danmaku-laser-motion} design D3）。
+     */
+    public Vec3 motionAxis() {
+        return this.axis();
+    }
+
+    /** 设置运动方向轴；零向量与 null 忽略（保持既有轴，避免把方向抹成无定义）。 */
+    public void setMotionAxis(Vec3 axis) {
+        if (axis == null || axis.lengthSqr() < 1.0E-12D) {
+            return;
+        }
+        this.setAxis(axis.normalize());
+    }
+
+    /**
+     * 沿运动轴的推进速率（格/tick）。
+     *
+     * <p>复用 {@link #DATA_FRAME_ADVANCE_SPEED}（原为「编队帧但无速率曲线」的推进速率）。
+     */
+    public double advanceSpeed() {
+        return unscale(this.entityData.get(DATA_FRAME_ADVANCE_SPEED));
+    }
+
+    /** 设置沿运动轴的推进速率（格/tick）；负值夹到 0。 */
+    public void configureAdvanceSpeed(double speed) {
+        this.entityData.set(DATA_FRAME_ADVANCE_SPEED, scale(Math.max(0.0D, speed)));
     }
 
     /**

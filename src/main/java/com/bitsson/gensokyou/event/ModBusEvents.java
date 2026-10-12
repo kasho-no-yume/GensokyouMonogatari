@@ -6,7 +6,7 @@ import com.bitsson.gensokyou.entity.CirnoEntity;
 import com.bitsson.gensokyou.entity.FairyEntity;
 import com.bitsson.gensokyou.entity.FakeFlandreEntity;
 import com.bitsson.gensokyou.entity.FlandreEntity;
-import com.bitsson.gensokyou.entity.KitsuneBiEntity;
+import com.bitsson.gensokyou.entity.YakumoRanEntity;
 import com.bitsson.gensokyou.entity.NomenMaskEntity;
 import com.bitsson.gensokyou.entity.YamameEntity;
 import com.bitsson.gensokyou.entity.TouhouNpcEntity;
@@ -40,7 +40,7 @@ public final class ModBusEvents {
         event.put(ModEntityTypes.FAIRY.get(), FairyEntity.createAttributes().build());
         event.put(ModEntityTypes.BIG_FAIRY.get(), BigFairyEntity.createAttributes().build());
         event.put(ModEntityTypes.YAMAME.get(), YamameEntity.createAttributes().build());
-        event.put(ModEntityTypes.KITSUNEBI.get(), KitsuneBiEntity.createAttributes().build());
+        event.put(ModEntityTypes.YAKUMO_RAN.get(), YakumoRanEntity.createAttributes().build());
         event.put(ModEntityTypes.NOMEN_MASK.get(), NomenMaskEntity.createAttributes().build());
         event.put(ModEntityTypes.CIRNO.get(), FairyEntity.createAttributes().build());
         event.put(ModEntityTypes.BALANCE_TEST_BOSS.get(), FairyEntity.createAttributes().build());

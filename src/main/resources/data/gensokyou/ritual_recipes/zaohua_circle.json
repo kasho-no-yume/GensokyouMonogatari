@@ -255,8 +255,7 @@
       "ingredients": [
         { "item": "gensokyou:ritual_stone_2", "count": 1 },
         { "item": "gensokyou:star_silver", "count": 2 },
-        { "item": "gensokyou:tide_crystal", "count": 1 },
-        { "item": "gensokyou:sukima_fragment", "count": 1 }
+        { "item": "gensokyou:tide_crystal", "count": 1 }
       ],
       "result": { "item": "gensokyou:spirit_core_2", "count": 1 }
     },
@@ -568,7 +567,7 @@
       "result": { "item": "gensokyou:icicle_fall", "count": 1 }
     },
     {
-      "_comment": "fox_servant：主题信物为既有隙间碎片。",
+      "_comment": "fox_servant：蓝的主题卡，保留隙间碎片（主题卡使用主题信物，属既定例外）。",
       "name": "zaohua_spellcard_fox_servant",
       "mode": "activation", "match": "max", "minTier": 1, "spCost": 48000,
       "ingredients": [
