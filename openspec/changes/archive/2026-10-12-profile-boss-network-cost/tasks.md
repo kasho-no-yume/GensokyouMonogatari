@@ -46,8 +46,8 @@
 ## 6. 验证与交付
 
 - [x] 6.1 `.\tools\gradle_task.ps1 build` 通过（编译 + 既有测试不减少）
-- [ ] 6.2 跑一场 `gs_boss spawn` 的完整 BOSS 战（召唤→死亡），产出 run ledger 与 profile 图
-- [ ] 6.3 对账：确认两层字节量级自洽、差异有解释；确认 spawn 突发在细窗口可见
-- [ ] 6.4 记录 `danmaku-track-scope` 门槛所需的数字（生成突发基线与位置包稳态开销），
+- [x] 6.2 跑一场 `gs_boss spawn` 的完整 BOSS 战（召唤→死亡），产出 run ledger 与 profile 图
+- [x] 6.3 对账：确认两层字节量级自洽、差异有解释；确认 spawn 突发在细窗口可见
+- [x] 6.4 记录 `danmaku-track-scope` 门槛所需的数字（生成突发基线与位置包稳态开销），
       回填该变更的 proposal 门槛
 - [ ] 6.5 确认观测不扰动：同一场景开/关观测时弹幕行为与同步读数一致

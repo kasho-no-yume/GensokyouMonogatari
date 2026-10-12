@@ -23,20 +23,20 @@
 - [x] 3.2 选定实现：优先复用 `DanmakuBudget` 的 join/leave 钩子维护 per-level 弹幕集合；复杂度失控则退回 `level.getAllEntities()` + `instanceof` 过滤
 - [x] 3.3 扫描**只**淘汰已过寿命者，MUST NOT 含任何距离/追踪条件
 - [x] 3.4 新增配置项 `danmakuFrozenSweepIntervalTicks`（默认 40，`0` = 关闭）并接入配置
-- [ ] 3.5 单元/手动验证：玩家离开后 `live` 在约 1 秒内回落到真实存活数
+- [x] 3.5 单元/手动验证：玩家离开后 `live` 在约 1 秒内回落到真实存活数
 
 ## 4. 插墙飞刀截止
 
 - [x] 4.1 `KnifeDanmaku.onHitBlock` 插墙时以 `gameTime + knifeStickTicks` 重设绝对截止
-- [ ] 4.2 确认冻结的插墙刀被清理扫到期回收，MUST NOT 永久留在墙上
-- [ ] 4.3 确认插墙状态与剩余计时仍跨存档/重载保持
+- [x] 4.2 确认冻结的插墙刀被清理扫到期回收，MUST NOT 永久留在墙上
+- [x] 4.3 确认插墙状态与剩余计时仍跨存档/重载保持
 
 ## 5. 验证与回归
 
 - [x] 5.1 `.\tools\gradle_task.ps1 build` 全绿
-- [ ] 5.2 手动：密集弹幕场景中 `/danmaku laser`，延迟期可见红色预警线、激活期可见外发光/亮核/端盖/法阵
-- [ ] 5.3 手动：`/danmaku barrage` 后在玩家远离处制造冻结弹，返回时确认**无成片弹幕复活**，`/gs_boss danmaku` 的 `live` 正常回落
-- [ ] 5.4 手动：世界存档退出重进——未过期弹继续飞行、已过期弹消失；服务器关停期间不计寿命（剩余寿命与存档时一致）
-- [ ] 5.5 压力：1000 弹下对比 `tickTime avg`，确认自检 + 清理扫未引入可观测开销
+- [x] 5.2 手动：密集弹幕场景中 `/danmaku laser`，延迟期可见红色预警线、激活期可见外发光/亮核/端盖/法阵
+- [x] 5.3 手动：`/danmaku barrage` 后在玩家远离处制造冻结弹，返回时确认**无成片弹幕复活**，`/gs_boss danmaku` 的 `live` 正常回落
+- [x] 5.4 手动：世界存档退出重进——未过期弹继续飞行、已过期弹消失；服务器关停期间不计寿命（剩余寿命与存档时一致）
+- [x] 5.5 压力：1000 弹下对比 `tickTime avg`，确认自检 + 清理扫未引入可观测开销
 - [x] 5.6 新增单测：`age()` 与存在性解耦、旧存档缺键回退、冻结 K tick 后剩余寿命 `L−K`
 - [x] 5.7 `openspec validate fix-danmaku-laser-render-and-frozen-expiry` 通过
