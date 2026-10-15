@@ -12,6 +12,8 @@ metadata:
 
 当前代码仍主要使用旧Track/Beat/Behaviour实体路径。新的`DanmakuProgram`处于**proposal阶段，尚未实现**；不得把设计中的CreateEmitter、ReplaceMembers等名字当成现成API。
 
+总重构已拆成7个实施change，先读[拆分路线图](../../../openspec/changes/refactor-danmaku-program-runtime/roadmap.md)。原目录仅作总设计，不整包apply；当前起点为`add-danmaku-program-core`，后续须满足路线图的实现前置条件。
+
 - 查原子操作与实现状态：[弹幕操作台账](references/danmaku-operations.md)。该文件是技能的统一入口，新增/实现原语时必须更新。
 - 设计入口：[通俗作者指南](../../../openspec/changes/refactor-danmaku-program-runtime/author-guide.md)、[操作契约](../../../openspec/changes/refactor-danmaku-program-runtime/operations.md)、[东方弹幕配方](../../../openspec/changes/refactor-danmaku-program-runtime/pattern-recipes.md)。
 - 下文“一轨一帧”“多拍不需要事件”“帧随每弹复制”等描述属于旧后端经验。设计/实施新程序时以该change的明确替代契约为准，不能用旧实现限制拒绝新需求；维护旧后端时仍核对实际代码与主spec。

@@ -1,0 +1,13 @@
+## Context
+
+总设计的D1/D2/D10及operations §1–3是本阶段依据：[design](../refactor-danmaku-program-runtime/design.md)、[operations](../refactor-danmaku-program-runtime/operations.md)。先读[通俗指南](../refactor-danmaku-program-runtime/author-guide.md)。
+
+## Decisions
+
+仅实现程序模型、编译、时间组织和扩展接口。Frame/Plan等是有类型的数据引用，不读取世界；后端选择先提供接口，游戏接线由gameplay阶段完成。核对内容和测量旧后端基线，性能脚本尽量复用既有工具。
+
+时间区间[开始,结束)，明确Once/Loop/Stream。周期子拍不能被外层phase=0过滤。冲突通道必须显式组合。编译产物携带稳定节点ID、hash、有界codec和预算描述接口，具体路径与几何由下一change注册。
+
+## Validation / Handoff
+
+无世界测试时间、重复偏移、非法依赖/冲突、codec上限与稳定hash；保存内容manifest和基线报告。交付可供operations注册的API，不宣称已有游戏运行时。实际Gradle调用走tools/gradle_task.ps1。

@@ -1,5 +1,7 @@
 ## Why
 
+> **已拆分为7个实施change，本目录仅作总设计。** 从[roadmap.md](roadmap.md)选择实施入口，不对本目录整包apply或直接归档specs。
+
 当前 BOSS 弹幕已经具备几何、编队、速率曲线和同步诊断，但表演仍被拆进单弹行为开关、互斥分支和固定同步参数块。八云蓝残魂的普通多拍、锁轴、启停和转弯需求反复牵动核心，说明缺少可组合的运行模型；应在更多符卡依赖这些接口之前重构。
 
 目标是兑现「低带宽、丰富表现、稳定轨迹、可控性能」：符卡由通用操作组装，特殊图案作为独立扩展；新增图案或路径不再要求修改弹体主循环及通用协议封套。
@@ -26,12 +28,7 @@
 
 ### Modified Capabilities
 
-- `danmaku-track-composition`: 为新程序规定编排替代契约、显式一次性/循环、多轨共享、生命周期和完整批次预算。
-- `danmaku-behaviour`: 新程序的类型化行为通道与同步载体，取代单弹开关约束。
-- `danmaku-motion`: 新程序的组变换与局部路径组合、共享描述和独立归属。
-- `danmaku-leg-motion`: 新程序的异构段、显式段尾策略及可重建方向采样。
-- `danmaku-pipeline-capacity`: 新程序的状态准入、权威事件、预算与数据碰撞路径。
-- `danmaku-timeline`: 新程序的纯函数数学边界、共享时钟、陈旧时钟处理。
+六项既有capability的delta已移至`retire-legacy-boss-danmaku/specs/`，由该子change唯一负责归档。本总目录保留三份跨阶段目标规范作为参考，不独立合入主spec。
 
 ## Impact
 
