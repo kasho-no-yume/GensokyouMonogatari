@@ -582,6 +582,23 @@ import java.util.Set;
     private static final EntityDataAccessor<Integer> DATA_TRAIL_DRIFT =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
 
+    // ------------------------------------------------------------------
+    // 伤害窗口与曲射窗口（extend-danmaku-orchestration）
+    // ------------------------------------------------------------------
+
+    /** 前窗无害：出生后多少 tick 内不判伤。0 = 自出生起即可判伤。 */
+    private static final EntityDataAccessor<Integer> DATA_HARMLESS_UNTIL =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /** 后窗收束：低 16 位收束年龄、高 16 位淡出时长。0 = 无收束。 */
+    private static final EntityDataAccessor<Integer> DATA_COLLAPSE =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /** 曲射时段窗口：低 16 位起始年龄、高 16 位持续时长。0 = 无窗口（全程曲射）。 */
+    private static final EntityDataAccessor<Integer> DATA_CURVE_WINDOW =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+    /** 一次性闪亮年龄（tick）。0 = 不闪。 */
+    private static final EntityDataAccessor<Integer> DATA_FLASH_AGE =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
+
     public static final int FLAG_CURVE = 1;
     public static final int FLAG_SPLIT = 2;
     public static final int FLAG_HOVER = 4;
@@ -820,6 +837,10 @@ import java.util.Set;
         builder.define(DATA_TRAIL_CHILD_LIFETIME, 0);
         builder.define(DATA_TRAIL_HOLD, 0);
         builder.define(DATA_TRAIL_DRIFT, 0);
+        builder.define(DATA_HARMLESS_UNTIL, 0);
+        builder.define(DATA_COLLAPSE, 0);
+        builder.define(DATA_CURVE_WINDOW, 0);
+        builder.define(DATA_FLASH_AGE, 0);
         builder.define(DATA_LIFETIME, MAX_LIFETIME_TICKS);
         builder.define(DATA_PREVIEW_TRACE, 0);
         builder.define(DATA_PROFILE_V0, 0);
@@ -908,6 +929,12 @@ import java.util.Set;
             return;
         }
 
+        // 后窗收束：停判伤后淡出走完即回收。与寿命互不覆盖，先到者生效。
+        if (this.collapseFinished()) {
+            this.discard(RemovalCause.COLLAPSE);
+            return;
+        }
+
         // 溜め：完全静止。它<b>不</b>做接触判伤（那是溜め弹的语义：埋着，等人踩），
         // 故直接早退，两端的位移均为零，行为天然一致。
         //
@@ -962,8 +989,13 @@ import java.util.Set;
 
         // 曲射：绕指定轴旋转速度矢量。用 setDeltaMovement 而非 setVelocity——
         // 后者每 tick 都会发运动包（见 setVelocity 的文档）。
-        if (isCurving()) {
-            velocity = rotateAbout(velocity, curveAxis(), curveRate() / 20.0D);
+        //
+        // <p><b>单位</b>：{@code curveRate()} 是<b>度/秒</b>，不是弧度/tick。换算
+        // （秒→tick、度→弧度）收敛在 {@link Rotation#aboutDegPerSec} 一处，调用点
+        // MUST NOT 自己再乘除。早先调用点漏了 {@code toRadians}，于是 45°/s 被当成
+        // 2.25 <b>弧度</b>/tick（≈129°/tick）——实机读作「高频抽搐 + 螺旋」而不是圆弧。
+        if (isCurving() && this.curveActiveAt(this.age())) {
+            velocity = Rotation.aboutDegPerSec(velocity, curveAxis(), curveRate());
             this.setDeltaMovement(velocity);
         }
 
@@ -1220,6 +1252,165 @@ import java.util.Set;
         this.addFlag(FLAG_MINE);
     }
 
+    // ------------------------------------------------------------------
+    // 伤害窗口与曲射窗口
+    // ------------------------------------------------------------------
+
+    /**
+     * 前窗无害：出生后 {@code untilAge} tick 内不判伤，也不因接触玩家而消失。
+     *
+     * <p>语义与 {@code isWhitelisted} 的「穿身而过」一致——弹是本拍图案的一部分，
+     * 不该被无害期内的一次接触吃掉。
+     */
+    public void configureHarmless(int untilAge) {
+        if (untilAge > 0) {
+            this.entityData.set(DATA_HARMLESS_UNTIL, untilAge);
+        }
+    }
+
+    /** 前窗无害的截止年龄；0 = 无。 */
+    public int harmlessUntil() {
+        return this.entityData.get(DATA_HARMLESS_UNTIL);
+    }
+
+    /**
+     * 一次性闪亮：出生后到达 {@code age} 时统一提亮一帧。
+     *
+     * @param age 闪亮年龄（tick）；{@code <= 0} 不生效
+     */
+    public void configureFlash(int age) {
+        if (age > 0) {
+            this.entityData.set(DATA_FLASH_AGE, age);
+        }
+    }
+
+    /** 闪亮年龄；0 = 不闪。 */
+    public int flashAge() {
+        return this.entityData.get(DATA_FLASH_AGE);
+    }
+
+    /**
+     * 闪亮强度（0..1）：在闪亮年龄前后几 tick 内从峰值衰减到 0，其余为 0。
+     *
+     * <p>只用于渲染放大/提亮，MUST NOT 影响判伤或运动。
+     */
+    public float flashPulse() {
+        int at = flashAge();
+        if (at <= 0) {
+            return 0.0F;
+        }
+        int distance = Math.abs(this.age() - at);
+        return distance <= 2 ? 1.0F - distance / 3.0F : 0.0F;
+    }
+
+    /**
+     * 后窗收束：到达 {@code collapseAge} 后停止判伤，并在随后 {@code fadeTicks} 内淡出，
+     * 淡出结束时以 {@code COLLAPSE} 回收。
+     *
+     * @param collapseAge 收束年龄（tick）；{@code <= 0} 不生效
+     * @param fadeTicks   淡出时长（tick）；{@code <= 0} 视为立即回收
+     */
+    public void configureCollapse(int collapseAge, int fadeTicks) {
+        if (collapseAge <= 0) {
+            return;
+        }
+        int age = Math.min(0xFFFF, collapseAge);
+        int fade = Mth.clamp(fadeTicks, 0, 0xFFFF);
+        this.entityData.set(DATA_COLLAPSE, (age << 16) | (fade & 0xFFFF));
+    }
+
+    /** 收束年龄；0 = 无收束。 */
+    public int collapseAge() {
+        return (this.entityData.get(DATA_COLLAPSE) >>> 16) & 0xFFFF;
+    }
+
+    /** 收束后的淡出时长（tick）。 */
+    public int collapseFade() {
+        return this.entityData.get(DATA_COLLAPSE) & 0xFFFF;
+    }
+
+    /** 是否声明了收束。 */
+    public boolean hasCollapse() {
+        return collapseAge() > 0;
+    }
+
+    /** 后窗收束是否已走完（到点且淡出结束），应被回收。 */
+    public boolean collapseFinished() {
+        int at = collapseAge();
+        return at > 0 && this.age() >= at + collapseFade();
+    }
+
+    /**
+     * 收束淡出系数：1.0 = 常态；进入收束年龄段后线性降到 0，用于渲染层压暗。
+     *
+     * <p>只影响观感，不改判伤（判伤由 {@link #damageWindowAllows()} 门控）。
+     */
+    public float collapseFadeFactor() {
+        int at = collapseAge();
+        if (at <= 0) {
+            return 1.0F;
+        }
+        int age = this.age();
+        if (age <= at) {
+            return 1.0F;
+        }
+        int fade = collapseFade();
+        if (fade <= 0) {
+            return 0.0F;
+        }
+        return Math.max(0.0F, 1.0F - (float) (age - at) / fade);
+    }
+
+    /**
+     * 曲射时段窗口：仅在 {@code [startAge, startAge+duration)} 内施加曲射旋转。
+     *
+     * <p>{@code duration <= 0} 不生效——未声明窗口时曲射沿用既有「全程偏转」语义。
+     */
+    public void configureCurveWindow(int startAge, int duration) {
+        if (duration <= 0) {
+            return;
+        }
+        int start = Mth.clamp(startAge, 0, 0xFFFF);
+        int dur = Mth.clamp(duration, 1, 0xFFFF);
+        this.entityData.set(DATA_CURVE_WINDOW, (start << 16) | (dur & 0xFFFF));
+    }
+
+    /** 曲射窗口起始年龄；无窗口时 0。 */
+    public int curveWindowStart() {
+        return (this.entityData.get(DATA_CURVE_WINDOW) >>> 16) & 0xFFFF;
+    }
+
+    /** 曲射窗口持续时长；0 = 无窗口（全程曲射）。 */
+    public int curveWindowDuration() {
+        return this.entityData.get(DATA_CURVE_WINDOW) & 0xFFFF;
+    }
+
+    /** 该年龄是否应施加曲射旋转。 */
+    public boolean curveActiveAt(int age) {
+        int dur = curveWindowDuration();
+        if (dur <= 0) {
+            return true;
+        }
+        int start = curveWindowStart();
+        return age >= start && age < start + dur;
+    }
+
+    /**
+     * 当前年龄是否允许对玩家结算伤害。
+     *
+     * <p>前窗无害与后窗收束的共同出口。服务端在判伤入口调用它；
+     * 不允许时弹既不掉血、也不因该次接触而销毁。
+     */
+    public boolean damageWindowAllows() {
+        int age = this.age();
+        int harmless = harmlessUntil();
+        if (harmless > 0 && age < harmless) {
+            return false;
+        }
+        int collapse = collapseAge();
+        return !(collapse > 0 && age >= collapse);
+    }
+
     /**
      * 挂拖尾：自身每 {@code everyTicks} tick 在当前位置生成一颗零速静止子代。
      *
@@ -1431,11 +1622,16 @@ import java.util.Set;
     }
 
     /**
-     * 命中判定的总闸：白名单 + 隐藏态。
+     * 命中判定的总闸：白名单 + 隐藏态 + 伤害窗口。
      *
-     * <p>「隐藏态不判伤且不销毁」的全部实现就在这里——本方法返回 false 后，
-     * {@link DanmakuHitScan} 找不到实体命中，而<b>方块分支独立于本谓词</b>，
-     * 故弹照常撞墙消失。这正是需求要的语义：隐藏 ≠ 无碰撞，只是不伤人。
+     * <p>「隐藏态 / 前窗无害 / 后窗收束不判且不销毁」的全部实现就在这里——本方法返回
+     * false 后，{@link DanmakuHitScan} 找不到实体命中，而<b>方块分支独立于本谓词</b>，
+     * 故弹照常撞墙消失。这正是需求要的语义：不生效 ≠ 无碰撞，只是不伤人。
+     *
+     * <p><b>为什么三轴共用一个出口</b>：隐藏是「周期性忽明忽暗」，前窗无害是「出生后
+     * 一段时间可见但不生效」，后窗收束是「到点后停判伤」。三者都是「本 tick 这颗弹能
+     * 不能结算伤害」——语义同一，故 MUST 走同一个谓词；否则「静止弹走 AABB 判伤、
+     * 移动弹走扫掠判伤、雷走触发判伤」会各判一次，漏一处就出现「某一种弹穿身而过却照打」。
      *
      * <p>放在基类而非球弹上：显隐是 {@code Behaviour} 的一轴，与弹种正交。
      * 留在球弹上会让「激光配相位隐藏」静默失效——行为被无声丢弃，
@@ -1443,7 +1639,8 @@ import java.util.Set;
      */
     @Override
     protected boolean canHitEntity(Entity target) {
-        return !this.isHidden() && super.canHitEntity(target) && !this.isWhitelisted(target);
+        return !this.isHidden() && this.damageWindowAllows()
+                && super.canHitEntity(target) && !this.isWhitelisted(target);
     }
 
     private int phasePeriodTicks() {
@@ -1746,19 +1943,11 @@ import java.util.Set;
             if (this.entityData.get(DATA_PREVIEW_TRACE) > 0) {
                 this.tracePreview("STATIONARY_HIT target=" + nearest.getUUID());
             }
+            // 伤害窗口门已在候选过滤（{@link #canHitEntity}）里生效：无害 / 收束期间
+            // 静止弹同样穿身而过。
             this.onHitEntity(new EntityHitResult(nearest,
                     nearest.position().subtract(this.position().add(0.0D, this.getBbHeight() * 0.5D, 0.0D))));
         }
-    }
-
-    /**
-     * 绕指定轴旋转。
-     *
-     * <p>委托给 {@link Rotation}：曲射轴与 rig 的公转/自转共用同一条 Rodrigues 实现，
-     * 「曲射的手感」与「装置公转的手感」才是同一条曲线族，而不是两处各写一遍的近似。
-     */
-    private static Vec3 rotateAbout(Vec3 vec, Vec3 axis, double angleRad) {
-        return Rotation.about(vec, axis, angleRad);
     }
 
     protected void updateRotationFromVelocity() {
@@ -2020,6 +2209,10 @@ import java.util.Set;
         for (int i = 0; i < DanmakuRandomState.MAX_SEEDS; i++) {
             params[DanmakuMotionState.P_RANDOM_SEED_BASE + i] = this.randomSeed(i);
         }
+        params[DanmakuMotionState.P_HARMLESS_UNTIL] = this.harmlessUntil();
+        params[DanmakuMotionState.P_COLLAPSE] = this.entityData.get(DATA_COLLAPSE);
+        params[DanmakuMotionState.P_CURVE_WINDOW] = this.entityData.get(DATA_CURVE_WINDOW);
+        params[DanmakuMotionState.P_FLASH_AGE] = this.flashAge();
         return params;
     }
 
@@ -2074,6 +2267,10 @@ import java.util.Set;
             this.entityData.set(DATA_LEGS[i],
                     params[DanmakuMotionState.P_RANDOM_LEG_COUNT + 1 + i]);
         }
+        this.entityData.set(DATA_HARMLESS_UNTIL, Math.max(0, params[DanmakuMotionState.P_HARMLESS_UNTIL]));
+        this.entityData.set(DATA_COLLAPSE, params[DanmakuMotionState.P_COLLAPSE]);
+        this.entityData.set(DATA_CURVE_WINDOW, params[DanmakuMotionState.P_CURVE_WINDOW]);
+        this.entityData.set(DATA_FLASH_AGE, Math.max(0, params[DanmakuMotionState.P_FLASH_AGE]));
         // 同步字段变了 ⇒ 构造期缓存的方向不再对应当前输入，MUST 失效
         this.invalidateLegMotionCache();
         this.onMotionParamsApplied();
@@ -2179,6 +2376,8 @@ import java.util.Set;
                     ? " target=" + entityHit.getEntity().getUUID() : ""));
         }
         if (result.getType() == HitResult.Type.ENTITY) {
+            // 伤害窗口（前窗无害 / 后窗收束）与隐藏态的门都在 {@link #canHitEntity}——
+            // 扫掠在返回本结果之前已经调用过它，故此处不再重复判一次。
             this.onHitEntity((EntityHitResult) result);
         } else if (result.getType() == HitResult.Type.BLOCK) {
             this.onHitBlock((BlockHitResult) result);
@@ -2380,6 +2579,18 @@ import java.util.Set;
         }
         tag.putInt("CurveAxis", this.entityData.get(DATA_CURVE_AXIS));
         tag.putFloat("CurveRate", curveRate());
+        if (this.curveWindowDuration() > 0) {
+            tag.putInt("CurveWindow", this.entityData.get(DATA_CURVE_WINDOW));
+        }
+        if (this.harmlessUntil() > 0) {
+            tag.putInt("HarmlessUntil", this.harmlessUntil());
+        }
+        if (this.hasCollapse()) {
+            tag.putInt("Collapse", this.entityData.get(DATA_COLLAPSE));
+        }
+        if (this.flashAge() > 0) {
+            tag.putInt("FlashAge", this.flashAge());
+        }
         tag.putFloat("MineRadius", mineRadius());
         tag.putInt("Lifetime", getLifetimeTicks());
         // 径向爆散：爆散年龄与两个速率必须入盘。缺了它们，重载后的弹永远停在花上不炸开——
@@ -2525,6 +2736,18 @@ import java.util.Set;
         }
         if (tag.contains("CurveRate")) {
             this.entityData.set(DATA_CURVE_RATE, tag.getFloat("CurveRate"));
+        }
+        if (tag.contains("CurveWindow")) {
+            this.entityData.set(DATA_CURVE_WINDOW, tag.getInt("CurveWindow"));
+        }
+        if (tag.contains("HarmlessUntil")) {
+            this.entityData.set(DATA_HARMLESS_UNTIL, Math.max(0, tag.getInt("HarmlessUntil")));
+        }
+        if (tag.contains("Collapse")) {
+            this.entityData.set(DATA_COLLAPSE, tag.getInt("Collapse"));
+        }
+        if (tag.contains("FlashAge")) {
+            this.entityData.set(DATA_FLASH_AGE, Math.max(0, tag.getInt("FlashAge")));
         }
         if (tag.contains("MineRadius")) {
             this.entityData.set(DATA_MINE_RADIUS, tag.getFloat("MineRadius"));

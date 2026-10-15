@@ -8,6 +8,17 @@ metadata:
 
 # 召唤型东方 BOSS 开发与设计规范
 
+## 先确认后端与操作状态（重构设计期间必读）
+
+当前代码仍主要使用旧Track/Beat/Behaviour实体路径。新的`DanmakuProgram`处于**proposal阶段，尚未实现**；不得把设计中的CreateEmitter、ReplaceMembers等名字当成现成API。
+
+- 查原子操作与实现状态：[弹幕操作台账](references/danmaku-operations.md)。该文件是技能的统一入口，新增/实现原语时必须更新。
+- 设计入口：[通俗作者指南](../../../openspec/changes/refactor-danmaku-program-runtime/author-guide.md)、[操作契约](../../../openspec/changes/refactor-danmaku-program-runtime/operations.md)、[东方弹幕配方](../../../openspec/changes/refactor-danmaku-program-runtime/pattern-recipes.md)。
+- 下文“一轨一帧”“多拍不需要事件”“帧随每弹复制”等描述属于旧后端经验。设计/实施新程序时以该change的明确替代契约为准，不能用旧实现限制拒绝新需求；维护旧后端时仍核对实际代码与主spec。
+- R3必须同时审查真实展开/派生峰值、近域稳态密度和全局预算；下文“只限单拍”不是完整现行口径。以`openspec/specs/danmaku-track-composition/spec.md`和新程序预算契约为准。
+- 写新表演先找可组合操作，缺图案就扩Pattern，缺数学路径就扩Path，依赖当前世界事实就扩Decision。禁止为单张卡向通用主循环添加形状专用分支。
+
+
 一句话目标：**BOSS 同时背着「好玩」和「素材受限」两件事。** 所以规范的核心是
 **把美术预算全砸在弹幕上，BOSS 之间的差异来自弹幕语法，不来自模型。**
 

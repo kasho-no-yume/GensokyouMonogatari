@@ -126,7 +126,11 @@ public record Behaviour(Motion motion, Split split, Trail trail, Visibility visi
                          int burstAtTick,
                          double burstRadialSpeed,
                          double burstAimSpeed,
-                         int burstTargetId) {
+                         int burstTargetId,
+                         /** 曲射时段窗口起始年龄（tick）。仅 {@code CURVE} 用；0 且时长为 0 = 全程曲射。 */
+                         int curveWindowStart,
+                         /** 曲射时段窗口持续时长（tick）。仅 {@code CURVE} 用；0 = 全程曲射。 */
+                         int curveWindowDuration) {
 
 
         /** 运动种类。 */
@@ -181,7 +185,7 @@ public record Behaviour(Motion motion, Split split, Trail trail, Visibility visi
 
 
         public static Motion none() {
-            return new Motion(Kind.NONE, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0);
+            return new Motion(Kind.NONE, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0, 0, 0);
         }
 
         /**
@@ -191,22 +195,34 @@ public record Behaviour(Motion motion, Split split, Trail trail, Visibility visi
          * 既有的曲射轴打包约定，两端各自按同一规则反解出单位向量，故双端解析一致。
          */
         public static Motion curve(double yawDeg, double pitchDeg, double rateDegPerSec) {
-            return new Motion(Kind.CURVE, yawDeg, pitchDeg, rateDegPerSec, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0);
+            return new Motion(Kind.CURVE, yawDeg, pitchDeg, rateDegPerSec, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0, 0, 0);
+        }
+
+        /**
+         * 带时段窗口的曲射：仅在 {@code [windowStartAge, windowStartAge+windowDuration)} 内偏转。
+         *
+         * <p>窗口 {@code windowDuration <= 0} 时与 {@link #curve(double, double, double)} 等价。
+         * 用于「先直飞 → 匀速转 N° → 停止转向 → 继续直飞」这类有界平滑转向。
+         */
+        public static Motion curve(double yawDeg, double pitchDeg, double rateDegPerSec,
+                                   int windowStartAge, int windowDuration) {
+            return new Motion(Kind.CURVE, yawDeg, pitchDeg, rateDegPerSec, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0,
+                    Math.max(0, windowStartAge), Math.max(0, windowDuration));
         }
 
         /** 悬停。{@code hoverTick <= 0} 不生效。 */
         public static Motion hover(int hoverTick) {
-            return new Motion(Kind.HOVER, 0.0D, 0.0D, 0.0D, hoverTick, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0);
+            return new Motion(Kind.HOVER, 0.0D, 0.0D, 0.0D, hoverTick, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0, 0, 0);
         }
 
         /** 溜め。{@code mineRadius <= 0} 不生效。 */
         public static Motion mine(double triggerRadius) {
-            return new Motion(Kind.MINE, 0.0D, 0.0D, 0.0D, 0, triggerRadius, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0);
+            return new Motion(Kind.MINE, 0.0D, 0.0D, 0.0D, 0, triggerRadius, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0, 0, 0);
         }
 
         /** 贴地。 */
         public static Motion groundHug() {
-            return new Motion(Kind.GROUND_HUG, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0);
+            return new Motion(Kind.GROUND_HUG, 0.0D, 0.0D, 0.0D, 0, 0.0D, 0, 0, 0, 0, 0, 0, 0, false, 0, 0.0D, 0.0D, 0, 0, 0);
         }
 
         /**
@@ -234,7 +250,7 @@ public record Behaviour(Motion motion, Split split, Trail trail, Visibility visi
         public static Motion speedProfile(DanmakuSpeedProfile profile, boolean diesAtOrigin) {
             return new Motion(Kind.SPEED_PROFILE, 0.0D, 0.0D, 0.0D, 0, 0.0D,
                     profile.v0(), profile.p0(), profile.v1(), profile.p1(),
-                    profile.v2(), profile.p2(), profile.v3(), diesAtOrigin, 0, 0.0D, 0.0D, 0);
+                    profile.v2(), profile.p2(), profile.v3(), diesAtOrigin, 0, 0.0D, 0.0D, 0, 0, 0);
         }
 
         /**
@@ -259,7 +275,7 @@ public record Behaviour(Motion motion, Split split, Trail trail, Visibility visi
             return new Motion(Kind.BURST, 0.0D, 0.0D, 0.0D, 0, 0.0D,
                     preBurst.v0(), preBurst.p0(), preBurst.v1(), preBurst.p1(),
                     preBurst.v2(), preBurst.p2(), preBurst.v3(), false,
-                    atAge, radialSpeed, aimSpeed, targetId);
+                    atAge, radialSpeed, aimSpeed, targetId, 0, 0);
         }
 
         /**
@@ -278,7 +294,7 @@ public record Behaviour(Motion motion, Split split, Trail trail, Visibility visi
             return new Motion(Kind.RECLAIM, 0.0D, 0.0D, 0.0D, 0, 0.0D,
                     preBurst.v0(), preBurst.p0(), preBurst.v1(), preBurst.p1(),
                     preBurst.v2(), preBurst.p2(), preBurst.v3(), false,
-                    atAge, 0.0D, speed, targetId);
+                    atAge, 0.0D, speed, targetId, 0, 0);
         }
 
         /** 还原成曲线对象。 */
@@ -406,10 +422,10 @@ public record Behaviour(Motion motion, Split split, Trail trail, Visibility visi
      * <p>周期、占空比、相位三项对全批相同，故只需同步这三项标量，与弹数无关。
      * 隐藏态本身由年龄推导，<b>零额外同步包</b>（前提：双端年龄相等）。
      */
-    public record Visibility(int periodTicks, double duty, int phaseOffset) {
+    public record Visibility(int periodTicks, double duty, int phaseOffset, int flashAge) {
 
         /** 恒可见。 */
-        public static final Visibility ALWAYS = new Visibility(0, 1.0D, 0);
+        public static final Visibility ALWAYS = new Visibility(0, 1.0D, 0, 0);
 
         public static Visibility always() {
             return ALWAYS;
@@ -423,11 +439,26 @@ public record Behaviour(Motion motion, Split split, Trail trail, Visibility visi
          * @param phaseOffset 相位偏移（tick），逐弹错峰用
          */
         public static Visibility phaseHide(int periodTicks, double duty, int phaseOffset) {
-            return new Visibility(periodTicks, duty, phaseOffset);
+            return new Visibility(periodTicks, duty, phaseOffset, 0);
+        }
+
+        /**
+         * 一次性年龄闪亮：弹在出生后到达 {@code flashAge} 时统一提亮一帧，随后恢复常态。
+         *
+         * <p>不是周期行为（那是相位隐藏）——它只闪一次，用于「卡住了、要动了」这类启停提示。
+         * {@code flashAge <= 0} = 关闭。
+         */
+        public static Visibility flashAt(int flashAge) {
+            return new Visibility(0, 1.0D, 0, Math.max(0, flashAge));
         }
 
         public boolean active() {
             return periodTicks > 0 && duty < 1.0D;
+        }
+
+        /** 是否声明了一次性闪亮。 */
+        public boolean flashes() {
+            return flashAge > 0;
         }
 
         /** 本行为是否会让弹<b>周期性免除实体碰撞</b>——用于 lint 的时间维度判据。 */

@@ -180,3 +180,72 @@ t=220 停判伤 ⇔ 该拍声明 `collapseAge = 220 − beat.tick`。这样切�
 - 安全取消的「净距」是否计入 BOSS 自身碰撞体积之外的**地形遮挡**？（契约只提净距）
 - 符印的视觉形态：统一几何 + 颜色，还是每 BOSS 每轨各给一个形态？
 - 后窗收束的淡出是**所有弹统一时长**还是拍级可配？（倾向统一，减少配置面）
+
+## 编排扩展的同步字段表（task 0.2）
+
+`PARAM_COUNT` 63 → 66。三项都不改运动轨迹，但决定「弹在哪些年龄对玩家生效 / 曲射在哪些年龄转」，
+属运动输入的等价物，MUST 被指纹覆盖（`fingerprint` 遍历整块，自动覆盖）。
+
+| 字段 | SynchedEntityData | 参数块下标 | 打包 | 默认 | 存档键 |
+|---|---|---|---|---|---|
+| 前窗无害 `harmlessUntil` | `DATA_HARMLESS_UNTIL` (INT) | `P_HARMLESS_UNTIL = 63` | 直接 | 0 = 无 | `HarmlessUntil`（>0 才写） |
+| 后窗收束 age+fade | `DATA_COLLAPSE` (INT) | `P_COLLAPSE = 64` | `age<<16 \| fade` | 0 = 无 | `Collapse`（有才写） |
+| 曲射窗口 start+dur | `DATA_CURVE_WINDOW` (INT) | `P_CURVE_WINDOW = 65` | `start<<16 \| dur` | 0 = 无窗口（全程曲射） | `CurveWindow`（>0 才写） |
+| 一次性闪亮年龄 | `DATA_FLASH_AGE` (INT) | `P_FLASH_AGE = 66` | 直接 | 0 = 不闪 | `FlashAge`（>0 才写） |
+
+- `DATA_FLAGS` 现有位：CURVE=1 / SPLIT=2 / HOVER=4 / MINE=8 / TRAIL=16 / LASER_PIERCE=32，
+  仅 bit6 空闲；三项均以「0 = 无」表达，故无需新 flag 位。
+- 判伤门只加在服务端（`SphereDanmaku#onHitEntity` 开头即服务端守卫），故两项窗口
+  不影响判伤正确性；窗口值仍需同步，因为客户端要表现淡出、且快照校准块需要覆盖它。
+- 曲射窗口在 `AbstractDanmakuProjectile` 的曲射分支按 `curveActiveAt(age)` 门控，
+  未声明窗口时 `curveWindowDuration()==0` ⇒ 恒真 ⇒ 与改前逐位一致。
+
+## 实机验收回写（2026-10-15，task 8.6）
+
+首轮实机跑 task 8.3 的 8 条命令，发现 4 处缺陷（均已修复）。逐条记此备查——
+它们全部属于「编译过、单测过、实机才现形」的一类。
+
+### 缺陷 1：`DanmakuPreview` 被其它维度立即收掉（lock / telegraph / safety watch 全灭）
+
+- **现象**：`/danmaku lock 8 20` 只见 1 颗；`/danmaku telegraph 20 9` 只有符印没有真弹；
+  `/danmaku safety watch` 只发一组后不再重发（于是「走近取消」永远观察不到）。
+- **证据**：`run/logs/latest.log` 中每条 `[danmaku-preview] START` 之后，
+  同一 `gameTime` 就出现 `STOP ... gameTime=<同一 tick> endTick=<+200 多>`。
+- **成因**：`LevelTickEvent.Post` 对**每个** `ServerLevel` 各触发一次
+  （主世界 / 下界 / 末地 / `gensokyou:gensokyo`），而 `SESSIONS` 跨维度共用。
+  旧代码把「观看者不在本维度」也当成收场条件 ⇒ 任一别的维度 tick 到就把整场收掉。
+- **修复**：`DanmakuPreview.onLevelTick` 对「观看者不在本维度」改为 `continue`；
+  只有观看者不存在 / 被移除、超时、装置被移除才收场。
+
+### 缺陷 2：曲射缺少「度 → 弧度」换算
+
+- **现象**：`/danmaku curve-window 90 20 40` 高频抽搐 + 走螺旋，不是平面圆弧。
+- **成因**：`curveRate()` 的单位是**度/秒**，而 `Rotation.about` 收的是**弧度**。
+  旧代码 `curveRate()/20` 直接当弧度用，45°/s 被当成 2.25 rad/tick（≈129°/tick）。
+- **修复**：`tickDanmaku` 改为 `Math.toRadians(curveRate()/20)`；
+  `/danmaku stress` 的角速度公式随单位一并修正（否则压测弹会飞出网格体积）。
+
+### 缺陷 3：一次性闪亮只改平移、不改尺寸
+
+- **现象**：`/danmaku flash 30` 只见 5 颗弹「抖了一下」，没有放大。
+- **成因**：`SphereDanmakuRenderer.render` 把闪亮乘进局部 `size`，但 `renderShape`
+  读的是 `entity.getSize()`，故闪亮只影响 `translate(0, size*0.5, 0)`。
+- **修复**：闪亮改为 `poseStack.scale`（本体 / 外发光 / 亮核三层共用同一 poseStack，
+  一次 scale 三层一起放大），并顺带把本体 RGB 向白推一档。
+
+### 缺陷 4：探针弹的发射者是玩家本人，永远伤不到玩家
+
+- **现象**：`/danmaku harmless 40` 过了窗口依旧完全不掉血。
+- **成因**：`AbstractDanmakuProjectile.isWhitelisted` 认定「命中者 == 发射者」免伤，
+  而探针命令把执行命令的玩家本人当 owner。
+- **修复**：`spawnHarmless` / `spawnWall` 改用 `owner = null`；`harmless` 改为贴在
+  玩家胸口的一簇**静止弹**（靠 `configureHover` 走 AABB 接触判伤），使
+  「窗口内不掉血 → 窗口一过立刻结算」在同一批弹上直接可见。
+
+### 顺带：伤害窗口并入 `canHitEntity`
+
+用户指出「可见但不判伤的弹」应与隐藏态走**同一道门**。已将前窗无害 / 后窗收束并入
+`canHitEntity`，与 `isHidden()` 共用一个出口；`onHit` / `checkStationaryEntityHit`
+里的重复判据删除。语义仍不同：**隐藏态 = 周期性变暗**，**伤害窗口 = 一次性年龄门且不改变显示**。
+
+

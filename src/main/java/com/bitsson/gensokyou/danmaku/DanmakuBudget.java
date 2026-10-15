@@ -70,6 +70,8 @@ public final class DanmakuBudget {
         STUCK_EXPIRED,
         /** 激光的延迟 + 持续时间走完。 */
         BEAM_ENDED,
+        /** 后窗收束：到收束年龄并淡出结束（extend-danmaku-orchestration）。 */
+        COLLAPSE,
         /** 其它／未标注。 */
         OTHER
     }

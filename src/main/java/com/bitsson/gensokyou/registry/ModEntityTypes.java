@@ -138,6 +138,22 @@ public final class ModEntityTypes {
                     .fireImmune()
                     .build("zaohua_flight_item"));
 
+    /**
+     * 发射源预警符印（{@code extend-danmaku-orchestration}）。
+     *
+     * <p>无伤害、无碰撞、不参与弹幕计数（继承 {@code Entity}）。位置是发射时的一次快照，
+     * 不移动；到点由服务端自行 discard。位置包用高频间隔（10），使符印与真弹的原点看着对齐。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.DanmakuTelegraph>> DANMAKU_TELEGRAPH =
+            ENTITY_TYPES.register("danmaku_telegraph", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.DanmakuTelegraph>of(
+                            com.bitsson.gensokyou.entity.DanmakuTelegraph::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .clientTrackingRange(16)
+                    .updateInterval(10)
+                    .fireImmune()
+                    .build("danmaku_telegraph"));
+
     public static final DeferredHolder<EntityType<?>, EntityType<FairyEntity>> FAIRY =
             ENTITY_TYPES.register("fairy", () -> EntityType.Builder
                     .<FairyEntity>of(FairyEntity::new, MobCategory.MONSTER)

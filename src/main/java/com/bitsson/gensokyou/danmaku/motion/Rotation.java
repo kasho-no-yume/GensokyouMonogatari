@@ -48,4 +48,16 @@ public final class Rotation {
         double pitch = Math.toDegrees(Math.asin(Math.max(-1.0D, Math.min(1.0D, -unit.y))));
         return new double[]{yaw, pitch};
     }
+
+    /**
+     * 按「度/秒」的角速度绕轴旋转 {@code vec} 一个 tick（1/20 秒）。
+     *
+     * <p><b>存在的理由</b>：曲射声明的角速度单位是<b>度/秒</b>，而 {@link #about}
+     * 收的是<b>弧度</b>。这两步换算若散落在调用点，就极易漏掉 {@code toRadians}
+     * ——本项目实测踩过：45°/s 被当成 2.25 rad/tick（≈129°/tick），曲射读作
+     * 「高频抽搐 + 螺旋」而不是圆弧。收敛到本方法后，单位只此一处，可单测。
+     */
+    public static Vec3 aboutDegPerSec(Vec3 vec, Vec3 axis, double degreesPerSecond) {
+        return about(vec, axis, Math.toRadians(degreesPerSecond / 20.0D));
+    }
 }

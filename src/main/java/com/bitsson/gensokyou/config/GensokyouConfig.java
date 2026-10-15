@@ -90,6 +90,12 @@ public class GensokyouConfig {
     public static final ModConfigSpec.IntValue DANMAKU_CALIBRATION_BATCH_CAP;
     /** 冻结弹过期清理扫的间隔（tick）。0 = 关闭。 */
     public static final ModConfigSpec.IntValue DANMAKU_FROZEN_SWEEP_INTERVAL_TICKS;
+    /** extend-danmaku-orchestration：后窗收束的淡出时长（tick）。 */
+    public static final ModConfigSpec.IntValue DANMAKU_COLLAPSE_FADE_TICKS;
+    /** extend-danmaku-orchestration：组级安全取消的最小出生净距（格）。0 = 关闭。 */
+    public static final ModConfigSpec.DoubleValue DANMAKU_MIN_SPAWN_DISTANCE;
+    /** extend-danmaku-orchestration：发射源预警符印是否启用。 */
+    public static final ModConfigSpec.BooleanValue DANMAKU_TELEGRAPH_ENABLED;
 
     /** BOSS 同时锁定的玩家数上限。 */
     public static final ModConfigSpec.IntValue BOSS_MAX_TARGETS;
@@ -1000,6 +1006,9 @@ public class GensokyouConfig {
                 "Danmaku existence is measured in SERVER GAME TIME (see DanmakuLifetime): the sweep only discards bullets whose game-time lifetime has elapsed - never by distance from a player, so retreat-and-return does not destroy live bullets (danmaku-age-continuity).",
                 "The sweep is what reclaims the entity budget (danmakuEntityCap) while the player is away; it cannot see bullets in UNLOADED chunks - those are handled by the persisted birth time on reload.",
                 "Cost is one pass over the level's entities per interval; 40 (~2s) is negligible at the 2000-bullet cap.").defineInRange("danmakuFrozenSweepIntervalTicks", 40, 0, 1200);
+        DANMAKU_COLLAPSE_FADE_TICKS = BUILDER.comment("extend-danmaku-orchestration: fade-out duration, in TICKS, applied to a bullet after its collapse age. The bullet stops dealing damage at the collapse age and is reclaimed at collapseAge + this value. Applies to every bullet that declares a collapse age (the per-card t=220/230 wind-down).").defineInRange("danmakuCollapseFadeTicks", 10, 0, 200);
+        DANMAKU_MIN_SPAWN_DISTANCE = BUILDER.comment("extend-danmaku-orchestration: minimum net spawn distance, in BLOCKS, between a bullet's spawn point and any living combat player. If ANY shot of an emission group violates it, the WHOLE group is cancelled for that beat (never re-emitted nearby, never queued). Net distance subtracts the bullet radius and the player hitbox. 0 disables the check entirely.").defineInRange("danmakuMinSpawnDistance", 6.0D, 0.0D, 64.0D);
+        DANMAKU_TELEGRAPH_ENABLED = BUILDER.comment("extend-danmaku-orchestration: master switch for emission-source telegraph sigils. When false, beats that declare a lead still fire their bullets, but no sigil is spawned. Sigils are cosmetic and fair-play warnings; they are never counted against danmakuEntityCap.").define("danmakuTelegraphEnabled", true);
         BUILDER.pop();
 
         BUILDER.push("boss").comment("add-remnant-touhou-bosses: summoned BOSS movement / targeting / numbers. "

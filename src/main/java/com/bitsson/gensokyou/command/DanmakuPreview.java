@@ -139,13 +139,15 @@ public final class DanmakuPreview {
         }
     }
 
-    /**
-     * 取一个容得下所有轨道数的色盘。
-     *
-     * <p>{@code TrackRunner} 用 {@code palette.at(轨道序)} 取每轨颜色，容量不足会越界。
-     * 各 BOSS 的正式色盘是其签名身份的一部分，预览里改成按序递减的白阶——
-     * 预览要能分辨轨，而不是复现配色。
-     */
+    /** 收掉一场预览（丢弃装置并写日志）。调用方负责从 {@link #SESSIONS} 移除。 */
+    private static void stopSession(Session session, int now) {
+        Gensokyou.LOGGER.info("[danmaku-preview] STOP rig={} gameTime={} endTick={}",
+                session.rig.getUUID(), now, session.endTick);
+        if (!session.rig.isRemoved()) {
+            session.rig.discard();
+        }
+    }
+
     /** 停止预览并清掉装置。 */
     public static void stop(ServerPlayer player) {
         Session session = SESSIONS.remove(player.getUUID());
@@ -181,13 +183,23 @@ public final class DanmakuPreview {
             Map.Entry<UUID, Session> entry = it.next();
             Session session = entry.getValue();
             ServerPlayer viewer = level.getServer().getPlayerList().getPlayer(entry.getKey());
-            if (viewer == null || viewer.isRemoved() || viewer.level() != level
-                    || now >= session.endTick || session.rig.isRemoved()) {
-                Gensokyou.LOGGER.info("[danmaku-preview] STOP rig={} gameTime={} endTick={}",
-                        session.rig.getUUID(), now, session.endTick);
-                if (!session.rig.isRemoved()) {
-                    session.rig.discard();
-                }
+            // 观看者不在了 / 已离开游戏：整场收掉。
+            if (viewer == null || viewer.isRemoved()) {
+                stopSession(session, now);
+                it.remove();
+                continue;
+            }
+            // <p><b>本维度守卫是必需的。</b>{@code LevelTickEvent.Post} 对<b>每个</b>
+            // {@code ServerLevel} 各触发一次（主世界 / 下界 / 末地 / {@code gensokyou:gensokyo}…），
+            // 而 {@code SESSIONS} 是跨维度共用的。若在这里直接判「观看者不在本维度 ⇒ 收掉」，
+            // 那么只要<b>任意一个别的维度</b>在同一 tick 里先 tick 到，本场就会被立即收掉——
+            // 现象是「预览只放了一拍就停」（lock 只见 1 颗、telegraph 只剩符印、safety 不再重发）。
+            // 故本维度没有该观看者时 MUST {@code continue}（跳过），交给它自己那一维处理。
+            if (viewer.level() != level) {
+                continue;
+            }
+            if (now >= session.endTick || session.rig.isRemoved()) {
+                stopSession(session, now);
                 it.remove();
                 continue;
             }

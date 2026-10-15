@@ -170,6 +170,56 @@ public final class TrackLint {
                     tag, steady, budget,
                     card.hasDensityWaiver() ? "；本卡声明了密度豁免，理由见 SpellCard#densityWaiver" : ""));
         }
+        violations.addAll(lintOrchestration(tag, card));
+        return violations;
+    }
+
+    /**
+     * 编排声明的静态判据（{@code extend-danmaku-orchestration}）。
+     *
+     * <p>三条：
+     * <ol>
+     *   <li>领示提前量 MUST ≤ 该锁轴组首拍的循环内 tick——否则符印落在循环之前，
+     *       永不触发（且不报错，只是「符印从来没见过」）。</li>
+     *   <li>收束时刻 MUST 落在符卡循环内——否则收束永不发生（「弹一直不掉血」的反面：
+     *       弹一直判伤到寿命）。</li>
+     *   <li>声明收束的符卡 MUST 声明循环长度——收束以循环内年龄表达，无循环即无参照。</li>
+     * </ol>
+     */
+    private static List<String> lintOrchestration(String tag, SpellCard card) {
+        List<String> violations = new ArrayList<>();
+        int cycle = card.cycleTicks();
+        for (Track track : card.tracks()) {
+            java.util.Map<Integer, Integer> groupMinTick = new java.util.HashMap<>();
+            for (Track.Beat beat : track.beats()) {
+                int group = beat.orchestration().lockGroup();
+                if (group > 0) {
+                    groupMinTick.merge(group, beat.tick(), Math::min);
+                }
+            }
+            for (Track.Beat beat : track.beats()) {
+                Track.Beat.Orchestration o = beat.orchestration();
+                if (o.locks()) {
+                    int min = groupMinTick.getOrDefault(o.lockGroup(), beat.tick());
+                    if (o.leadTicks() > min) {
+                        violations.add(String.format(
+                                "%s: 轨「%s」拍 t=%d 的领示提前量 %d > 组首拍 %d——符印落在循环之前，永不触发",
+                                tag, track.name(), beat.tick(), o.leadTicks(), min));
+                    }
+                }
+                if (o.collapses()) {
+                    if (cycle <= 0) {
+                        violations.add(String.format(
+                                "%s: 轨「%s」拍 t=%d 声明了收束年龄 %d，但本卡未声明循环长度",
+                                tag, track.name(), beat.tick(), o.collapseAge()));
+                    } else if (o.collapseAge() > cycle) {
+                        violations.add(String.format(
+                                "%s: 轨「%s」拍 t=%d 的收束年龄 %d > 循环长度 %d——收束永不发生",
+                                tag, track.name(), beat.tick(), o.collapseAge(), cycle));
+                    }
+                }
+            }
+        }
         return violations;
     }
 

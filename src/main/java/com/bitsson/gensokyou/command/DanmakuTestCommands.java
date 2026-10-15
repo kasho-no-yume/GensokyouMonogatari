@@ -196,7 +196,320 @@ public final class DanmakuTestCommands {
                                                                 IntegerArgumentType.getInteger(context, "seconds"),
                                                                 (float) DoubleArgumentType
                                                                         .getDouble(context, "damage"))))))))
+
+                // ---- extend-danmaku-orchestration 验收命令 ----
+
+                // /danmaku harmless <window> - 前窗无害：窗口内贴身不掉血
+                .then(Commands.literal("harmless")
+                        .then(Commands.argument("window", IntegerArgumentType.integer(1, 600))
+                                .executes(context -> spawnHarmless(
+                                        context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "window")))))
+
+                // /danmaku tail <life> <collapse> <fade> - 后窗收束：到点停判伤 + 淡出回收
+                .then(Commands.literal("tail")
+                        .then(Commands.argument("life", IntegerArgumentType.integer(5, 4000))
+                                .then(Commands.argument("collapse", IntegerArgumentType.integer(1, 4000))
+                                        .then(Commands.argument("fade", IntegerArgumentType.integer(0, 200))
+                                                .executes(context -> spawnTail(
+                                                        context.getSource().getPlayerOrException(),
+                                                        IntegerArgumentType.getInteger(context, "life"),
+                                                        IntegerArgumentType.getInteger(context, "collapse"),
+                                                        IntegerArgumentType.getInteger(context, "fade")))))))
+
+                // /danmaku curve-window <deg> <startAge> <duration> - 有界平滑转向
+                .then(Commands.literal("curve-window")
+                        .then(Commands.argument("deg", DoubleArgumentType.doubleArg(-180.0D, 180.0D))
+                                .then(Commands.argument("startAge", IntegerArgumentType.integer(0, 600))
+                                        .then(Commands.argument("duration", IntegerArgumentType.integer(1, 600))
+                                                .executes(context -> spawnCurveWindow(
+                                                        context.getSource().getPlayerOrException(),
+                                                        DoubleArgumentType.getDouble(context, "deg"),
+                                                        IntegerArgumentType.getInteger(context, "startAge"),
+                                                        IntegerArgumentType.getInteger(context, "duration")))))))
+
+                // /danmaku lock <beats> <interval> - 锁轴快照：跨拍图案在横移下保持刚性
+                .then(Commands.literal("lock")
+                        .executes(context -> spawnLock(context.getSource().getPlayerOrException(), 8, 20))
+                        .then(Commands.argument("beats", IntegerArgumentType.integer(2, 48))
+                                .executes(context -> spawnLock(
+                                        context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "beats"), 20))
+                                .then(Commands.argument("interval", IntegerArgumentType.integer(2, 80))
+                                        .executes(context -> spawnLock(
+                                                context.getSource().getPlayerOrException(),
+                                                IntegerArgumentType.getInteger(context, "beats"),
+                                                IntegerArgumentType.getInteger(context, "interval"))))))
+
+                // /danmaku safety <offset> - 组级安全取消：贴脸整组不发
+                .then(Commands.literal("safety")
+                        .executes(context -> spawnSafety(context.getSource().getPlayerOrException(), 3.0D))
+                        .then(Commands.literal("watch")
+                                .executes(context -> spawnSafetyWatch(
+                                        context.getSource().getPlayerOrException())))
+                        .then(Commands.argument("offset", DoubleArgumentType.doubleArg(0.5D, 40.0D))
+                                .executes(context -> spawnSafety(
+                                        context.getSource().getPlayerOrException(),
+                                        DoubleArgumentType.getDouble(context, "offset")))))
+
+                // /danmaku telegraph <lead> <count> - 发射源符印：先亮符印，真弹随后同原点发射
+                .then(Commands.literal("telegraph")
+                        .executes(context -> spawnTelegraph(
+                                context.getSource().getPlayerOrException(), 20, 9))
+                        .then(Commands.argument("lead", IntegerArgumentType.integer(5, 120))
+                                .executes(context -> spawnTelegraph(
+                                        context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "lead"), 9))
+                                .then(Commands.argument("count", IntegerArgumentType.integer(1, 9))
+                                        .executes(context -> spawnTelegraph(
+                                                context.getSource().getPlayerOrException(),
+                                                IntegerArgumentType.getInteger(context, "lead"),
+                                                IntegerArgumentType.getInteger(context, "count"))))))
+
+                // /danmaku flash <age> - 一次性闪亮：弹在出生后第 age tick 提亮一帧
+                .then(Commands.literal("flash")
+                        .executes(context -> spawnFlash(context.getSource().getPlayerOrException(), 30))
+                        .then(Commands.argument("age", IntegerArgumentType.integer(1, 600))
+                                .executes(context -> spawnFlash(
+                                        context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "age")))))
         );
+    }
+
+    /**
+     * {@code /danmaku harmless}：在玩家胸口处生成一簇<b>静止</b>弹（全程可见），
+     * 自出生起就与玩家重叠，用于观察「前窗无害」这道年龄门。
+     *
+     * <p><b>为什么 MUST 用 {@code owner = null}</b>：{@code AbstractDanmakuProjectile}
+     * 的 {@code isWhitelisted} 认定「命中者 == 发射者」即免伤，而本命令的发射者就是
+     * 执行命令的玩家本人——若照旧把玩家当 owner，这簇弹<b>永远不会伤到玩家</b>，
+     * 「窗口一过立刻掉血」这条期望观测根本无法成立。（实机验证踩过。）
+     *
+     * <p>静止弹靠 {@code configureHover} 走 AABB 接触判伤——零位移的扫掠恒 MISS
+     * （见 {@code tickDanmaku} 的 stationary 分支），不挂 hover 就变成打不到人的摆设。
+     */
+    private static int spawnHarmless(ServerPlayer player, int window) {
+        Vec3 look = player.getLookAngle();
+        Vec3 right = new Vec3(-look.z, 0.0D, look.x);
+        if (right.lengthSqr() < 1.0E-6D) {
+            right = new Vec3(1.0D, 0.0D, 0.0D);
+        }
+        right = right.normalize();
+        // 以玩家胸口为中心、紧凑到「每一颗的判伤盒都覆盖玩家」的一簇：
+        // 于是同一批弹在窗口内穿身而过、窗口一过同时结算。间距 0.5 是调出来的
+        // —— 0.75 时最外一列（±0.75）会够不到玩家（弹半径 0.2 + AABB inflate 0.35
+        // + 玩家半宽 0.3 ≈ 0.85 才够），于是「墙」会只掉一部分血，读数不可信。
+        Vec3 centre = player.position().add(0.0D, player.getBbHeight() * 0.5D, 0.0D);
+        int count = 0;
+        for (int col = 0; col < 4; col++) {
+            for (int row = 0; row < 3; row++) {
+                SphereDanmaku bullet = new SphereDanmaku(player.level(), null, 1.0F, 0x66E8FF,
+                        0.4F, new HashSet<>());
+                Vec3 at = centre.add(right.scale((col - 1.5D) * 0.5D))
+                        .add(0.0D, (row - 1.0D) * 0.5D, 0.0D);
+                bullet.moveTo(at.x, at.y, at.z, 0F, 0F);
+                bullet.setDeltaMovement(Vec3.ZERO);
+                bullet.configureHover(1);
+                bullet.configureHarmless(window);
+                bullet.setLifetimeTicks(window + 200);
+                player.level().addFreshEntity(bullet);
+                count++;
+            }
+        }
+        DanmakuBudget.recordEmit();
+        player.sendSystemMessage(Component.literal(String.format(
+                "§c前窗无害 §7%d 发（4×3，贴在胸口、全程可见），窗口 %d tick。"
+                        + "§f窗口内你与它们重叠却完全不掉血；窗口一过，同一批弹立刻结算并消失",
+                count, window)));
+        player.sendSystemMessage(Component.literal(
+                "§7对照 §f/danmaku wall 20 40 50 §7是「周期性忽明忽暗、暗期不掉血」——与本窗口的「一直可见、只是到期前不生效」不同"));
+        return count;
+    }
+
+    /** {@code /danmaku tail}：生成一批带后窗收束的弹（寿命 / 收束年龄 / 淡出）。 */
+    private static int spawnTail(ServerPlayer player, int life, int collapse, int fade) {
+        Vec3 origin = player.getEyePosition().add(player.getLookAngle().scale(6.0D));
+        Vec3 toPlayer = player.getEyePosition().subtract(origin);
+        Vec3 dir = toPlayer.lengthSqr() < 1.0E-6D ? player.getLookAngle() : toPlayer.normalize();
+        for (int i = 0; i < 5; i++) {
+            SphereDanmaku bullet = new SphereDanmaku(player.level(), player, 4.0F, 0xFFE066,
+                    0.5F, new HashSet<>());
+            bullet.moveTo(origin.x + i * 0.9D, origin.y, origin.z, 0F, 0F);
+            bullet.setDirection(dir, 0.04D);
+            bullet.setLifetimeTicks(life);
+            bullet.configureCollapse(collapse, fade);
+            player.level().addFreshEntity(bullet);
+        }
+        DanmakuBudget.recordEmit();
+        player.sendSystemMessage(Component.literal(String.format(
+                "§c后窗收束 §7%d 发，寿命 %d，收束年龄 %d，淡出 %d。§f%s",
+                5, life, collapse, fade,
+                "到收束年龄应停判伤并变淡，随后回收（读 /gs_boss danmaku 的 COLLAPSE 死因）")));
+        return 5;
+    }
+
+    /** {@code /danmaku curve-window}：有界平滑转向测试弹（水平面内的干净圆弧）。 */
+    private static int spawnCurveWindow(ServerPlayer player, double deg, int startAge, int duration) {
+        Vec3 pos = player.getEyePosition().add(player.getLookAngle().scale(6.0D));
+        // 方向取水平投影——否则「绕竖直轴匀速转」会叠上竖直分量，走成螺旋而不是平面弧。
+        Vec3 look = player.getLookAngle();
+        Vec3 dir = new Vec3(look.x, 0.0D, look.z);
+        if (dir.lengthSqr() < 1.0E-6D) {
+            dir = new Vec3(1.0D, 0.0D, 0.0D);
+        }
+        dir = dir.normalize();
+        // 角速度（度/秒）= 总转角 ÷ 持续秒。
+        double rateDegPerSec = deg / Math.max(0.05D, duration / 20.0D);
+        SphereDanmaku bullet = new SphereDanmaku(player.level(), player, 2.0F, 0xFFAA00,
+                0.7F, new HashSet<>());
+        bullet.moveTo(pos.x, pos.y, pos.z, 0F, 0F);
+        bullet.setDirection(dir, 0.3D);
+        bullet.configureCurve(new Vec3(0.0D, 1.0D, 0.0D), rateDegPerSec);
+        bullet.configureCurveWindow(startAge, duration);
+        bullet.setLifetimeTicks(startAge + duration + 300);
+        player.level().addFreshEntity(bullet);
+        DanmakuBudget.recordEmit();
+        player.sendSystemMessage(Component.literal(String.format(
+                "§c有界平滑转向 §7先沿当前水平方向直飞 %d tick，随后 %d tick 内水平转 %.0f°（%.1f°/s），"
+                        + "之后沿新方向直飞。§f路径是「直线 → 圆弧 → 直线」，MUST NOT 是螺旋或折角",
+                startAge, duration, deg, rateDegPerSec)));
+        return 1;
+    }
+
+    /**
+     * {@code /danmaku lock}：跑一张合成的锁轴符卡（{@code lockGroup=1}），
+     * 跨拍逐个点亮一个环。若锁轴生效，环保持刚性、圆不剪切；横移时圆心不动。
+     */
+    private static int spawnLock(ServerPlayer player, int beats, int interval) {
+        int n = Math.max(2, Math.min(48, beats));
+        int step = Math.max(2, interval);
+        int cycle = n * step;
+        com.bitsson.gensokyou.danmaku.track.Track.Builder builder =
+                com.bitsson.gensokyou.danmaku.track.Track.of("锁轴测试", 0x66E8FF)
+                        .repeatEvery(0)
+                        // 每拍相位 +360/n：逐颗点亮一圈。缺了它，8 拍会全部落在同一个角上（只看到一颗）。
+                        .phaseStep(360.0D / (n * (double) step));
+        for (int i = 0; i < n; i++) {
+            builder.orchestration(new com.bitsson.gensokyou.danmaku.track.Track.Beat.Orchestration(1, 0, 0));
+            builder.at(i * step, Shape.DISC_RING, Shape.Params.defaults()
+                            .count(1).radius(4.0D).offsetForward(-6.0D).size(0.8D).speed(0.0D),
+                    Behaviour.NONE, com.bitsson.gensokyou.danmaku.track.TargetMode.SELF_AXIS);
+        }
+        SpellCard card = new SpellCard(Component.literal("锁轴测试"), 1.0D,
+                List.of(builder.build()), cycle);
+        int seconds = Math.max(6, cycle / 20 + 3);
+        DanmakuPreview.start(player,
+                new DanmakuPreview.CardSet(List.of(card),
+                        com.bitsson.gensokyou.danmaku.track.SignaturePalette.of(0x66E8FF)),
+                List.of(card), seconds, 0.0F);
+        player.sendSystemMessage(Component.literal(String.format(
+                "§c锁轴快照 §7%d 拍 × %d tick，逐颗点亮半径 4 的环（形心在 BOSS 身后 6 格）。"
+                        + "§f八颗应落在同一个圆上；边生成边左右/前后走 5 格：圆 MUST NOT 被拉成螺线或漂移",
+                n, step)));
+        player.sendSystemMessage(Component.literal(
+                "§7读 §f/gs_boss danmaku §7的 orchestration[lockGroups=..]（本命令应 +1）"));
+        return n;
+    }
+
+    /**
+     * {@code /danmaku safety}：跑一张合成符卡，其唯一一发落在距玩家 {@code offset} 格处。
+     * {@code offset} 低于最小安全距离（config）时整组应被取消。
+     */
+    private static int spawnSafety(ServerPlayer player, double offset) {
+        double rigDistance = 8.0D;
+        double offsetForward = rigDistance - Math.max(0.5D, offset);
+        com.bitsson.gensokyou.danmaku.track.Track.Builder builder =
+                com.bitsson.gensokyou.danmaku.track.Track.of("安全测试", 0x66E8FF).repeatEvery(0);
+        builder.at(0, Shape.DISC_RING, Shape.Params.defaults()
+                        .count(3).radius(0.4D).offsetForward(offsetForward).size(0.4D).speed(0.05D),
+                Behaviour.NONE, com.bitsson.gensokyou.danmaku.track.TargetMode.SELF_AXIS);
+        SpellCard card = new SpellCard(Component.literal("安全测试"), 1.0D, List.of(builder.build()), 60);
+        DanmakuPreview.start(player,
+                new DanmakuPreview.CardSet(List.of(card),
+                        com.bitsson.gensokyou.danmaku.track.SignaturePalette.of(0x66E8FF)),
+                List.of(card), 6, 0.0F);
+        double min = com.bitsson.gensokyou.config.GensokyouConfig.DANMAKU_MIN_SPAWN_DISTANCE.get();
+        player.sendSystemMessage(Component.literal(String.format(
+                "§c安全取消 §7目标出生距玩家约 %.1f 格（最小安全距离 %.1f）。§f%s",
+                offset, min,
+                offset < min ? "应整组取消（/gs_boss danmaku 的 safetyCancelled 增 1）"
+                        : "应正常生成（safetyCancelled 不变）")));
+        return 1;
+    }
+
+    /**
+     * {@code /danmaku flash}：生成一批静止弹，在出生后第 {@code age} tick 统一放大提亮一帧。
+     */
+    private static int spawnFlash(ServerPlayer player, int age) {
+        Vec3 origin = player.getEyePosition().add(player.getLookAngle().scale(6.0D));
+        Vec3 right = new Vec3(-player.getLookAngle().z, 0.0D, player.getLookAngle().x);
+        if (right.lengthSqr() < 1.0E-6D) {
+            right = new Vec3(1.0D, 0.0D, 0.0D);
+        }
+        right = right.normalize();
+        for (int i = 0; i < 5; i++) {
+            SphereDanmaku bullet = new SphereDanmaku(player.level(), player, 0.0F, 0x9C6BFF,
+                    0.6F, new HashSet<>());
+            Vec3 at = origin.add(right.scale((i - 2) * 1.2D));
+            bullet.moveTo(at.x, at.y, at.z, 0F, 0F);
+            bullet.setDeltaMovement(Vec3.ZERO);
+            bullet.configureHover(1);
+            bullet.configureFlash(age);
+            bullet.setLifetimeTicks(age + 100);
+            player.level().addFreshEntity(bullet);
+        }
+        DanmakuBudget.recordEmit();
+        player.sendSystemMessage(Component.literal(String.format(
+                "§c一次性闪亮 §7%d 颗静止弹，闪亮年龄 %d。§f它们应在第 %d tick 同时放大提亮一帧，"
+                        + "之后恢复常态；MUST NOT 持续闪烁",
+                5, age, age)));
+        return 5;
+    }
+
+    /**
+     * {@code /danmaku telegraph}：一张合成符卡，其唯一一拍位于 {@code t=lead} 并声明领示 {@code lead}，
+     * 故符印在第 0 tick 出现、持续 {@code lead} tick，随后真弹从同一原点射出（共用锁轴快照）。
+     */
+    private static int spawnTelegraph(ServerPlayer player, int lead, int count) {
+        int ticks = Math.max(5, Math.min(120, lead));
+        int shots = Math.max(1, Math.min(9, count));
+        int cycle = ticks + 60;
+        com.bitsson.gensokyou.danmaku.track.Track.Builder builder =
+                com.bitsson.gensokyou.danmaku.track.Track.of("符印测试", 0x66E8FF).repeatEvery(0);
+        builder.orchestration(new com.bitsson.gensokyou.danmaku.track.Track.Beat.Orchestration(1, ticks, 0));
+        builder.at(ticks, Shape.DISC_RING, Shape.Params.defaults()
+                        .count(shots).radius(1.2D).offsetForward(0.0D).size(0.6D).speed(0.06D),
+                Behaviour.NONE, com.bitsson.gensokyou.danmaku.track.TargetMode.SELF_AXIS);
+        SpellCard card = new SpellCard(Component.literal("符印测试"), 1.0D, List.of(builder.build()), cycle);
+        DanmakuPreview.start(player,
+                new DanmakuPreview.CardSet(List.of(card),
+                        com.bitsson.gensokyou.danmaku.track.SignaturePalette.of(0x66E8FF)),
+                List.of(card), Math.max(8, (cycle * 2) / 20), 0.0F);
+        player.sendSystemMessage(Component.literal(String.format(
+                "§c发射源符印 §7领示 %d tick、真弹 %d 发。§f应看到：符印先亮起约 %d tick → 随后真弹"
+                        + "从符印所在点冒出。读 §f/gs_boss danmaku §7的 telegraphs 递增",
+                ticks, shots, ticks)));
+        return 1;
+    }
+    private static int spawnSafetyWatch(ServerPlayer player) {
+        com.bitsson.gensokyou.danmaku.track.Track.Builder builder =
+                com.bitsson.gensokyou.danmaku.track.Track.of("安全观察", 0x66E8FF)
+                        .repeatEvery(20);
+        builder.at(0, Shape.DISC_RING, Shape.Params.defaults()
+                        .count(3).radius(0.5D).offsetForward(0.0D).size(0.5D).speed(0.05D),
+                Behaviour.NONE, com.bitsson.gensokyou.danmaku.track.TargetMode.SELF_AXIS);
+        SpellCard card = new SpellCard(Component.literal("安全观察"), 1.0D,
+                List.of(builder.build()), 20);
+        DanmakuPreview.start(player,
+                new DanmakuPreview.CardSet(List.of(card),
+                        com.bitsson.gensokyou.danmaku.track.SignaturePalette.of(0x66E8FF)),
+                List.of(card), 30, 0.0F);
+        double min = com.bitsson.gensokyou.config.GensokyouConfig.DANMAKU_MIN_SPAWN_DISTANCE.get();
+        player.sendSystemMessage(Component.literal(String.format(
+                "§c安全观察 §7每 20 tick 在装置处重发一组。§f%s（最小安全距离 %.1f）",
+                "朝装置走近到 6 格内：整组应消失；走远：整组恢复。读 safetyCancelled 是否随走位递增",
+                min)));
+        return 1;
     }
 
     /**
@@ -283,8 +596,9 @@ public final class DanmakuTestCommands {
      * </ol>
      * 公转同时满足两者：绕自身出生点转圈，半径固定，永远不离开原地。
      *
-     * <p>公转角速度由「半径 × 角速度 = 线速度」反推：
-     * {@code rate = 2π·speed·(180/π)/(20·radius) = 18·speed/radius}（度/秒）。
+     * <p>公转角速度由「半径 × 角速度 = 线速度」反推：要让速度矢量每 tick 转
+     * {@code θ_rad = v / R} 弧度（才能绕出半径 R 的圆），换算成 {@code configureCurve}
+     * 收的「度/秒」即 {@code rate = toDegrees(v / R) × 20}。
      *
      * <p>用法：
      * <pre>
@@ -300,7 +614,7 @@ public final class DanmakuTestCommands {
     private static int spawnStress(ServerPlayer player, int count, int lifetimeTicks) {
         Vec3 origin = player.getEyePosition();
         int side = (int) Math.ceil(Math.cbrt(count));
-        double rateDegPerSec = 18.0D * STRESS_SPEED / STRESS_ORBIT_RADIUS;
+        double rateDegPerSec = Math.toDegrees(STRESS_SPEED / STRESS_ORBIT_RADIUS) * 20.0D;
         int spawned = 0;
         for (int i = 0; i < count; i++) {
             int gx = i % side;
@@ -370,7 +684,7 @@ public final class DanmakuTestCommands {
             Vec3 at = origin.add(look.scale(10.0D))
                     .add(new Vec3((gx - side / 2.0) * spacing, 0.0D, (gz - side / 2.0) * spacing));
             SphereDanmaku bullet = new SphereDanmaku(
-                    player.level(), player, 2.0F, 0, 0.35F, new HashSet<>());
+                    player.level(), null, 1.0F, 0, 0.35F, new HashSet<>());
             bullet.moveTo(at.x, at.y, at.z, 0.0F, 0.0F);
             // 朝玩家缓慢推进——慢速是为了留出观察时间
             Vec3 toPlayer = player.getEyePosition().subtract(at);

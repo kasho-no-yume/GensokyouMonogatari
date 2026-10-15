@@ -118,6 +118,22 @@ public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behavio
                              Projectile projectile, Track.Beat.SpawnAnchor anchorArg,
                              int lifetimeTicks, int turnTargetId,
                              @Nullable com.bitsson.gensokyou.danmaku.motion.DanmakuLegSpec legSpec) {
+        emit(boss, shot, behaviour, color, damage, formation, center, projectile, anchorArg,
+                lifetimeTicks, turnTargetId, legSpec, 0, 0);
+    }
+
+    /**
+     * 发射一枚弹的完整入口，额外携带<b>伤害窗口</b>。
+     *
+     * @param harmlessTicks 前窗无害（tick）；{@code <= 0} = 自出生起即可判伤
+     * @param collapseAge   后窗收束年龄（tick，相对本弹出生）；{@code <= 0} = 无收束
+     */
+    public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behaviour,
+                             int color, float damage, Behaviour.Formation formation, Vec3 center,
+                             Projectile projectile, Track.Beat.SpawnAnchor anchorArg,
+                             int lifetimeTicks, int turnTargetId,
+                             @Nullable com.bitsson.gensokyou.danmaku.motion.DanmakuLegSpec legSpec,
+                             int harmlessTicks, int collapseAge) {
 
         if (!(boss.level() instanceof ServerLevel server)) {
             return;
@@ -139,6 +155,15 @@ public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behavio
         }
         if (lifetimeTicks > 0) {
             bullet.setLifetimeTicks(lifetimeTicks);
+        }
+        // 伤害窗口：前窗无害与后窗收束。两者都不改运动，只在判伤入口设年龄门。
+        if (harmlessTicks > 0) {
+            bullet.configureHarmless(harmlessTicks);
+        }
+        if (collapseAge > 0) {
+            bullet.configureCollapse(collapseAge,
+                    Math.max(0, com.bitsson.gensokyou.config.GensokyouConfig
+                            .DANMAKU_COLLAPSE_FADE_TICKS.get()));
         }
         applySpawnAnchor(bullet, boss, shot, anchor);
         applyMotion(bullet, shot, behaviour.motion(), speed, turnTargetId);
@@ -307,9 +332,16 @@ public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behavio
             bullet.setDeltaMovement(Vec3.ZERO);
         }
         switch (kind) {
-            case CURVE -> bullet.configureCurve(
-                    Geometry.axisFrom(motion.curveYawDeg(), motion.curvePitchDeg()),
-                    motion.curveRateDegPerSec());
+            case CURVE -> {
+                bullet.configureCurve(
+                        Geometry.axisFrom(motion.curveYawDeg(), motion.curvePitchDeg()),
+                        motion.curveRateDegPerSec());
+                // 时段窗口：duration<=0 时 no-op，即「全程曲射」。
+                bullet.configureCurveWindow(motion.curveWindowStart(), motion.curveWindowDuration());
+                if (motion.curveWindowDuration() > 0) {
+                    com.bitsson.gensokyou.danmaku.DanmakuOrchestrationStats.recordCurveWindow();
+                }
+            }
             // 速率曲线 MUST 在 setDirection 之后挂：它要趁速度非零时记下方向轴
             // （曲线会把速率降到 0，零速时方向不可恢复）。
             case SPEED_PROFILE -> bullet.configureSpeedProfile(motion.speedProfile(),
@@ -358,6 +390,9 @@ public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behavio
         if (visibility.active()) {
             bullet.configurePhaseHide(
                     visibility.periodTicks(), visibility.duty(), visibility.phaseOffset());
+        }
+        if (visibility.flashes()) {
+            bullet.configureFlash(visibility.flashAge());
         }
     }
 

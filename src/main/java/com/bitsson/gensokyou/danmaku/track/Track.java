@@ -83,7 +83,35 @@ import java.util.List;
                        TargetMode targetMode, Projectile projectile,
                        int lifetimeTicks, int harmlessTicks,
                        SpawnAnchor anchor, double centreDamage, double centreSize,
-                       com.bitsson.gensokyou.danmaku.motion.DanmakuLegSpec legSpec) {
+                       com.bitsson.gensokyou.danmaku.motion.DanmakuLegSpec legSpec,
+                       Orchestration orchestration) {
+
+    /**
+     * 编排声明（{@code extend-danmaku-orchestration}）。
+     *
+     * <p>三项都可选，缺省即既有语义（逐拍采样、无符印、无收束）。
+     *
+     * @param lockGroup  锁轴组标识；{@code > 0} 表示本拍与同组拍共享一次世界快照，组首拍重新捕获
+     * @param leadTicks  领示提前量（tick）：真弹发射前多少 tick 显示无伤害符印；{@code 0} = 无符印
+     * @param collapseAge 收束年龄（循环内 tick）：此后弹停判伤并淡出；{@code 0} = 无收束
+     */
+    public record Orchestration(int lockGroup, int leadTicks, int collapseAge) {
+
+        /** 不声明任何编排。绝大多数拍用这个。 */
+        public static final Orchestration NONE = new Orchestration(0, 0, 0);
+
+        public boolean locks() {
+            return lockGroup > 0;
+        }
+
+        public boolean telegraphs() {
+            return leadTicks > 0;
+        }
+
+        public boolean collapses() {
+            return collapseAge > 0;
+        }
+    }
 
     /**
      * 旧签名（无段式运动）。保留它是为了让既有调用点与测试<b>一行不改</b>——
@@ -95,7 +123,18 @@ import java.util.List;
                 int lifetimeTicks, int harmlessTicks,
                 SpawnAnchor anchor, double centreDamage, double centreSize) {
         this(tick, shape, params, behaviour, targetMode, projectile, lifetimeTicks,
-                harmlessTicks, anchor, centreDamage, centreSize, null);
+                harmlessTicks, anchor, centreDamage, centreSize, null, Orchestration.NONE);
+    }
+
+    /** 声明编排的构造（锁轴组 / 领示 / 收束）。 */
+    public Beat(int tick, Shape shape, Shape.Params params, Behaviour behaviour,
+                TargetMode targetMode, Projectile projectile,
+                int lifetimeTicks, int harmlessTicks,
+                SpawnAnchor anchor, double centreDamage, double centreSize,
+                Orchestration orchestration) {
+        this(tick, shape, params, behaviour, targetMode, projectile, lifetimeTicks,
+                harmlessTicks, anchor, centreDamage, centreSize, null,
+                orchestration == null ? Orchestration.NONE : orchestration);
     }
 
     /** 本拍是否声明了段式运动。 */
@@ -189,6 +228,9 @@ import java.util.List;
 
         /** 段式运动形态；{@code null} = 本轨不使用。由 {@link #legMotion} 设置。 */
         private com.bitsson.gensokyou.danmaku.motion.DanmakuLegSpec legSpec = null;
+
+        /** 编排声明；{@code NONE} = 不声明。由 {@link #orchestration} 设置。 */
+        private Beat.Orchestration orchestration = Beat.Orchestration.NONE;
 
         private Builder(String name, int color) {
             this.name = name;
@@ -296,7 +338,18 @@ import java.util.List;
                     Math.max(0, lifetimeTicks), Math.max(0, harmlessTicks),
                     anchor == null ? Beat.SpawnAnchor.NONE : anchor,
                     Math.max(0.0D, centreDamage), Math.max(0.0D, centreSize),
-                    this.legSpec));
+                    this.legSpec, this.orchestration));
+            return this;
+        }
+
+        /**
+         * 声明本轨后续各拍的编排（锁轴组 / 领示 / 收束）。
+         *
+         * <p>与 {@link #legMotion} 同构：builder 级、影响此后添加的拍，
+         * 故 MUST 在添加拍<b>之前</b>调用。同一轨内不同组需在换组前重设。
+         */
+        public Builder orchestration(Beat.Orchestration value) {
+            this.orchestration = value == null ? Beat.Orchestration.NONE : value;
             return this;
         }
 

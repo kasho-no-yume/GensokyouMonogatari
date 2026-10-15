@@ -23,7 +23,7 @@ import java.util.UUID;
 public final class DanmakuMotionState {
 
     /** 运动输入块的字段数。改动 MUST 同步 {@code PARAM_*} 常量与实体的编解码。 */
-    public static final int PARAM_COUNT = 63;
+    public static final int PARAM_COUNT = 67;
 
     public static final int P_FLAGS = 0;
     public static final int P_HOVER_TICK = 1;
@@ -70,6 +70,18 @@ public final class DanmakuMotionState {
     public static final int P_RANDOM_LEG_COUNT = 54;
     public static final int P_RANDOM_SEED_BASE = 55;
     public static final int P_RANDOM_SEED_SLOTS = 8;
+
+    // 编排扩展（extend-danmaku-orchestration）：伤害窗口与曲射窗口。
+    // 三项都不改运动轨迹，但决定「弹在哪些年龄对玩家生效」与「曲射在哪些年龄转」，
+    // 属运动输入的等价物，故 MUST 被指纹覆盖（fingerprint 遍历整块）。
+    /** 前窗无害：出生后多少 tick 内不判伤。0 = 无。 */
+    public static final int P_HARMLESS_UNTIL = 63;
+    /** 后窗收束：低 16 位收束年龄、高 16 位淡出时长。0 = 无。 */
+    public static final int P_COLLAPSE = 64;
+    /** 曲射时段窗口：低 16 位起始年龄、高 16 位持续时长。0 = 无窗口（全程曲射）。 */
+    public static final int P_CURVE_WINDOW = 65;
+    /** 一次性闪亮年龄（tick）。0 = 不闪。 */
+    public static final int P_FLASH_AGE = 66;
 
     /** 位置定点化比例。与原版实体位置包的 1/4096 一致，便于对照与诊断。 */
     public static final double POSITION_SCALE = 4096.0D;

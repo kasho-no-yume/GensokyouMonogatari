@@ -201,6 +201,8 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         // 使加法贡献按暗态系数平方下降 —— 只缩 alpha 对加法层几乎无效。
         // 延迟期不走本方法，预警线因此天然不受影响。
         float dim = entity.isActiveHidden() ? HIDDEN_DIM : 1.0F;
+        // 后窗收束淡出：与相位隐藏叠加（乘性）。
+        dim *= entity.collapseFadeFactor();
         if (dim < 1.0F) {
             r = (int) (r * dim);
             g = (int) (g * dim);

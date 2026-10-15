@@ -128,6 +128,8 @@ public final class BossDebugCommands {
                 + com.bitsson.gensokyou.danmaku.render.DanmakuRenderProbe.summary()), false);
         source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
                 + legMotionStats(source)), false);
+        source.sendSuccess(() -> Component.literal("[GS-DANMAKU] "
+                + com.bitsson.gensokyou.danmaku.DanmakuOrchestrationStats.summary()), false);
         return 1;
     }
 
@@ -174,6 +176,7 @@ public final class BossDebugCommands {
     private static int danmakuReset(CommandSourceStack source) {
         com.bitsson.gensokyou.danmaku.DanmakuBudget.resetStats();
         com.bitsson.gensokyou.danmaku.render.DanmakuSyncStats.reset();
+        com.bitsson.gensokyou.danmaku.DanmakuOrchestrationStats.reset();
         source.sendSuccess(() -> Component.literal("[GS-DANMAKU] 统计已清零"), false);
         return 1;
     }

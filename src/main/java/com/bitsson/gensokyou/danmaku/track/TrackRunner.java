@@ -55,6 +55,78 @@ public final class TrackRunner {
      */
     private SpellCard pending;
     private boolean currentResolved;
+
+    // ------------------------------------------------------------------
+    // 锁轴快照（extend-danmaku-orchestration）
+    //
+    // 一个「锁轴组」= 若干拍共享一次世界快照（原点 O、基 F/R/U、各目标胸口 T）。
+    // 键 = (轨道下标, 组标识)；在本轮该组最早的那一拍捕获，循环边界/切卡/停止时清除。
+    // 快照是发射期的服务端中间量：不跨端、不入 NBT，故无同步与生命周期问题。
+    // ------------------------------------------------------------------
+
+    private final java.util.Map<Long, LockSnapshot> lockSnapshots = new java.util.HashMap<>();
+    /** 上一 tick 的循环内步号，用于检测循环边界以清除快照。 */
+    private int prevCycleStep = -1;
+
+    /** 一组锁轴拍共享的世界快照。 */
+    private record LockSnapshot(Vec3 origin, Vec3 forward, Vec3 right, Vec3 up,
+                                List<Vec3> targetChests, List<Integer> targetIds) {
+
+        Vec3 chestFor(int copy, int size) {
+            if (targetChests.isEmpty()) {
+                return null;
+            }
+            return targetChests.get(Math.min(Math.max(copy, 0), targetChests.size() - 1));
+        }
+    }
+
+    private static long snapshotKey(int trackIndex, int group) {
+        return ((long) trackIndex << 32) | (group & 0xFFFFFFFFL);
+    }
+
+    /**
+     * 确保某组的快照已捕获（只在本轮第一次遇到该组时捕获一次）。
+     *
+     * <p>以「首个到期拍」为捕获时刻——拍按 tick 升序到期，故第一个遇到的即该组最早拍。
+     */
+    private void ensureSnapshot(int trackIndex, int group, LivingEntity boss, List<Player> targets) {
+        long key = snapshotKey(trackIndex, group);
+        if (lockSnapshots.containsKey(key)) {
+            return;
+        }
+        Vec3 origin = boss.getEyePosition();
+        Vec3 worldUp = new Vec3(0, 1, 0);
+        List<Vec3> chests = new ArrayList<>(targets.size());
+        List<Integer> ids = new ArrayList<>(targets.size());
+        for (Player player : targets) {
+            chests.add(new Vec3(player.getX(), player.getY() + 0.9D, player.getZ()));
+            ids.add(player.getId());
+        }
+        Vec3 forward;
+        if (chests.isEmpty()) {
+            forward = boss.getLookAngle();
+            if (forward.lengthSqr() < 1.0E-9D) {
+                forward = new Vec3(0, 0, 1);
+            }
+            forward = forward.normalize();
+        } else {
+            Vec3 toChest = chests.get(0).subtract(origin);
+            forward = toChest.lengthSqr() < 1.0E-9D ? new Vec3(0, 0, 1) : toChest.normalize();
+        }
+        Vec3 right = forward.cross(worldUp);
+        if (right.lengthSqr() < 1.0E-9D) {
+            right = new Vec3(1, 0, 0);
+        }
+        right = right.normalize();
+        Vec3 up = right.cross(forward).normalize();
+        lockSnapshots.put(key, new LockSnapshot(origin, forward, right, up, chests, ids));
+        com.bitsson.gensokyou.danmaku.DanmakuOrchestrationStats.recordLockGroup();
+    }
+
+    private void clearSnapshots() {
+        lockSnapshots.clear();
+        prevCycleStep = -1;
+    }
     /**
      * 本阶段的编队装置，按轨道下标索引；无编队的轨道为 {@code null}。
      *
@@ -124,6 +196,7 @@ public final class TrackRunner {
         pending = null;
         currentResolved = false;
         tick = 0;
+        clearSnapshots();
         // 换阶段先收装置：上一阶段的 rig 若留着，它的新弹会挂到「上一阶段的编队」上，
         // 表现为切卡瞬间队形突变。残留的旧弹则自行脱钩自由飞行（见 AbstractDanmakuProjectile）。
         return true;
@@ -192,13 +265,22 @@ public final class TrackRunner {
         // 退化成「只放一次」。未声明循环长度的符卡 {@code cycleTick()} 就等于绝对 tick，
         // 行为不变。
         int step = cycleTick();
+        // 循环边界：清除上一轮的锁轴快照，使组在下一轮以新状态重新捕获。
+        if (current.cycleTicks() > 0 && step == 0 && prevCycleStep > 0) {
+            clearSnapshots();
+        }
+        prevCycleStep = step;
+        // 符印调度：在本轮到期的拍之前 lead tick，按锁轴规则生成符印（与真弹共用同一快照）。
+        if (GensokyouConfig.DANMAKU_TELEGRAPH_ENABLED.get()) {
+            scheduleTelegraphs(boss, targets, step);
+        }
         for (int i = 0; i < current.tracks().size(); i++) {
             Track track = current.tracks().get(i);
             if (!isDue(track, step)) {
                 continue;
             }
             emitTrack(boss, targets, track, step,
-                    (float) (baseDamage * track.damageScale()), formationOf(track));
+                    (float) (baseDamage * track.damageScale()), formationOf(track), i);
         }
         tick++;
     }
@@ -217,8 +299,7 @@ public final class TrackRunner {
     }
 
     /** 本轨在当前 tick 是否该发射。 */
-    private static boolean isDue(Track track, int tick) {
-        if (track.repeatEvery() > 0) {
+    private static boolean isDue(Track track, int tick) {        if (track.repeatEvery() > 0) {
             return tick % track.repeatEvery() == 0;
         }
         return track.firesAt(tick);
@@ -230,6 +311,7 @@ public final class TrackRunner {
         currentIndex = -1;
         currentResolved = false;
         tick = 0;
+        clearSnapshots();
     }
 
     /** 当前符卡的名义时长（tick）：由最慢的一拍决定，供 HUD/调试用。 */
@@ -282,7 +364,7 @@ public final class TrackRunner {
      * 取哪个色号是符卡作者的决定，不该由位置决定。
      */
     private void emitTrack(LivingEntity boss, List<Player> targets, Track track, int step,
-                           float baseDamage, Behaviour.Formation formation) {
+                           float baseDamage, Behaviour.Formation formation, int trackIndex) {
         List<Player> aimTargets = targets;
         boolean perTarget = track.beats().stream().anyMatch(b -> b.targetMode().copiesPerTarget());
         if (perTarget && aimTargets.isEmpty()) {
@@ -297,7 +379,14 @@ public final class TrackRunner {
             // 而且放出来的是一批打不到人的僵尸弹。
             return;
         }
+        // 锁轴组：在首个到期拍捕获快照（组内其余拍复用）。
+        for (Track.Beat beat : track.beats()) {
+            if (isDue(beat, track, step) && beat.orchestration().locks()) {
+                ensureSnapshot(trackIndex, beat.orchestration().lockGroup(), boss, aimTargets);
+            }
+        }
         int copies = perTarget ? aimTargets.size() : 1;
+        Vec3 worldUp = new Vec3(0, 1, 0);
         for (int c = 0; c < copies; c++) {
             if (!DanmakuBudget.canEmit((ServerLevel) boss.level())) {
                 return;
@@ -311,28 +400,53 @@ public final class TrackRunner {
             int randomPick = aimTargets.isEmpty() ? 0
                     : aimTargets.get(boss.level().getRandom().nextInt(aimTargets.size())).getId();
             Vec3 toAnchor = anchor.subtract(boss.getEyePosition());
-            if (toAnchor.lengthSqr() < 1.0E-6D) {
-                continue;
+            Vec3 liveForward = toAnchor.lengthSqr() < 1.0E-6D ? null : toAnchor.normalize();
+            Vec3 liveUp = boss.getLookAngle();
+            if (liveForward != null && Math.abs(liveForward.dot(worldUp)) > 0.98D) {
+                liveUp = new Vec3(1, 0, 0);
             }
-            Vec3 forward = toAnchor.normalize();
-            Vec3 up = boss.getLookAngle();
-            Vec3 worldUp = new Vec3(0, 1, 0);
-            if (Math.abs(forward.dot(worldUp)) > 0.98D) {
-                up = new Vec3(1, 0, 0);
-            }
-            // 缺口对齐玩家方位：缺口中心 = 玩家方位在 BOSS 平面内的投影角。
-            double gapPhase = gapPhaseTowards(forward, up, worldUp, aimTargets);
             double phase = track.phaseAt(step);
             for (Track.Beat beat : track.beats()) {
                 if (!isDue(beat, track, step)) {
                     continue;
                 }
+                // 锁轴组：用锁定帧的原点/方向/目标；否则用当刻采样（既有行为）。
+                LockSnapshot snap = beat.orchestration().locks()
+                        ? lockSnapshots.get(snapshotKey(trackIndex, beat.orchestration().lockGroup()))
+                        : null;
+                Vec3 origin;
+                Vec3 forward;
+                Vec3 buildTarget;
+                Vec3 up;
+                if (snap != null) {
+                    origin = snap.origin();
+                    Vec3 chest = snap.chestFor(c, copies);
+                    buildTarget = chest != null ? chest : origin.add(snap.forward());
+                    Vec3 toChest = buildTarget.subtract(origin);
+                    forward = toChest.lengthSqr() < 1.0E-9D ? snap.forward() : toChest.normalize();
+                    up = snap.up();
+                } else {
+                    if (liveForward == null) {
+                        continue;
+                    }
+                    origin = boss.getEyePosition();
+                    forward = liveForward;
+                    buildTarget = anchor;
+                    up = liveUp;
+                }
+                double gapPhase = gapPhaseTowards(forward, up, worldUp, aimTargets);
                 // 把<b>目标位置</b>一并传入：AROUND_TARGET / LATTICE 的发射点采样自目标周围，
                 // 方向由每一发自己的「原点 → 目标」决定。它们是唯一需要它的形状。
-                List<Geometry.Shot> shots = Geometry.build(beat, boss.getEyePosition(), forward,
-                        anchor, worldUp, gapPhase, phase, boss.level().getRandom());
+                List<Geometry.Shot> shots = Geometry.build(beat, origin, forward,
+                        buildTarget, worldUp, gapPhase, phase, boss.level().getRandom());
+                // 组级安全取消：任一发出生点距任一存活战斗玩家过近 ⇒ 整组本轮不生成。
+                if (!spawnGroupSafe(shots, targets)) {
+                    com.bitsson.gensokyou.danmaku.DanmakuOrchestrationStats.recordSafetyCancel();
+                    continue;
+                }
                 int turnTarget = Behaviour.resolveTurnTarget(
                         beat.behaviour().motion().burstTargetId(), copyTargetId, randomPick);
+                Vec3 formationCenter = snap != null ? snap.origin() : boss.getEyePosition();
                 for (Geometry.Shot shot : shots) {
                     // 编队参考点在<b>发射这一刻</b>对 BOSS 位置取快照，随后写进每颗弹。
                     // 刻意<b>不</b>存 BOSS 实体引用：编队不是反应式的，此后弹的世界里
@@ -341,13 +455,16 @@ public final class TrackRunner {
                     // 取<b>眼位</b>而非脚位：编队中心必须与几何给出的形状中心同一点，
                     // 否则形状中心的那颗弹（花心）到参考点就有一段固定偏移，
                     // 「自身即参考点 → 改朝目标射」这条退化分支永不成立。
+                    int collapseAge = beat.orchestration().collapses()
+                            ? Math.max(1, beat.orchestration().collapseAge() - beat.tick()) : 0;
                     DanmakuEmitter.emit(boss, shot, beat.behaviour(), track.color(), baseDamage,
-                            formation, formation.active() ? boss.getEyePosition() : null,
+                            formation, formation.active() ? formationCenter : null,
                             beat.projectile(), beat.anchor(),
                             beat.lifetimeTicks() > 0 ? beat.lifetimeTicks()
                                     : DEFAULT_BOSS_DANMAKU_LIFETIME,
                             turnTarget,
-                            beat.legSpec());
+                            beat.legSpec(),
+                            beat.harmlessTicks(), collapseAge);
                 }
             }
         }
@@ -366,6 +483,68 @@ public final class TrackRunner {
             return Math.floorMod(beat.tick(), period) == Math.floorMod(tick, period);
         }
         return beat.tick() == tick;
+    }
+
+    /**
+     * 整组出生点净距检查（{@code extend-danmaku-orchestration}）。
+     *
+     * <p>任一发出生点距任一存活战斗玩家的净距低于最小安全距离 ⇒ 整组本轮取消
+     * （不平移、不积压）。净距扣掉弹体半径与玩家碰撞半径。
+     *
+     * <p>最小安全距离为 0 时整条关闭，行为与引入前一致。
+     */
+    private static boolean spawnGroupSafe(List<Geometry.Shot> shots, List<Player> targets) {
+        double min = GensokyouConfig.DANMAKU_MIN_SPAWN_DISTANCE.get();
+        if (min <= 0.0D || targets.isEmpty()) {
+            return true;
+        }
+        for (Geometry.Shot shot : shots) {
+            double radius = Math.max(0.05D, shot.size()) * 0.5D;
+            for (Player player : targets) {
+                Vec3 chest = player.position().add(0.0D, player.getBbHeight() * 0.5D, 0.0D);
+                if (shot.origin().distanceTo(chest) - radius - 0.3D < min) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 符印调度（{@code extend-danmaku-orchestration}）。
+     *
+     * <p>对每条轨的每个带领示的拍，在 {@code step == beat.tick − leadTicks} 生成一枚符印。
+     * 若该拍属于锁轴组，MUST 先捕获快照，符印与随后的真弹共用同一原点。
+     *
+     * <p>符印只存活 {@code leadTicks}，故它恰好在真弹发射那一刻消失；
+     * 若该组随后被安全取消，符印只是到点自然消失（不会保留、也不会转成真弹）。
+     */
+    private void scheduleTelegraphs(LivingEntity boss, List<Player> targets, int step) {
+        if (current == null || boss == null || !(boss.level() instanceof ServerLevel server)) {
+            return;
+        }
+        for (int i = 0; i < current.tracks().size(); i++) {
+            Track track = current.tracks().get(i);
+            for (Track.Beat beat : track.beats()) {
+                Track.Beat.Orchestration orchestration = beat.orchestration();
+                if (!orchestration.telegraphs()) {
+                    continue;
+                }
+                if (beat.tick() - orchestration.leadTicks() != step) {
+                    continue;
+                }
+                Vec3 origin = boss.getEyePosition();
+                if (orchestration.locks()) {
+                    ensureSnapshot(i, orchestration.lockGroup(), boss, targets);
+                    LockSnapshot snap = lockSnapshots.get(snapshotKey(i, orchestration.lockGroup()));
+                    if (snap != null) {
+                        origin = snap.origin();
+                    }
+                }
+                com.bitsson.gensokyou.entity.DanmakuTelegraph.spawn(
+                        server, origin, orchestration.leadTicks());
+            }
+        }
     }
 
     /** 缺口相位：令环的缺口正对当前瞄准方向。 */

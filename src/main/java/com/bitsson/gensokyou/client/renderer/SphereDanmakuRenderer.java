@@ -111,6 +111,18 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
             poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
         }
 
+        // 一次性闪亮：在闪亮年龄前后把整颗弹<b>等比放大</b>一帧。本体 / 外发光 / 亮核三层
+        // 都从这个 poseStack 派生，故一次 scale 三层一起放大——读作「提亮一帧」。
+        //
+        // <p><b>MUST 用 {@code poseStack.scale}，MUST NOT 只把上面的局部 {@code size}
+        // 乘大。</b>{@code renderShape} 读的是 {@code entity.getSize()}（不是局部 size），
+        // 只改 size 只会改变 translate 的落点：现象是「弹抖了一下、尺寸没变」。
+        float flash = entity.flashPulse();
+        if (flash > 0.0F) {
+            float flashScale = 1.0F + 0.8F * flash;
+            poseStack.scale(flashScale, flashScale, flashScale);
+        }
+
         // 弹幕自发光体，本体不吃环境光（与激光/发光层一致，暗处保持可读）
         // 隐藏态只改 alpha 与暗态系数，渲染类型一律不变——理由见 baseRenderType() 的注释。
         //
@@ -118,13 +130,22 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         // （暗态仍须可辨认出颜色，否则「隐藏」会读作「换成另一种弹」）。
         float dim = hidden ? profile.hiddenAlpha() / 255.0F : 1.0F;
         int bodyAlpha = hidden ? profile.hiddenAlpha() : 255;
+        // 后窗收束淡出：进入收束年龄段后整体压暗，与相位隐藏叠加（乘性）。
+        float collapseFade = entity.collapseFadeFactor();
+        if (collapseFade < 1.0F) {
+            dim *= collapseFade;
+            bodyAlpha = (int) Math.round(bodyAlpha * collapseFade);
+        }
         if (DanmakuRenderProbe.effectiveBody()) {
             DanmakuRenderProbe.countBody();
             VertexConsumer consumer = this.getBuffer(bufferSource, this.bodyRenderType(profile));
             DanmakuRenderProbe.pushBody();
             try {
+                // 闪亮同时「提亮」：本体 RGB 向白推一档（flash=0 时逐位等于原色）。
+                float boost = 1.0F + 0.7F * flash;
                 this.renderShape(entity, profile, poseStack, consumer,
-                        red(color), green(color), blue(color), bodyAlpha, FULL_BRIGHT);
+                        brighten(red(color), boost), brighten(green(color), boost),
+                        brighten(blue(color), boost), bodyAlpha, FULL_BRIGHT);
             } finally {
                 DanmakuRenderProbe.pop();
             }
@@ -180,6 +201,14 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         }
         return (float) (profile.tumbleAmpDeg() * Math.sin(
                 2.0D * Math.PI * tickCount / profile.tumblePeriod()));
+    }
+
+    /** 把单个颜色分量按 {@code factor} 向白推（截到 255）。{@code factor <= 1} 时原样返回。 */
+    private static int brighten(int channel, float factor) {
+        if (factor <= 1.0F) {
+            return channel;
+        }
+        return Math.min(255, Math.round(channel * factor));
     }
 
     @Override

@@ -102,6 +102,8 @@ public final class GensokyouClient {
                 com.bitsson.gensokyou.client.renderer.FoxServantRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.SILK_PROJECTILE.get(),
                 context -> new BillboardRenderer<>(context, 0.3F, GensokyouTextures.FOX_FIRE));
+        event.registerEntityRenderer(ModEntityTypes.DANMAKU_TELEGRAPH.get(),
+                context -> new BillboardRenderer<>(context, 1.1F, GensokyouTextures.ORBIT_ORB));
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_PEDESTAL.get(), RitualPedestalRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_CORE.get(), RitualCoreRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.SUKIMA.get(), SukimaPortalRenderer::new);
