@@ -94,6 +94,15 @@ neoForge {
             gameDirectory = project.file('run-test')
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
+        // 性能基线用的客户端：与 client 只有一处不同——打开 mod 内置的客户端帧时记录器
+        // （openspec: add-danmaku-program-core，任务 1.3）。系统属性默认不设，
+        // 故 runClient 不受影响；本配置产出 run/frame_profile/frames-*.csv。
+        // 注意：基线采样时 MUST NOT 同时挂 JFR，采样本身会扰动帧时（见 sampling-guide）。
+        clientProfile {
+            client()
+            gameDirectory = project.file('run')
+            systemProperty 'gensokyou.frameProbe', 'true'
+        }
         programProbe {
             server()
             programArgument '--nogui'

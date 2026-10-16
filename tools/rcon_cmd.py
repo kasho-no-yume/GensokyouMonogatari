@@ -50,6 +50,47 @@ def _recv(sock):
     return req_id, pkt_type, body
 
 
+class RconConnection(object):
+    """One authenticated RCON connection, reused for many commands.
+
+    Starting a fresh python process per command costs ~2 seconds on this machine
+    (interpreter start + AV scan), which is fatal for anything that needs the command to
+    land at a precise moment. tools/baseline_window.py therefore holds ONE connection open
+    for the whole sampling window; reusing this class keeps a single implementation of the
+    wire format instead of two that can drift.
+    """
+
+    def __init__(self, host='127.0.0.1', port=25575, password='gsdev', timeout=10.0):
+        self.sock = socket.create_connection((host, port), timeout=timeout)
+        self.sock.sendall(_pack(1, _TYPE_AUTH, password))
+        resp = _recv(self.sock)
+        if resp is None or resp[0] == -1:
+            self.sock.close()
+            raise RuntimeError('rcon auth failed')
+
+    def command(self, command, timeout=2.0):
+        """Send one command, return the concatenated response text."""
+        self.sock.sendall(_pack(2, _TYPE_EXEC, command))
+        self.sock.settimeout(timeout)
+        out = []
+        try:
+            while True:
+                resp = _recv(self.sock)
+                if resp is None:
+                    break
+                if resp[2]:
+                    out.append(resp[2])
+        except socket.timeout:
+            pass
+        return ''.join(out).strip()
+
+    def close(self):
+        try:
+            self.sock.close()
+        except OSError:
+            pass
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--host', default='127.0.0.1')

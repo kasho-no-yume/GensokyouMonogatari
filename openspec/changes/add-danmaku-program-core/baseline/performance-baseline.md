@@ -16,7 +16,20 @@
 
 ## 当前状态
 
-当前只有测量方法草稿；CPU、流量、帧时和资源数值均为 `pending-measurement`。任务 1.3 尚未完成，必须在本阶段取得旧后端实测，后续阶段再用同场景采集新后端 A/B 数据。
+本 change 已完成花海代表场景的旧后端实测基线。新后端尚未接入游戏，因此这里的结果只作为后续 runtime/gameplay/migration 阶段的 A/B 参照，不代表新架构已经通过性能门槛。
+
+三次有效重复均使用同一台机器、同一 dirty dev classpath、同一 seed、单人 survival、VSync 关闭、RTX 4060、约 40° 仰视固定站位、无走位、无 50ms 网络抖动。服务端、客户端和代理同机运行，存在资源竞争，后续 A/B 必须保持相同拓扑。
+
+| 重复 | 窗口 | live min/median/p95/max | server tick p95 | client frame p95 | 逻辑流量 | 线上下行 |
+|---|---:|---:|---:|---:|---:|---:|
+| flower_r2 | 180.0s | 126 / 448 / 662 / 728 | 2.724ms | 18.44ms | 5.82MB | 41.12KB / 5.95MB |
+| flower_r3 | 180.0s | 126 / 562 / 847 / 943 | 2.973ms | 18.38ms | 7.03MB | 54.65KB / 7.11MB |
+| flower_r4 | 180.0s | 350 / 847 / 1098 / 1123 | 3.039ms | 18.38ms | 7.47MB | 53.07KB / 7.58MB |
+| 三次中位数 | 180.0s | 126 / 562 / 847 / 943 | 2.973ms | 18.38ms | 7.03MB | 53.07KB / 7.11MB |
+
+每轮均满足：session 窗口 180s、tickcost 覆盖率 100%、resets=0、live=0 样本为 0，并保存 `server.jsonl`、`proxy.jsonl`、`frames.csv` 和 `window.json`。原 `flower_r1` 窗口含 live=0 样本，作废，不纳入重复统计。
+
+证据目录：`build/danmaku-baseline/flower_r2`、`flower_r3`、`flower_r4`。r4 保存了完整环境记录；r2/r3 与 r4 共用同一未重启的客户端/服务端进程及代码状态。环境采集文件中的 `server.properties` 难度仍显示 easy，但每轮采样前均通过 RCON 确认运行时 difficulty=normal；该差异须在后续报告中保留说明。
 
 ## 复现步骤
 
@@ -25,3 +38,7 @@
 3. 每 50ms 记录命令输出和 profiler 快照。
 4. 分别统计逻辑包字节、压缩后字节、server tick p95、client frame p95、活跃实体数和分配。
 5. 保存 seed、程序/旧卡标识、配置和完整日志路径。
+
+## 后续对照
+
+后续新后端必须在同一硬件、seed、站位、视角、客户端设置、玩家脚本和实际弹量分布下重新采样。不能用新后端较少的弹量或不同场景替代 A/B；新后端的服务端 tick p95、客户端 frame p95、逻辑/线上流量和资源回收结果另行记录。

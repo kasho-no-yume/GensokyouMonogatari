@@ -1,6 +1,6 @@
 # 实施状态（2026-10-16）
 
-当前8/10任务已勾选，阶段尚未完整验收。真实API与限制见 `core-api.md`。
+当前10/10任务已勾选，`add-danmaku-program-core` 阶段完成。真实API与限制见 `core-api.md`。
 
 ## 本轮交付
 
@@ -16,12 +16,13 @@
 测试位于 `src/test/java/com/bitsson/gensokyou/danmaku/program/`。
 OpenSpec strict验证通过。无游戏新后端接线。
 
-## 尚缺
+最终复验（2026-10-16）：`tools/gradle_task.ps1 test`、`tools/gradle_task.ps1 build` 均通过；`openspec validate add-danmaku-program-core --strict` 通过。最新日志：`build/agent-logs/20261016-230830-test.log`、`build/agent-logs/20261016-230929-build.log`。
 
-用户已明确选择稍后由另一agent配合实机采样，保留实测阻塞。操作步骤见 `baseline/sampling-guide.md`；下一阶段纯离线开发的条件与限制见 `operations-handoff.md`。
+## 阶段边界
 
-- 1.3：没有固定负载旧后端流量/CPU/帧时/资源实测。已启动客户端并加载资源，尚未进入世界，不能把启动日志当性能数据。
-- 2.6：操作台账已更新，完整build与strict验证通过；整体阶段最终检查等待1.3性能证据。
+- 1.3：已完成花海代表场景三次有效旧后端实测；证据与汇总见 `baseline/performance-baseline.md`。花海之外的 48→480、800/2000、山女尾珠、蓝8五人和动态方块激光属于后续 runtime/gameplay/migration 验收场景。
+- 本 change 不接世界新后端，不宣称新架构已经完成 A/B 性能验收。
+- 本 change 已完成 core 的离线实现、旧后端花海代表场景基线与阶段验证；正式 BOSS 迁移、真实新后端 A/B、多人和其他压力场景属于后续 changes。
 
 ## 备份
 

@@ -6,7 +6,7 @@
 
 阶段3：`program/server/`已有runtime、ProgramSession/Execution、编译程序控制操作、GroupMotion、Plan/Commit/Replace、有限查询、发射器、伤害门与显式宿主。`WorldRuntimeTest`验证真实内存事务和session恢复；真实专用服探针验证半砖顶面、首空气、通路与level tick。正式BOSS、网络、碰撞和画面未迁移。详见[server-api.md](../../../../openspec/changes/add-danmaku-program-server/server-api.md)。
 
-2026-10-16：已按[路线图](../../../../openspec/changes/refactor-danmaku-program-runtime/roadmap.md)拆成7个子change。core与operations已有离线实现；描述完成不表示游戏能力已可用。
+2026-10-16：已按[路线图](../../../../openspec/changes/refactor-danmaku-program-runtime/roadmap.md)拆成7个子change。core阶段（`add-danmaku-program-core`）已完成：纯核实现、测试、旧后端花海三次基线与阶段验证均有证据；operations已有离线实现。描述完成不表示游戏能力已可用。
 
 ## 状态规则
 

@@ -740,6 +740,23 @@ public final class DanmakuBudget {
                 : String.format("tickTime(n=%d avg=%.1fus)", ticked, nanos / (double) ticked / 1000.0D);
     }
 
+    /**
+     * 服务端弹幕 tick 累计耗时的<b>单调快照</b>（纳秒）。
+     *
+     * <p>本类的计时只有这一个累计量，而累计均值<b>推不出分位数</b>——{@code /gs_boss danmaku}
+     * 的 {@code tickTime} 只能报平均值，正是这个原因。要得到逐 tick 分布，调用方
+     * （见 {@code netprof.NetProfile}）MUST 在每 tick 末对本快照做差分，
+     * 故此处只暴露读数，<b>不改变任何统计语义</b>。
+     */
+    public static long tickNanosTotal() {
+        return TICK_NANOS.get();
+    }
+
+    /** 与 {@link #tickNanosTotal()} 同一时刻的「参与计时的弹幕数」累计快照。 */
+    public static long tickedBulletsTotal() {
+        return TICKED_BULLETS.get();
+    }
+
     /** 时间与同步维度的完整诊断。 */
     public static String timingStats() {
         return tickStats() + " " + hardCorrectionStats() + " " + lagStats()

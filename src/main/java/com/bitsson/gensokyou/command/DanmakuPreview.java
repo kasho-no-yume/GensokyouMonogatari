@@ -52,6 +52,9 @@ public final class DanmakuPreview {
         final int endTick;
         int currentCard;
         final int[] traceCounts = new int[4];
+        /** 已经向 ledger 报过换卡事件的槽位；session 中途开表时也要补报一次。 */
+        int markedSlot = Integer.MIN_VALUE;
+        boolean cardMarked;
 
         Session(ArmorStand rig, TrackRunner runner, List<SpellCard> cards, float damage,
                 int startTick, int ticksPerCard, int endTick) {
@@ -214,6 +217,21 @@ public final class DanmakuPreview {
                         session.rig.getUUID(), session.cards.get(slot).name().getString(), now);
                 session.runner.stop();
                 session.runner.selectCard(session.cards.get(slot).hpFraction());
+            }
+
+            // 换卡事件 MUST 在这里发，而不是只在上面那个 `slot != currentCard` 分支里发：
+            // 预览往往在 /gs_net start 之前就开了，那时 profiling 还没启用，
+            // 单卡预览的 slot 0 切换早已过去，整段窗口就会没有 card 事件
+            // （现象：分析器把它归成 card None）。故按「本槽位是否已报过」判定，
+            // 每次 tick 检查，开表后下一 tick 就补上。
+            if (slot != session.markedSlot) {
+                session.markedSlot = slot;
+                session.cardMarked = false;
+            }
+            if (!session.cardMarked && com.bitsson.gensokyou.netprof.NetProfile.enabled()) {
+                session.cardMarked = true;
+                com.bitsson.gensokyou.netprof.NetProfile.onPreviewCard(
+                        viewer, slot, session.cards.get(slot).name().getString());
             }
             session.runner.tick(session.rig, List.<Player>of(viewer), session.damage);
         }
