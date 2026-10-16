@@ -53,7 +53,7 @@ __pycache__/
 /.cocoindex_code/
 
 # Dedicated server install for the jar-server toolchain (~176MB, do not track)
-server/
+/server/
 
 # Performance profiling dumps (JFR records environment variables; keep local only)
 *.jfr

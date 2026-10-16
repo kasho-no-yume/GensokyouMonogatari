@@ -94,6 +94,12 @@ neoForge {
             gameDirectory = project.file('run-test')
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
+        programProbe {
+            server()
+            programArgument '--nogui'
+            gameDirectory = project.file('build/program-probe-run')
+            systemProperty 'gensokyou.programWorldProbe', 'true'
+        }
         // This run config launches GameTestServer and runs all registered gametests, then exits.
         // By default, the server will crash when no gametests are provided.
         // The gametest system is also enabled by default for other run configs under the /test command.

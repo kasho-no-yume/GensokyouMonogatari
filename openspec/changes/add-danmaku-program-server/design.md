@@ -12,4 +12,8 @@
 
 ## Validation / Handoff
 
+阶段3实现采用显式构造的Limits/AdmissionLimits作为已解析配置输入，正式COMMON配置装配与BOSS后端选择归gameplay；运行时不硬读全局配置。CPU预算以确定性评估工作单位限流，不把墙钟时间或未实测阈值当性能结论。世界测试入口为独立`runProgramProbe`，仅通过系统属性显式启用，使用build下临时世界。
+
+程序恢复由ProgramSession保存定义、时钟锚点、游标及runtime checkpoint；碰撞延后请求使用类型化AuthorityCommand。Runnable入口仅供可信测试适配，未执行回调存在时拒绝checkpoint。server控制操作有独立安装期词法句柄检查，跨Parallel分支无依赖边的名字引用拒绝；不修改core的通用typed引用规则。
+
 测试目标退出、第二拍安全取消、分裂净预算、重复触发防护、跨轮/切卡差异、owner卸载、新epoch和20次回收。世界查询需要集成环境；不得仅靠mock冒充地形验收。
