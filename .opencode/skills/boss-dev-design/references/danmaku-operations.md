@@ -2,6 +2,8 @@
 
 最后核对：2026-10-16。纯核已有离线实现与测试，游戏程序后端尚未接入。该台账与代码同步更新；设计文件不是实现证据。
 
+阶段4：`program/network/`已提供有界协议、批次共享/mask投影、纯客户端副本、共享时钟、幂等/tombstone、分片原子提交、按包络订阅/父源闭包、空间分片发布、恢复限流和NeoForge显式接线。协议测试不替代真实延迟、画面或流量性能验收；真实内容包络生产者交gameplay。详见[network-api.md](../../../../openspec/changes/add-danmaku-program-network/network-api.md)。
+
 阶段3：`program/server/`已有runtime、ProgramSession/Execution、编译程序控制操作、GroupMotion、Plan/Commit/Replace、有限查询、发射器、伤害门与显式宿主。`WorldRuntimeTest`验证真实内存事务和session恢复；真实专用服探针验证半砖顶面、首空气、通路与level tick。正式BOSS、网络、碰撞和画面未迁移。详见[server-api.md](../../../../openspec/changes/add-danmaku-program-server/server-api.md)。
 
 2026-10-16：已按[路线图](../../../../openspec/changes/refactor-danmaku-program-runtime/roadmap.md)拆成7个子change。core与operations已有离线实现；描述完成不表示游戏能力已可用。
@@ -21,6 +23,8 @@
 
 | 类别 | 操作 | 状态 | 代码/验证 |
 |---|---|---|---|
+| 网络 | Definition/Start/Checkpoint/Decision/ClockDigest/Resync/End、mask与谱系恢复 | verified（协议与双端模拟） | program/network；ProgramNetworkTest；实际多人/性能归gameplay |
+| 兴趣 | 攻击包络/父源闭包/稳定身份空间分片 | verified（协议发布与重进入） | ProgramInterest/ProgramSyncServer.publishSpatial/ProgramNetworkHost.spatial；ProgramNetworkTest；真实内容包络生产者待gameplay |
 | 纯核时间 | At/Offset/Sequence/Parallel/Wait/Repeat/Cycle/Every、Once/Loop/Stream | verified（离线） | program/ProgramSchedule、ProgramTime、ClockAnchors；ProgramCoreTest |
 | 纯核编译 | hash/codec/注册/引用/通道/拓扑/数量寿命包络 | verified（离线，保守静态分析） | ProgramCompiler/ProgramCodec/ProgramBudgetReport；ProgramValidationTest、ProgramCoreTest |
 | 时间扩展 | AtSegmentEnd/Stagger | verified（纯求值/描述） | ops/Actions、Transforms；ProgramOperationsTest；调度接线待server |

@@ -42,6 +42,10 @@ public final class ModNetworking {
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
+        registrar.playToClient(ProgramDataPayload.TYPE, ProgramDataPayload.STREAM_CODEC,
+                com.bitsson.gensokyou.client.ProgramClientNetwork::handle);
+        registrar.playToServer(ProgramResyncPayload.TYPE, ProgramResyncPayload.STREAM_CODEC,
+                com.bitsson.gensokyou.danmaku.program.network.ProgramNetworkHost::handleResync);
         registrar.playToClient(SpiritPowerSyncPayload.TYPE, SpiritPowerSyncPayload.STREAM_CODEC,
                 ClientPayloadHandler::handleSpiritPowerSync);
         registrar.playToClient(SkillSyncPayload.TYPE, SkillSyncPayload.STREAM_CODEC,

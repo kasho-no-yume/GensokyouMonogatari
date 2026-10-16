@@ -42,6 +42,17 @@ public final class ServerWorldProbe {
                 var runtime=new DanmakuWorldRuntime("probe",new DanmakuWorldRuntime.Limits(100,100,100,100,1000),world);
                 probeRuntime=runtime;
                 ProgramServerHost.install(level,new ProgramSession(runtime,new ProgramExecution().freeze()),100,events->{});
+                var wire=new com.bitsson.gensokyou.danmaku.program.network.ProgramWire(com.bitsson.gensokyou.danmaku.program.network.NetworkLimits.defaults());
+                var envelope=new com.bitsson.gensokyou.danmaku.program.network.ProgramWire.Envelope(1,"probe",new UUID(0,1),1,1,1,0,0,
+                        com.bitsson.gensokyou.danmaku.program.network.ProgramWire.Kind.CLOCK_DIGEST,1,0,1,new byte[0]);
+                byte[] bytes=wire.encode(envelope);
+                var buffer=new net.minecraft.network.FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
+                try {
+                    com.bitsson.gensokyou.network.ProgramDataPayload.STREAM_CODEC.encode(buffer,new com.bitsson.gensokyou.network.ProgramDataPayload(bytes));
+                    var decoded=com.bitsson.gensokyou.network.ProgramDataPayload.STREAM_CODEC.decode(buffer);
+                    check(wire.decode(decoded.bytes()).kind()==envelope.kind(),"program payload codec");
+                    System.out.println("PROGRAM_NETWORK_PROBE PASS dedicated-payload-codec");
+                } finally { buffer.release(); }
             } finally { previous.forEach((pos,state)->level.setBlock(pos,state,3)); }
         } catch (Throwable failure) {
             System.out.println("PROGRAM_WORLD_PROBE FAIL "+failure); failure.printStackTrace();

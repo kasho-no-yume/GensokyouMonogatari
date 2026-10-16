@@ -24,11 +24,18 @@ public final class ProgramServerHost {
         Hosted host=SESSIONS.get(level); if (host==null) return;
         long time=level.getGameTime();
         if (time==host.session().runtime().tick()) return;
-        host.session().advance(time,host.maxEvents()); host.events().accept(host.session().runtime().drainEvents());
+        host.session().advance(time,host.maxEvents());
+        var events=host.session().runtime().drainEvents();
+        com.bitsson.gensokyou.danmaku.program.network.ProgramNetworkHost.publish(level,host.session(),events);
+        host.events().accept(events);
     }
     @SubscribeEvent public static void unload(LevelEvent.Unload event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         Hosted host=SESSIONS.remove(level); if (host==null) return;
-        host.session().runtime().close("dimension-unload"); host.events().accept(host.session().runtime().drainEvents());
+        host.session().runtime().close("dimension-unload");
+        var events=host.session().runtime().drainEvents();
+        com.bitsson.gensokyou.danmaku.program.network.ProgramNetworkHost.publish(level,host.session(),events);
+        com.bitsson.gensokyou.danmaku.program.network.ProgramNetworkHost.unload(level);
+        host.events().accept(events);
     }
 }
