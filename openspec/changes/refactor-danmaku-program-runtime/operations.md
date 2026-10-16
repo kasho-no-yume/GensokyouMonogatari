@@ -2,7 +2,7 @@
 
 本文是 design 的组成部分。名字为建议 API 名，语义与组合契约为实现要求；不要求先造一个通用脚本 VM。首批操作覆盖全部现有符卡及组合验收，后续扩展遵循同一注册边界。
 
-**状态：所有新操作均为planned（尚未实现）。** 先读`author-guide.md`理解术语，再读`pattern-recipes.md`看组合案例。§10同样属于本次交付，配方中的future项不属于本次交付。
+**状态：core与operations已有离线实现，世界运行与游戏接线尚未实现。** 实际API和限制见[阶段2交接](../add-danmaku-program-operations/operations-api.md)，逐项状态见[操作台账](../../../.opencode/skills/boss-dev-design/references/danmaku-operations.md)。本文仍是语义设计目录，表中建议名不全部对应同名Java类型。先读`author-guide.md`理解术语，再读`pattern-recipes.md`看组合案例。§10同样属于本次交付，配方中的future项不属于本次交付。
 
 ## 1. 四类扩展点
 

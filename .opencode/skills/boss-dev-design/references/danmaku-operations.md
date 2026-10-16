@@ -2,7 +2,7 @@
 
 最后核对：2026-10-16。纯核已有离线实现与测试，游戏程序后端尚未接入。该台账与代码同步更新；设计文件不是实现证据。
 
-2026-10-16：已按[路线图](../../../../openspec/changes/refactor-danmaku-program-runtime/roadmap.md)拆成7个子change。状态仍全部planned；每阶段只更新自己实际接入和验证的能力，不能因原子描述完成就标记整个游戏能力已可用。
+2026-10-16：已按[路线图](../../../../openspec/changes/refactor-danmaku-program-runtime/roadmap.md)拆成7个子change。core与operations已有离线实现；描述完成不表示游戏能力已可用。
 
 ## 状态规则
 
@@ -21,18 +21,24 @@
 |---|---|---|---|
 | 纯核时间 | At/Offset/Sequence/Parallel/Wait/Repeat/Cycle/Every、Once/Loop/Stream | verified（离线） | program/ProgramSchedule、ProgramTime、ClockAnchors；ProgramCoreTest |
 | 纯核编译 | hash/codec/注册/引用/通道/拓扑/数量寿命包络 | verified（离线，保守静态分析） | ProgramCompiler/ProgramCodec/ProgramBudgetReport；ProgramValidationTest、ProgramCoreTest |
-| 时间扩展 | AtSegmentEnd/Stagger | planned | 未实现 |
-| 世界输入 | CaptureTargets/CaptureFrame/SampleTargetPoint/ResolveSurface/TriggerProximity | planned | 未实现 |
-| 组与发射 | CreateGroup/ForEachTarget/PrepareEmission/CommitBatch/Emit/Select/SpawnChild | planned | 未实现 |
-| 发射源 | CreateEmitter/MemberPose/GroupPose/ExternalEntitySource | planned | 未实现 |
-| 分裂 | ReplaceMembers/SplitAt、谱系SeedDirection | planned | 未实现 |
-| 基础运动 | Hold/Linear/SpeedCurve/Arc/Segments/Detach/RebasePath | planned | 未实现 |
-| 变换 | Rotate/Orbit/ScaleCurve/Breathe/ComposeTransform/MirrorTransform/PhaseOffset | planned | 未实现 |
-| 扩展路径 | WaveOffset/BezierPath/TimeMap/OrientAlongPath | planned | 未实现 |
-| 图案 | Ring/Fan/AngularGrid/ParallelGrid/Rose/Spiral/散射/球面/螺旋柱/轴节点等 | planned | 未实现 |
-| 派生 | EmitAlongPath/SpawnChild | planned | 未实现 |
-| 视觉与判伤 | Telegraph/Billboard/Flash/SoundCue/Fade/DamageWindow/VisibilityCycle/LaserWindow | planned | 未实现 |
-| 管理 | StopEmission/EndMembers/Collapse/CancelScope/EndCard/EndEncounter/Lifetime/EndOnReturn/LockBossMovement | planned | 未实现 |
+| 时间扩展 | AtSegmentEnd/Stagger | verified（纯求值/描述） | ops/Actions、Transforms；ProgramOperationsTest；调度接线待server |
+| 世界输入 | CaptureTargets/CaptureFrame/SampleTargetPoint/ResolveSurface/TriggerProximity/CommitBatch | implemented（具体策略描述，运行未接入） | ops/AuthorityDescriptions；OperationCompositionTest策略编码；世界结果与查询待server |
+| 组描述 | CreateGroup/ForEachTarget/PrepareEmission/Emit | implemented（描述，运行未接入） | ops/Actions；引用/通道contract由运行接线注册时提供 |
+| 成员选择 | Select/AimAtPoint/RadialDirection | verified（纯函数） | ops/Selection、MemberMotion；ProgramOperationsTest |
+| 发射源 | CreateEmitter/MemberPose/GroupPose/ExternalEntitySource | verified（描述与mock求值，运行未接入） | ops/Actions；ProgramOperationsTest；外部源仅snapshot，真实采样待server |
+| 分裂 | ReplaceMembers/SplitAt | implemented（描述与净预算公式，事务未接入） | ops/Actions；实际原子替换/拒绝/去重待server |
+| 随机谱系 | SeedDirection | verified（纯函数） | math/Deterministic、ops/Actions.SeedDirection；两代删支与球面分布测试 |
+| 基础运动 | Hold/Linear/SpeedCurve/Arc/Segments/Detach/RebasePath | verified（纯函数） | ops/Paths、MemberMotion；ProgramOperationsTest |
+| 变换 | Rotate/Orbit/ScaleCurve/Breathe/ComposeTransform/MirrorTransform/PhaseOffset | verified（离线） | ops/Transforms、Actions；ProgramOperationsTest |
+| 扩展路径 | WaveOffset/BezierPath/TimeMap/OrientAlongPath | verified（纯函数） | ops/Paths、Transforms；ProgramOperationsTest |
+| 图案 | Point/Union/Ring/DiscRing/Fan/AngularGrid/ParallelGrid/Rose/Spiral/散射/Shell/Cage/Radial/AroundPoint/Lattice/雨/球面/螺旋柱/轴节点/SurfaceRays | verified（纯生成） | ops/Patterns；ProgramOperationsTest真实数量/边界/编码；DiscRing使用Ring描述 |
+| 扩展注册 | Path/Pattern与record codec | verified（离线） | ops/OperationLibrary、OperationDataCodec；OperationExtensionTest；真实网络待gameplay |
+| 派生 | EmitAlongPath/SpawnChild | implemented（有界描述，运行未接入） | ops/Actions；累计上界、Binding；真实准入待server |
+| 子程序组合 | ChildProgram/ChildAction、组与成员独立时钟、父变换闭包、方向通道 | verified（纯描述与求值） | ops/Actions、MemberMotion、OperationLibrary.childProgramType；OperationCompositionTest：7N/4N、48批共圆、嵌套codec；准入事务待server |
+| 视觉与判伤 | Telegraph/Billboard/Flash/SoundCue/Fade/DamageWindow/VisibilityCycle/LaserWindow | verified（描述与相位求值，画面/判伤未接入） | ops/Presentation；ProgramOperationsTest；实际声音/渲染/碰撞待gameplay |
+| 管理 | StopEmission/EndMembers/Collapse/CancelScope/EndCard/EndEncounter/Lifetime/EndOnReturn/LockBossMovement | implemented（Lifecycle描述，运行未接入） | ops/Actions.Lifecycle；实际清理/锁/返回条件待server/gameplay |
+
+阶段2交接与限制：[operations-api.md](../../../../openspec/changes/add-danmaku-program-operations/operations-api.md)。数值fixture目前仅本机Windows/JDK21实跑，不等于已完成多平台验证。
 
 快速配方：[两代分裂、移动母弹、龙卷风、旋转法阵](../../../../openspec/changes/refactor-danmaku-program-runtime/pattern-recipes.md)。通俗术语与写作步骤：[author-guide.md](../../../../openspec/changes/refactor-danmaku-program-runtime/author-guide.md)。
 
