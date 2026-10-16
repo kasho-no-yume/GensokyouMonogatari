@@ -1,6 +1,6 @@
 # 弹幕操作台账
 
-最后核对：2026-10-15。**重构尚未实施，下列新程序操作均不能直接调用。** 该台账与代码同步更新；设计文件不是实现证据。
+最后核对：2026-10-16。纯核已有离线实现与测试，游戏程序后端尚未接入。该台账与代码同步更新；设计文件不是实现证据。
 
 2026-10-16：已按[路线图](../../../../openspec/changes/refactor-danmaku-program-runtime/roadmap.md)拆成7个子change。状态仍全部planned；每阶段只更新自己实际接入和验证的能力，不能因原子描述完成就标记整个游戏能力已可用。
 
@@ -15,11 +15,13 @@
 
 ## 新程序操作索引
 
-所有条目目前为planned；接口名字是建议名。详细单位、参数和失败语义以[operations.md](../../../../openspec/changes/refactor-danmaku-program-runtime/operations.md)为单一来源。
+除下表单独列出的纯核能力外，其余条目仍为planned。真实入口与离线约束见[core-api.md](../../../../openspec/changes/add-danmaku-program-core/core-api.md)。
 
 | 类别 | 操作 | 状态 | 代码/验证 |
 |---|---|---|---|
-| 时间 | At/Sequence/Parallel/Wait/Repeat/Cycle/Every/AtSegmentEnd/Stagger | planned | 未实现 |
+| 纯核时间 | At/Offset/Sequence/Parallel/Wait/Repeat/Cycle/Every、Once/Loop/Stream | verified（离线） | program/ProgramSchedule、ProgramTime、ClockAnchors；ProgramCoreTest |
+| 纯核编译 | hash/codec/注册/引用/通道/拓扑/数量寿命包络 | verified（离线，保守静态分析） | ProgramCompiler/ProgramCodec/ProgramBudgetReport；ProgramValidationTest、ProgramCoreTest |
+| 时间扩展 | AtSegmentEnd/Stagger | planned | 未实现 |
 | 世界输入 | CaptureTargets/CaptureFrame/SampleTargetPoint/ResolveSurface/TriggerProximity | planned | 未实现 |
 | 组与发射 | CreateGroup/ForEachTarget/PrepareEmission/CommitBatch/Emit/Select/SpawnChild | planned | 未实现 |
 | 发射源 | CreateEmitter/MemberPose/GroupPose/ExternalEntitySource | planned | 未实现 |

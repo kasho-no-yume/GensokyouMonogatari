@@ -10,4 +10,10 @@
 
 ## Validation / Handoff
 
+### 时间语义补充（2026-10-16 用户确认）
+
+At 始终引用显式时间域的绝对时刻，不随 Sequence 游标或 Repeat occurrence 自动平移。
+Offset 是局部调度偏移：随父容器起点和每次重复重新定位。周期60内的0/20/40子拍应使用Offset。
+GroupTime/MemberAge 绝对求值须有对应时钟锚点，缺少锚点必须报错。
+
 无世界测试时间、重复偏移、非法依赖/冲突、codec上限与稳定hash；保存内容manifest和基线报告。交付可供operations注册的API，不宣称已有游戏运行时。实际Gradle调用走tools/gradle_task.ps1。

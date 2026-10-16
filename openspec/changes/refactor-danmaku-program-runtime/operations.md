@@ -28,12 +28,15 @@
 | 操作 | 参数/结果 | 语义 |
 |---|---|---|
 | At | typed time、child | 在指定时间域的绝对时刻执行 |
+| Offset | duration、child | 相对当前调度容器起点执行；随Repeat/Every每次occurrence平移，周期内0/20/40子拍使用此项 |
 | Sequence | 子节点列表 | 后一项从前一项声明时长末尾开始；不是等待世界条件 |
 | Parallel | 子节点列表 | 同起点并行；冲突通道拒绝，不靠执行顺序覆盖 |
 | Wait | duration | 只改变程序游标；不让现有弹自动停止 |
 | Repeat | count、period、body | 有限重放，body 内偏移必须落在合法区间；每次有独立 occurrence |
 | Cycle | length、tailPolicy、body | 卡循环；重置本轮快照，保留显式跨轮组 |
 | Every | period、phase、end或untilCardEnd | 持续发射流，所有偏移子拍都生效；不再先用 tick%period==0 过滤整轨 |
+
+At的时钟锚点不随Sequence游标或Repeat次数隐式改变。局部偏移必须使用Offset；GroupTime/MemberAge求值必须提供对应组/成员锚点。
 
 一次性 `Playback.Once` 可包含任意多拍，必须有结束策略；循环 `Playback.Loop(length)` 和持续流显式不同。`endless` 不等于无限寿命。需要等待「目标死亡」等外部事实时用 D 条件事件，不滥用跨轨回调依赖。
 
