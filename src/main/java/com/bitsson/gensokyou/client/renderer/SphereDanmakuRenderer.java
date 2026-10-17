@@ -253,35 +253,6 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
      */
     private void renderStarPrism(DanmakuVisualProfile.Profile profile, PoseStack poseStack,
                                  VertexConsumer consumer, int r, int g, int b, int a, int light) {
-        float radius = profile.visualScale();
-        double halfThickness = (float) DanmakuGeometry.starPrismHalfThickness(radius);
-        double[] outline = DanmakuGeometry.starPrismOutline(radius);
-        PoseStack.Pose pose = poseStack.last();
-
-        for (int i = 0; i < 10; i++) {
-            double x0 = outline[i * 2];
-            double y0 = outline[i * 2 + 1];
-            int j = (i + 1) % 10;
-            double x1 = outline[j * 2];
-            double y1 = outline[j * 2 + 1];
-
-            // 前面盖（z = +h）：中心 → v_i → v_{i+1}
-            this.vertex(consumer, pose, 0.0F, 0.0F, (float) halfThickness, 0.5F, 0.5F, r, g, b, a, light);
-            this.vertex(consumer, pose, (float) x0, (float) y0, (float) halfThickness, 0.0F, 0.0F, r, g, b, a, light);
-            this.vertex(consumer, pose, (float) x1, (float) y1, (float) halfThickness, 1.0F, 0.0F, r, g, b, a, light);
-            this.vertex(consumer, pose, (float) x1, (float) y1, (float) halfThickness, 1.0F, 0.0F, r, g, b, a, light);
-
-            // 后面盖（z = −h）：绕序反向
-            this.vertex(consumer, pose, 0.0F, 0.0F, (float) -halfThickness, 0.5F, 0.5F, r, g, b, a, light);
-            this.vertex(consumer, pose, (float) x1, (float) y1, (float) -halfThickness, 1.0F, 0.0F, r, g, b, a, light);
-            this.vertex(consumer, pose, (float) x0, (float) y0, (float) -halfThickness, 0.0F, 0.0F, r, g, b, a, light);
-            this.vertex(consumer, pose, (float) x0, (float) y0, (float) -halfThickness, 0.0F, 0.0F, r, g, b, a, light);
-
-            // 侧面：v_i 前 → v_{i+1} 前 → v_{i+1} 后 → v_i 后
-            this.vertex(consumer, pose, (float) x0, (float) y0, (float) halfThickness, 0.0F, 1.0F, r, g, b, a, light);
-            this.vertex(consumer, pose, (float) x1, (float) y1, (float) halfThickness, 1.0F, 1.0F, r, g, b, a, light);
-            this.vertex(consumer, pose, (float) x1, (float) y1, (float) -halfThickness, 1.0F, 0.0F, r, g, b, a, light);
-            this.vertex(consumer, pose, (float) x0, (float) y0, (float) -halfThickness, 0.0F, 0.0F, r, g, b, a, light);
-        }
+        DanmakuMeshes.star(poseStack.last(),consumer,profile.visualScale(),r,g,b,a,light);
     }
 }

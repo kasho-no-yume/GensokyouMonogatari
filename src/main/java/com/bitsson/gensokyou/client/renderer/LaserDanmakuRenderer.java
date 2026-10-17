@@ -168,7 +168,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
             DanmakuRenderProbe.countGlow();
             DanmakuRenderProbe.pushGlow();
             try {
-                this.emitBeam(poseStack, consumer, length, radius,
+                emitBeam(poseStack, consumer, length, radius,
                         red(INDICATOR_COLOR), green(INDICATOR_COLOR), blue(INDICATOR_COLOR),
                         alpha, FULL_BRIGHT);
             } finally {
@@ -221,7 +221,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
             DanmakuRenderProbe.countGlow();
             DanmakuRenderProbe.pushGlow();
             try {
-                this.emitBeam(poseStack, glow, length, radius * OUTER_GLOW_RADIUS_RATIO * envelope,
+                emitBeam(poseStack, glow, length, radius * OUTER_GLOW_RADIUS_RATIO * envelope,
                         r, g, b, (int) (OUTER_GLOW_ALPHA * envelope * dim), FULL_BRIGHT);
             } finally {
                 DanmakuRenderProbe.pop();
@@ -242,12 +242,12 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
             DanmakuRenderProbe.pushBody();
             try {
                 // 主体
-                this.emitBeam(poseStack, emissive, length, radius * envelope,
+                emitBeam(poseStack, emissive, length, radius * envelope,
                         r, g, b, (int) (235 * envelope * dim), FULL_BRIGHT);
 
                 if (DanmakuRenderProbe.coreEnabled) {
                     // 亮核：向白色混合，制造过曝感
-                    this.emitBeam(poseStack, emissive, length, radius * CORE_RADIUS_RATIO * envelope,
+                    emitBeam(poseStack, emissive, length, radius * CORE_RADIUS_RATIO * envelope,
                             coreR, coreG, coreB, (int) (255 * envelope * dim), FULL_BRIGHT);
                 }
             } finally {
@@ -315,7 +315,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
     /**
      * 发射构成圆柱的所有平面。绕 Z 轴均匀分布，形成米字截面。
      */
-    private void emitBeam(PoseStack poseStack, VertexConsumer consumer,
+    public static void emitBeam(PoseStack poseStack, VertexConsumer consumer,
                           float length, float radius,
                           int r, int g, int b, int a, int light) {
         if (radius <= 0.0F || a <= 0) {
@@ -325,7 +325,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
         for (int i = 0; i < BEAM_PLANES; i++) {
             poseStack.pushPose();
             poseStack.mulPose(Axis.ZP.rotationDegrees(i * step));
-            this.emitBeamPlane(poseStack, consumer, length, radius, r, g, b, a, light);
+            emitBeamPlane(poseStack, consumer, length, radius, r, g, b, a, light);
             poseStack.popPose();
         }
     }
@@ -334,16 +334,22 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
      * 单个矩形平面：沿 Z+ 从 0 延伸到 length，宽度 2*radius。
      * 双面渲染由 noCull 材质保证，无需重复输出反面。
      */
-    private void emitBeamPlane(PoseStack poseStack, VertexConsumer consumer,
+    private static void emitBeamPlane(PoseStack poseStack, VertexConsumer consumer,
                                float length, float radius,
                                int r, int g, int b, int a, int light) {
         PoseStack.Pose pose = poseStack.last();
         float vEnd = length * V_TILES_PER_BLOCK;
 
-        this.vertex(consumer, pose, -radius, 0.0F, 0.0F, 0.0F, 0.0F, r, g, b, a, light);
-        this.vertex(consumer, pose, radius, 0.0F, 0.0F, 1.0F, 0.0F, r, g, b, a, light);
-        this.vertex(consumer, pose, radius, 0.0F, length, 1.0F, vEnd, r, g, b, a, light);
-        this.vertex(consumer, pose, -radius, 0.0F, length, 0.0F, vEnd, r, g, b, a, light);
+        beamVertex(consumer,pose,-radius,0,0,0,0,r,g,b,a,light);
+        beamVertex(consumer,pose,radius,0,0,1,0,r,g,b,a,light);
+        beamVertex(consumer,pose,radius,0,length,1,vEnd,r,g,b,a,light);
+        beamVertex(consumer,pose,-radius,0,length,0,vEnd,r,g,b,a,light);
+    }
+
+    private static void beamVertex(VertexConsumer out,PoseStack.Pose pose,float x,float y,float z,float u,float v,int r,int g,int b,int a,int light) {
+        out.addVertex(pose.pose(),x,y,z).setColor(r,g,b,a).setUv(u,v)
+                .setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY).setLight(light).setNormal(0,1,0);
+        DanmakuRenderProbe.countVertex();
     }
 
     /**

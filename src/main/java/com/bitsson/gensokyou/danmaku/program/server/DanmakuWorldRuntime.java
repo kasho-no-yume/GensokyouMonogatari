@@ -174,6 +174,13 @@ public final class DanmakuWorldRuntime {
         return prefix+name;
     }
     public Actions.Pose groupPose(long id,double time) { Group g=group(id); return groupMotions.getOrDefault(id,GroupMotion.stationary(g.frame,0)).pose(time); }
+    public long offsetGroup(long source,String handle,Vec3 offset) {
+        Group parent=group(source); Frame base=groupPose(source,tick).frame();
+        Frame frame=new Frame(base.point(offset),base.right(),base.up(),base.forward());
+        long id=createGroup(parent.encounter,parent.card,parent.cycle,source,parent.slot,parent.background,parent.retain,frame,parent.targets);
+        groupHandle(handle,id); targetRadius(id,targetRadii.get(source));
+        clocks(id,clocks.get(source)); return id;
+    }
     public void endMembers(long id,String reason) { for (MemberId member:List.copyOf(group(id).members.keySet())) remove(member,reason); }
     public List<MemberId> members(long id,Selection selection) { return group(id).members.values().stream().filter(m->selection.includes(m.template())).map(MemberSnapshot::id).toList(); }
     public void releaseInstanceHandles(long instance) {
@@ -228,6 +235,7 @@ public final class DanmakuWorldRuntime {
     public void clocks(long id,Clocks anchors) { group(id); clocks.put(id,Objects.requireNonNull(anchors)); }
     public void targetRadius(long id,double radius) { group(id); Deterministic.positive(radius); targetRadii.put(id,radius); }
     public void groupMotion(long id,GroupMotion motion) { group(id); groupMotions.put(id,Objects.requireNonNull(motion)); }
+    public GroupMotion groupMotion(long id) { group(id); return groupMotions.get(id); }
     /** Group-clock geometry is explicit, rather than accidentally rebased at every batch birth. */
     public void attachToGroup(MemberId id) {
         member(id).orElseThrow();
@@ -245,6 +253,19 @@ public final class DanmakuWorldRuntime {
         result.ifPresent(p->{
             targetSamples.put(new SampleKey(id,slot+":"+point),p);
             emit(Kind.TARGET_SAMPLE,g.encounter,id,List.of(),Integer.toString(slot),null,List.of(),p);
+        });
+        return result;
+    }
+    public Optional<Vec3> sampleRandomTarget(long id,AuthorityDescriptions.TargetPoint point) {
+        Group g=group(id);
+        var targets=captureTargets(g.encounter,groupPose(id,tick).frame().origin(),
+                new AuthorityDescriptions.CaptureTargets(targetRadii.getOrDefault(id,64D),5,true,true));
+        if (targets.isEmpty()) return Optional.empty();
+        int index=(int)(new Deterministic.Seed(g.id,List.of()).unit(41,tick)*targets.size());
+        var result=world.target(targets.get(index)).map(p->p.point(point));
+        result.ifPresent(p->{
+            targetSamples.put(new SampleKey(id,"random:"+point),p);
+            emit(Kind.TARGET_SAMPLE,g.encounter,id,List.of(),"random",null,List.of(targets.get(index)),p);
         });
         return result;
     }
@@ -350,11 +371,15 @@ public final class DanmakuWorldRuntime {
         return world.entity(g.encounter.owner()).map(p->player.orElseThrow().feet().subtract(p.frame().origin()).length()<=radius).orElse(false);
     }
     public EmissionPlan prepare(long id, long birthTick, Actions.Pose source, Actions.ChildProgram program,
-                                Actions.Binding binding, Deterministic.Seed seed) {
+                                 Actions.Binding binding, Deterministic.Seed seed) {
+        return prepare(id,birthTick,source,program,binding,seed,null);
+    }
+    public EmissionPlan prepare(long id,long birthTick,Actions.Pose source,Actions.ChildProgram program,
+                                Actions.Binding binding,Deterministic.Seed seed,GroupMotion motion) {
         Group g=group(id);
         if (program.pattern().countBound()>512) throw new IllegalArgumentException("batch exceeds compiled member limit");
         if (!g.emitting || birthTick<tick || groups.values().stream().mapToInt(scope->scope.plans.size()).sum()>=limits.plans()) throw new IllegalStateException("inactive or full plan scope");
-        EmissionPlan plan=new EmissionPlan(id,g.nextBatch++,birthTick,source,program,binding,seed,program.pattern().generate(seed));
+        EmissionPlan plan=new EmissionPlan(id,g.nextBatch++,birthTick,source,program,binding,seed,program.pattern().generate(seed),motion);
         g.plans.put(plan.ordinal(),plan); emit(Kind.PREPARE,g.encounter,id,List.of(),"",plan,List.of(),null); return plan;
     }
     public EmissionPlan prepare(long id,Actions.PrepareEmission description,Actions.ChildProgram program,
@@ -429,7 +454,33 @@ public final class DanmakuWorldRuntime {
         births+=p.members().size();
     }
     public Optional<MemberSnapshot> member(MemberId id) { Group g=groups.get(id.group()); return g==null?Optional.empty():Optional.ofNullable(g.members.get(id)); }
+    public Optional<Encounter> encounter(MemberId id) {
+        Group g=groups.get(id.group());
+        return g==null || !g.members.containsKey(id) ? Optional.empty() : Optional.of(g.encounter);
+    }
     public Path.State state(MemberId id,double time) { return state(member(id).orElseThrow(),time); }
+    public com.bitsson.gensokyou.danmaku.program.math.Vec3 direction(MemberId id,double time) {
+        MemberSnapshot snapshot=member(id).orElseThrow();
+        if (snapshot.plan().program().collisionProfile() instanceof CollisionProfile.Laser) {
+            if (detached.get(id) instanceof WorldDetached path && path.direction()!=null) return path.direction();
+            Actions.Source source=following.get(id); MemberId parent=parentSources.get(id);
+            if (source!=null || parent!=null) {
+                Actions.Pose pose=(parent!=null?parentPose(parent,time):source(group(id.group()),source,time)).orElse(lastSourcePoses.get(id));
+                if (pose==null) throw new IllegalStateException("laser source has no authoritative pose");
+                Nozzle nozzle=nozzles.get(id); if (nozzle!=null) pose=nozzle.apply(pose,time);
+                return EmissionPlan.beamDirection(snapshot.plan().program(),pose,snapshot.template(),time-snapshot.plan().birthTick());
+            }
+        }
+        if (snapshot.plan().program().collisionProfile() instanceof CollisionProfile.Laser
+                && !following.containsKey(id) && !parentSources.containsKey(id) && !detached.containsKey(id)) {
+            Vec3 local=snapshot.plan().program().transform().direction(snapshot.template().direction(),time-snapshot.plan().birthTick());
+            return attachedMembers.contains(id)?groupMotions.get(id.group()).direction(local,time)
+                    :snapshot.plan().direction(snapshot.template(),time);
+        }
+        Path.State resolved=state(snapshot,time);
+        if (resolved.velocity().length()>1.0E-9) return resolved.velocity().unit();
+        return snapshot.plan().source().frame().direction(snapshot.template().direction()).unit();
+    }
     private Path.State state(MemberSnapshot m,double time) {
         Set<MemberId> stack=evaluating.get();
         if (stack.size()>=16 || !stack.add(m.id())) throw new IllegalStateException("cyclic or excessive source dependency");
@@ -782,7 +833,8 @@ public final class DanmakuWorldRuntime {
             if (m.plan().binding().onSourceLost()==Actions.OnSourceLost.END) { remove(m.id(),"source-lost"); continue; }
             Path.State boundary=state(m,tick);
             // Immutable analytic world path; no further source reads after detachment.
-            detached.put(m.id(),new WorldDetached(boundary.position(),boundary.velocity(),tick,m.plan().birthTick()+m.plan().program().lifetimeTicks()));
+            Vec3 axis=m.plan().program().collisionProfile() instanceof CollisionProfile.Laser?direction(m.id(),tick):null;
+            detached.put(m.id(),new WorldDetached(boundary.position(),boundary.velocity(),tick,m.plan().birthTick()+m.plan().program().lifetimeTicks(),axis));
             following.remove(m.id()); lastSourcePoses.remove(m.id());
             parentSources.remove(m.id());
             nozzles.remove(m.id());
@@ -792,7 +844,8 @@ public final class DanmakuWorldRuntime {
     private Optional<Actions.Pose> parentPose(MemberId parent,double time) {
         return member(parent).map(m->{ Path.State s=state(m,time); return new Actions.Pose(new Frame(s.position(),Vec3.X,Vec3.Y,Vec3.Z),s.velocity()); });
     }
-    public record WorldDetached(Vec3 position,Vec3 velocity,long origin,long end) implements Path {
+    public record WorldDetached(Vec3 position,Vec3 velocity,long origin,long end,Vec3 direction) implements Path {
+        public WorldDetached(Vec3 position,Vec3 velocity,long origin,long end) { this(position,velocity,origin,end,null); }
         public State at(double time) { return new State(position.add(velocity.multiply(time-origin)),velocity,time>=end); }
         public double radiusBound(double time) { return position.length()+velocity.length()*StrictMath.abs(time-origin); }
     }

@@ -33,7 +33,13 @@ public final class Actions {
     }
     public record ChildProgram(Pattern pattern,Path path,long lifetimeTicks,int maxGenerations,long descendantBound,
                                List<ChildAction> actions,Presentation.Profile presentation,Transforms.Transform transform,
-                               DirectionRule directionRule,long directionChannel) {
+                               DirectionRule directionRule,long directionChannel,CollisionProfile collisionProfile) {
+        public ChildProgram(Pattern pattern,Path path,long lifetimeTicks,int maxGenerations,long descendantBound,
+                            List<ChildAction> actions,Presentation.Profile presentation,Transforms.Transform transform,
+                            DirectionRule directionRule,long directionChannel) {
+            this(pattern,path,lifetimeTicks,maxGenerations,descendantBound,actions,presentation,transform,
+                    directionRule,directionChannel,CollisionProfile.projectile());
+        }
         public ChildProgram(Pattern pattern,Path path,long lifetimeTicks,int maxGenerations,long descendantBound,
                             List<ChildAction> actions,Presentation.Profile presentation,Transforms.Transform transform) {
             this(pattern,path,lifetimeTicks,maxGenerations,descendantBound,actions,presentation,transform,DirectionRule.FIXED,0);
@@ -47,6 +53,7 @@ public final class Actions {
             if (lifetimeTicks<1 || maxGenerations<0 || maxGenerations>8 || descendantBound<0 || descendantBound>4096) throw new IllegalArgumentException("bounded child program required");
             actions=List.copyOf(actions); java.util.Objects.requireNonNull(presentation); java.util.Objects.requireNonNull(transform);
             java.util.Objects.requireNonNull(directionRule);
+            collisionProfile=CollisionProfile.require(collisionProfile);
             if (actions.size()>64) throw new IllegalArgumentException("child action limit");
             long derived=0; int generations=0;
             for (ChildAction action:actions) {

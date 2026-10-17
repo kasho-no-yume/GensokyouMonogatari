@@ -59,7 +59,8 @@ public final class OperationLibrary {
                 .register("presentation:flash",Presentation.Flash.class).register("presentation:sound_cue",Presentation.SoundCue.class)
                 .register("presentation:fade",Presentation.Fade.class).register("presentation:billboard",Presentation.Billboard.class)
                 .register("presentation:telegraph",Presentation.Telegraph.class).register("presentation:profile",Presentation.Profile.class).register("presentation:laser_window",Presentation.LaserWindow.class);
-        codec.register("action:pose",Actions.Pose.class).register("action:member_pose",Actions.MemberPose.class).register("action:group_pose",Actions.GroupPose.class)
+        codec.register("collision:projectile",CollisionProfile.Projectile.class).register("collision:laser",CollisionProfile.Laser.class)
+                .register("action:pose",Actions.Pose.class).register("action:member_pose",Actions.MemberPose.class).register("action:group_pose",Actions.GroupPose.class)
                 .register("action:external_entity_source",Actions.ExternalEntitySource.class).register("action:binding",Actions.Binding.class)
                 .register("action:child_program",Actions.ChildProgram.class).register("action:spawn_child",Actions.SpawnChild.class)
                 .register("action:child_action",Actions.ChildAction.class).register("action:at_age",Actions.AtAge.class)

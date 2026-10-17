@@ -18,7 +18,11 @@ public final class ReplicaState {
     /** Mask bit positions address the ordered templates, never renumber stable member indices. */
     public record Batch(long group, long ordinal, long birth, Actions.Pose source, String description,
                         Actions.Binding binding, Deterministic.Seed seed, List<Pattern.Member> templates,
-                        List<Long> alive, List<Long> harmful, boolean warning) {
+                         List<Long> alive, List<Long> harmful, boolean warning, GroupMotion motion) {
+        public Batch(long group,long ordinal,long birth,Actions.Pose source,String description,Actions.Binding binding,
+                     Deterministic.Seed seed,List<Pattern.Member> templates,List<Long> alive,List<Long> harmful,boolean warning) {
+            this(group,ordinal,birth,source,description,binding,seed,templates,alive,harmful,warning,null);
+        }
         public Batch { templates=List.copyOf(templates); alive=List.copyOf(alive); harmful=List.copyOf(harmful); }
         public boolean alive(int position) { return bit(alive,position); }
         public boolean harmful(int position) { return bit(harmful,position); }
@@ -33,7 +37,7 @@ public final class ReplicaState {
                            String hash, ClockAnchors anchors,long nextTick) {}
     public record Cursor(long group, String key, long next) {}
     public record Emitter(long group,Actions.CreateEmitter description,Deterministic.Seed seed,
-                          AuthorityDescriptions.Commit policy,long origin,int nextShot) {}
+                           AuthorityDescriptions.Commit policy,long origin,int nextShot,Long sourceGroup) {}
     public record Pending(long group,long batch,AuthorityDescriptions.Commit policy,long ownershipEnd,boolean seal) {}
     public record SurfacePoint(Vec3 point) {}
     public record Sample(long group,String name,Vec3 point,List<SurfacePoint> surface,int queries) {
@@ -68,14 +72,18 @@ public final class ReplicaState {
         for (var g:c.groups()) {
             out.put(groupKey(g.id()),new Group(g.id(),g.encounter(),g.card(),g.cycle(),g.parent(),g.targetSlot(),g.background(),g.emitting(),g.fadeEnd(),
                     g.frame(),g.targets(),g.invalidTargets(),Objects.requireNonNull(c.clocks().get(g.id())),c.groupMotions().get(g.id())));
-            Map<Long,EmissionPlan> plans=new TreeMap<>(); for (var p:g.plans()) plans.put(p.ordinal(),p);
-            for (var m:g.members()) plans.put(m.plan().ordinal(),m.plan());
-            for (var p:plans.values()) {
-                String hash=wire.descriptionHash(p.program()); descriptions.put(hash,p.program());
-                Set<Integer> alive=new HashSet<>(), harmful=new HashSet<>();
-                for (var m:g.members()) if (m.id().batch()==p.ordinal()) { alive.add(m.id().index()); if (m.harmful()) harmful.add(m.id().index()); }
+             Map<Long,EmissionPlan> plans=new TreeMap<>(); for (var p:g.plans()) plans.put(p.ordinal(),p);
+             Map<Long,Set<Integer>> living=new HashMap<>(),damaging=new HashMap<>();
+             for (var m:g.members()) {
+                 plans.put(m.plan().ordinal(),m.plan());
+                 living.computeIfAbsent(m.id().batch(),k->new HashSet<>()).add(m.id().index());
+                 if (m.harmful()) damaging.computeIfAbsent(m.id().batch(),k->new HashSet<>()).add(m.id().index());
+             }
+             for (var p:plans.values()) {
+                 String hash=wire.descriptionHash(p.program()); descriptions.put(hash,p.program());
+                 Set<Integer> alive=living.getOrDefault(p.ordinal(),Set.of()), harmful=damaging.getOrDefault(p.ordinal(),Set.of());
                 out.put(batchKey(g.id(),p.ordinal()),new Batch(g.id(),p.ordinal(),p.birthTick(),p.source(),hash,p.binding(),p.seed(),p.members(),
-                        mask(p.members(),alive),mask(p.members(),harmful),g.plans().stream().anyMatch(plan->plan.ordinal()==p.ordinal())));
+                         mask(p.members(),alive),mask(p.members(),harmful),g.plans().stream().anyMatch(plan->plan.ordinal()==p.ordinal()),p.motion()));
             }
             for (var m:g.members()) {
                 var id=m.id(); Actions.Source source=c.following().get(id); Long sourceGroup=null; DanmakuWorldRuntime.MemberId sourceMember=c.parentSources().get(id);
@@ -96,7 +104,8 @@ public final class ReplicaState {
                             sourceGroup==null && sourceMember==null?c.lastSourcePoses().get(id):null,c.nozzles().get(id)));
             }
         }
-        for (var e:c.emitters()) out.put("e/"+e.group()+"/"+e.origin()+"/"+wire.hash(wire.encodeData(e.description())),new Emitter(e.group(),e.description(),e.seed(),e.policy(),e.origin(),e.nextShot()));
+        for (var e:c.emitters()) out.put("e/"+e.group()+"/"+e.origin()+"/"+wire.hash(wire.encodeData(e.description())),new Emitter(e.group(),e.description(),e.seed(),e.policy(),e.origin(),e.nextShot(),
+                e.description().source() instanceof Actions.GroupPose source?c.sourceGroups().get(source.group()):null));
         for (var p:c.commits()) out.put("p/"+p.plan().group()+"/"+p.plan().ordinal(),new Pending(p.plan().group(),p.plan().ordinal(),p.policy(),p.ownershipEnd(),p.seal()));
         for (String trigger:c.consumedTriggers()) {
             long group=c.groups().stream().filter(g->trigger.startsWith(g.encounter().owner()+":"+g.encounter().epoch()+":"+g.id()+":")).mapToLong(DanmakuWorldRuntime.GroupSnapshot::id).findFirst().orElseThrow();
@@ -138,6 +147,7 @@ public final class ReplicaState {
             } else if (r instanceof Beam b) { if (!entry.getKey().equals("l/"+motionKey(b.id())) || !hasMember(image,b.id())) throw new IllegalArgumentException("orphan beam"); }
             else if (r instanceof Emitter e) {
                 if (!image.entries().containsKey(groupKey(e.group())) || e.origin()<0 || e.nextShot()<0 || e.nextShot()>=e.description().count()) throw new IllegalArgumentException("invalid emitter cursor");
+                if (e.sourceGroup()!=null && !(image.entries().get(groupKey(e.sourceGroup())) instanceof Group)) throw new IllegalArgumentException("missing emitter source closure");
             } else if (r instanceof Pending p) {
                 if (!(image.entries().get(batchKey(p.group(),p.batch())) instanceof Batch b) || !b.warning() || p.ownershipEnd()<0) throw new IllegalArgumentException("invalid future commit");
             } else if (r instanceof Instance i) {
@@ -170,6 +180,37 @@ public final class ReplicaState {
     public static Path.State state(Image image,Map<String,Actions.ChildProgram> descriptions,DanmakuWorldRuntime.MemberId id,double time) {
         return state(image,descriptions,id,time,new HashSet<>());
     }
+    /** Authored beam axis; translational velocity never substitutes for a live laser source frame. */
+    public static Vec3 direction(Image image,Map<String,Actions.ChildProgram> descriptions,DanmakuWorldRuntime.MemberId id,double time) {
+        Batch batch=(Batch)image.entries().get(batchKey(id.group(),id.batch()));
+        var template=batch.templates().stream().filter(m->m.index()==id.index()).findFirst().orElseThrow();
+        var program=Objects.requireNonNull(descriptions.get(batch.description()));
+        var motion=(Motion)image.entries().get(motionKey(id));
+        double age=time-batch.birth();
+        if (motion!=null && motion.detached() instanceof DanmakuWorldRuntime.WorldDetached path && path.direction()!=null) return path.direction();
+        if (motion!=null && motion.detached()!=null && (!(motion.detached() instanceof DanmakuWorldRuntime.Rebased rebase) || time>=rebase.start())) {
+            var velocity=state(image,descriptions,id,time).velocity();
+            return velocity.length()>1e-9?velocity.unit():EmissionPlan.beamDirection(program,batch.source(),template,age);
+        }
+        if (motion!=null && motion.attached()) {
+            var group=(Group)image.entries().get(groupKey(id.group()));
+            return group.motion().direction(program.transform().direction(template.direction(),age),time);
+        }
+        if (motion!=null && (motion.sourceGroup()!=null || motion.sourceMember()!=null)) {
+            Actions.Pose pose=motion.lastPose();
+            if (motion.sourceMember()!=null) {
+                var parent=state(image,descriptions,motion.sourceMember(),time);
+                pose=new Actions.Pose(new Frame(parent.position(),Vec3.X,Vec3.Y,Vec3.Z),parent.velocity());
+            } else {
+                var group=(Group)image.entries().get(groupKey(motion.sourceGroup()));
+                pose=(group.motion()==null?GroupMotion.stationary(group.frame(),0):group.motion()).pose(time);
+            }
+            if (motion.nozzle()!=null) pose=motion.nozzle().apply(pose,time);
+            return EmissionPlan.beamDirection(program,pose,template,age);
+        }
+        return batch.motion()==null?EmissionPlan.beamDirection(program,batch.source(),template,age)
+                :batch.motion().direction(program.transform().direction(template.direction(),age),time);
+    }
     private static Path.State state(Image image,Map<String,Actions.ChildProgram> descriptions,DanmakuWorldRuntime.MemberId id,double time,Set<DanmakuWorldRuntime.MemberId> stack) {
         if (!hasMember(image,id) || stack.size()>=16 || !stack.add(id)) throw new IllegalArgumentException("missing/cyclic member");
         try {
@@ -177,7 +218,9 @@ public final class ReplicaState {
             Pattern.Member template=b.templates().stream().filter(m->m.index()==id.index()).findFirst().orElseThrow();
             Actions.ChildProgram program=Objects.requireNonNull(descriptions.get(b.description()));
             Motion motion=(Motion)image.entries().get(motionKey(id));
-            if (motion!=null && motion.detached()!=null) return motion.detached().at(time);
+            if (motion!=null && motion.detached()!=null
+                    && (!(motion.detached() instanceof DanmakuWorldRuntime.Rebased rebase) || time>=rebase.start()))
+                return motion.detached().at(time);
             if (motion!=null && motion.attached()) return g.motion().apply(program.memberState(template,b.seed(),time-b.birth()),time);
             if (motion!=null && (motion.sourceGroup()!=null || motion.sourceMember()!=null)) {
                 Actions.Pose pose=motion.lastPose();
@@ -188,7 +231,8 @@ public final class ReplicaState {
                 var spawn=new Actions.SpawnChild(new Actions.GroupPose(new ProgramRef.Group(new NodeId(0))),program,b.binding());
                 return Actions.emittedState(spawn,(s,t)->Optional.of(t==b.birth()?b.source():current),b.birth(),time,template,b.seed()).orElseThrow();
             }
-            return new EmissionPlan(b.group(),b.ordinal(),b.birth(),b.source(),program,b.binding(),b.seed(),b.templates()).state(template,time);
+            if (b.motion()!=null) return b.motion().apply(program.memberState(template,b.seed(),time-b.birth()),time);
+            return EmissionPlan.state(program,b.binding(),b.source(),b.seed(),template,time-b.birth());
         } finally { stack.remove(id); }
     }
 }

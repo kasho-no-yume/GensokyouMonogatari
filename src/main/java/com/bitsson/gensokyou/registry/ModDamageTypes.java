@@ -30,6 +30,19 @@ public final class ModDamageTypes {
         return new DamageSource(holder, source, attacker);
     }
 
+    /**
+     * Program-backed danmaku damage. The encounter owner remains the attacker,
+     * while the direct entity is deliberately absent because a program member
+     * is data, not a Minecraft projectile entity.
+     */
+    public static DamageSource programDanmaku(Entity victim, Entity attacker) {
+        Holder<DamageType> holder = victim.level()
+                .registryAccess()
+                .registryOrThrow(Registries.DAMAGE_TYPE)
+                .getHolderOrThrow(DANMAKU);
+        return new DamageSource(holder, null, attacker);
+    }
+
     /** 演出脚本伤害源（无直接实体/攻击者——减免管线与汲取均不认领此类型）。 */
     public static DamageSource gracePerform(Entity victim) {
         Holder<DamageType> holder = victim.level()

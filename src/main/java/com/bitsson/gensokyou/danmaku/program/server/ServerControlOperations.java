@@ -25,13 +25,27 @@ public final class ServerControlOperations {
         public Replace { if (maxParents<1 || maxParents>512) throw new IllegalArgumentException("bounded parent selection required"); }
     }
     public record BindSource(String group,ProgramRef.Group reference,Long batch) {}
-    public record Corridor(String group,Vec3 from,Vec3 until,double halfWidth,int maxQueries,boolean cancelOnFailure) {}
+    public record OffsetGroup(String name,String source,Vec3 offset) {}
+    public record Corridor(String group,Vec3 from,Vec3 until,double halfWidth,int maxQueries,boolean cancelOnFailure,boolean local) {
+        public Corridor(String group,Vec3 from,Vec3 until,double halfWidth,int maxQueries,boolean cancelOnFailure) {
+            this(group,from,until,halfWidth,maxQueries,cancelOnFailure,false);
+        }
+    }
+    public record RebaseTarget(String group,int slot,AuthorityDescriptions.TargetPoint point,Selection selection,double speed) {
+        public RebaseTarget { if (slot< -1 || slot>4) throw new IllegalArgumentException("target slot"); Objects.requireNonNull(point); Objects.requireNonNull(selection); Deterministic.positive(speed); }
+    }
+    /** A shared boundary center is captured before any selected member changes path. */
+    public record RadialRelease(String group,Selection center,Selection members,double speed) {
+        public RadialRelease { Objects.requireNonNull(center); Objects.requireNonNull(members); Deterministic.positive(speed); }
+    }
     public static OperationDataCodec dataRegistry() {
         return ServerOperations.dataRegistry().register("server:group_motion",GroupMotion.class)
                 .register("server:capture",Capture.class).register("server:group",Group.class).register("server:fire",Fire.class)
                 .register("server:control",Control.class).register("server:sample",Sample.class).register("server:surface",Surface.class)
                 .register("server:emitter",Emitter.class).register("server:replace",Replace.class)
-                .register("server:bind_source",BindSource.class).register("server:corridor",Corridor.class);
+                .register("server:bind_source",BindSource.class).register("server:corridor",Corridor.class)
+                .register("server:offset_group",OffsetGroup.class).register("server:rebase_target",RebaseTarget.class)
+                .register("server:radial_release",RadialRelease.class);
     }
     public static <P extends Record> OperationType<P> type(String name,Class<P> clazz,OperationDataCodec codec) {
         return OperationLibrary.descriptionType("gensokyou:server_"+name,clazz,codec,p->{
@@ -59,7 +73,7 @@ public final class ServerControlOperations {
         execution.register(type,new ProgramExecution.Handler<>() {
             public DanmakuWorldRuntime.Phase phase() {
                 Class<?> parameters=type instanceof OperationLibrary.RegisteredType<?> registered?registered.parameters():null;
-                if (parameters==Fire.class || parameters==Emitter.class || parameters==Replace.class || parameters==Corridor.class)
+                 if (parameters==Fire.class || parameters==Emitter.class || parameters==Replace.class || parameters==Corridor.class || parameters==RebaseTarget.class || parameters==RadialRelease.class)
                     return DanmakuWorldRuntime.Phase.PREPARE;
                 if (parameters==Control.class) return DanmakuWorldRuntime.Phase.COMMIT;
                 return DanmakuWorldRuntime.Phase.CAPTURE;
@@ -84,13 +98,39 @@ public final class ServerControlOperations {
                     r.targetRadius(id,r.targetHandleRadius(targetKey));
                     r.clocks(id,new DanmakuWorldRuntime.Clocks(c.anchors().card(),c.anchors().cycle(),e.tick()));
                     if (group.motion()!=null) r.groupMotion(id,new GroupMotion(frame,group.motion().translation(),group.motion().transform(),e.tick(),group.motion().parents()));
+                } else if (value instanceof OffsetGroup offset) {
+                    r.groupHandle(r.resolveHandle(prefix,offset.source(),false)).ifPresent(source->{
+                        long id=r.offsetGroup(source,prefix+offset.name(),offset.offset());
+                        r.clocks(id,new DanmakuWorldRuntime.Clocks(c.anchors().card(),c.anchors().cycle(),e.tick()));
+                    });
                 } else if (value instanceof Fire fire) {
                     OptionalLong group=r.groupHandle(r.resolveHandle(prefix,fire.group(),false)); if (group.isEmpty()) return;
                     long id=group.getAsLong();
                     var seed=fire.seed().child(Math.toIntExact(c.instance())).child(Math.toIntExact(e.node().value()));
                     for (long n:e.occurrence()) seed=seed.child(Math.toIntExact(n));
-                    var plan=r.prepare(id,Math.addExact(e.tick(),fire.warningTicks()),r.groupPose(id,e.tick()),fire.program(),fire.binding(),seed);
+                    var motion=fire.binding().attachment()==Actions.Attachment.FOLLOW_SOURCE?r.groupMotion(id):null;
+                    var plan=r.prepare(id,Math.addExact(e.tick(),fire.warningTicks()),r.groupPose(id,e.tick()),fire.program(),fire.binding(),seed,motion);
                     r.commitAtBirth(plan,fire.policy(),e.ownershipEnd());
+                } else if (value instanceof RadialRelease release) {
+                    r.groupHandle(r.resolveHandle(prefix,release.group(),false)).ifPresent(id->{
+                        var centers=r.members(id,release.center());
+                        if (centers.isEmpty()) { r.cancel(id,0,"radial-center-unavailable"); return; }
+                        if (centers.size()!=1) throw new IllegalArgumentException("radial release requires one live center");
+                        Vec3 center=r.state(centers.getFirst(),e.tick()).position();
+                        for (var member:r.members(id,release.members())) {
+                            Vec3 delta=r.state(member,e.tick()).position().subtract(center);
+                            r.rebase(member,delta.length()>1e-9?new Paths.Linear(delta,release.speed()):new Paths.Hold(),true);
+                        }
+                    });
+                } else if (value instanceof RebaseTarget rebase) {
+                    r.groupHandle(r.resolveHandle(prefix,rebase.group(),false)).ifPresent(id->{
+                        var point=rebase.slot()<0?r.sampleRandomTarget(id,rebase.point()):r.sampleTarget(id,rebase.slot(),rebase.point());
+                        if (point.isEmpty()) { r.cancel(id,0,"rebase-target-unavailable"); return; }
+                        for (var member:r.members(id,rebase.selection())) {
+                            Vec3 delta=point.orElseThrow().subtract(r.state(member,e.tick()).position());
+                            r.rebase(member,delta.length()>1e-9?new Paths.Linear(delta,rebase.speed()):new Paths.Hold(),true);
+                        }
+                    });
                 } else if (value instanceof Sample sample) {
                     r.groupHandle(r.resolveHandle(prefix,sample.group(),false)).ifPresent(id->r.sampleTarget(id,sample.slot(),sample.point()));
                 } else if (value instanceof Surface surface) {
@@ -108,7 +148,10 @@ public final class ServerControlOperations {
                     });
                 } else if (value instanceof Corridor corridor) {
                     r.groupHandle(r.resolveHandle(prefix,corridor.group(),false)).ifPresent(id->{
-                        if (!r.corridor(id,corridor.from(),corridor.until(),corridor.halfWidth(),corridor.maxQueries()) && corridor.cancelOnFailure()) r.cancel(id,0,"corridor-blocked");
+                        Frame frame=r.groupPose(id,e.tick()).frame();
+                        Vec3 from=corridor.local()?frame.point(corridor.from()):corridor.from();
+                        Vec3 until=corridor.local()?frame.point(corridor.until()):corridor.until();
+                        if (!r.corridor(id,from,until,corridor.halfWidth(),corridor.maxQueries()) && corridor.cancelOnFailure()) r.cancel(id,0,"corridor-blocked");
                     });
                 } else if (value instanceof Control control) {
                     if (control.kind()==Actions.LifecycleKind.END_CARD) { r.endCard(c.encounter(),c.card()); return; }

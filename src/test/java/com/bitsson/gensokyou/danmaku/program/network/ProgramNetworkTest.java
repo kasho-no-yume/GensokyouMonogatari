@@ -9,6 +9,114 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ProgramNetworkTest {
+    @Test void independentViewersCanLeaveRejoinAndRecoverWithoutChangingAuthority() {
+        for (int viewers:new int[]{1,2,5}) {
+            var f=new Fixture(); var plan=f.birth(48);
+            var clients=new ArrayList<ProgramReplica>();
+            var servers=new ArrayList<ProgramSyncServer>();
+            var queues=new ArrayList<List<byte[]>>();
+            for (int v=0;v<viewers;v++) {
+                var queue=new ArrayList<byte[]>(); queues.add(queue);
+                servers.add(new ProgramSyncServer(f.wire,queue::add,20));
+                // Distinct wire instances avoid server-side identity caches helping clients.
+                clients.add(new ProgramReplica(new ProgramWire(NetworkLimits.defaults()),new OperationRegistry().freeze(),ProgramLimits.defaults()));
+            }
+            var bounds=Map.of(f.group,new ProgramInterest.Box(new Vec3(-10,-10,-10),new Vec3(10,10,10)));
+            for (int tick=0;tick<80;tick++) {
+                f.runtime.advance(tick+1);
+                if (tick==35) f.runtime.remove(new DanmakuWorldRuntime.MemberId(f.group,plan.ordinal(),7),"matrix-hit");
+                var projection=f.projection(); var before=f.runtime.checkpoint();
+                for (int v=0;v<viewers;v++) {
+                    var client=clients.get(v); var server=servers.get(v);
+                    boolean away=tick>=20+v && tick<30+v;
+                    server.publish(projection,bounds,away?new Vec3(1000,0,0):Vec3.ZERO,0);
+                    for (byte[] bytes:queues.get(v)) client.receive(bytes,tick+v);
+                    queues.get(v).clear();
+                    if (tick==45) assertTrue(server.recover(client.request(f.scope,1).orElseThrow(),tick));
+                    if (away) assertTrue(client.image(f.scope).isEmpty());
+                    else {
+                        var image=client.image(f.scope).orElseThrow();
+                        for (var id:f.runtime.members(f.group,new Selection.AllOf(List.of())))
+                            assertEquals(f.runtime.state(id,tick+.5).position(),client.state(f.scope,id,tick+.5).position());
+                        if (tick>=35) assertFalse(ReplicaState.hasMember(image,new DanmakuWorldRuntime.MemberId(f.group,plan.ordinal(),7)));
+                    }
+                    assertEquals(0,client.failures());
+                }
+                assertEquals(before,f.runtime.checkpoint(),"viewers must not advance authority");
+            }
+        }
+    }
+    @Test void sameSubscriptionRecoveryPreservesPreRebaseRenderHistory() {
+        var f=new Fixture(); var plan=f.birth(2);
+        var id=new DanmakuWorldRuntime.MemberId(f.group,plan.ordinal(),0);
+        f.publish(Vec3.ZERO); f.deliver(0);
+        Vec3 original=f.runtime.state(id,.5).position();
+        f.runtime.advance(1); f.runtime.rebase(id,new Paths.Linear(Vec3.X,.3),true);
+        f.publish(Vec3.ZERO); f.deliver(1);
+        assertTrue(f.server.recover(f.client.request(f.scope,1).orElseThrow(),2));
+        f.runtime.advance(2); f.publish(Vec3.ZERO); f.deliver(2);
+        assertEquals(original,f.client.renderView(f.scope,.5).orElseThrow().members().stream().filter(m->m.id().equals(id)).findFirst().orElseThrow().position());
+        assertEquals(f.runtime.state(id,2).position(),f.client.state(f.scope,id,2).position());
+    }
+    @Test void jitteredSparseHeartbeatsDoNotRequestStateRecovery() {
+        var f=new Fixture(); f.birth(2); f.publish(Vec3.ZERO); f.deliver(0);
+        for (int tick=1;tick<=90;tick++) {
+            f.runtime.advance(tick); f.publish(Vec3.ZERO);
+            int local=tick+(tick%40==0?1:0);
+            f.deliver(local);
+            for (double partial:new double[]{0,.5,.99}) {
+                f.client.renderTime("test:world",local+partial);
+                assertTrue(f.client.clock("test:world").renderable());
+            }
+            assertTrue(f.client.recoveryRequests(local).isEmpty());
+        }
+    }
+    @Test void reentryRejectsDelayedOldSubscriptionAndEndDuringAssemblyIsTerminal() {
+        var f=new Fixture(true); f.birth(480); f.publish(Vec3.ZERO);
+        var old=List.copyOf(f.sent); f.deliver(0);
+        f.runtime.advance(1); f.publish(new Vec3(1000,0,0)); f.deliver(1);
+        assertTrue(f.client.image(f.scope).isEmpty());
+        f.runtime.advance(2); f.publish(Vec3.ZERO);
+        var reentry=List.copyOf(f.sent); f.sent.clear();
+        var starts=reentry.stream().filter(b->f.wire.decode(b).kind()==ProgramWire.Kind.START).toList();
+        assertTrue(starts.size()>1);
+        f.client.receive(starts.getFirst(),2);
+        for (byte[] bytes:old) f.client.receive(bytes,2);
+        assertTrue(f.client.image(f.scope).isEmpty());
+        f.server.end("test:world",f.encounter,3,f.runtime.checkpoint().revision()); f.deliver(3);
+        for (byte[] bytes:reentry) f.client.receive(bytes,4);
+        assertTrue(f.client.image(f.scope).isEmpty());
+        assertEquals(0,f.client.pendingTransfers());
+    }
+    @Test void endingOneOwnerKeepsTheOtherOwnersClockAndMembers() {
+        var f=new Fixture(); f.birth(2);
+        UUID other=new UUID(0,2); var encounter=f.runtime.startEncounter(other);
+        long group=f.runtime.createGroup(encounter,1,0,null,-1,false,false,Frame.IDENTITY,List.of());
+        var program=new Actions.ChildProgram(new Patterns.Point(Vec3.ZERO,Vec3.Z),new Paths.Linear(Vec3.Z,.2),100,0,0);
+        var plan=f.runtime.prepare(group,0,new Actions.Pose(Frame.IDENTITY,Vec3.ZERO),program,Actions.Binding.snapshot(),new Deterministic.Seed(5,List.of()));
+        assertTrue(f.runtime.commit(plan,new AuthorityDescriptions.Commit(new ProgramRef.Plan(new NodeId(0)),0,4096,AuthorityDescriptions.Failure.REJECT_BATCH,true)));
+        var boxes=Map.of(f.group,new ProgramInterest.Box(Vec3.ZERO,Vec3.X),group,new ProgramInterest.Box(Vec3.ZERO,Vec3.X));
+        f.server.publish(f.projection(),boxes,Vec3.ZERO,0); f.deliver(0);
+        var clock=f.client.clock("test:world");
+        f.server.end("test:world",f.encounter,1,f.runtime.checkpoint().revision()); f.deliver(1);
+        assertSame(clock,f.client.clock("test:world"));
+        assertTrue(f.client.image(f.scope).isEmpty());
+        assertTrue(f.client.image(new ProgramReplica.Scope("test:world",other)).isPresent());
+        assertEquals(1,f.client.renderViews("test:world",1).stream().mapToInt(v->v.members().size()).sum());
+    }
+    @Test void subscriptionCheckpointKeepsRenderedImageAndClockUntilAtomicCommit() {
+        var f=new Fixture(true); f.birth(480); f.publish(Vec3.ZERO); f.deliver(0);
+        var previous=f.client.image(f.scope).orElseThrow();
+        double displayed=f.client.renderTime("test:world",2);
+        var header=new ProgramWire.Envelope(1,"test:world",OWNER,1,99,1,previous.revision(),previous.tick(),ProgramWire.Kind.CHECKPOINT,999,0,1,new byte[0]);
+        var chunks=f.wire.split(header,f.wire.image(previous));
+        assertTrue(chunks.size()>1);
+        f.client.receive(f.wire.encode(chunks.getFirst()),2);
+        assertSame(previous,f.client.image(f.scope).orElseThrow());
+        assertEquals(displayed,f.client.renderTime("test:world",2));
+        for (int i=1;i<chunks.size();i++) f.client.receive(f.wire.encode(chunks.get(i)),2);
+        assertEquals(previous,f.client.image(f.scope).orElseThrow());
+    }
     @Test void spatialPublisherSendsSelectedMembersAndReentryRestoresIdentity() {
         var f=new Fixture(); var plan=f.birth(2); var a=new DanmakuWorldRuntime.MemberId(f.group,plan.ordinal(),0); var b=new DanmakuWorldRuntime.MemberId(f.group,plan.ordinal(),1);
         var envelopes=Map.of(f.group,new ProgramInterest.Box(new Vec3(-1,-1,-1),new Vec3(101,1,1)));
@@ -28,16 +136,23 @@ class ProgramNetworkTest {
         public Block block(int x,int y,int z) { return new Block(true,true,false,0); }
     }
     static class Fixture {
-        final ProgramWire wire=new ProgramWire(NetworkLimits.defaults());
+        final ProgramWire wire;
         final DanmakuWorldRuntime runtime=new DanmakuWorldRuntime("test:world",new DanmakuWorldRuntime.Limits(4096,4096,100,1000,10000),new World());
         final ProgramSession session=new ProgramSession(runtime,new ProgramExecution());
         final DanmakuWorldRuntime.Encounter encounter=runtime.startEncounter(OWNER);
         final long group=runtime.createGroup(encounter,1,0,null,-1,false,false,Frame.IDENTITY,List.of());
         final List<byte[]> sent=new ArrayList<>();
-        final ProgramSyncServer server=new ProgramSyncServer(wire,sent::add,40);
-        final ProgramReplica client=new ProgramReplica(wire,new OperationRegistry().freeze(),ProgramLimits.defaults());
+        final ProgramSyncServer server;
+        final ProgramReplica client;
         final ProgramReplica.Scope scope=new ProgramReplica.Scope("test:world",OWNER);
-        Fixture() { runtime.advance(0); }
+        Fixture() { this(false); }
+        Fixture(boolean fragmented) {
+            var n=NetworkLimits.defaults();
+            wire=new ProgramWire(fragmented?new NetworkLimits(1024,n.snapshotBytes(),n.entries(),n.members(),n.chunks(),n.pendingTransfers(),n.cachedDefinitions(),n.history(),n.staleTicks(),n.requestInterval()):n);
+            server=new ProgramSyncServer(wire,sent::add,40);
+            client=new ProgramReplica(new ProgramWire(wire.limits()),new OperationRegistry().freeze(),ProgramLimits.defaults());
+            runtime.advance(0);
+        }
         EmissionPlan birth(int n) {
             var program=new Actions.ChildProgram(new Patterns.SphereDirections(n,Patterns.SphereDistribution.FIBONACCI,1),new Paths.Linear(Vec3.Z,.2),100,0,0);
             var plan=runtime.prepare(group,runtime.tick(),new Actions.Pose(Frame.IDENTITY,Vec3.ZERO),program,Actions.Binding.snapshot(),new Deterministic.Seed(23,List.of()));
@@ -56,7 +171,7 @@ class ProgramNetworkTest {
         assertEquals(47,f.client.image(f.scope).orElseThrow().entries().values().stream().filter(r->r instanceof ReplicaState.Batch).map(r->(ReplicaState.Batch)r).mapToInt(b->b.alive().stream().mapToInt(Long::bitCount).sum()).sum());
     }
     @Test void partialCheckpointDoesNotInstallAndEndPreventsResurrection() {
-        var f=new Fixture(); f.birth(480); f.publish(Vec3.ZERO);
+        var f=new Fixture(true); f.birth(480); f.publish(Vec3.ZERO);
         List<byte[]> starts=f.sent.stream().filter(b->f.wire.decode(b).kind()==ProgramWire.Kind.START).toList();
         assertTrue(starts.size()>1);
         for (byte[] b:f.sent) if (f.wire.decode(b).kind()==ProgramWire.Kind.DESCRIPTION) f.client.receive(b,0);
@@ -136,7 +251,7 @@ class ProgramNetworkTest {
         assertEquals(1,f.server.stats().throttled());
     }
     @Test void beamLengthFactUsesSameImageAndExpiredChunksRequestRecovery() {
-        var f=new Fixture(); var plan=f.birth(480); var id=new DanmakuWorldRuntime.MemberId(f.group,plan.ordinal(),0);
+        var f=new Fixture(true); var plan=f.birth(480); var id=new DanmakuWorldRuntime.MemberId(f.group,plan.ordinal(),0);
         var projection=f.projection(); var beamImage=ReplicaState.beam(projection.image(),id,3.5);
         var decoded=f.wire.image(f.wire.image(beamImage)); ReplicaState.validate(decoded,f.wire.limits(),projection.descriptions());
         assertEquals(3.5,((ReplicaState.Beam)decoded.entries().get("l/"+ReplicaState.motionKey(id))).length());

@@ -1,6 +1,16 @@
 # 弹幕操作台账
 
-最后核对：2026-10-16。纯核已有离线实现与测试，游戏程序后端尚未接入。该台账与代码同步更新；设计文件不是实现证据。
+最后核对：2026-10-17。游戏程序后端已有显式预览闭环，正式BOSS仍走旧后端；实机与M2验收未完成。该台账与代码同步更新；设计文件不是实现证据。
+
+最终用户更新：petal_release、roaming_tower已实机确认表现通过，不再待观察；500ms高延迟整批闪烁仍严重，ProgramClock冻结grace未根治，不标稳定性通过。完整重写的第五期[next-session-handoff.md](../../../../openspec/changes/add-danmaku-program-gameplay/next-session-handoff.md)为下一会话入口，旧段落的待验收措辞属历史。整项网络矩阵/多视角与量化M2仍欠，任务主项5/12，不归档/迁移。
+
+最新用户证据：dynamic_warning/high_frequency_circle/sphere_split/moving_carriers/参数化moving_tornado在单人及500ms独立服通过表现/性能，不能外推量化M2。高延迟闪烁日志为display-error恢复，ProgramClock补最多1tick冻结呈现桥接并有严重积压撤销；用户无需复测。新增petal_release通过现有稳定IndexRange释放3整瓣27成员，roaming_tower以Bezier+HelixColumn+ChildAction顶节点每20tick发环，24批192子弹；ProgramSplitPreviewTest/ProgramMotionLabTest覆盖计数、路径保持、wire/包络、独立子代与清场，新增两项仍待集中观察。
+
+本轮续接：最新用户确认partial_release/motion_lab/moving_tornado/rotating_laser全部实机通过，花海/尾珠及split碰撞修复也已确认。新增dynamic_warning（EmissionPlan共享GroupMotion闭包，预警/激活相同组时钟）、high_frequency_circle（正式CreateEmitter，独立Billboard FX、源闭包/预发射兴趣）、sphere_split（SphereSurface减速/具名段尾替换）、moving_carriers（3×4×8）与参数化HelixColumn。ProgramMotionLabTest、ProgramSplitPreviewTest、ProgramSourceIntegrationTest覆盖FPS、数量、预算拒绝/20次回收、following激光轴及源丢失脱离。新fixture仍待集中实机；外部/成员源FX暂不投影。
+
+ProgramLatencyMatrixTest新增72组双向队列延迟/停顿/低TPS副本测试，输出build/reports/program-latency-matrix.csv，不代替真实多人。ProgramScalingGateTest对完整确定性pattern+seed批次测得48→480逻辑字节2415→2529（1.047倍，门槛≤2），空间子集/例外仍展开。NetProfile.program_tickcost接程序host原始CPU样本，现有ClientFrameProbe可记整帧；tools/program_network_matrix.py与program_ab_report.py准备矩阵/汇总证据。完整等负载M2仍欠，不能进入迁移。
+
+阶段5：`program/gameplay/`已有碰撞/伤害/渲染适配与基础诊断；`ProgramPreviewHost`、`ProgramPreviewPrograms`、`ProgramPreviewBounds`装配正式session、网络、静止owner与线性网格fixture，入口`/gs_program_preview start blue1_slice|stop|stats`。`ProgramPreviewTest`验证编译程序预警/出生/恢复/owner丢失/终止回收、全寿命包络以及正式定义晚加入到render view和End抗旧包重放。完整蓝1/4/6、组合案例、实机多人/延迟和A/B未通过，不能进入迁移。详见[第五期交接](../../../../openspec/changes/add-danmaku-program-gameplay/handoff.md)。
 
 阶段4：`program/network/`已提供有界协议、批次共享/mask投影、纯客户端副本、共享时钟、幂等/tombstone、分片原子提交、按包络订阅/父源闭包、空间分片发布、恢复限流和NeoForge显式接线。协议测试不替代真实延迟、画面或流量性能验收；真实内容包络生产者交gameplay。详见[network-api.md](../../../../openspec/changes/add-danmaku-program-network/network-api.md)。
 
@@ -9,6 +19,12 @@
 2026-10-16：已按[路线图](../../../../openspec/changes/refactor-danmaku-program-runtime/roadmap.md)拆成7个子change。core阶段（`add-danmaku-program-core`）已完成：纯核实现、测试、旧后端花海三次基线与阶段验证均有证据；operations已有离线实现。描述完成不表示游戏能力已可用。
 
 ## 状态规则
+
+第五期2.2续接：`ProgramPreviewPrograms.flowerSea/tailPearls`和`start flower_sea|tail_pearls`已实现两轮预览；`ServerControlOperations.RebaseTarget/RadialRelease`接一次权威目标采样/世界路径重置和边界花心径向释放。ProgramBlue1Test覆盖数量/伤害门/跨轮、母死亡/预算拒绝/漂移及网络恢复；实际画面、多人和M2仍待验收，不计为正式卡迁移完成。
+
+代表预览续接：`ProgramPreviewPrograms.blue1/blue4/blue6`已接正式单轮runtime，命令`start blue1|blue4|blue6`；`ServerControlOperations.OffsetGroup`共享帧偏移子组、`Corridor.local`激活前世界通路检查可编码，ProgramBlue1Test验证数量/时序/多人固定槽/恢复/断口/圆弧偏移和正式定义晚加入。已补蓝6未来弧线提示、尾窗淡出和激光裁剪长度事实到客户端（含零长度）；尚无新三卡/动态方块实机证据，不能标M2通过。
+
+第五期续接：普通程序弹已通过`ProgramVisuals`选择DEFAULT/STAR_PRISM本体，`DanmakuMeshes`共享五角星几何，Style.visualRadius与collisionRadius独立；`ProgramCollisionGeometry.sphereAabb`精确球体扫掠排除扩箱角落误中，ProgramCollisionGeometryTest/ProgramPreviewTest验证。完整视觉档案层与实机样式验证仍待完成。预览入口增加`start blue1_slice star`。
 
 - `planned`：已有设计，无新后端实现。
 - `implemented`：必须附真实文件/类型/方法；仍需验收。
@@ -64,3 +80,6 @@
 | 激光 | `danmaku/track/Projectile.java`、`entity/LaserDanmaku.java` | 旧LaserMotion与新统一姿态模型不同 |
 
 上表路径均相对`src/main/java/com/bitsson/gensokyou/`。标记legacy-only只表示发现入口，不表示已对所有参数完成验证。
+# 第五期低层基准补充（2026-10-17）
+
+`ProgramBenchmarkLoad`/`ProgramBenchmarkHost`提供显式48/480/800/2000线性负载；`gs_program_benchmark`选legacy或program，后者接正式runtime/network/collision。两端共用展开输入、seed、周期、寿命和半径。代码已implemented，轨迹/2000弹跨周期准入回收的离线测试verified；真实客户端采样pending，不代表复杂场景或M2通过。执行入口`tools/program_benchmark_run.py`及第五期`acceptance-runbook.md`§6。无新增正式BOSS原语，无BossCards迁移。

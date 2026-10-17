@@ -15,8 +15,9 @@ public final class ProgramExecution {
     public record Context(long instance,DanmakuWorldRuntime.Encounter encounter,long card,boolean background,
                           ClockAnchors anchors,PlaybackPolicy playback) {}
     private record Installed<P>(OperationType<P> type,Handler<P> handler) {
-        void enqueue(DanmakuWorldRuntime runtime,Context context,ProgramSchedule.Event event,OperationNode node) {
-            P parameters=type.decode(node.parameters());
+        @SuppressWarnings("unchecked")
+        void enqueue(DanmakuWorldRuntime runtime,Context context,ProgramSchedule.Event event,Object decoded) {
+            P parameters=(P)decoded;
             runtime.schedule(event.tick(),handler.phase(),()->{
                 if (context==null) handler.execute(runtime,event,parameters);
                 else if (runtime.active(context.encounter())) handler.execute(runtime,context,event,parameters);
@@ -25,6 +26,11 @@ public final class ProgramExecution {
     }
     private final Map<String,Installed<?>> handlers=new HashMap<>();
     private boolean frozen;
+    private final Set<ProgramDefinition> validated=Collections.newSetFromMap(new WeakHashMap<>());
+    private final Map<OperationNode,Object> decoded=new WeakHashMap<>();
+    private Object parameters(Installed<?> installed,OperationNode node) {
+        return decoded.computeIfAbsent(node,n->installed.type().decode(n.parameters()));
+    }
     public <P> void register(OperationType<P> type,Handler<P> handler) {
         if (frozen || handlers.putIfAbsent(type.id(),new Installed<>(type,handler))!=null)
             throw new IllegalStateException("frozen or duplicate authority handler");
@@ -32,26 +38,30 @@ public final class ProgramExecution {
     public ProgramExecution freeze() { frozen=true; return this; }
     public void validate(ProgramDefinition definition) {
         if (!frozen) throw new IllegalStateException("freeze authority registry first");
+        if (validated.contains(definition)) return;
         for (ProgramNode n:definition.nodes()) if (n instanceof OperationNode node) {
             Installed<?> installed=handlers.get(node.operationId());
             if (installed==null || installed.type().schemaVersion()!=node.schemaVersion()) throw new IllegalArgumentException("missing authority implementation: "+node.operationId());
-            installed.type().decode(node.parameters());
+            parameters(installed,node);
         }
         validateHandles(definition.root(),new HashSet<>(),new HashSet<>());
+        validated.add(definition);
     }
     private void validateHandles(ProgramNode node,Set<String> groups,Set<String> targets) {
         if (node instanceof OperationNode operation) {
-            Object value=handlers.get(operation.operationId()).type().decode(operation.parameters());
+            Object value=parameters(handlers.get(operation.operationId()),operation);
             if (value instanceof ServerControlOperations.Capture capture) {
                 if (!targets.add(capture.name())) throw new IllegalArgumentException("duplicate target handle "+capture.name());
             } else if (value instanceof ServerControlOperations.Group group) {
                 if (!targets.contains(group.targets())) throw new IllegalArgumentException("unavailable target handle "+group.targets());
                 if (!groups.add(group.name())) throw new IllegalArgumentException("duplicate group handle "+group.name());
+            } else if (value instanceof ServerControlOperations.OffsetGroup offset) {
+                if (!groups.contains(offset.source()) || !groups.add(offset.name())) throw new IllegalArgumentException("invalid shared frame handle "+offset.name());
             } else {
                 String name=value instanceof ServerControlOperations.Fire p?p.group():value instanceof ServerControlOperations.Sample p?p.group():
                         value instanceof ServerControlOperations.Surface p?p.group():value instanceof ServerControlOperations.Emitter p?p.group():
                         value instanceof ServerControlOperations.Replace p?p.group():value instanceof ServerControlOperations.BindSource p?p.group():
-                        value instanceof ServerControlOperations.Corridor p?p.group():value instanceof ServerControlOperations.Control p?p.group():null;
+                        value instanceof ServerControlOperations.RadialRelease p?p.group():value instanceof ServerControlOperations.RebaseTarget p?p.group():value instanceof ServerControlOperations.Corridor p?p.group():value instanceof ServerControlOperations.Control p?p.group():null;
                 boolean whole=value instanceof ServerControlOperations.Control p && (p.kind()==com.bitsson.gensokyou.danmaku.program.ops.Actions.LifecycleKind.END_CARD
                         || p.kind()==com.bitsson.gensokyou.danmaku.program.ops.Actions.LifecycleKind.END_ENCOUNTER);
                 if (name!=null && !whole && !groups.contains(name)) throw new IllegalArgumentException("unavailable group handle "+name);
@@ -76,14 +86,14 @@ public final class ProgramExecution {
         for (var event:events) {
             OperationNode node=cursor.operation(event.node());
             Installed<?> installed=handlers.get(node.operationId());
-            installed.type().decode(node.parameters());
+            parameters(installed,node);
             runtime.requireSchedulable(event.tick(),installed.handler().phase());
         }
         cursor.dispatch(until,maxEvents,runtime,(r,event,node)->{
             Installed<?> installed=handlers.get(node.operationId());
             if (installed==null || installed.type().schemaVersion()!=node.schemaVersion())
                 throw new IllegalArgumentException("missing authority implementation: "+node.operationId());
-            installed.enqueue(r,context,event,node);
+            installed.enqueue(r,context,event,parameters(installed,node));
         });
     }
 }

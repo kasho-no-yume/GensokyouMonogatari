@@ -17,6 +17,7 @@ public final class ProgramReplica {
     }
     private static final class Stream {
         long epoch,subscription,sequence,endEpoch;
+        boolean replacingSubscription;
         ReplicaState.Image image;
         final Deque<ReplicaState.Image> history=new ArrayDeque<>();
         final Set<Long> endedGroups=new HashSet<>();
@@ -45,11 +46,16 @@ public final class ProgramReplica {
         if (e.kind()==ProgramWire.Kind.RESYNC) throw new IllegalArgumentException("client received request");
         if (e.kind()==ProgramWire.Kind.END) {
             stream.endEpoch=e.epoch(); stream.epoch=e.epoch(); stream.image=null; stream.history.clear();
-            waiting.removeIf(p->same(p,scope)); transfers.keySet().removeIf(t->t.scope().equals(scope)); recovery.remove(scope); return;
+            waiting.removeIf(p->same(p,scope)); transfers.keySet().removeIf(t->t.scope().equals(scope)); recovery.remove(scope);
+            releaseIdleClock(scope.dimension()); return;
         }
         if (e.epoch()>stream.epoch || e.subscription()>stream.subscription) {
             if (e.epoch()>stream.epoch) { stream.endedGroups.clear(); stream.endedMembers.clear(); }
-            stream.epoch=e.epoch(); stream.subscription=e.subscription(); stream.sequence=0; stream.image=null; stream.history.clear();
+            boolean newEpoch=e.epoch()>stream.epoch;
+            stream.replacingSubscription=true;
+            stream.epoch=e.epoch(); stream.subscription=e.subscription(); stream.sequence=0;
+            // Keep the last complete image while a same-epoch checkpoint is assembled.
+            if (newEpoch) { stream.image=null; stream.history.clear(); }
             waiting.removeIf(p->same(p,scope)); transfers.keySet().removeIf(t->t.scope().equals(scope));
         }
         if (e.sequence()<=stream.sequence) { duplicates++; return; }
@@ -83,14 +89,21 @@ public final class ProgramReplica {
         return new ProgramWire.Envelope(e.version(),e.dimension(),e.owner(),e.epoch(),e.subscription(),e.sequence(),e.revision(),e.tick(),e.kind(),e.transfer(),0,1,out.toByteArray());
     }
     private boolean ready(ProgramWire.Envelope e,Stream stream) {
-        if (e.kind()!=ProgramWire.Kind.CHECKPOINT && e.kind()!=ProgramWire.Kind.START && e.kind()!=ProgramWire.Kind.DECISIONS) return true;
+        ReplicaState.Image next=decodeImage(e,stream);
+        return next!=null && available(next);
+    }
+    private boolean available(ReplicaState.Image image) {
+        return ReplicaState.required(image).stream().allMatch(h->descriptions.containsKey(h) || definitions.containsKey(h));
+    }
+    private ReplicaState.Image decodeImage(ProgramWire.Envelope e,Stream stream) {
+        if (e.kind()!=ProgramWire.Kind.CHECKPOINT && e.kind()!=ProgramWire.Kind.START && e.kind()!=ProgramWire.Kind.DECISIONS) return null;
         ReplicaState.Image next;
         if (e.kind()==ProgramWire.Kind.DECISIONS) {
-            if (stream.image==null) return false;
-            var patch=wire.patch(e.payload()); if (patch.baseRevision()!=stream.image.revision()) return false;
+            if (stream.image==null) return null;
+            var patch=wire.patch(e.payload()); if (patch.baseRevision()!=stream.image.revision()) return null;
             next=wire.apply(stream.image,patch,e.tick(),e.revision());
         } else next=wire.image(e.payload());
-        return ReplicaState.required(next).stream().allMatch(h->descriptions.containsKey(h) || definitions.containsKey(h));
+        return next;
     }
     private void install(Scope scope,Stream stream,ProgramWire.Envelope e,int localTick) {
         if (e.kind()==ProgramWire.Kind.DESCRIPTION) {
@@ -102,13 +115,17 @@ public final class ProgramReplica {
             ProgramDefinition definition=result.definition().orElseThrow(); put(definitions,definition.hash(),definition); return;
         }
         if (e.sequence()<=stream.sequence) { duplicates++; return; }
-        if (e.kind()==ProgramWire.Kind.RELEASE) { stream.image=null; stream.history.clear(); stream.sequence=e.sequence(); waiting.removeIf(p->same(p,scope)); return; }
+        if (e.kind()==ProgramWire.Kind.RELEASE) {
+            stream.image=null; stream.history.clear(); stream.sequence=e.sequence(); waiting.removeIf(p->same(p,scope));
+            releaseIdleClock(scope.dimension()); return;
+        }
         if (e.kind()==ProgramWire.Kind.CLOCK_DIGEST) {
             clock(e.dimension()).observe(e.tick(),localTick);
-            if (stream.image!=null && e.revision()==stream.image.revision() && !Arrays.equals(e.payload(),wire.hash(wire.image(stream.image)).getBytes(java.nio.charset.StandardCharsets.US_ASCII))) { failures++; recovery.add(scope); }
+            if (stream.image!=null && e.revision()==stream.image.revision() && !Arrays.equals(e.payload(),wire.imageDigest(stream.image).getBytes(java.nio.charset.StandardCharsets.US_ASCII))) { failures++; recovery.add(scope); }
             return;
         }
-        if (!ready(e,stream)) {
+        ReplicaState.Image next=decodeImage(e,stream);
+        if (next==null || !available(next)) {
             if (waiting.stream().noneMatch(p->same(p,scope) && p.sequence()==e.sequence())) {
                 long total=waiting.stream().mapToLong(p->p.payload().length).sum();
                 if (waiting.size()>=wire.limits().pendingTransfers() || e.payload().length>wire.limits().snapshotBytes()-total) { waiting.removeIf(p->same(p,scope)); failures++; }
@@ -116,7 +133,6 @@ public final class ProgramReplica {
             }
             recovery.add(scope); return;
         }
-        ReplicaState.Image next=e.kind()==ProgramWire.Kind.DECISIONS?wire.apply(stream.image,wire.patch(e.payload()),e.tick(),e.revision()):wire.image(e.payload());
         if (!next.dimension().equals(e.dimension()) || next.tick()!=e.tick() || next.revision()!=e.revision()) throw new IllegalArgumentException("checkpoint envelope mismatch");
         ReplicaState.validate(next,wire.limits(),descriptions);
         Set<Long> endedGroups=new HashSet<>(stream.endedGroups);
@@ -140,9 +156,15 @@ public final class ProgramReplica {
             if (encounter!=null && (!encounter.owner().equals(e.owner()) || encounter.epoch()!=e.epoch())) throw new IllegalArgumentException("cross encounter checkpoint");
         }
         if (stream.image!=null && (next.tick()<stream.image.tick() || next.revision()<stream.image.revision())) { duplicates++; return; }
+        // An idle dimension has no displayed attacks to preserve. Re-anchor the first
+        // new image instead of spending the whole encounter catching up a stale clock.
+        releaseIdleClock(e.dimension());
         if (clock(e.dimension()).time(localTick)>e.tick()) late++;
-        if (e.kind()!=ProgramWire.Kind.DECISIONS) stream.history.clear();
-        stream.image=next; stream.history.addLast(next); while (stream.history.size()>wire.limits().history()) stream.history.removeFirst();
+        // Recovery of the same subscription must preserve pre-effective path/mask facts.
+        // New epochs already clear history at receipt; START establishes a new visible set.
+        if (e.kind()==ProgramWire.Kind.START || stream.replacingSubscription) stream.history.clear();
+        stream.image=next; stream.replacingSubscription=false;
+        stream.history.addLast(next); while (stream.history.size()>wire.limits().history()) stream.history.removeFirst();
         stream.endedGroups.clear(); stream.endedGroups.addAll(endedGroups); stream.endedMembers.clear(); stream.endedMembers.addAll(endedMembers);
         stream.sequence=e.sequence(); clock(e.dimension()).observe(e.tick(),localTick); recovery.remove(scope);
     }
@@ -150,16 +172,39 @@ public final class ProgramReplica {
         if (!cache.containsKey(hash) && cache.size()>=wire.limits().cachedDefinitions()) throw new IllegalArgumentException("definition cache budget"); cache.put(hash,value);
     }
     public ProgramClock clock(String dimension) { return clocks.computeIfAbsent(dimension,k->new ProgramClock(wire.limits().staleTicks())); }
+    private void releaseIdleClock(String dimension) {
+        if (streams.entrySet().stream().noneMatch(e->e.getKey().dimension().equals(dimension) && e.getValue().image!=null))
+            clocks.remove(dimension);
+    }
     public Optional<ReplicaState.Image> image(Scope scope) { Stream s=streams.get(scope); return Optional.ofNullable(s==null?null:s.image); }
+    public Optional<ProgramRenderView.Snapshot> renderView(Scope scope,double tick) {
+        Stream stream=streams.get(scope);
+        return stream==null || stream.image==null ? Optional.empty() : Optional.of(ProgramRenderView.capture(imageAt(stream,tick),descriptions,tick));
+    }
+    public List<ProgramRenderView.Snapshot> renderViews(String dimension,double tick) {
+        List<ProgramRenderView.Snapshot> result=new ArrayList<>();
+        for (var entry:streams.entrySet()) {
+            if (!entry.getKey().dimension().equals(dimension) || entry.getValue().image==null) continue;
+            result.add(ProgramRenderView.capture(imageAt(entry.getValue(),tick),descriptions,tick));
+        }
+        return List.copyOf(result);
+    }
     public Path.State state(Scope scope,DanmakuWorldRuntime.MemberId id,double tick) {
-        Stream stream=Objects.requireNonNull(streams.get(scope)); ReplicaState.Image image=stream.image;
-        // Preserve boundary states for queries before a newly installed effective tick.
-        for (var candidate:stream.history) if (candidate.tick()<=tick) image=candidate;
-        return ReplicaState.state(Objects.requireNonNull(image),descriptions,id,tick);
+        Stream stream=Objects.requireNonNull(streams.get(scope));
+        return ReplicaState.state(imageAt(stream,tick),descriptions,id,tick);
+    }
+    private static ReplicaState.Image imageAt(Stream stream,double tick) {
+        ReplicaState.Image image=stream.history.peekFirst();
+        for (var candidate:stream.history) {
+            if (candidate.tick()>tick) break;
+            image=candidate;
+        }
+        return Objects.requireNonNull(image==null?stream.image:image);
     }
     public double renderTime(String dimension,double localTick) {
         ProgramClock clock=clock(dimension); double time=clock.time(localTick);
-        if (!clock.trusted()) for (Scope scope:streams.keySet()) if (scope.dimension().equals(dimension) && streams.get(scope).image!=null) recovery.add(scope);
+        // A short clock holdover does not imply missing/corrupt replica facts.
+        if (!clock.renderable()) for (Scope scope:streams.keySet()) if (scope.dimension().equals(dimension) && streams.get(scope).image!=null) recovery.add(scope);
         return time;
     }
     public void noteTick(int localTick) { for (String dimension:List.copyOf(clocks.keySet())) renderTime(dimension,localTick); }
@@ -179,6 +224,7 @@ public final class ProgramReplica {
     public long lateEvents() { return late; }
     public long duplicates() { return duplicates; }
     public long failures() { return failures; }
+    public boolean active(String dimension) { return streams.entrySet().stream().anyMatch(e->e.getKey().dimension().equals(dimension) && e.getValue().image!=null); }
     public int pendingTransfers() { return transfers.size(); }
     public void clear() { streams.clear(); transfers.clear(); waiting.clear(); clocks.clear(); recovery.clear(); lastRequest.clear(); descriptions.clear(); definitions.clear(); }
 }

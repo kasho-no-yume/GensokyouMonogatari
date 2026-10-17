@@ -1,4 +1,7 @@
 {
+  "commands.gensokyou.program_preview.busy": "此维度已有程序宿主，或预览发射者创建失败。",
+  "commands.gensokyou.program_preview.started": "已启动蓝 1 程序切片。可用 /gs_program_preview stats 或 stop；验证命中请使用生存模式。",
+  "commands.gensokyou.program_preview.stopped": "已停止此维度的程序预览。",
   "affix.gensokyou.attack_rate_pct": "射速 +%s%%",
   "affix.gensokyou.damage_pct": "伤害 +%s%%",
   "affix.gensokyou.range_pct": "有效距离 +%s%%",

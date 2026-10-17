@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.danmaku.program.network;
 import com.bitsson.gensokyou.danmaku.program.*;
 import com.bitsson.gensokyou.danmaku.program.ops.*;
 import com.bitsson.gensokyou.danmaku.program.server.*;
+import com.bitsson.gensokyou.danmaku.program.math.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
@@ -21,6 +22,9 @@ public final class ProgramWire {
     }
     private final NetworkLimits limits;
     private final OperationDataCodec data;
+    private final Map<Actions.ChildProgram,String> descriptionHashes=new IdentityHashMap<>();
+    private final Map<String,Pattern> patterns=new HashMap<>();
+    private final Map<Record,byte[]> recordDigests=new HashMap<>();
     public ProgramWire(NetworkLimits limits) {
         this.limits=limits;
         data=ServerControlOperations.dataRegistry()
@@ -40,7 +44,36 @@ public final class ProgramWire {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)); }
         catch (NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
     }
-    public String descriptionHash(Actions.ChildProgram program) { return hash(encodeData(program)); }
+    public String descriptionHash(Actions.ChildProgram program) {
+        String cached=descriptionHashes.get(program); if (cached!=null) return cached;
+        String result=hash(encodeData(program));
+        if (patterns.size()>=limits.cachedDefinitions()) patterns.clear();
+        patterns.put(result,program.pattern());
+        if (descriptionHashes.size()>=limits.cachedDefinitions()) descriptionHashes.clear();
+        descriptionHashes.put(program,result); return result;
+    }
+    /** Hash immutable facts once, then hash their ordered keys and fixed-size digests.
+     * A clock heartbeat must neither allocate nor fit an entire checkpoint payload. */
+    public String imageDigest(ReplicaState.Image image) {
+        try {
+            MessageDigest digest=MessageDigest.getInstance("SHA-256");
+            DataOutputStream out=new DataOutputStream(new DigestOutputStream(OutputStream.nullOutputStream(),digest));
+            text(out,image.dimension()); out.writeLong(image.tick()); out.writeLong(image.revision());
+            out.writeInt(image.entries().size());
+            if (recordDigests.size()>limits.entries()*2L) recordDigests.clear();
+            for (var entry:new TreeMap<>(image.entries()).entrySet()) {
+                text(out,entry.getKey());
+                byte[] value=recordDigests.get(entry.getValue());
+                if (value==null) {
+                    MessageDigest item=MessageDigest.getInstance("SHA-256");
+                    record(new DataOutputStream(new DigestOutputStream(OutputStream.nullOutputStream(),item)),entry.getValue(),false);
+                    value=item.digest(); recordDigests.put(entry.getValue(),value);
+                }
+                out.write(value);
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (IOException | NoSuchAlgorithmException e) { throw new IllegalStateException("fact digest",e); }
+    }
     private interface Writer { void write(DataOutputStream out) throws IOException; }
     private byte[] bytes(Writer writer) {
         try {
@@ -64,30 +97,82 @@ public final class ProgramWire {
         String value=new String(bytes,StandardCharsets.UTF_8); if (!Arrays.equals(bytes,value.getBytes(StandardCharsets.UTF_8))) throw new IOException("invalid UTF-8"); return value;
     }
     private void record(DataOutputStream out,Record value) throws IOException {
+        record(out,value,true);
+    }
+    private void record(DataOutputStream out,Record value,boolean compact) throws IOException {
+        if (value instanceof Actions.Pose p) {
+            out.writeInt(-2); vector(out,p.frame().origin()); vector(out,p.frame().right()); vector(out,p.frame().up()); vector(out,p.frame().forward());
+            vector(out,p.velocity()); vector(out,p.angularVelocity()); return;
+        }
+        if (value instanceof Deterministic.Seed s) {
+            out.writeInt(-3); out.writeLong(s.root()); out.writeInt(s.lineage().size());
+            for (int index:s.lineage()) out.writeInt(index); return;
+        }
+        if (value instanceof Pattern.Member m) {
+            if (m.tags().size()>64) throw new IOException("member tag budget");
+            out.writeInt(-4); out.writeInt(m.index()); vector(out,m.position()); vector(out,m.direction());
+            text(out,m.style().projectile()); text(out,m.style().visual());
+            out.writeDouble(m.style().collisionRadius()); out.writeDouble(m.style().damageScale()); out.writeDouble(m.style().visualRadius());
+            out.writeInt(m.tags().size()); for (String tag:new TreeSet<>(m.tags())) text(out,tag);
+            out.writeInt(m.targetSlot()); return;
+        }
         if (value instanceof ReplicaState.Batch b) {
             out.writeInt(-1); out.writeLong(b.group()); out.writeLong(b.ordinal()); out.writeLong(b.birth()); record(out,b.source()); text(out,b.description()); record(out,b.binding()); record(out,b.seed());
-            if (b.templates().size()>512) throw new IOException("batch budget"); out.writeInt(b.templates().size());
-            for (var member:b.templates()) record(out,member);
+            if (b.templates().size()>512) throw new IOException("batch budget");
+            Pattern pattern=patterns.get(b.description());
+            // Only exact generator output is compacted. Spatial subsets and resolved exceptions
+            // retain explicit templates; no client world query or authority operation is run.
+            boolean generated=compact && pattern!=null && pattern.generate(b.seed()).equals(b.templates());
+            out.writeBoolean(generated);
+            if (generated) record(out,(Record)pattern);
+            else { out.writeInt(b.templates().size()); for (var member:b.templates()) record(out,member); }
             out.writeInt(b.alive().size()); for (long word:b.alive()) out.writeLong(word);
-            out.writeInt(b.harmful().size()); for (long word:b.harmful()) out.writeLong(word); out.writeBoolean(b.warning()); return;
+            out.writeInt(b.harmful().size()); for (long word:b.harmful()) out.writeLong(word); out.writeBoolean(b.warning());
+            out.writeBoolean(b.motion()!=null); if (b.motion()!=null) record(out,b.motion()); return;
         }
         var fields=new TreeMap<>(data.encode(value)); out.writeInt(fields.size());
         for (var e:fields.entrySet()) { text(out,e.getKey()); text(out,e.getValue()); }
     }
     private <T> T record(DataInputStream in,Class<T> type) throws IOException {
         int n=in.readInt();
+        if (n==-2) return type.cast(new Actions.Pose(new Frame(vector(in),vector(in),vector(in),vector(in)),vector(in),vector(in)));
+        if (n==-3) {
+            long root=in.readLong(); int size=count(in,64); var lineage=new ArrayList<Integer>(size);
+            for (int i=0;i<size;i++) lineage.add(in.readInt());
+            return type.cast(new Deterministic.Seed(root,lineage));
+        }
+        if (n==-4) {
+            int index=in.readInt(); Vec3 position=vector(in),direction=vector(in);
+            var style=new Pattern.Style(text(in),text(in),in.readDouble(),in.readDouble(),in.readDouble());
+            int size=count(in,64); var tags=new HashSet<String>(); for (int i=0;i<size;i++) tags.add(text(in));
+            return type.cast(new Pattern.Member(index,position,direction,style,tags,in.readInt()));
+        }
         if (n==-1) {
             long group=in.readLong(),ordinal=in.readLong(),birth=in.readLong(); var source=record(in,Actions.Pose.class); String description=text(in); var binding=record(in,Actions.Binding.class); var seed=record(in,com.bitsson.gensokyou.danmaku.program.math.Deterministic.Seed.class);
-            int size=count(in,512); List<Pattern.Member> templates=new ArrayList<>(); for (int i=0;i<size;i++) templates.add(record(in,Pattern.Member.class));
+            List<Pattern.Member> templates;
+            if (in.readBoolean()) {
+                Pattern pattern=record(in,Pattern.class);
+                if (pattern.countBound()>512) throw new IOException("generated batch budget");
+                templates=pattern.generate(seed);
+                if (patterns.size()>=limits.cachedDefinitions()) patterns.clear();
+                patterns.put(description,pattern);
+            } else {
+                int size=count(in,512); templates=new ArrayList<>(); for (int i=0;i<size;i++) templates.add(record(in,Pattern.Member.class));
+            }
             int a=count(in,8); List<Long> alive=new ArrayList<>(); for (int i=0;i<a;i++) alive.add(in.readLong());
             int h=count(in,8); List<Long> harmful=new ArrayList<>(); for (int i=0;i<h;i++) harmful.add(in.readLong());
-            return type.cast(new ReplicaState.Batch(group,ordinal,birth,source,description,binding,seed,templates,alive,harmful,in.readBoolean()));
+            boolean warning=in.readBoolean(); var motion=in.readBoolean()?record(in,GroupMotion.class):null;
+            return type.cast(new ReplicaState.Batch(group,ordinal,birth,source,description,binding,seed,templates,alive,harmful,warning,motion));
         }
         if (n<0 || n>4096) throw new IOException("record field budget"); Map<String,String> fields=new TreeMap<>();
         for (int i=0;i<n;i++) if (fields.put(text(in),text(in))!=null) throw new IOException("duplicate data field");
         return data.decode(fields,type);
     }
     public byte[] encodeData(Record value) { return bytes(out->record(out,value)); }
+    private static void vector(DataOutputStream out,Vec3 value) throws IOException {
+        out.writeDouble(value.x()); out.writeDouble(value.y()); out.writeDouble(value.z());
+    }
+    private static Vec3 vector(DataInputStream in) throws IOException { return new Vec3(in.readDouble(),in.readDouble(),in.readDouble()); }
     public <T> T decodeData(byte[] bytes,Class<T> type) {
         try { var in=input(bytes); T result=record(in,type); end(in); return result; }
         catch (IOException e) { throw new IllegalArgumentException("invalid record",e); }
@@ -111,9 +196,9 @@ public final class ProgramWire {
             Record previous=before.entries().get(e.getKey()),next=e.getValue();
             // A schedule cursor advances every tick but does not create a client fact.
             if (previous instanceof ReplicaState.Instance a && next instanceof ReplicaState.Instance b && a.id()==b.id() && a.encounter().equals(b.encounter()) && a.card()==b.card() && a.background()==b.background() && a.hash().equals(b.hash()) && a.anchors().equals(b.anchors())) continue;
-            if (Objects.equals(next,previous) || previous!=null && Arrays.equals(encodeData(next),encodeData(previous))) continue;
+            if (Objects.equals(next,previous)) continue;
             if (previous instanceof ReplicaState.Batch a && next instanceof ReplicaState.Batch b
-                    && a.group()==b.group() && a.ordinal()==b.ordinal() && a.birth()==b.birth() && a.source().equals(b.source()) && a.description().equals(b.description()) && a.binding().equals(b.binding()) && a.seed().equals(b.seed()) && a.templates().equals(b.templates()))
+                    && a.group()==b.group() && a.ordinal()==b.ordinal() && a.birth()==b.birth() && a.source().equals(b.source()) && a.description().equals(b.description()) && a.binding().equals(b.binding()) && a.seed().equals(b.seed()) && a.templates().equals(b.templates()) && Objects.equals(a.motion(),b.motion()))
                 next=new ReplicaState.Mask(b.group(),b.ordinal(),b.alive(),b.harmful(),b.warning());
             changed.put(e.getKey(),next);
         }
@@ -131,7 +216,7 @@ public final class ProgramWire {
             Record value=e.getValue();
             if (value instanceof ReplicaState.Mask m) {
                 if (!e.getKey().equals(ReplicaState.batchKey(m.group(),m.ordinal())) || !(entries.get(e.getKey()) instanceof ReplicaState.Batch b)) throw new IllegalArgumentException("mask has no batch");
-                value=new ReplicaState.Batch(b.group(),b.ordinal(),b.birth(),b.source(),b.description(),b.binding(),b.seed(),b.templates(),m.alive(),m.harmful(),m.warning());
+                value=new ReplicaState.Batch(b.group(),b.ordinal(),b.birth(),b.source(),b.description(),b.binding(),b.seed(),b.templates(),m.alive(),m.harmful(),m.warning(),b.motion());
             }
             entries.put(e.getKey(),value);
         }

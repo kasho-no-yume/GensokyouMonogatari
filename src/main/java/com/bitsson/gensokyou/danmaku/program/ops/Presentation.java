@@ -36,8 +36,11 @@ public final class Presentation {
         public Telegraph { if (planId==null || planId.isBlank() || display==null || display.isBlank()) throw new IllegalArgumentException("plan/display required"); Deterministic.nonnegative(leadTicks); }
     }
     public record State(boolean visible,boolean damaging,double alpha,double sizeMultiplier,double brightness,boolean warning) {}
-    public record Profile(List<Window> damageWindows,VisibilityCycle visibility,Fade fade,List<Flash> flashes) {
-        public Profile { damageWindows=List.copyOf(damageWindows); flashes=List.copyOf(flashes); if (damageWindows.size()>64 || flashes.size()>64) throw new IllegalArgumentException("presentation limit"); }
+    public record Profile(List<Window> damageWindows,VisibilityCycle visibility,Fade fade,List<Flash> flashes,List<SoundCue> soundCues) {
+        public Profile(List<Window> damageWindows,VisibilityCycle visibility,Fade fade,List<Flash> flashes) {
+            this(damageWindows,visibility,fade,flashes,List.of());
+        }
+        public Profile { damageWindows=List.copyOf(damageWindows); flashes=List.copyOf(flashes); soundCues=List.copyOf(soundCues); if (damageWindows.size()>64 || flashes.size()>64 || soundCues.size()>64) throw new IllegalArgumentException("presentation limit"); }
         public State at(Clocks clocks) {
             boolean visible=visibility==null || visibility.visible(clocks);
             boolean damage=damageWindows.stream().anyMatch(w->w.contains(clocks.time(w.clock())));

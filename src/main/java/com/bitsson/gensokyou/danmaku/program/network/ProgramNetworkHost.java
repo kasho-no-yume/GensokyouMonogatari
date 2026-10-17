@@ -19,6 +19,12 @@ public final class ProgramNetworkHost {
                         Map<UUID,ProgramSyncServer> connections) {}
     private static final Map<ServerLevel,Host> HOSTS=new IdentityHashMap<>();
     private ProgramNetworkHost() {}
+    public static Map<UUID,ProgramSyncServer.Stats> stats(ServerLevel level) {
+        Host host=HOSTS.get(level); if (host==null) return Map.of();
+        Map<UUID,ProgramSyncServer.Stats> result=new HashMap<>();
+        host.connections().forEach((id,connection)->result.put(id,connection.stats()));
+        return Map.copyOf(result);
+    }
     public static void install(ServerLevel level,ProgramSession session,NetworkLimits limits,double margin,int clockPeriod,
                                Function<ReplicaState.Projection,Map<Long,ProgramInterest.Box>> envelopes) {
         install(level,session,limits,margin,clockPeriod,envelopes,Function.identity());

@@ -1,4 +1,7 @@
 {
+  "commands.gensokyou.program_preview.busy": "This dimension already has a program host, or the preview owner could not be created.",
+  "commands.gensokyou.program_preview.started": "Started the Blue 1 program slice. Use /gs_program_preview stats or stop. Survival mode is required to test hits.",
+  "commands.gensokyou.program_preview.stopped": "Stopped the program preview in this dimension.",
   "affix.gensokyou.attack_rate_pct": "Fire Rate +%s%%",
   "affix.gensokyou.damage_pct": "Damage +%s%%",
   "affix.gensokyou.range_pct": "Effective Range +%s%%",

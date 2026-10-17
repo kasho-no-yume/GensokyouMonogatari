@@ -67,6 +67,11 @@ public final class NetProfile {
     public static boolean enabled() {
         return enabled;
     }
+    /** Program host CPU includes advance, collisions, projection/publication and host callbacks. */
+    public static void programTick(long tick,long nanos,int members) {
+        if (!enabled) return;
+        writeLine(raw("program_tickcost",System.currentTimeMillis())+",\"tick\":"+tick+",\"nanos\":"+nanos+",\"members\":"+members+"}");
+    }
 
     public static Path file() {
         return file;

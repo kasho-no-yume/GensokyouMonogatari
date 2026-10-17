@@ -6,11 +6,15 @@ import java.util.Set;
 
 /** Ordered templates, never world entities. Implementations supply conservative bounds. */
 public interface Pattern {
-    record Style(String projectile, String visual, double collisionRadius, double damageScale) {
+    record Style(String projectile, String visual, double collisionRadius, double damageScale, double visualRadius) {
+        public Style(String projectile,String visual,double collisionRadius,double damageScale) {
+            this(projectile,visual,collisionRadius,damageScale,collisionRadius);
+        }
         public static final Style DEFAULT = new Style("sphere","default",.2,1);
         public Style {
             if (projectile==null || projectile.isBlank() || visual==null || visual.isBlank()) throw new IllegalArgumentException("style identity required");
             Deterministic.nonnegative(collisionRadius); Deterministic.nonnegative(damageScale);
+            Deterministic.nonnegative(visualRadius);
         }
     }
     record Member(int index, Vec3 position, Vec3 direction, Style style, Set<String> tags, int targetSlot) {

@@ -16,19 +16,22 @@ public final class ProgramSyncServer {
         int lastRecovery=Integer.MIN_VALUE;
         boolean force;
     }
-    public record Stats(Map<ProgramWire.Kind,Long> logicalBytes,long recoveryRequests,long throttled) {
-        public Stats { logicalBytes=Map.copyOf(logicalBytes); }
+    public record Stats(Map<ProgramWire.Kind,Long> logicalBytes,Map<ProgramWire.Kind,Long> wireBytes,long recoveryRequests,long throttled) {
+        public Stats { logicalBytes=Map.copyOf(logicalBytes); wireBytes=Map.copyOf(wireBytes); }
+        public Stats(Map<ProgramWire.Kind,Long> logicalBytes,long recoveryRequests,long throttled) { this(logicalBytes,Map.of(),recoveryRequests,throttled); }
     }
     private final ProgramWire wire;
     private final Consumer<byte[]> sink;
     private final Map<ProgramReplica.Scope,Subscription> subscriptions=new HashMap<>();
     private final Set<String> sentDefinitions=new HashSet<>();
     private final Map<ProgramWire.Kind,Long> logicalBytes=new EnumMap<>(ProgramWire.Kind.class);
+    private final Map<ProgramWire.Kind,Long> wireBytes=new EnumMap<>(ProgramWire.Kind.class);
     private long transfer,generation,requests,throttled;
     private final Map<String,Long> lastClock=new HashMap<>();
     private final Map<String,Integer> digestCursor=new HashMap<>();
     private int lastConnectionRecovery=Integer.MIN_VALUE;
-    private String spatialSelection;
+    private ReplicaState.Image spatialAuthority;
+    private ReplicaState.Image spatialImage;
     private final int clockPeriod;
     public ProgramSyncServer(ProgramWire wire,Consumer<byte[]> sink,int clockPeriod) {
         if (clockPeriod<1) throw new IllegalArgumentException("clock period"); this.wire=wire; this.sink=sink; this.clockPeriod=clockPeriod;
@@ -58,15 +61,22 @@ public final class ProgramSyncServer {
                 for (var e:sub.image.entries().entrySet()) if (e.getValue() instanceof ReplicaState.Group) oldGroups.add(e.getKey());
                 for (var e:next.entries().entrySet()) if (e.getValue() instanceof ReplicaState.Group) newGroups.add(e.getKey());
                 // A subscription switch is not an authority End. Keep its removal out of tombstones.
-                boolean interestChange=oldGroups.stream().anyMatch(k->!newGroups.contains(k) && image.entries().containsKey(k))
-                        || newGroups.stream().anyMatch(k->!oldGroups.contains(k));
+                Set<Long> populatedGroups=new HashSet<>();
+                for (Record record:image.entries().values()) if (record instanceof ReplicaState.Batch batch) populatedGroups.add(batch.group());
+                boolean interestChange=oldGroups.stream().anyMatch(k->!newGroups.contains(k)
+                        && image.entries().get(k) instanceof ReplicaState.Group g && populatedGroups.contains(g.id()))
+                        || newGroups.stream().anyMatch(k->!oldGroups.contains(k) && sub.image.entries().containsKey(k));
                 if (interestChange) { sub.generation=++generation; sub.sequence=0; sub.force=true; }
             }
             for (String hash:ReplicaState.required(next)) if (!sentDefinitions.contains(hash)) {
                 byte[] payload;
                 ProgramDefinition definition=projection.definitions().get(hash);
                 ProgramWire.Kind kind;
-                if (definition!=null) { payload=ProgramCodec.encode(definition.id(),definition.playback(),definition.root(),ProgramLimits.defaults()); kind=ProgramWire.Kind.DEFINITION; }
+                if (definition!=null) {
+                    var base=ProgramLimits.defaults();
+                    var limits=new ProgramLimits(base.maxNodes(),base.maxDepth(),base.maxBatchMembers(),base.maxDerivedMembers(),base.maxStringBytes(),wire.limits().snapshotBytes());
+                    payload=ProgramCodec.encode(definition.id(),definition.playback(),definition.root(),limits); kind=ProgramWire.Kind.DEFINITION;
+                }
                 else { payload=wire.encodeData(Objects.requireNonNull(projection.descriptions().get(hash),"missing description")); kind=ProgramWire.Kind.DESCRIPTION; }
                 if (sentDefinitions.size()>=wire.limits().cachedDefinitions()) throw new IllegalArgumentException("connection definition budget");
                 send(scope,sub,kind,next.tick(),next.revision(),payload); sentDefinitions.add(hash);
@@ -83,7 +93,7 @@ public final class ProgramSyncServer {
             }
             sub.image=next;
             if (owner.getKey().equals(digestOwner)) {
-                send(scope,sub,ProgramWire.Kind.CLOCK_DIGEST,image.tick(),next.revision(),wire.hash(wire.image(next)).getBytes(StandardCharsets.US_ASCII));
+                send(scope,sub,ProgramWire.Kind.CLOCK_DIGEST,image.tick(),next.revision(),wire.imageDigest(next).getBytes(StandardCharsets.US_ASCII));
                 lastClock.put(image.dimension(),image.tick());
             }
         }
@@ -92,15 +102,32 @@ public final class ProgramSyncServer {
                                Map<DanmakuWorldRuntime.MemberId,ProgramInterest.Box> members,Vec3 viewer,
                                double margin,double maxSpan,int maxMembers) {
         var spatial=ProgramInterest.spatial(projection,envelopes,members,viewer,margin,maxSpan,maxMembers);
-        if (!Objects.equals(spatialSelection,spatial.selection())) {
-            for (var sub:subscriptions.values()) { sub.generation=++generation; sub.sequence=0; sub.force=true; }
-            spatialSelection=spatial.selection();
+        boolean interestChange=false;
+        if (spatialImage!=null) for (Record entry:projection.image().entries().values()) {
+            if (!(entry instanceof ReplicaState.Batch batch)) continue;
+            String key=ReplicaState.batchKey(batch.group(),batch.ordinal());
+            if (!(spatialAuthority.entries().get(key) instanceof ReplicaState.Batch before)) continue;
+            var oldSelected=spatialImage.entries().get(key);
+            var newSelected=spatial.projection().image().entries().get(key);
+            for (int n=0;n<batch.templates().size();n++) {
+                var id=new DanmakuWorldRuntime.MemberId(batch.group(),batch.ordinal(),batch.templates().get(n).index());
+                // Births and deaths are authority facts, not changes in the viewer's subscription.
+                if (batch.alive(n) && ReplicaState.hasMember(spatialAuthority,id)
+                        && ReplicaState.hasMember(spatialImage,id)!=ReplicaState.hasMember(spatial.projection().image(),id)) interestChange=true;
+            }
+            if (before.warning() && batch.warning() && oldSelected instanceof ReplicaState.Batch a && newSelected instanceof ReplicaState.Batch b
+                    && !a.templates().equals(b.templates())) interestChange=true;
         }
+        if (interestChange) {
+            for (var sub:subscriptions.values()) { sub.generation=++generation; sub.sequence=0; sub.force=true; }
+        }
+        spatialAuthority=projection.image(); spatialImage=spatial.projection().image();
         publish(spatial.projection(),spatial.envelopes(),viewer,margin);
     }
     private void send(ProgramReplica.Scope scope,Subscription sub,ProgramWire.Kind kind,long tick,long revision,byte[] bytes) {
         var header=new ProgramWire.Envelope(1,scope.dimension(),scope.owner(),sub.epoch,sub.generation,++sub.sequence,revision,tick,kind,++transfer,0,1,new byte[0]);
-        for (var chunk:wire.split(header,bytes)) { byte[] encoded=wire.encode(chunk); logicalBytes.merge(kind,(long)encoded.length,Long::sum); sink.accept(encoded); }
+        logicalBytes.merge(kind,(long)bytes.length,Long::sum);
+        for (var chunk:wire.split(header,bytes)) { byte[] encoded=wire.encode(chunk); wireBytes.merge(kind,(long)encoded.length,Long::sum); sink.accept(encoded); }
     }
     public void end(String dimension,DanmakuWorldRuntime.Encounter encounter,long tick,long revision) {
         var scope=new ProgramReplica.Scope(dimension,encounter.owner()); var sub=subscriptions.get(scope);
@@ -119,5 +146,5 @@ public final class ProgramSyncServer {
         // A missing definition must be recoverable even if the server previously sent it.
         sentDefinitions.removeAll(ReplicaState.required(sub.image)); return true;
     }
-    public Stats stats() { return new Stats(logicalBytes,requests,throttled); }
+    public Stats stats() { return new Stats(logicalBytes,wireBytes,requests,throttled); }
 }

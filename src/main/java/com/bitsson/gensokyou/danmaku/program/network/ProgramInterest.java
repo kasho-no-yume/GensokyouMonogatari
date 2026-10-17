@@ -29,6 +29,8 @@ public final class ProgramInterest {
                     if (m.sourceGroup()!=null) changed|=selected.add(m.sourceGroup());
                     if (m.sourceMember()!=null) changed|=selected.add(m.sourceMember().group());
                 }
+                if (r instanceof ReplicaState.Emitter e && selected.contains(e.group()) && e.sourceGroup()!=null)
+                    changed|=selected.add(e.sourceGroup());
             }
         } while (changed);
         return Set.copyOf(selected);
@@ -104,7 +106,7 @@ public final class ProgramInterest {
                 for (int i=0;i<b.templates().size();i++) if (indices.contains(b.templates().get(i).index())) {
                     var member=b.templates().get(i); templates.add(member); if (b.alive(i)) living.add(member.index()); if (b.harmful(i)) damaging.add(member.index());
                 }
-                value=new ReplicaState.Batch(b.group(),b.ordinal(),b.birth(),b.source(),b.description(),b.binding(),b.seed(),templates,mask(templates,living),mask(templates,damaging),b.warning() && !templates.isEmpty());
+                value=new ReplicaState.Batch(b.group(),b.ordinal(),b.birth(),b.source(),b.description(),b.binding(),b.seed(),templates,mask(templates,living),mask(templates,damaging),b.warning() && !templates.isEmpty(),b.motion());
                 if (templates.isEmpty()) continue;
             } else if (value instanceof ReplicaState.Batch) continue;
             if (value instanceof ReplicaState.Motion m && !selected.getOrDefault(ReplicaState.batchKey(m.id().group(),m.id().batch()),Set.of()).contains(m.id().index())) continue;

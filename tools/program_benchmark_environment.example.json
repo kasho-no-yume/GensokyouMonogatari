@@ -1,0 +1,9 @@
+{
+  "hardware": "REPLACE: CPU / GPU / RAM",
+  "jdk": "21",
+  "resolution": "REPLACE: width x height, fullscreen/windowed, FPS cap, VSync",
+  "viewDistance": 10,
+  "compression": 256,
+  "world": "REPLACE: same world, dimension and open-air location for all runs",
+  "actions": "stand still, fixed camera; no other previews, mobs or projectiles nearby"
+}

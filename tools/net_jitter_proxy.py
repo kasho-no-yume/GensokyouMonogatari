@@ -12,9 +12,9 @@ corrupt the stream rather than emulate a real network.
 Model
 -----
 Each relayed chunk is delayed by `max(0, latency + uniform(-jitter, +jitter))`
-milliseconds. Because each direction is a single sequential loop
-(read -> sleep -> write), a later chunk can never overtake an earlier one,
-so ordering is preserved while the delay still varies per chunk.
+milliseconds from its read time. A bounded queue lets reads continue while earlier
+chunks wait; due times are clamped to the previous due time to preserve TCP byte
+order. Delay is not accidentally added once per queued chunk.
 
 Runtime control
 ---------------
@@ -183,23 +183,42 @@ async def _watch_control(path, cfg):
 
 async def _relay(reader, writer, cfg, is_upstream, profiler=None, conn_id=0):
     direction = 'up' if is_upstream else 'down'
+    queue = asyncio.Queue(maxsize=64)
+
+    async def receive():
+        last_due = 0.0
+        try:
+            while True:
+                data = await reader.read(65536)
+                if not data:
+                    break
+                if profiler is not None:
+                    profiler.record(conn_id, direction, len(data))
+                apply_delay = not is_upstream or not cfg.downstream_only
+                delay = max(0, cfg.latency + random.uniform(-cfg.jitter, cfg.jitter)) if apply_delay else 0
+                last_due = max(last_due, time.monotonic() + delay / 1000.0)
+                await queue.put((last_due, data))
+        finally:
+            await queue.put(None)
+
+    receiving = asyncio.create_task(receive())
     try:
         while True:
-            data = await reader.read(65536)
-            if not data:
+            item = await queue.get()
+            if item is None:
                 break
-            if profiler is not None:
-                profiler.record(conn_id, direction, len(data))
-            apply_delay = cfg.downstream_only is False if is_upstream else True
-            if apply_delay and (cfg.latency or cfg.jitter):
-                delay = cfg.latency + random.uniform(-cfg.jitter, cfg.jitter)
-                if delay > 0:
-                    await asyncio.sleep(delay / 1000.0)
+            due, data = item
+            delay = due - time.monotonic()
+            if delay > 0:
+                await asyncio.sleep(delay)
             writer.write(data)
             await writer.drain()
+        await receiving
     except (ConnectionResetError, BrokenPipeError, asyncio.IncompleteReadError):
         pass
     finally:
+        receiving.cancel()
+        await asyncio.gather(receiving, return_exceptions=True)
         try:
             writer.close()
         except OSError:
