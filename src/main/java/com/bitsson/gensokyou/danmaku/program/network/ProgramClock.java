@@ -23,8 +23,13 @@ public final class ProgramClock {
     private DanmakuServerClock.Outcome outcome;
     private int lastObserveLocal=Integer.MIN_VALUE;
     private long firstServerAtLocal=Long.MIN_VALUE;
+    private long newestServer=Long.MIN_VALUE;
     public ProgramClock(int staleTicks) { estimator=new DanmakuServerClock(new DanmakuServerClock.Params(.8,1.25,4,3,staleTicks,40,16)); }
     public void observe(long serverTick,int localTick) {
+        // All owners share this dimension clock. An older owner's checkpoint or a
+        // duplicate digest is a fact update, not a new observation of time.
+        if (serverTick<=newestServer) return;
+        newestServer=serverTick;
         if (!Double.isNaN(local)) time(localTick);
         // Rendering can already have advanced past this integer client tick. Compare
         // observations at that displayed boundary, not a sample up to one tick older.
@@ -47,7 +52,11 @@ public final class ProgramClock {
             return;
         }
         if (queued) {
-            beginRecovery("queued-samples",serverTick,localTick,false);
+            // A burst spanning several authority ticks can still end at the
+            // correct display boundary. Keep the existing bounded small-error
+            // holdover; later packets in this same burst revoke it above if the
+            // latest sample moves beyond the two-tick error budget.
+            beginRecovery("queued-samples",serverTick,localTick,true);
             return;
         }
         outcome=estimator.observe(serverTick,localTick);

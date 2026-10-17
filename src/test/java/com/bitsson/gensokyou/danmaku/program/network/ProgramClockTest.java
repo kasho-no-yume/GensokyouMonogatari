@@ -4,6 +4,34 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ProgramClockTest {
+    @Test void jitterBurstNearDisplayUsesBoundedHoldoverButSevereQueueRevokesIt() {
+        var clock=new ProgramClock(200); clock.observe(1000,0);
+        for (int tick=1;tick<=40;tick++) { clock.observe(1000+tick,tick); clock.time(tick+.5); }
+        // Three older samples and the current sample drain in one client tick.
+        clock.observe(1041,44); clock.observe(1042,44); clock.observe(1044,44);
+        assertFalse(clock.trusted());
+        assertTrue(clock.renderable(),clock.diagnostic());
+        double before=clock.time(45);
+        clock.observe(1045,45);
+        assertTrue(clock.trusted());
+        assertEquals(before,clock.time(45),1e-9);
+        clock.observe(1046,48); clock.observe(1049,48);
+        clock.time(51);
+        assertFalse(clock.renderable(),"burst holdover must expire");
+        for (int server=1050;server<=1100;server++) clock.observe(server,51);
+        assertFalse(clock.renderable(),"severe backlog must revoke holdover");
+    }
+    @Test void staleOwnerSampleCannotDisruptAHealthySharedClock() {
+        var clock=new ProgramClock(200); clock.observe(1000,0);
+        for (int tick=1;tick<=100;tick++) {
+            clock.observe(1000+tick,tick);
+            clock.time(tick+.5);
+            // Another owner may publish an older checkpoint after this owner.
+            clock.observe(990+tick,tick);
+            assertTrue(clock.renderable(),"old owner timestamp disrupted dimension: "+clock.diagnostic());
+        }
+        assertEquals(0,clock.disruptions());
+    }
     @Test void heartbeatAfterRenderingUsesTheSameFractionalBoundary() {
         var clock=new ProgramClock(200); clock.observe(1000,0);
         for (int tick=1;tick<=1200;tick++) {

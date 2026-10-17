@@ -25,8 +25,9 @@ public final class ProgramBenchmarkHost {
     private ProgramBenchmarkHost() {}
     public static boolean active(ServerLevel level) { return RUNS.containsKey(level); }
     public static String start(ServerPlayer player,String mode,int count,int seconds) {
-        ProgramBenchmarkLoad.batches(count);
-        if (!Set.of("legacy","program").contains(mode) || seconds<210 || seconds>600) throw new IllegalArgumentException("invalid benchmark mode/duration");
+        boolean stress=mode.equals("stress");
+        var batches=stress?ProgramStressLoad.batches(count):ProgramBenchmarkLoad.batches(count);
+        if (!Set.of("legacy","program","stress").contains(mode) || seconds<210 || seconds>600) throw new IllegalArgumentException("invalid benchmark mode/duration");
         ServerLevel level=player.serverLevel();
         if (RUNS.containsKey(level) || ProgramServerHost.installed(level) || com.bitsson.gensokyou.command.DanmakuPreview.isPreviewing(player))
             throw new IllegalStateException("stop the active preview/benchmark first");
@@ -41,7 +42,7 @@ public final class ProgramBenchmarkHost {
         // Reject obstructed fixtures before either backend starts; a removed member
         // would silently turn this into a different load. This is setup validation,
         // never a reason to disable collision during measurement.
-        for (var child:ProgramBenchmarkLoad.batches(count)) for (var member:child.pattern().generate(new Deterministic.Seed(ProgramBenchmarkLoad.SEED,List.of()))) {
+        for (var child:batches) for (var member:child.pattern().generate(new Deterministic.Seed(ProgramBenchmarkLoad.SEED,List.of()))) {
             var pose=new Actions.Pose(frame,Vec3.ZERO);
             var a=EmissionPlan.state(child,Actions.Binding.snapshot(),pose,new Deterministic.Seed(ProgramBenchmarkLoad.SEED,List.of()),member,0).position();
             var b=EmissionPlan.state(child,Actions.Binding.snapshot(),pose,new Deterministic.Seed(ProgramBenchmarkLoad.SEED,List.of()),member,ProgramBenchmarkLoad.LIFETIME).position();
@@ -57,7 +58,7 @@ public final class ProgramBenchmarkHost {
         }
         long first=level.getGameTime()+1;
         ProgramSession session=null; long group=0;
-        if (mode.equals("program")) {
+        if (!mode.equals("legacy")) {
             var runtime=new DanmakuWorldRuntime(level.dimension().location().toString(),new DanmakuWorldRuntime.Limits(4096,2048,8,64,8192),new ServerLevelDecisions(level));
             session=new ProgramSession(runtime,new ProgramExecution().freeze());
             var encounter=runtime.startEncounter(owner.getUUID());
@@ -82,6 +83,12 @@ public final class ProgramBenchmarkHost {
         Run run=RUNS.get(level);
         return run==null?"benchmark idle":"benchmark active mode="+run.mode()+" count="+run.count()+" live="+(run.session()==null?run.bullets().stream().filter(b->!b.isRemoved()).count():run.session().runtime().liveMembers())+" remainingTicks="+(run.end()-level.getGameTime());
     }
+    public static String stats(ServerLevel level) {
+        Run run=RUNS.get(level);
+        if (run==null || run.session()==null) return status(level);
+        return status(level)+" runtime="+run.session().runtime().stats()+" timing="+ProgramServerHost.timing(level)
+                +" network="+ProgramNetworkHost.stats(level);
+    }
     @SubscribeEvent public static void tick(LevelTickEvent.Pre event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
         Run run=RUNS.get(level); if (run==null) return;
@@ -90,7 +97,8 @@ public final class ProgramBenchmarkHost {
         // has already completed its Post/runtime boundary; enqueue for the next one.
         long tick=nextBoundary(level.getGameTime());
         if (viewer==null || !viewer.isAlive() || viewer.serverLevel()!=level || !run.owner().isAlive() || tick>=run.end()) { stop(level); return; }
-        if (tick<run.first() || (tick-run.first())%ProgramBenchmarkLoad.PERIOD!=0) return;
+        int period=run.mode().equals("stress")?ProgramStressLoad.PERIOD:ProgramBenchmarkLoad.PERIOD;
+        if (tick<run.first() || (tick-run.first())%period!=0) return;
         // Legacy lifetime checks occur within Entity.tick and can overlap the next
         // cohort by one boundary. Retire that cohort explicitly at the shared end.
         for (var bullet:run.bullets()) bullet.discard();
@@ -98,7 +106,7 @@ public final class ProgramBenchmarkHost {
         if (run.session()!=null) {
             run.session().runtime().schedule(tick,DanmakuWorldRuntime.Phase.PREPARE,()->{
                 var runtime=run.session().runtime();
-                for (var child:ProgramBenchmarkLoad.batches(run.count())) {
+                for (var child:run.mode().equals("stress")?ProgramStressLoad.batches(run.count()):ProgramBenchmarkLoad.batches(run.count())) {
                     var plan=runtime.prepare(run.group(),tick,new Actions.Pose(run.frame(),Vec3.ZERO),child,Actions.Binding.snapshot(),new Deterministic.Seed(ProgramBenchmarkLoad.SEED,List.of()));
                     if (!runtime.commit(plan,new AuthorityDescriptions.Commit(new ProgramRef.Plan(new NodeId(0)),0,2048,AuthorityDescriptions.Failure.REJECT_BATCH,true)))
                         throw new IllegalStateException("benchmark admission rejected");

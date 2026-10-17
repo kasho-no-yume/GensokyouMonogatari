@@ -9,6 +9,16 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ProgramNetworkTest {
+    @Test void repeatedDenseCohortsDoNotExhaustMemberTombstones() {
+        var f=new Fixture();
+        for (int round=0;round<48;round++) {
+            if (round>0) for (long tick=f.runtime.tick()+1;tick<=round*100L;tick++) { f.runtime.advance(tick); f.runtime.drainEvents(); }
+            f.birth(400); f.publish(Vec3.ZERO); f.deliver(round*100);
+            f.runtime.drainEvents();
+            assertEquals(0,f.client.failures());
+            assertTrue(f.client.image(f.scope).isPresent());
+        }
+    }
     @Test void independentViewersCanLeaveRejoinAndRecoverWithoutChangingAuthority() {
         for (int viewers:new int[]{1,2,5}) {
             var f=new Fixture(); var plan=f.birth(48);
@@ -200,10 +210,10 @@ class ProgramNetworkTest {
         assertEquals(f.runtime.state(id,12).position(),f.client.state(f.scope,id,12).position());
         assertEquals(1,f.runtime.tick()); assertTrue(f.client.lateEvents()>0);
     }
-    @Test void staleClockFreezesAndRequestsRecoveryAndVisualOffsetsExpire() {
+    @Test void staleClockFreezesWithoutRequestingAnUnneededCheckpointAndVisualOffsetsExpire() {
         var f=new Fixture(); f.birth(1); f.publish(Vec3.ZERO); f.deliver(0);
         double trusted=f.client.renderTime("test:world",10); assertEquals(trusted,f.client.renderTime("test:world",201));
-        assertEquals(trusted,f.client.renderTime("test:world",400)); assertEquals(Set.of(f.scope),f.client.recoveryRequests(400)); assertTrue(f.client.recoveryRequests(401).isEmpty());
+        assertEquals(trusted,f.client.renderTime("test:world",400)); assertTrue(f.client.recoveryRequests(400).isEmpty());
         var offset=new VisualOffset(); offset.correct(new Vec3(.2,0,0),Vec3.ZERO,0,false); assertEquals(.1,offset.at(1).x(),1e-12); assertEquals(Vec3.ZERO,offset.at(2));
         offset.correct(Vec3.X,Vec3.ZERO,3,false); assertEquals(1,offset.snaps());
     }

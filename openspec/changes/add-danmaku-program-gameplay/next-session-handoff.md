@@ -1,5 +1,31 @@
 # 第五期下一会话交接
 
+## 本轮实时更新（优先于以下历史）
+
+00:47收口：自然结束验证最终`benchmark idle`，server log记录第二次自然运行`START stress 2000`后`STOP ... runtime=groups0,members0,plans0,emitters0,frames0,locks0,commands0`；3.3已勾。2.7已完成：build003429完整通过、38项clock/network/latency与burst回归通过、strict通过；压力结果新增`pressure-results.md`。当前tasks 15/16，仅剩1.5（完整统一CPU/逻辑线上字节跨场景报告）。真实2/5人等继续保留后续限制；尚未归档/未执行正式BossCards迁移，不能把15/16称整change全部完成。
+
+00:45最终用户口径：用户明确看到高延迟启动约1秒处明显闪烁，但认为高延迟下约47ms可接受，要求停止追求完美修正、优先主任务。短时复验日志显示后续3次queued-samples均renderable=true，恢复0、协议错误0、停止runtime zero；首次display-error约7.76tick造成短隐藏作为已知限制记录。自然结束验证已启动：15秒内观测峰值2008→1848，后台等待210秒后查idle。若idle确认，tasks 3.2/3.3/3.4可收口；不宣称高延迟完全无闪烁、不宣称真实多人/M2。
+
+00:35：用户已退出并授权继续最终短时复验，同时询问带宽/1050容量。已解释高档峰值2000球+8激光、1848稳态低谷；高延迟整连接约11.3KB/s，200KB/s与200kbps须区分，不能线性推最大弹量，1050无实测容量承诺。最终build003429后台运行，wrapper60秒返回；服务端已RCON正常stop。等build哨兵成功后wrapper重启双方，用户连接25568，做约一分钟高延迟短时/自然结束验收；勿重复整套180秒。最新queued holdover尚未实机加载。用户授权重启已充分，无需再问重启许可。
+
+00:30高延迟更新：high-latency-r1完成180.599s，3612tick/20.0001TPS，1848–2008成员；host p95 39.9493ms/max157.4226ms，整帧10469样本p95 18.4703/max37.6647ms，无>100ms帧；恢复0→0，三类协议错误0，连接下行2,033,142bytes，program payload逻辑5,640,585bytes，停止idle。用户反馈“我其实没看见，有可能是我看漏了”，记录为未察觉闪烁非明确消除证明。日志本轮仍3次queued-samples隐藏80–250ms，误差仅约±1tick，另1次display-error。已修queued-samples在原±2tick/最多2local tick内允许holdover，同tick后续严重积压立即撤销；不增容差。新增burst near display/过期/严重撤销测试，002944定向通过。此最新修正尚未装入实机，勿将high-latency-r1当它的验证。剩余收口：最终build、修复版自然结束/重连/单机压力证据、用户最终反馈、报告/tasks；暂不重复180秒完整高档，优先集中短生命周期验收。
+
+修复版高档high-r2-fixed完整180.648s通过采集：3612 host tick、19.9947TPS，1848–2008成员；host p95 41.1486ms/max150.1248ms（非整server tick），整帧10478样本p95 18.2402ms/max30.0393ms，无>100ms帧；恢复0→0，墓碑/边界/批次复活错误均0；程序payload逻辑5,904,238bytes，整连接下行1,772,624bytes（不可混作同口径）；STOP runtime七项零/idle。用户提问窗确认“表现正常，可进入高延迟”。启动期仍有两次display-error恢复，不能称clock全无失信。下一步已启动独立计量延迟代理25568→25565，双向one-way250±30ms，配置RTT约500ms非测量RTT，profile build/reports/stress-wire-latency.jsonl；请用户切25568后agent运行count2000新root high-latency-r1，参数--latency-ms250 --jitter-ms30 --proxy-log该profile。单机、自然结束/重连与最终收口仍欠，任务仍11/16，不冒充全通过。
+
+00:17最新：完整build001220通过2m30s（1053测试）；随后补waiting队列按sequence淘汰旧Decision，长循环回归加到48轮×400=19200成员（超过16384成员预算），38项clock/network/latency定向测试001621通过。新双方已wrapper启动runServerTest001648/runClientProfile001657，等启动后让用户连接25567。尚未开始修复版实机采集。旧低档摘要补出1,818,038连接下行字节，clientProtocolErrors墓碑4/边界228，因此仅性能与用户视觉证据、不算稳定通过。用户已授权退出和重启，不再重复问重启许可。
+
+00:12后续：用户已正常退出客户端并授权继续重启；agent已RCON正常停服。完整build000803发现预警alive=0被误当死批次（ProgramMotionLabTest失败），现deadBatches只接受`!warning`全零批次。已串行重跑完整build `20261018-001220-build.log`，后台待结果。进程重启必须等该结果通过；不要把000803当通过。高延迟尚待复验，不勾3.2–3.4。
+
+00:08更新：低档虽获用户画面正常确认，采样末尾client.log发现`member tombstone budget`随后大量`decision boundary mismatch`，所以不标协议稳定性通过。高档high-r1约127秒采样后agent手动停止保留FAILED和日志，不作为通过；不得继续升级或复用它当完整180秒。根因之一是全死批次仍保留零alive mask，逐成员墓碑却累积至members预算。ProgramReplica现将全死批次压缩为deadBatches、保留部分活批成员墓碑，移除批次用ordinal watermark阻复活；新增24轮×400成员（累计9600）真实runtime→wire→replica回归。单调clock过滤及clock不触发fact恢复一并38项通过`20261018-000733-test.log`。完整build已启动`20261018-000803-build.log`，wrapper60秒返回，后台继续，先读哨兵不要另起构建。尚未重启游戏加载本轮修复，高延迟闪烁仍未实机修复确认。下一步等build→正常退出客户端/停服→wrapper重启双方，再集中跑长循环/高延迟；需要用户操作继续提问窗。
+
+用户确认此前ProgramStressHost/Programs和旧stress脚本已主动撤回，要求重新准备；现复用ProgramBenchmarkHost添加stress模式，入口`gs_program_benchmark start stress 800|2000 300 Dev`。ProgramStressLoad每200tick出生640/1840父弹+8旋转激光，age60首40父弹各派生4子弹（寿命80），目标峰值808/2008，保留碰撞。脚本`tools/program_stress_run.py`采30秒暖机+180秒并保存stats/ledger/frame/proxy；report脚本从原始恢复计数差分，未知不填0。旧stress_mixed-r1的summary恢复0错误，原stats171/最终173，仅留失败诊断。
+
+低档本轮实测`build/reports/stress-v2/low-r1/summary.json`：180.534秒，3611 program host样本，20.0018TPS，648–808成员，host p95 19.188ms/max76.6604ms，整帧10464样本p95 18.3391ms/max41.5612ms，无>100ms帧；恢复2→3（+1），停止idle。用户提问窗确认“低档正常，继续高档”。高档已启动，结果待收；不要重启运行中的游戏或并行构建干扰采样。3.1勾选，当前11/16；单机、延迟、自然结束/重连及最终报告仍待收口。
+
+用户补充旧高延迟大批量整批消失再出现严重，要求找原因。确认ProgramReplica.renderTime把时钟不可显示升级为全量事实恢复，增加checkpoint负载；已改为时钟不触发全量恢复（缺包/digest失败仍恢复），ProgramLatencyMatrixTest新增严重积压隐藏→下一独立时钟样本恢复且无checkpoint请求，20261017-235359-test.log通过。该修正尚未装入当前游戏，不能称实机已修。ProgramClock的queued-samples、display-error仍会隐藏，当前零延迟启动也有这两种transition；继续查成批到包/时钟样本选择，不抬误差阈值掩盖严重积压。新增共享owner旧样本回归尚未跑（等待高档采样结束）。
+
+完整build `20261017-234444-build.log`通过2m30s、strict通过（在上述时钟修改之前）。当前独立服/客户端由wrapper runServerTest/runClientProfile启动，25567零延迟计量代理保留、25566旧延迟代理保留。不要杀daemon/清日志。当前新的运行时修改需采样后验证构建并正常重启双方再验。
+
 ## 当前接手入口：用户已授权调整验收范围
 
 用户明确要求停止低收益反复A/B跑测，确认代表内容已测，并授权勾选2.1–2.6，新增第3节集中压力测试。现tasks已修订：2.1–2.5按代表功能/表现及现有自动化证据完成；2.6改为性能观察和采集探针收口。**不是原M2精确标准通过，也不是所有历史多人/FX边界都测过。** 2.1–2.6现全部勾选，1.5和2.7仍未勾，第3节3.1–3.4待完成；总计10/16。

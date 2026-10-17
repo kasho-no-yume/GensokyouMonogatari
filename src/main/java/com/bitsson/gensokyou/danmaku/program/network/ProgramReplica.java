@@ -22,6 +22,8 @@ public final class ProgramReplica {
         final Deque<ReplicaState.Image> history=new ArrayDeque<>();
         final Set<Long> endedGroups=new HashSet<>();
         final Set<DanmakuWorldRuntime.MemberId> endedMembers=new HashSet<>();
+        final Map<Long,Long> retiredBatches=new HashMap<>();
+        final Set<String> deadBatches=new HashSet<>();
     }
     private final ProgramWire wire;
     private final OperationRegistry registry;
@@ -50,7 +52,7 @@ public final class ProgramReplica {
             releaseIdleClock(scope.dimension()); return;
         }
         if (e.epoch()>stream.epoch || e.subscription()>stream.subscription) {
-            if (e.epoch()>stream.epoch) { stream.endedGroups.clear(); stream.endedMembers.clear(); }
+            if (e.epoch()>stream.epoch) { stream.endedGroups.clear(); stream.endedMembers.clear(); stream.retiredBatches.clear(); stream.deadBatches.clear(); }
             boolean newEpoch=e.epoch()>stream.epoch;
             stream.replacingSubscription=true;
             stream.epoch=e.epoch(); stream.subscription=e.subscription(); stream.sequence=0;
@@ -65,6 +67,7 @@ public final class ProgramReplica {
         for (var pending:List.copyOf(waiting)) {
             Scope s=new Scope(pending.dimension(),pending.owner()); Stream target=streams.get(s);
             if (target==null || pending.epoch()!=target.epoch || pending.subscription()!=target.subscription || pending.epoch()<=target.endEpoch) { waiting.remove(pending); continue; }
+            if (pending.sequence()<=target.sequence) { waiting.remove(pending); continue; }
             if (ready(pending,target)) { waiting.remove(pending); install(s,target,pending,localTick); }
         }
     }
@@ -137,6 +140,23 @@ public final class ProgramReplica {
         ReplicaState.validate(next,wire.limits(),descriptions);
         Set<Long> endedGroups=new HashSet<>(stream.endedGroups);
         Set<DanmakuWorldRuntime.MemberId> endedMembers=new HashSet<>(stream.endedMembers);
+        Map<Long,Long> retiredBatches=new HashMap<>(stream.retiredBatches);
+        Set<String> deadBatches=new HashSet<>(stream.deadBatches);
+        for (Record r:next.entries().values()) if (r instanceof ReplicaState.Batch b) {
+            String key=ReplicaState.batchKey(b.group(),b.ordinal());
+            if (deadBatches.contains(key) && b.alive().stream().anyMatch(bits->bits!=0)) throw new IllegalArgumentException("terminal batch resurrection");
+            if (!b.warning() && b.alive().stream().allMatch(bits->bits==0)) deadBatches.add(key);
+        }
+        deadBatches.removeIf(key->!next.entries().containsKey(key));
+        if (stream.image!=null && e.kind()==ProgramWire.Kind.DECISIONS) {
+            for (Record r:next.entries().values()) if (r instanceof ReplicaState.Batch b
+                    && !stream.image.entries().containsKey(ReplicaState.batchKey(b.group(),b.ordinal()))
+                    && b.ordinal()<=retiredBatches.getOrDefault(b.group(),-1L))
+                throw new IllegalArgumentException("terminal batch resurrection");
+            for (Record r:stream.image.entries().values()) if (r instanceof ReplicaState.Batch b
+                    && !next.entries().containsKey(ReplicaState.batchKey(b.group(),b.ordinal())))
+                retiredBatches.merge(b.group(),b.ordinal(),Math::max);
+        }
         if (e.kind()==ProgramWire.Kind.DECISIONS && stream.image!=null) {
             for (Record r:stream.image.entries().values()) if (r instanceof ReplicaState.Group g && !next.entries().containsKey(ReplicaState.groupKey(g.id()))) {
                 // Interest changes use a new subscription checkpoint; a decision removal is terminal.
@@ -145,10 +165,13 @@ public final class ProgramReplica {
             }
             for (Record r:stream.image.entries().values()) if (r instanceof ReplicaState.Batch b) for (int n=0;n<b.templates().size();n++) if (b.alive(n)) {
                 var id=new DanmakuWorldRuntime.MemberId(b.group(),b.ordinal(),b.templates().get(n).index());
-                if (!ReplicaState.hasMember(next,id)) endedMembers.add(id);
+                if (next.entries().containsKey(ReplicaState.batchKey(b.group(),b.ordinal())) && !ReplicaState.hasMember(next,id)) endedMembers.add(id);
             }
-            if (endedMembers.size()>wire.limits().members()) throw new IllegalArgumentException("member tombstone budget");
         }
+        // A retired batch is represented by its ordinal watermark, not thousands
+        // of member tombstones retained for the entire encounter.
+        endedMembers.removeIf(id->!next.entries().containsKey(ReplicaState.batchKey(id.group(),id.batch())) || deadBatches.contains(ReplicaState.batchKey(id.group(),id.batch())));
+        if (endedMembers.size()>wire.limits().members()) throw new IllegalArgumentException("member tombstone budget");
         for (Record r:next.entries().values()) if (r instanceof ReplicaState.Group g && endedGroups.contains(g.id())) throw new IllegalArgumentException("terminal group resurrection");
         for (var id:endedMembers) if (ReplicaState.hasMember(next,id)) throw new IllegalArgumentException("terminal member resurrection");
         for (Record r:next.entries().values()) {
@@ -166,6 +189,8 @@ public final class ProgramReplica {
         stream.image=next; stream.replacingSubscription=false;
         stream.history.addLast(next); while (stream.history.size()>wire.limits().history()) stream.history.removeFirst();
         stream.endedGroups.clear(); stream.endedGroups.addAll(endedGroups); stream.endedMembers.clear(); stream.endedMembers.addAll(endedMembers);
+        stream.retiredBatches.clear(); stream.retiredBatches.putAll(retiredBatches);
+        stream.deadBatches.clear(); stream.deadBatches.addAll(deadBatches);
         stream.sequence=e.sequence(); clock(e.dimension()).observe(e.tick(),localTick); recovery.remove(scope);
     }
     private <T> void put(Map<String,T> cache,String hash,T value) {
@@ -202,10 +227,11 @@ public final class ProgramReplica {
         return Objects.requireNonNull(image==null?stream.image:image);
     }
     public double renderTime(String dimension,double localTick) {
-        ProgramClock clock=clock(dimension); double time=clock.time(localTick);
-        // A short clock holdover does not imply missing/corrupt replica facts.
-        if (!clock.renderable()) for (Scope scope:streams.keySet()) if (scope.dimension().equals(dimension) && streams.get(scope).image!=null) recovery.add(scope);
-        return time;
+        // Clock uncertainty does not mean any facts are missing. Ordered decisions
+        // and periodic clock digests already carry the samples needed to re-anchor.
+        // Asking for a full checkpoint here amplifies a clock stall into more work
+        // on the same stalled server/client. Fact gaps/digest failures still recover.
+        return clock(dimension).time(localTick);
     }
     public void noteTick(int localTick) { for (String dimension:List.copyOf(clocks.keySet())) renderTime(dimension,localTick); }
     public Set<Scope> recoveryRequests(int localTick) {

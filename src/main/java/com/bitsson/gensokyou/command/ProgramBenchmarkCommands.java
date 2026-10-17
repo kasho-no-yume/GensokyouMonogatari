@@ -16,7 +16,7 @@ public final class ProgramBenchmarkCommands {
     @SubscribeEvent public static void register(RegisterCommandsEvent event) {
         // Player is explicit so the same command works from RCON.
         var playerRoot=Commands.literal("gs_program_benchmark").requires(s->s.hasPermission(2));
-        for (String mode:new String[]{"legacy","program"}) playerRoot.then(Commands.literal("start").then(Commands.literal(mode)
+        for (String mode:new String[]{"legacy","program","stress"}) playerRoot.then(Commands.literal("start").then(Commands.literal(mode)
                 .then(Commands.argument("count",IntegerArgumentType.integer(1,2000)).then(Commands.argument("seconds",IntegerArgumentType.integer(210,600))
                         .then(Commands.argument("player",StringArgumentType.word()).executes(c->{
                             var player=c.getSource().getServer().getPlayerList().getPlayerByName(StringArgumentType.getString(c,"player"));
@@ -26,6 +26,7 @@ public final class ProgramBenchmarkCommands {
                         }))))));
         playerRoot.then(Commands.literal("stop").executes(c->{ c.getSource().sendSuccess(()->Component.literal(ProgramBenchmarkHost.stop(c.getSource().getLevel())),false); return 1; }));
         playerRoot.then(Commands.literal("status").executes(c->{ c.getSource().sendSuccess(()->Component.literal(ProgramBenchmarkHost.status(c.getSource().getLevel())),false); return 1; }));
+        playerRoot.then(Commands.literal("stats").executes(c->{ c.getSource().sendSuccess(()->Component.literal(ProgramBenchmarkHost.stats(c.getSource().getLevel())),false); return 1; }));
         event.getDispatcher().register(playerRoot);
     }
 }

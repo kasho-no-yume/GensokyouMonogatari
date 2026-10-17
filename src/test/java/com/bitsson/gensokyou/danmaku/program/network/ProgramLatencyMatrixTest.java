@@ -8,6 +8,22 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Reproducible transport queue, not a claim about real Minecraft multiplayer rendering. */
 class ProgramLatencyMatrixTest {
+    @Test void clockBacklogDoesNotRequestAnUnneededFactCheckpoint() {
+        var fixture=new ProgramNetworkTest.Fixture(); fixture.birth(48);
+        var wire=new ProgramWire(NetworkLimits.defaults());
+        var client=new ProgramReplica(new ProgramWire(NetworkLimits.defaults()),new OperationRegistry().freeze(),ProgramLimits.defaults());
+        var server=new ProgramSyncServer(wire,bytes->client.receive(bytes,0),20);
+        server.publish(fixture.projection(),Map.of(fixture.group,new ProgramInterest.Box(new Vec3(-100,-100,-100),new Vec3(100,100,100))),Vec3.ZERO,0);
+        assertTrue(client.active("test:world"));
+        var clock=client.clock("test:world");
+        for (int tick=1;tick<=50;tick++) clock.observe(1000+tick,1);
+        client.renderTime("test:world",1.5);
+        assertFalse(clock.renderable(),"severe backlog remains hidden");
+        assertTrue(client.recoveryRequests(2).isEmpty(),"intact facts must not be retransmitted for clock uncertainty");
+        clock.observe(1051,2);
+        client.renderTime("test:world",2.5);
+        assertTrue(clock.renderable(),"next independent clock sample restores rendering without a checkpoint");
+    }
     @Test void sparseHeartbeatsAtFiveHundredMsUseActualRenderTimeAndVisibility() {
         var fixture=new ProgramNetworkTest.Fixture(); fixture.birth(48);
         var wire=new ProgramWire(NetworkLimits.defaults());

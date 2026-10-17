@@ -1,5 +1,7 @@
 # 弹幕操作台账
 
+当前续接：用户授权以tasks§3集中压力验收替代旧严格M2阻塞，代表项2.1–2.6已收口，当前10/16；下文5/12及完整旧矩阵阻塞为历史。重新准备`ProgramStressLoad`，通过`gs_program_benchmark start stress 800|2000 300 <player>`复用正式runtime/网络/碰撞；200tick父寿命、age60派生160子弹（寿命80）+8旋转激光，目标峰值808/2008。`tools/program_stress_run.py`保存原始stats/ledger/frames/proxy和停止证据；尚未实机通过。旧build/reports/stress/stress_mixed-r1报告存在恢复数量误报，原stats恢复171/最终173，不作为通过证据。
+
 最后核对：2026-10-17。游戏程序后端已有显式预览闭环，正式BOSS仍走旧后端；实机与M2验收未完成。该台账与代码同步更新；设计文件不是实现证据。
 
 最终用户更新：petal_release、roaming_tower已实机确认表现通过，不再待观察；500ms高延迟整批闪烁仍严重，ProgramClock冻结grace未根治，不标稳定性通过。完整重写的第五期[next-session-handoff.md](../../../../openspec/changes/add-danmaku-program-gameplay/next-session-handoff.md)为下一会话入口，旧段落的待验收措辞属历史。整项网络矩阵/多视角与量化M2仍欠，任务主项5/12，不归档/迁移。
