@@ -1,5 +1,9 @@
 # 第0节作者入口交接（2026-10-18）
 
+## 作者文档可读性修订
+
+按低经验agent阅读反馈重写`docs/danmaku-program-authoring.md`：能力边界前置、Targets/Group区分、全部示例参数/标签/种子/坐标说明、完整loop例子及两种TailPolicy、伤害/方向/隐藏分节、派生触发/失败语义、clearance与limits入口、术语就地解释、真实stats和REJECT诊断表。author_hidden明确总长441tick约22.05秒，其中预警2秒、成员展示20秒。另核对`.laser`第二布尔实际是piercesBlocks，文档明确false裁剪。仅修改文档/skill，不修改API或迁移内容；未为本次文档修订重跑游戏构建。
+
 ## 远程恢复显示策略更新
 
 用户明确接受轻微拉回优于闪烁。ProgramClock初始化后不再因不可信而返回不可渲染：保留既有至多2tick小误差holdover，随后冻结最后时间；收到下一独立权威观测允许重锚校正。严重积压与陈旧映射同样冻结、不无限外推；尚无初始观测仍不可渲染。End/Release等权威删除仍由副本立即执行。该决定覆盖阶段5“严重积压隐藏”和旧短grace耗尽后整批隐藏的策略，不宣称任意网络中断无停顿。

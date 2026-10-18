@@ -1,12 +1,47 @@
-# BOSS 符卡程序开发：从可运行模板开始
+# BOSS 符卡程序开发：照着写的作者指南
 
-适用状态：阶段1–5已交付；第六期先提供作者入口，现有BOSS尚未迁移。本文的Java名称是真实API。写新内容先用`danmaku/program/author/`，不要复制旧预览里的codec、handler或网络安装代码。
+## 0. 现在能做什么，不能做什么
 
-## 最小可运行例子
+**你现在可以编写、编译、测试和预览新程序；现有BOSS尚未迁移，写完不会自动出现在正式战斗中。**
 
-下面就是`AuthoringTemplates.volley()`使用的写法。先照抄整个方法到自己的内容类，修改program id，再逐项调整。
+- 普通内容作者：使用`danmaku/program/author/`，交付`CardProgram.Compiled`。
+- 想试效果：运行下面的预览指令；新增自己的预览需在`ProgramPreviewHost`与`ProgramPreviewCommands`登记入口。
+- 想让现有BOSS正式使用：还要完成第六期正式迁移中的血量/HUD/后端选择/加载策略。**本指南不授权顺手迁移。**
+- 不要复制旧预览里的codec、handler、网络安装代码；这些已由公共入口处理。
+
+读法：先照抄第2节，持续型卡接着看第3节；调伤害看第4节；生成失败看第8节。不需要先读OpenSpec设计稿。
+
+## 1. 先分清四种东西
+
+| 东西 | 通俗解释 | Java类型 / 用法 |
+|---|---|---|
+| 卡程序 | 一张时间表，规定何时做什么 | `CardProgram` |
+| 目标集合 | 本次采样到的玩家名单，不是发射器 | `CardProgram.Targets`，由`targets()`返回 |
+| 组 | 锁定一张局部坐标纸，管理从这里发出的弹 | `CardProgram.Group`，由`aimed/arena/offset`返回；`fire`需要它 |
+| 成员程序 | 一批弹的形状、运动、寿命和行为说明 | `Actions.ChildProgram`，由`MemberProgram...build()`返回 |
 
 ```java
+var targets = card.targets("players", 64, 5); // 半径64格内，最多5名有效玩家
+var gun = card.aimed("main", targets, 0, new Vec3(0, 1, 0)); // 锁定第0槽
+card.fire(gun, bullets, 20, 31); // 不是fire(targets, ...)
+```
+
+玩家按距离排序，最近者在第0槽。捕获5人**不会自动复制5份攻击**；需要逐人点名就为槽0..4分别建组，场地阵列只建一份。目标缺席时对应槽不发射，不把后来的人偷偷补到该槽。
+
+### 单位与坐标
+
+- 20 tick约为1秒；速度单位是格/tick，`.18`约为3.6格/秒。
+- 角度均为弧度。60度写`Math.toRadians(60)`，别直接填`60`。
+- `Vec3.X/Y/Z`分别是局部右/上/前方向，`Vec3.ZERO`是零偏移。
+- `aimed`把局部`+Z`对准采样到的玩家；之后玩家移动不会自动重瞄。
+- `new Vec3(0, 1, 0)`是从owner局部坐标上移1格，不是世界绝对坐标。
+
+## 2. 最小例子：三次扇形齐射，只播放一次
+
+先复制整个方法到自己的内容类，修改唯一的program id，再改数字。
+
+```java
+import com.bitsson.gensokyou.danmaku.program.*;
 import com.bitsson.gensokyou.danmaku.program.author.*;
 import com.bitsson.gensokyou.danmaku.program.math.*;
 import com.bitsson.gensokyou.danmaku.program.ops.*;
@@ -15,57 +50,235 @@ public static CardProgram.Compiled myCard() {
     var card = new CardProgram("gensokyou:my_card");
     var targets = card.targets("players", 64, 5);
     var gun = card.aimed("main", targets, 0, new Vec3(0, 1, 0));
+
     var pattern = MemberProgram.styled(
         new Patterns.Fan(9, Math.toRadians(60), 0),
         "sphere", "#62D6B4", .12, 1, .22, "main");
     var bullets = MemberProgram.attack("main fan", pattern,
         new Paths.Linear(Vec3.Z, .18), 100)
         .templateDirections().build();
+
     card.every(0, 30, 3, c -> c.fire(gun, bullets, 20, 31));
     card.at(181, CardProgram::endCard);
     return card.once();
 }
 ```
 
-含义：取最近至多5名有效玩家，固定第0槽作为瞄准对象；从owner局部上方1格锁定发射帧。卡时间0/30/60开始三次预警，每次20tick后出生9颗弹，各自沿扇形方向以.18格/tick飞行100tick；181结束本卡。这里只有一份朝主目标的攻击，**捕获5人不会自动复制5份**。需要逐人点名时显式为槽0..4创建独立group；场地阵列只建一份。
+### 逐个解释照抄后最常改的参数
 
-`styled`的数字依次是**碰撞半径、伤害倍率、视觉半径**。三者独立。速度单位是格/tick；每秒20tick；角度均为弧度，度数用`Math.toRadians`。示例数值是开发模板，正式BOSS可调平衡参数从config传入。
-
-## 一张卡只需决定这些事情
-
-| 需求 | 使用入口 |
+| 调用 | 参数含义 |
 |---|---|
-| 在指定时刻做事 | `card.at(tick, c -> ...)` |
-| 有限连发 | `card.every(first, period, count, c -> ...)` |
-| 单轮/循环 | `once()` / `loop(ticks, TailPolicy...)` |
-| 攻击弹/纯装饰 | `MemberProgram.attack(...)` / `decoration(...)` |
-| 整片沿局部+Z推进 | `fixedDirection()` |
-| 扇形、球面等逐弹沿图案方向飞 | `templateDirections()` |
-| 按稳定随机谱系向外飞 | `randomDirections(channel)` |
-| 局部旋转、呼吸、平移组合 | `transform(new Transforms.Compose(List.of(...)))` |
-| 路径分段 | `Paths.Segments`，每段从零位移开始，明确尾部策略 |
-| 母弹周期发射 | 成员builder的`emit(selection, firstAge, period, count, child)` |
-| 母弹替换为子弹 | `replace(selection, trigger, child, onReject)` |
-| 花瓣脱离 | `card.release(group, centerSelection, petalSelection, speed)` |
-| 再次瞄准玩家 | `card.reaim(group, slot, selection, speed)`，slot=-1随机有效目标 |
-| 持续共享移动组 | `aimedMoving(...)` + `fireAttached(...)` |
-| 停止未来生成 / 淡出整组 | `stopEmission(group)` / `collapse(group, fade)` |
-| 锁BOSS移动 | `lockMovement(group, duration)`；宿主读取`movementLocked()` |
-| 结束当前卡 | `endCard()`；不会结束整场战斗或独立背景 |
+| `Fan(9, radians(60), 0)` | 9发；总张角60度；整个扇形的偏转角0弧度。第3项不是间隔或随机种子 |
+| `styled(pattern, "sphere", "#62D6B4", .12, 1, .22, "main")` | 图案；弹型；颜色；碰撞半径；伤害倍率；视觉半径；成员标签 |
+| `attack("main fan", pattern, path, 100)` | 用于报错定位的名字；图案；路径；每颗弹出生后的寿命100tick |
+| `Linear(Vec3.Z, .18)` | 路径沿局部前方，速度.18格/tick；方向最终怎样分配由下一项决定 |
+| `templateDirections()` | 把这条前向路径分别朝向Fan给出的每发方向，形成散开的扇 |
+| `every(0, 30, 3, ...)` | 从时刻0开始，每30tick一次，共3次：0、30、60 |
+| `fire(gun, bullets, 20, 31)` | 组；成员程序；预警20tick；确定性随机种子31。31没有特殊含义，可换固定整数 |
+| `at(181, endCard)` | 在181tick结束本卡并撤销它的未来调度，不结束整场战斗或独立底噪 |
 
-`fire`的时间是**开始预警**的时间；成员age从实际出生算起。`at/every`在循环程序里是本轮时间，单轮程序里等同卡时间。动作按声明顺序校验句柄：先创建目标、组，再引用它；不要先写晚时刻的生产者，再在早时刻消费。句柄不能从另一张卡拿来复用。
+种子只影响用到随机的图案/方向；框架还会混入实例和拍次等身份，因此同一个31不代表每一拍复制完全一样的随机结果。不要在每帧用系统时间生成种子。
 
-`every`会有限展开，普通少量拍最直观；大量高频发射用成员`emit`或底层`CreateEmitter`，不要展开几千个节点。循环内不要调用`endCard()`，否则第一轮结束整个卡实例；用`collapse`安排本轮收束，下一轮由播放策略启动。
+这张卡在0/30/60开始预警，20/50/80出生，每批9颗；最后一批在180tick寿命结束，181tick清卡。示例数字是开发模板，正式BOSS可调平衡参数应从config传入。
 
-## 三份真实模板
+### 标签不是组名：`"main"`到底做什么
 
-源码：`src/main/java/com/bitsson/gensokyou/danmaku/program/author/AuthoringTemplates.java`。
+`styled`末尾是可选的`String... tags`，给每个生成成员贴标签，可写多个，也可不写。标签本身不会改变运动、伤害或颜色。
 
-- `volley()`：有限齐射、固定目标槽、图案方向、RGB颜色。
-- `flower()`：花心+花瓣两种样式、呼吸+旋转+推进、age之外的轮内时刻释放。
-- `carriers()`：移动母弹周期生成下一代，下一代定时替换为第三代；派生代数和保守数量自动推导。
+```java
+var petals = MemberProgram.styled(rose, "sphere", "pink", .12, 1, .22, "petals");
+var selected = new Selection.Tag("petals"); // 之后只操作贴了petals标签的成员
+```
 
-游戏里使用生存模式，在空旷区域执行：
+组名管理一批/多批弹的归属；标签挑选组里的成员。组名碰巧也叫`"main"`并不产生关联。
+
+## 3. 持续型卡：必须明确选择循环
+
+`once()`只执行一次；`every(..., count, ...)`也只是有限次数，不会让卡永远循环。
+
+下面的完整方法每120tick重复一轮，每轮在0/20/40tick发三拍，并重新采样目标。
+
+```java
+public static CardProgram.Compiled loopingFan() {
+    var card = new CardProgram("gensokyou:looping_fan");
+    var targets = card.targets("players", 64, 1);
+    var gun = card.aimed("main", targets, 0, new Vec3(0, 1, 0));
+    var bullets = MemberProgram.attack("loop fan",
+        MemberProgram.styled(new Patterns.Fan(7, Math.toRadians(50), 0),
+            "sphere", "blue", .12, 1, .22, "main"),
+        new Paths.Linear(Vec3.Z, .16), 100)
+        .templateDirections().build();
+    card.every(0, 20, 3, c -> c.fire(gun, bullets, 20, 31));
+    return card.loop(120, TailPolicy.END_AT_BOUNDARY);
+}
+```
+
+`loop(long ticks, TailPolicy tail)`的第二项是**一个枚举值，不是可变参数**。
+
+| 策略 | 用途与注意事项 |
+|---|---|
+| `END_AT_BOUNDARY` | 轮结束清掉旧轮成员/计划，下一轮重开。入门优先选它，避免旧弹跨轮积累 |
+| `RETAIN_UNTIL_LIFETIME` | 已出生旧弹按自身寿命继续，有限派生可继续；旧轮顶层计划不继续。适合有意跨轮留下尾珠/母弹的设计，必须计算跨轮峰值 |
+
+例子中最后一拍在60tick出生，本可活到160；选择`END_AT_BOUNDARY`会在120tick截断旧轮。
+
+**循环体不要调用`endCard()`**，否则第一轮就结束整张卡。要在轮尾演出淡出，用`card.at(100, c -> c.collapse(gun, 10))`；真正结束整张循环卡由战斗控制器切卡。
+
+时间表中所有节点必须落在轮长内。`at/every`在循环中使用本轮时间；单轮中等同卡开始后的时间。先创建目标和组，再引用；同名句柄不能重复声明，不能把另一张卡的组拿来用。
+
+## 4. 写攻击前必须确认：方向、伤害、隐藏
+
+### 4.1 选择一个方向规则
+
+```java
+.templateDirections() // 扇形/球面逐发向各自方向飞
+.fixedDirection()    // 所有路径共用局部轴，适合整片向前推进
+.randomDirections(7) // 按稳定随机谱系选方向；7是随机用途通道
+```
+
+三选一，不是连续调用三项。`Fan`只给方向，没选`templateDirections`就不等于沿扇形飞出。复合变换按列表顺序执行，常见顺序为呼吸→旋转→平移。
+
+### 4.2 攻击与装饰不要混用
+
+```java
+MemberProgram.attack("bullet", pattern, path, 100);     // 默认全寿命有害
+MemberProgram.decoration("spark", pattern, path, 100);  // 全程无碰撞
+```
+
+要先无害20tick、后来伤人，给攻击程序设置窗口：
+
+```java
+.presentation(new Presentation.Profile(
+    java.util.List.of(new Presentation.Window(TimeDomain.MEMBER_AGE, 20, 100)),
+    null, null, java.util.List.of()))
+```
+
+`[20,100)`包含20，不包含100。`MEMBER_AGE`从该弹实际出生算起，不包含预警时间。`CARD`从卡开始算，`CYCLE`从本轮开始算，`GROUP`从组创建算；别用卡时间判断不同出生时间弹的年龄。
+
+### 4.3 隐藏不是消失；淡出也不等于无碰撞
+
+```java
+.hiddenCycle(TimeDomain.MEMBER_AGE, 40, 20, 0)
+// 周期40tick，前20正常、后20半透明隐藏，起始相位0
+```
+
+隐藏期完全跳过实体/方块碰撞，之后自动恢复。球弹和三维模型按各自档案`hiddenAlpha`降低本体alpha、保留RGB；激光使用旧实体0.18系数降低光束/端点/法阵的alpha和RGB。
+
+只设置`Fade`不会自动关闭碰撞。需要无害淡出整组时用`collapse(group, fadeTicks)`；完全消失请结束成员，或同时关闭伤害窗口并将alpha设为0。先配置自定义`presentation`，再调用`hiddenCycle`，避免后者被新的presentation覆盖。
+
+## 5. 子弹再发子弹：先标签选择，再声明触发
+
+从第三个模板`AuthoringTemplates.carriers()`开始会遇到这些名字：
+
+| 名字 | 意思 |
+|---|---|
+| `Selection.Tag("mothers")` | 选标签为mothers的成员，不是选同名组 |
+| `Selection.IndexRange(a,b)` | 按稳定成员编号选`[a,b)`，删除其他弹不会重排编号 |
+| `Selection.IndexModulo(2,0)` | 选稳定编号为偶数的成员 |
+| `Actions.AtAge(40)` | 母弹出生40tick后触发 |
+| `Actions.AtPathSegmentEnd("slow")` | 母弹具名路径段slow结束时触发 |
+| `Actions.OnReject.KEEP_PARENT` | 子代准入失败时保留母弹 |
+| `Actions.OnReject.END_PARENT` | 子代准入失败时也结束母弹 |
+
+先构造最末一代，再往外包母弹；不要手填派生上界。
+
+```java
+// child已是build()后的成员程序；motherBuilder尚未build()
+motherBuilder.emit(new Selection.Tag("mothers"), 20, 20, 3, child);
+// 每颗选中母弹在age20/40/60各生成一份child，母弹继续存在
+
+motherBuilder.replace(new Selection.Tag("mothers"),
+    new Actions.AtAge(40), child, Actions.OnReject.KEEP_PARENT);
+// age40用child替换选中的母弹；成功才移除母弹
+```
+
+`emit`快捷入口逐母弹准入，失败保留母弹；`replace`快捷入口将本次选中的母弹作为一笔原子替换，失败按onReject处理。母弹提前死亡会取消未来派生；已经生成的快照子弹不跟着消失。切卡或结束战斗则按归属统一清理。
+
+花阵释放使用标签挑选：
+
+```java
+card.at(100, c -> c.release(flowerGroup,
+    new Selection.Tag("core"), new Selection.Tag("petals"), .16));
+```
+
+`core`必须在执行时选中**恰好一个存活花心**。无花心会取消该组，多个花心是错误；不要给一组里每一批都贴core后再期待它自动猜中心。
+
+## 6. 生成失败怎么办：先净距，再预算
+
+### 6.1 净距：别在玩家身上突然生弹
+
+“净距”是出生时弹的碰撞球边缘与玩家之间要求的安全距离。默认2格，在**实际出生/准入时**检查；玩家可能在预警期间走进去，所以整批被拒绝并不一定是程序错误。
+
+```java
+var card = new CardProgram("gensokyou:my_card").clearance(3); // 例：要求3格
+```
+
+优先移动生成点、重新设计预警/取消逻辑，再讨论降低净距。只有允许贴近生成的测试或经过审查的特殊表演才使用：
+
+```java
+card.clearance(0); // author_hidden测试场景这样做；不是正式卡通用修复
+```
+
+`0`表示不要求额外安全间隔，**不等于关闭所有准入检查**；如果出生碰撞球已经与玩家参考位置重叠，净距结果仍可能小于0而被拒绝。
+
+在`fire`之前设置，修改只影响之后创建的发射节点。安全检查默认考虑全部有效战斗玩家，不只瞄准目标。`offset`用组局部坐标移动生成点：
+
+```java
+var left = card.offset("left", gun, new Vec3(-3, 0, 0));
+card.fire(left, bullets, 20, 31);
+```
+
+### 6.2 派生上界：框架估算“最多会生成多少”
+
+这是安全计算，不是实测发数。框架保守按全部母成员计算，即使选择器只挑几颗，也可能仍给出较大的上界。
+
+```java
+var members = motherBuilder.build();
+long upperBound = members.descendantBound(); // 只读诊断，不要手填
+```
+
+“代数”是最多几层子代；“峰值”是某一刻同时存在/出生多少；“累计量”是整场一共生成多少。这三个数不能互换。
+
+### 6.3 预算：需求算出来后，另有上限检查
+
+`ProgramLimits`限制节点、树深、单批成员、派生数量、字符串与定义大小。普通作者先沿用默认值；确需调整时显式声明：
+
+```java
+card.limits(ProgramLimits.defaults()); // 演示入口；默认payload额度与标准作者环境不完全相同
+```
+
+这**不是提高运行期预算**的入口。实际运行还检查全局存活数、每tick出生数、计算工作量、净距与近域密度。“近域密度”就是玩家附近已有/拟新增弹是否过密；拆成多拍也不能无限堆积长寿命弹。
+
+超限先减少单拍数、增加间隔、缩短寿命、减少派生，再找宿主维护者审查预算。不要把每个上限调大当作解决方法。
+
+R1/R2/R3仍要人工审查：威胁有预警或在视野内；玩家有三维躲避解；控制展开、派生峰值和稳态密度。编译通过不等于好躲或性能达标。
+
+## 7. 作者入口速查
+
+| 需求 | 入口 |
+|---|---|
+| 采样目标名单 | `targets(name, radius, maximum)` → `Targets` |
+| 朝一个固定目标槽建组 | `aimed(name, targets, slot, sourceOffset)` → `Group` |
+| 使用owner自身坐标轴、不逐人复制 | `arena(name, targets)` → `Group`；不是自动绑定寝宫锚点 |
+| 在已有组旁偏移建组 | `offset(name, sourceGroup, localOffset)` → `Group` |
+| 创建持续移动组 | `aimedMoving(...)`；持续跟随它发射用`fireAttached(...)` |
+| 开始预警后发弹 | `fire(group, members, warningTicks, seed)` |
+| 有限连发 / 指定时刻 | `every(first, period, count, action)` / `at(tick, action)` |
+| 播放一次 / 重复整轮 | `once()` / `loop(ticks, TailPolicy.END_AT_BOUNDARY)` |
+| 攻击 / 装饰 | `MemberProgram.attack(...)` / `decoration(...)` |
+| 图案方向 / 统一轴方向 | `templateDirections()` / `fixedDirection()` |
+| 半透明无碰撞周期 | `hiddenCycle(clock, period, activeTicks, phase)` |
+| 母弹发射 / 替换 | 成员builder的`emit(...)` / `replace(...)` |
+| 花瓣径向脱离 / 重新瞄准 | `release(...)` / `reaim(group, slot, selection, speed)`；重瞄slot=-1随机有效目标 |
+| 停止未来生成 / 无害淡出 | `stopEmission(group)` / `collapse(group, fadeTicks)` |
+| 锁移动 / 结束本卡 | `lockMovement(group, duration)` / `endCard()` |
+| 出生净距 / 编译上限 | `clearance(blocks)` / `limits(programLimits)` |
+
+`every`会有限展开，适合少量明确拍。高频大量发射使用成员`emit`或让框架维护者接`CreateEmitter`，不要展开几千个节点。路径分段用`Paths.Segments`，每段从零位移开始；旋转/呼吸/平移用`Transforms.Compose`。
+
+## 8. 预览与诊断：看到什么，下一步做什么
+
+真实模板源码：`src/main/java/com/bitsson/gensokyou/danmaku/program/author/AuthoringTemplates.java`。
 
 ```text
 /gs_program_preview start author_volley
@@ -76,41 +289,76 @@ public static CardProgram.Compiled myCard() {
 /gs_program_preview stop
 ```
 
-三个入口只是开发预览，不会替换现有BOSS符卡。新增自己的预览需在预览内容注册处添加入口，不要改网络、公共范围计算或渲染器。
+`volley`看齐射；`flower`看复合变换与花瓣释放；`carriers`看两层派生。指令示例不是把你的`myCard()`自动注册进游戏，自己的预览要按第0节登记。
 
-`author_hidden`是额外的隐藏态检查场景：在指令执行时视线前方生成固定阵地，预警2秒后出现左侧3颗青色静止球、上方金色三维星形模型、右侧红色激光（18格长），同步正常2秒/半透明隐藏2秒，持续20秒。预览出生净距为0以便走近重复测试，不代表正式内容安全默认。生存模式可在隐藏期穿过它们验证不碰撞；正常期有伤害，球命中后会被消耗，可重新执行指令重置。场地与发射轴锁定，不跟随之后转头；用空旷场地、非和平难度，`stop`随时清场。
+`author_hidden`在当前视线前方生成固定阵地：左侧3颗青球、上方金色三维星形模型、右侧18格红激光。先预警40tick（2秒），成员寿命400tick（20秒），441tick结束本卡：**从启动到结束约22.05秒，其中弹幕展示20秒**。三类同步正常2秒/隐藏2秒。测试净距为0，可在隐藏期穿过；正常期有伤害，球命中会消耗，重执行可重置。用生存模式、非和平难度和空旷场地，随时stop。
 
-远程时钟短暂失准时保留最后画面，短容差后冻结运动，收到独立权威时间样本再校正，允许轻微拉回；不会仅因时钟置信度下降整批隐藏。长时间网络中断仍可能停住，正常停止/寿命结束/兴趣移除仍会消失。这是显示恢复策略，不改变服务端碰撞。
+### 命令输出与日志示意
 
-## 伤害、方向与预算：必须读
+下面是删减后的格式示意，不是每次必须达到的数值：
 
-攻击builder默认全寿命伤害；装饰builder全程无害。需要“先悬停无害，后来伤人”时显式设置`presentation(new Presentation.Profile(...))`，伤害窗口为半开区间`[start,end)`。窗口的时钟必须明确，通常选`MEMBER_AGE`。透明淡出不自动关伤害；`collapse`会关伤害并取消后续发射。
+```text
+program-preview: tick=... runtime=RuntimeStats[groups=..., members=..., plans=...]
+gameplay=Snapshot[collisionSamples=..., hits=..., damageRejected=...]
+events={COMMIT=..., REJECT=...} network={...recoveryRequests=...}
+```
 
-普通弹和激光都支持半透明隐藏态：`.hiddenCycle(TimeDomain.MEMBER_AGE, 40, 20, 0)`表示每40tick前20tick正常、后20tick隐藏。隐藏时仍绘制，且完全跳过实体/方块碰撞；之后自动恢复。球弹及真实三维星形模型遵守旧实体档案`hiddenAlpha`（默认96/255），本体RGB保持原色；激光遵守旧实体独立系数0.18，束/端点/法阵的alpha和RGB同时降低，不重复乘暗态系数。它与仅调`Fade`不同：Fade不自动取消碰撞。完全消失请结束成员或显式alpha=0并关闭伤害窗口。任意GeckoLib/外部实体模型并未自动变成程序弹型；已注册的程序模型走同一档案透明度策略。
+日志`run/logs/latest.log`会记录具体拒绝原因，例如：
 
-必须选方向规则。`Patterns.Fan`只给方向，`templateDirections()`才让路径沿各个方向飞。`fixedDirection()`会让所有成员的路径沿同一局部轴运动，适合整片推进的阵列。旋转、呼吸的变换顺序就是列表顺序，通常先呼吸、再旋转、最后平移。
+```text
+[program-preview] decision kind=REJECT tick=... group=2 reason=clearance
+```
 
-派生需求保守按所有母成员计算，不因选择器只选中几颗而降低上界；这用于安全准入，不等于实际发射数量。builder自动推导需求，`ProgramLimits`独立限制可接受预算，超限应重新评估内容或显式调整合理预算。不能把预算改大作为通用解决方案。运行期还会检查存活、每tick出生、净距和近域密度；一批可被整体拒绝。观察stats和REJECT原因。
+| 症状 / 字段 | 先检查 | 再怎么处理 |
+|---|---|---|
+| 启动后没弹，`plans>0` | 是否还在预警时间 | 等到warningTicks后，不要立即判渲染失败 |
+| `REJECT`且`reason=clearance` | 实际出生位置是否靠近玩家 | 调生成位置/预警设计；测试可显式clearance(0)，正式卡不可无脑照搬 |
+| `reason=budget`或`replace-budget` | 批次、总存活、每tick出生额度 | 减单拍/寿命/派生；编译limits不解决运行预算 |
+| `reason=near-density` | 玩家附近长期堆积 | 减寿命、分散生成点、减少并发，不只是把同一批拆拍 |
+| `reason=evaluation-budget` | 路径/派生计算工作过多 | 简化组合或分时，交维护者分析，不先增加弹量 |
+| `reason=unloaded` | 攻击是否跨到未加载区块 | 收紧区域或取消这批，不能强加载整片攻击场地 |
+| 有弹但`collisionSamples=0` | 是否装饰、隐藏或窗口未开始 | 核对attack/presentation/hiddenCycle和所选时钟 |
+| `collisionSamples>0`但`hits=0` | 是否真实相交、球是否先撞墙 | 查碰撞半径与路径，生存模式实测，不只放大视觉 |
+| `hits>0`且`damageRejected>0` | 创造/和平/免疫/伤害管线 | 查目标与伤害拒绝，不用加弹数补偿 |
+| 只打一次不再打 | 是否用了once或只有有限every | 持续型改成第3节loop，并检查未调用endCard |
+| 循环越来越密 | 是否RETAIN且寿命/派生跨轮 | 计算跨轮峰值；不需要尾弹就选END_AT_BOUNDARY |
+| 停止后仍有内容 | stats是否idle、是否另一owner/旧实体 | 先分清归属再报问题，不删整个世界弹幕 |
+| 所有弹停一下再校正 | 远程时钟恢复 | 看`program-clock`日志；恢复保留姿态，不因时钟不可信整批隐藏 |
 
-R1/R2/R3仍是内容责任：有预警、保留三维躲避解、控制真实展开和派生峰值/稳态密度。编译通过不代表已经通过可读性设计审查，也不代表任意高密度都达到性能目标。
+网络中的`recoveryRequests`不是普通时钟恢复次数；时钟不可信不自动请求全量副本。长时间断网仍可能冻结；正常End/Release/寿命结束也会让内容消失，不能把一切消失都叫闪烁。
 
-## 颜色、弹型与范围
+## 9. 颜色、模型和包络：普通作者知道边界即可
 
-内置弹型`sphere / star_prism / laser`；颜色支持`blue/gold/red/white/green/purple/cyan/pink/orange/default`及`#RRGGBB`。拼错会在作者构建时失败。laser还必须配置`.laser(length, clipBlocks, hitInterval)`，漏配会报错。注册既有几何的新贴图样式用`ProgramVisuals.register(namespacedId, profile)`，在两端共同setup中、构造内容前注册；新几何仍是扩展工作。当前程序渲染消费profile的贴图、尺寸、几何及星弹摆动，不承诺旧实体profile的全部多层辉光/变色字段已接入。
+- 内置弹型：`sphere`、`star_prism`、`laser`。
+- 颜色：`blue/gold/red/white/green/purple/cyan/pink/orange/default`或`#RRGGBB`；拼错会报错。
+- 激光必须同时选`"laser"`样式与`.laser(length, piercesBlocks, hitInterval)`。第二项实际表示**是否穿方块**，`false`会按方块裁剪；别根据旧参数名clipBlocks理解成相反意思。
+- 既有几何的新贴图档案可用`ProgramVisuals.register(namespacedId, profile)`在两端setup、构造内容前注册。
+- 当前消费档案的贴图、尺寸、几何、星弹摆动和隐藏透明度；不承诺旧实体档案全部多层辉光/变色字段已接入。
+- 任意GeckoLib/外部实体模型并未自动变成程序弹型；新增几何仍由框架维护者实现。
 
-`ProgramMotionBounds`为标准路径/变换及重瞄/释放预留保守全寿命范围，包含已出生派生和当前重置路径。不会按卡名称特判。扩展Path/Transform必须实现可信的`radiusBound`；新控制操作若改变未来运动，必须扩展通用包络规则或由宿主提供显式保守包络，不能只让本地预览“看起来正常”。外部实体源支持逐发快照，任意外部跟随不属于作者快捷入口保证。
+“保守包络”就是覆盖弹幕整个运动范围的外接盒，网络据此决定附近玩家是否需要这份弹幕。普通作者用标准操作不必手算，`ProgramMotionBounds`会处理标准运动/重瞄/释放。
 
-## 接BOSS：由宿主维护者做一次
+扩展Path/Transform时必须提供可信的`radiusBound`（运动最多离原点多远）。新控制操作如果会把弹送出原范围，维护者须扩展通用分析或显式扩大包络，不能只在公共代码里按卡名特判。外部实体源支持逐发快照，任意外部跟随不属于快捷入口保证。
 
-`BossProgramHost.open(level, ownerUUID, settings)`复用维度公共session并返回`BossProgramController`。使用`background(program, firstTick)`安装一次底噪，`card(program, firstTick)`切卡，`movementLocked()`读取移动锁，战斗结束调用`BossProgramHost.close(level, controller)`。`firstTick`必须在已完成边界之后，通常是`level.getGameTime()+1`。同维度settings必须一致，由配置装配一次。
+## 10. 接入正式BOSS：宿主维护者负责，不是每卡装配
 
-`card`会清旧卡实例/成员并保留独立背景；结束战斗只影响自身owner；最后一场关闭才移除公共宿主。不能每张卡重复创建runtime或安装网络host。现有BOSS尚未调用此入口：血量/HUD/后端选择/加载策略属于第六期正式迁移，作者模板不得顺手接入。
+正式迁移时才接这条链路：
 
-## 提交前检查
+```text
+BossProgramHost.open(level, ownerUUID, settings) → controller
+controller.background(program, firstTick)      安装一次独立底噪
+controller.card(program, firstTick)            清旧卡、保留底噪、切入新卡
+controller.movementLocked()                   移动AI读取锁
+BossProgramHost.close(level, controller)       结束该场战斗
+```
 
-1. 用模板写内容，program id唯一；明确时间、寿命、方向、伤害、预警和结束方式。
-2. 验证数量、派生上界、峰值密度、目标槽以及缺口；不要只断言“编译成功”。参考`ProgramAuthoringTest`。
-3. 新运动组合检查整寿命包络和网络恢复后的轨迹一致；先自动化，再实机看可读性。
-4. `tools/gradle_task.ps1 build`，`python tools/lang_audit.py`，`openspec validate migrate-boss-cards-to-programs --strict`。Gradle必须走wrapper。
+`firstTick`通常取`level.getGameTime()+1`，必须晚于已完成边界。同维度复用一份session且settings一致；最后一场结束才卸载公共宿主。不要每张卡创建runtime或安装网络host。现有实体血量/HUD/后端选择/加载策略尚未接完，交付内容不代表已经上线。
 
-不要为一张卡向runtime或网络主循环增加形状分支。缺空间排列扩展Pattern；缺数学路径扩展Path；需要新的实时世界事实再扩展Decision。底层设计语义仍见父change的operations与pattern-recipes，本文是实际作者入口。
+## 11. 提交前检查
+
+1. program id唯一；明确单轮/循环、方向、寿命、预警、伤害和结束方式。
+2. 测数量/时序/派生上界/目标槽/跨轮峰值，不只断言编译成功；参考`ProgramAuthoringTest`。
+3. 新组合测试全寿命包络、网络恢复、结束清场；再实机检查可读性。
+4. 执行`tools/gradle_task.ps1 build`、`python tools/lang_audit.py`、`openspec validate migrate-boss-cards-to-programs --strict`。所有Gradle调用必须走wrapper。
+
+缺图案找Pattern、缺路径找Path、需要实时世界事实找Decision。不要为一张卡往runtime/网络主循环加形状分支。只有扩展框架时才需要继续读架构设计，不应让普通内容作者靠翻设计稿补齐本指南遗漏的术语。

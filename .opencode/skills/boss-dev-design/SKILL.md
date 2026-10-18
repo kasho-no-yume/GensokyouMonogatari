@@ -14,6 +14,8 @@ metadata:
 
 作者步骤：`CardProgram`建时间轴 → `targets/aimed`建目标和组 → `MemberProgram.attack/decoration`明确伤害 → 必选`fixedDirection/templateDirections/randomDirections` → `fire`/`emit`/`replace`组合 → `once/loop`编译。派生上界自动推导；颜色可用`#RRGGBB`；普通内容不改网络/渲染分支。底层扩展与接BOSS的范围、生命周期约束见指南。
 
+低经验作者阅读顺序：指南§0先确认只能预览/交付、尚未自动上线；§1分清Targets/Group；§2有全部参数解释和标签；持续型必须看§3完整loop例子（END_AT_BOUNDARY与RETAIN的差别）；§4伤害/方向/隐藏；派生看§5；生成失败看§6净距/预算与§8诊断表。不要用once写持续卡，也不要用clearance(0)或加大limits掩盖正式内容问题。
+
 普通弹和激光的隐藏态用`MemberProgram.hiddenCycle(clock, period, activeTicks, phase)`：隐藏仍半透明可见，球弹/三维模型按profile.hiddenAlpha降本体alpha且保留RGB，激光按旧实体0.18同时降alpha/RGB；完全跳过实体和方块碰撞，正常相位恢复。不要用Fade代替隐藏，Fade单独不关碰撞；VisibilityCycle的非正常相位不再表示彻底消失。`author_hidden`可对照球/三维星形模型/激光。
 
 下文第3/4/8/15/17节的Track/Shape/Beat/实体发射和旧编队规则仅适用于维护旧后端。新卡遵守指南与新程序契约，不得把旧步骤复制到新框架；R1/R2/R3、角色签名、伤害属性等设计原则继续适用。
