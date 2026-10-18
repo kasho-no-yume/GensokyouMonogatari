@@ -68,6 +68,7 @@ public final class ProgramServerHost {
         host.events().accept(events);
         long nanos=System.nanoTime()-started;
         host.stats().tickNanos(nanos);
+        com.bitsson.gensokyou.danmaku.program.gameplay.ProgramMotionProbe.serverTick(System.nanoTime(),nanos,host.session().runtime().liveMembers());
         com.bitsson.gensokyou.netprof.NetProfile.programTick(time,nanos,host.session().runtime().liveMembers());
     }
     @SubscribeEvent public static void unload(LevelEvent.Unload event) {

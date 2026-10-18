@@ -126,6 +126,22 @@ class ProgramContentTest {
         battle.close();
     }
 
+    @Test void yamameNestTailPearlsEndBeforeTheNextCycle() {
+        var deck=BossProgramCards.forOwner("yamame").orElseThrow();
+        var session=session(1);
+        var controller=new BossProgramController(session,OWNER);
+        var battle=new com.bitsson.gensokyou.danmaku.program.gameplay.BossProgramBattle(controller,deck);
+        battle.install(0);
+        int maxLive=0;
+        for (int tick=0;tick<=519;tick++) {
+            session.advance(tick,65536);
+            session.runtime().drainEvents();
+            maxLive=Math.max(maxLive,session.runtime().liveMembers());
+        }
+        assertTrue(maxLive>0,"nest tails must remain active across the authored cycle boundary");
+        battle.close();
+    }
+
     // ------------------------------------------------------------------
     // 蓝：无底噪、220 收束、卡 1 单人 108
     // ------------------------------------------------------------------

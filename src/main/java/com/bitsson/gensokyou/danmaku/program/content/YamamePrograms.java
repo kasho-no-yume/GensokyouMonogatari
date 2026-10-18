@@ -23,6 +23,10 @@ public final class YamamePrograms {
     private YamamePrograms() {}
 
     private static final int SPINNER_LIFETIME = 100;
+    // The latest pearl is emitted at carrier age 96. Keeping the pearl for
+    // Keep the authored 400-tick tail lifetime while measuring the real source
+    // of the reported early hitch. A shorter lifetime changes the authored
+    // density and cannot distinguish startup cost from accumulated load.
     private static final int NODE_LIFETIME = 400;
     private static final int NODE_HOLD = 40;
     private static final double NODE_DRIFT = 0.06D;
@@ -145,6 +149,7 @@ public final class YamamePrograms {
         return new BossProgramCards.Card(3, "spellcard.gensokyou.yamame.3", 0.50D, 260, 0,
                 card.loop(260, TailPolicy.RETAIN_UNTIL_LIFETIME),
                 List.of("子拍 13 拍/轮（0..240），91 根/轮；登记相较旧「只放周期 0 相位」的实际密度上升。",
+                        "尾珠寿命 400 tick（保留原始内容）；性能归因通过开局/持续采样确认，不用寿命收束掩盖问题。",
                         "石窟吐丝用 120° 锥（spread=120 ⇒ 半角 60°）。"));
     }
 

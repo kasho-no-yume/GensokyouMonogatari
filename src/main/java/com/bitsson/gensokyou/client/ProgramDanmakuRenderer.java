@@ -49,7 +49,8 @@ public final class ProgramDanmakuRenderer {
         long projected=System.nanoTime();
         List<ProgramRenderView.Snapshot> views=ProgramClientNetwork.renderViews(event.getPartialTick().getGameTimeDeltaPartialTick(false));
         if (views.isEmpty()) return;
-        PROJECTION_TIMING.record(System.nanoTime()-projected);
+        long projectionNanos=System.nanoTime()-projected;
+        PROJECTION_TIMING.record(projectionNanos);
         long started=System.nanoTime();
         Minecraft minecraft=Minecraft.getInstance();
         PoseStack pose=event.getPoseStack();
@@ -145,7 +146,10 @@ public final class ProgramDanmakuRenderer {
         buffers.endBatch(laserType);
         buffers.endBatch(DanmakuRenderTypes.additiveGlow(SPHERE));
         buffers.endBatch(DanmakuRenderTypes.additiveGlow(LASER));
-        RENDER_TIMING.record(System.nanoTime()-started);
+        long renderNanos=System.nanoTime()-started;
+        RENDER_TIMING.record(renderNanos);
+        com.bitsson.gensokyou.danmaku.program.gameplay.ProgramMotionProbe.frame(System.nanoTime(),projectionNanos,renderNanos,
+                views.stream().mapToDouble(ProgramRenderView.Snapshot::tick).max().orElse(0),views);
     }
 
     private static void renderLaser(PoseStack pose,MultiBufferSource.BufferSource buffers,ProgramRenderView.Member member,java.util.Set<RenderType> used) {
