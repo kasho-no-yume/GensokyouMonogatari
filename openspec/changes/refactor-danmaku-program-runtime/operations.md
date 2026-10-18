@@ -110,7 +110,7 @@ ParallelGrid 的门是显式列 mask，不复用角度。3×7去中央列真实1
 | SplitAt | 宏 | 到点执行ReplaceMembers；结束母弹与生成子代为同一事务，失败策略必填，详见§10 |
 | TriggerProximity | D | 服务端查触发半径、一次性触发标记；未触发期可显式关闭接触伤害 |
 | DamageWindow | P | 半开区间伤害门，可MemberAge或CycleTime；不改变位置 |
-| VisibilityCycle | P/V | 周期alpha/显隐；隐藏段禁止判伤，和DamageWindow取AND |
+| VisibilityCycle | P/V | 周期正常/半透明隐藏；普通弹和激光隐藏时仍可见，alpha及亮度降低，完全跳过实体/方块碰撞，伤害与DamageWindow取AND |
 | Flash / SoundCue | V | 一次性时间提示、尺寸/亮度脉冲、音效去重；物理尺寸不变 |
 | Fade | V | alpha曲线；不自动等同停判伤，Collapse宏组合二者 |
 | LaserWindow | 宏 | 同一路径的预警线→有害光束→关闭，复用姿态通道 |

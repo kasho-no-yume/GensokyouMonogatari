@@ -33,6 +33,15 @@ public final class ProgramPreviewHost {
         if (ProgramServerHost.installed(level) && !PREVIEWS.containsKey(level)) return false;
         stop(level,"preview-restart");
         var installed=switch (card) {
+            case "author_volley", "author_flower", "author_carriers", "author_hidden" -> {
+                var template=switch(card) {
+                    case "author_volley" -> com.bitsson.gensokyou.danmaku.program.author.AuthoringTemplates.volley();
+                    case "author_flower" -> com.bitsson.gensokyou.danmaku.program.author.AuthoringTemplates.flower();
+                    case "author_hidden" -> com.bitsson.gensokyou.danmaku.program.author.AuthoringTemplates.hiddenState();
+                    default -> com.bitsson.gensokyou.danmaku.program.author.AuthoringTemplates.carriers();
+                };
+                yield new ProgramPreviewPrograms.Installed(template.definition(),template.execution());
+            }
             case "blue1" -> ProgramPreviewPrograms.blue1(projectile);
             case "tail_pearls" -> ProgramPreviewPrograms.tailPearls();
             case "flower_sea" -> ProgramPreviewPrograms.flowerSea();

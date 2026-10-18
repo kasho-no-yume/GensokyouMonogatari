@@ -1,5 +1,17 @@
 # 弹幕操作台账
 
+## 当前入口（2026-10-18作者层）
+
+远程时钟最新策略：用户接受轻微校正/拉回以避免闪烁，ProgramClock初始化后不可信时保留最后姿态，短holdover后冻结，独立样本恢复可重锚；不因时钟置信度整批隐藏，不无限外推。End/Release照常清理。此项覆盖历史“严重积压必须隐藏/短grace后隐藏”口径，远程实机待复验。
+
+隐藏态修正：Presentation.VisibilityCycle非正常相位半透明无碰撞；球/三维模型本体使用profile.hiddenAlpha并保留RGB，激光使用共享旧实体0.18 alpha/RGB策略。MemberProgram.hiddenCycle为作者入口。ProgramAuthoringTest覆盖球/星形模型/激光网络投影与CollisionSink零派发。author_hidden增加三维模型并关闭预览净距；单人渲染使用集成服真实时钟，避免包到达拟合恢复导致全批短闪。旧“统一96/255 brightness”口径被替换。
+
+阶段1–5已交付；第六期新增`program/author/CardProgram、MemberProgram、StandardProgramOperations、BossProgramController`及`gameplay/BossProgramHost/ProgramMotionBounds`。标准注册不再依赖预览，伤害/方向显式，派生需求自动计算，标准重瞄/释放包络不按内容名特判。三个新开发模板及`author_volley/author_flower/author_carriers`预览入口不迁移现有BOSS。使用方式见[作者指南](../../../../docs/danmaku-program-authoring.md)。
+
+作者入口verified（自动化）：ProgramAuthoringTest 7项，最终完整build `20261018-112113-build.log`，1061 tests零失败。新模板实机观感及真实多BOSS宿主未在本轮验证，不冒充正式迁移验收；详见第六期authoring-handoff。
+
+以下阶段记录用于历史追踪；其中“未实现游戏接线”“禁止迁移”“只交付描述”等旧状态已由最终收口覆盖。不要据旧记录否定已交付API。正式迁移仍未实施，高延迟短闪和延期性能专项限制沿用阶段5结论。
+
 2026-10-18最终收口：gameplay按用户授权16/16完成，1.5以基础诊断与集中压力报告验收，详细跨场景/统一旧CPU/字节拆分转按需专项。2008峰值独立服零延迟及约500ms配置RTT各180秒完成，协议错误/恢复请求0、停止及自然结束归零；高延迟启动短闪获用户接受。详见gameplay/pressure-results.md与next-session-handoff.md。允许进入阶段6，尚未正式迁移BossCards或归档；下文旧未完成状态为历史，不宣称严格M2/真实多人通过。
 
 当前续接：用户授权以tasks§3集中压力验收替代旧严格M2阻塞，代表项2.1–2.6已收口，当前10/16；下文5/12及完整旧矩阵阻塞为历史。重新准备`ProgramStressLoad`，通过`gs_program_benchmark start stress 800|2000 300 <player>`复用正式runtime/网络/碰撞；200tick父寿命、age60派生160子弹（寿命80）+8旋转激光，目标峰值808/2008。`tools/program_stress_run.py`保存原始stats/ledger/frames/proxy和停止证据；尚未实机通过。旧build/reports/stress/stress_mixed-r1报告存在恢复数量误报，原stats恢复171/最终173，不作为通过证据。

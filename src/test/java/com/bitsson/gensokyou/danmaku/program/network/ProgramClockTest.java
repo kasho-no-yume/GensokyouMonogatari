@@ -4,6 +4,30 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ProgramClockTest {
+    @Test void sparseRecoveryNeverBlanksAndFreezesUntilIndependentSample() {
+        var clock=new ProgramClock(200);
+        assertFalse(clock.renderable(),"no pose before the first authority observation");
+        clock.observe(1000,0);
+        for (int t=1;t<=40;t++) { clock.time(t+.5); if (t%20==0) clock.observe(1000+t,t); }
+        clock.observe(1044,41);
+        double frozen=clock.time(42.5);
+        for (int t=43;t<61;t++) for (double partial:new double[]{0,.25,.5,.99}) {
+            assertEquals(frozen,clock.time(t+partial),1e-9);
+            assertTrue(clock.renderable(),"recovery must never blank the group");
+        }
+        clock.observe(1064,61);
+        assertTrue(clock.renderable()); assertTrue(clock.trusted());
+        assertEquals(1064.5,clock.time(61.5),1e-9);
+        assertTrue(clock.time(62)>1064.5);
+    }
+    @Test void staleMappingStaysFrozenAndVisibleWithoutUnboundedExtrapolation() {
+        var clock=new ProgramClock(20); clock.observe(1000,0);
+        double last=clock.time(10);
+        for (int tick=21;tick<=500;tick++) {
+            assertEquals(last,clock.time(tick),1e-9);
+            assertTrue(clock.renderable()); assertFalse(clock.trusted());
+        }
+    }
     @Test void jitterBurstNearDisplayUsesBoundedHoldoverButSevereQueueRevokesIt() {
         var clock=new ProgramClock(200); clock.observe(1000,0);
         for (int tick=1;tick<=40;tick++) { clock.observe(1000+tick,tick); clock.time(tick+.5); }
@@ -17,9 +41,9 @@ class ProgramClockTest {
         assertEquals(before,clock.time(45),1e-9);
         clock.observe(1046,48); clock.observe(1049,48);
         clock.time(51);
-        assertFalse(clock.renderable(),"burst holdover must expire");
+        assertTrue(clock.renderable(),"expired holdover keeps a frozen pose");
         for (int server=1050;server<=1100;server++) clock.observe(server,51);
-        assertFalse(clock.renderable(),"severe backlog must revoke holdover");
+        assertTrue(clock.renderable(),"severe backlog freezes instead of blanking");
     }
     @Test void staleOwnerSampleCannotDisruptAHealthySharedClock() {
         var clock=new ProgramClock(200); clock.observe(1000,0);
@@ -50,10 +74,10 @@ class ProgramClockTest {
             double frozen=clock.time(41.25);
             assertTrue(clock.renderable(),clock.diagnostic());
             assertEquals(frozen,clock.time(41.5));
-            clock.time(43); assertFalse(clock.renderable());
+            clock.time(43); assertTrue(clock.renderable());
         }
         for (int s=1045;s<1100;s++) clock.observe(s,43);
-        assertFalse(clock.renderable());
+        assertTrue(clock.renderable());
     }
     @Test void sparseHeartbeatsWithOneTickJitterNeverBlankTheAttack() {
         var clock=new ProgramClock(200); clock.observe(1000,0);
@@ -77,13 +101,15 @@ class ProgramClockTest {
         assertTrue(clock.time(211.5)>1010);
         assertTrue(clock.renderable());
         clock.time(214);
-        assertFalse(clock.renderable());
+        assertTrue(clock.renderable());
     }
-    @Test void severeBacklogIsNeverRenderedUnderHoldover() {
+    @Test void severeBacklogFreezesInsteadOfExtrapolating() {
         var clock=new ProgramClock(200); clock.observe(1000,0);
         clock.time(1);
         for (int s=1001;s<1050;s++) clock.observe(s,1);
-        assertFalse(clock.renderable());
+        assertTrue(clock.renderable());
+        double frozen=clock.time(2);
+        assertEquals(frozen,clock.time(100),1e-9);
     }
     @Test void smallRecoveryKeepsTheDisplayedBoundaryContinuous() {
         var clock=new ProgramClock(200); clock.observe(1000,0);

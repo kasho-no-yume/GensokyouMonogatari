@@ -162,6 +162,10 @@ class ProgramOperationsTest {
                 new Presentation.Fade(TimeDomain.MEMBER_AGE,curve(100,1,0)),
                 List.of(new Presentation.Flash(new Presentation.Window(TimeDomain.MEMBER_AGE,20,22),2,3)));
         assertFalse(profile.at(new Presentation.Clocks(0,0,0,15)).damaging());
+        var hidden=profile.at(new Presentation.Clocks(0,0,0,15));
+        assertTrue(hidden.visible());
+        assertEquals(.85*Presentation.HIDDEN_ALPHA,hidden.alpha(),1e-12);
+        assertEquals(1,hidden.brightness(),1e-12);
         var state=profile.at(new Presentation.Clocks(0,0,0,20));
         assertTrue(state.damaging()); assertEquals(2,state.sizeMultiplier()); assertEquals(.8,state.alpha(),1e-12);
         assertFalse(profile.at(new Presentation.Clocks(0,0,0,100)).damaging());

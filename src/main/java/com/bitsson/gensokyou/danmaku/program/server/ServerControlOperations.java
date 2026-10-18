@@ -154,7 +154,11 @@ public final class ServerControlOperations {
                         if (!r.corridor(id,from,until,corridor.halfWidth(),corridor.maxQueries()) && corridor.cancelOnFailure()) r.cancel(id,0,"corridor-blocked");
                     });
                 } else if (value instanceof Control control) {
-                    if (control.kind()==Actions.LifecycleKind.END_CARD) { r.endCard(c.encounter(),c.card()); return; }
+                    if (control.kind()==Actions.LifecycleKind.END_CARD) {
+                        r.endCard(c.encounter(),c.card());
+                        if (c.session()!=null) c.session().requestEndCard(c.encounter(),c.card());
+                        return;
+                    }
                     if (control.kind()==Actions.LifecycleKind.END_ENCOUNTER) { r.endEncounter(c.encounter(),control.reason()); return; }
                     r.groupHandle(r.resolveHandle(prefix,control.group(),false)).ifPresent(id->{
                         switch (control.kind()) {

@@ -95,7 +95,7 @@ public class LaserDanmakuRenderer extends AbstractDanmakuRenderer<LaserDanmaku> 
      * 使其加法贡献按本系数的<b>平方</b>下降（与 {@code danmaku-visual-profile} 的相位
      * 隐藏口径一致）。仅降 alpha 对加法层几乎无效，会读作「隐藏态没变暗」。
      */
-    private static final float HIDDEN_DIM = 0.18F;
+    private static final float HIDDEN_DIM = com.bitsson.gensokyou.danmaku.visual.DanmakuHiddenStyle.LASER_DIM;
 
     // ===============================================================
 

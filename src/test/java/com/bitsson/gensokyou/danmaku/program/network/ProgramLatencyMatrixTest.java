@@ -18,11 +18,17 @@ class ProgramLatencyMatrixTest {
         var clock=client.clock("test:world");
         for (int tick=1;tick<=50;tick++) clock.observe(1000+tick,1);
         client.renderTime("test:world",1.5);
-        assertFalse(clock.renderable(),"severe backlog remains hidden");
+        assertTrue(clock.renderable(),"severe backlog preserves the frozen pose");
         assertTrue(client.recoveryRequests(2).isEmpty(),"intact facts must not be retransmitted for clock uncertainty");
         clock.observe(1051,2);
         client.renderTime("test:world",2.5);
         assertTrue(clock.renderable(),"next independent clock sample restores rendering without a checkpoint");
+        // Even an uncertain/frozen display must obey terminal facts immediately.
+        for (int tick=1052;tick<=1100;tick++) clock.observe(tick,2);
+        assertFalse(clock.trusted());
+        server.end("test:world",fixture.encounter,1100,fixture.runtime.checkpoint().revision());
+        assertFalse(client.active("test:world"));
+        assertTrue(client.renderViews("test:world",client.renderTime("test:world",3)).isEmpty());
     }
     @Test void sparseHeartbeatsAtFiveHundredMsUseActualRenderTimeAndVisibility() {
         var fixture=new ProgramNetworkTest.Fixture(); fixture.birth(48);

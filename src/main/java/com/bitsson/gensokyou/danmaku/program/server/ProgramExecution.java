@@ -13,7 +13,11 @@ public final class ProgramExecution {
         }
     }
     public record Context(long instance,DanmakuWorldRuntime.Encounter encounter,long card,boolean background,
-                          ClockAnchors anchors,PlaybackPolicy playback) {}
+                           ClockAnchors anchors,PlaybackPolicy playback,ProgramSession session) {
+        public Context(long instance,DanmakuWorldRuntime.Encounter encounter,long card,boolean background,ClockAnchors anchors,PlaybackPolicy playback) {
+            this(instance,encounter,card,background,anchors,playback,null);
+        }
+    }
     private record Installed<P>(OperationType<P> type,Handler<P> handler) {
         @SuppressWarnings("unchecked")
         void enqueue(DanmakuWorldRuntime runtime,Context context,ProgramSchedule.Event event,Object decoded) {

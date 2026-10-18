@@ -18,19 +18,7 @@ public final class ProgramPreviewPrograms {
     }
     /** Shared definition validation vocabulary; clients install no authority handlers. */
     public static OperationRegistry registry() {
-        var codec=ServerControlOperations.dataRegistry().freeze();
-        var registry=new OperationRegistry();
-        registry.register(ServerControlOperations.type("capture",ServerControlOperations.Capture.class,codec));
-        registry.register(ServerControlOperations.type("group",ServerControlOperations.Group.class,codec));
-        registry.register(ServerControlOperations.type("fire",ServerControlOperations.Fire.class,codec));
-        registry.register(ServerControlOperations.type("control",ServerControlOperations.Control.class,codec));
-        registry.register(ServerControlOperations.type("offset_group",ServerControlOperations.OffsetGroup.class,codec));
-        registry.register(ServerControlOperations.type("corridor",ServerControlOperations.Corridor.class,codec));
-        registry.register(ServerControlOperations.type("rebase_target",ServerControlOperations.RebaseTarget.class,codec));
-        registry.register(ServerControlOperations.type("radial_release",ServerControlOperations.RadialRelease.class,codec));
-        registry.register(ServerControlOperations.type("emitter",ServerControlOperations.Emitter.class,codec));
-        registry.register(ServerControlOperations.type("bind_source",ServerControlOperations.BindSource.class,codec));
-        return registry.freeze();
+        return com.bitsson.gensokyou.danmaku.program.author.StandardProgramOperations.registry();
     }
 
     public static Installed blue1Slice() {

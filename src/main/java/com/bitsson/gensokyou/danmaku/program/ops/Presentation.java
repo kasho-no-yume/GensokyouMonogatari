@@ -6,6 +6,8 @@ import java.util.List;
 
 /** Analytic local presentation/collision gates. No sound playback or rendering side effects. */
 public final class Presentation {
+    /** Matches the legacy hidden body opacity (96/255); hidden members remain drawable. */
+    public static final double HIDDEN_ALPHA=96.0/255.0;
     private Presentation() {}
     public record Window(TimeDomain clock,double fromInclusive,double untilExclusive) {
         public Window { java.util.Objects.requireNonNull(clock); Deterministic.nonnegative(fromInclusive); Deterministic.finite(untilExclusive); if (untilExclusive<=fromInclusive) throw new IllegalArgumentException("nonempty half-open window required"); }
@@ -42,12 +44,15 @@ public final class Presentation {
         }
         public Profile { damageWindows=List.copyOf(damageWindows); flashes=List.copyOf(flashes); soundCues=List.copyOf(soundCues); if (damageWindows.size()>64 || flashes.size()>64 || soundCues.size()>64) throw new IllegalArgumentException("presentation limit"); }
         public State at(Clocks clocks) {
-            boolean visible=visibility==null || visibility.visible(clocks);
+            boolean active=visibility==null || visibility.visible(clocks);
             boolean damage=damageWindows.stream().anyMatch(w->w.contains(clocks.time(w.clock())));
             double alpha=fade==null?1:fade.alpha().at(StrictMath.max(0,clocks.time(fade.clock()))),size=1,brightness=1;
             for (Flash flash:flashes) if (flash.window().contains(clocks.time(flash.window().clock()))) { size*=flash.sizeMultiplier(); brightness*=flash.brightness(); }
-            // Fade alone does not close damage. VisibilityCycle explicitly does.
-            return new State(visible,visible&&damage,visible?alpha:0,size,brightness,false);
+            // A hidden phase is translucent, not absent. Its collision gate is closed.
+            // Body RGB stays unchanged. The render projection resolves profile-specific
+            // opacity and the independent additive-laser RGB dim.
+            return new State(true,active&&damage,alpha*(active?1:HIDDEN_ALPHA),size,
+                    brightness,false);
         }
     }
     public record LaserWindow(TimeDomain clock,double warningStart,double activeStart,double end) {

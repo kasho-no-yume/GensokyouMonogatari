@@ -1,6 +1,6 @@
 # 先读这份：怎样用通用操作写弹幕
 
-状态：**设计稿，尚未实现**。本文中的名字是拟定接口，不是可以直接调用的Java方法。实现清单以`tasks.md`为准；原子操作完整契约见`operations.md`，案例见`pattern-recipes.md`。
+状态：阶段1–5已交付，第六期补作者入口。**实际写代码先读[可运行作者指南](../../../docs/danmaku-program-authoring.md)**，使用`CardProgram/MemberProgram`与`AuthoringTemplates`。本文保留概念解释，其中大写操作名是语义名称，并非全部同名Java方法。正式BOSS尚未迁移；原子操作完整契约见`operations.md`。
 
 ## 1. 六个概念，先分清
 

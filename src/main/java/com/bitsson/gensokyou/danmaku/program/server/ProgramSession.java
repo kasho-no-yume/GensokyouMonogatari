@@ -14,6 +14,9 @@ public final class ProgramSession {
     private final ProgramExecution execution;
     private final Map<Long,Instance> instances=new LinkedHashMap<>();
     private long nextInstance=1;
+    private record CardEnd(DanmakuWorldRuntime.Encounter encounter,long card) {}
+    private final Set<CardEnd> endedCards=new LinkedHashSet<>();
+    void requestEndCard(DanmakuWorldRuntime.Encounter encounter,long card) { endedCards.add(new CardEnd(encounter,card)); }
     public ProgramSession(DanmakuWorldRuntime runtime,ProgramExecution execution) {
         this.runtime=Objects.requireNonNull(runtime); this.execution=Objects.requireNonNull(execution);
     }
@@ -39,10 +42,12 @@ public final class ProgramSession {
             }
             ProgramCursor cursor=ProgramCursor.restore(instance.cursor());
             execution.enqueueTick(cursor,tick,maxEvents,runtime,new ProgramExecution.Context(instance.id(),instance.encounter(),instance.card(),instance.background(),
-                    instance.cursor().anchors(),instance.cursor().definition().playback()));
+                    instance.cursor().anchors(),instance.cursor().definition().playback(),this));
             instances.put(instance.id(),new Instance(instance.id(),instance.encounter(),instance.card(),instance.background(),cursor.snapshot()));
         }
         runtime.advance(tick);
+        for (var end:endedCards) if (runtime.active(end.encounter())) endCard(end.encounter(),end.card());
+        endedCards.clear();
         for (Instance instance:List.copyOf(instances.values())) if (!runtime.active(instance.encounter())) {
             instances.remove(instance.id()); runtime.releaseInstanceHandles(instance.id());
         }

@@ -17,7 +17,7 @@ import java.util.List;
 @EventBusSubscriber(modid=Gensokyou.MODID,value=Dist.CLIENT)
 public final class ProgramClientNetwork {
     private static final ProgramWire WIRE=new ProgramWire(NetworkLimits.defaults());
-    private static ProgramReplica replica=new ProgramReplica(WIRE,com.bitsson.gensokyou.danmaku.program.gameplay.ProgramPreviewPrograms.registry(),com.bitsson.gensokyou.danmaku.program.gameplay.ProgramPreviewPrograms.limits());
+    private static ProgramReplica replica=new ProgramReplica(WIRE,com.bitsson.gensokyou.danmaku.program.author.StandardProgramOperations.registry(),com.bitsson.gensokyou.danmaku.program.author.StandardProgramOperations.limits());
     private static int tick;
     private static long request;
     private static int lastDiagnostic;
@@ -32,8 +32,15 @@ public final class ProgramClientNetwork {
         Minecraft minecraft=Minecraft.getInstance();
         if (minecraft.level==null) return List.of();
         String dimension=minecraft.level.dimension().location().toString();
+        // Integrated authority shares this JVM. Use its actual dimension boundary rather
+        // than fitting packet arrival time against an independently scheduled client clock.
+        var integrated=minecraft.getSingleplayerServer();
+        if (integrated!=null) {
+            var authority=integrated.getLevel(minecraft.level.dimension());
+            if (authority!=null) return replica.renderViews(dimension,authority.getGameTime()+(minecraft.isPaused()?0:partialTick));
+        }
         double time=replica.renderTime(dimension,tick+(minecraft.isPaused()?0:partialTick));
-        // Brief small-error holdover is bounded by ProgramClock; hard recovery hides obsolete poses.
+        // Uncertain clocks freeze their last pose; authority End/Release still removes content.
         return replica.clock(dimension).renderable()?replica.renderViews(dimension,time):List.of();
     }
     public static void handle(ProgramDataPayload payload,IPayloadContext context) {

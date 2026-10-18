@@ -101,7 +101,7 @@ public final class ProgramDanmakuRenderer {
                 } else {
                     var profile=ProgramVisuals.profile(member.style());
                     boolean star=profile.geometry()==DanmakuGeometry.STAR_PRISM;
-                    RenderType type=star ? DanmakuRenderTypes.translucentDepth(profile.texture()) : bodyType;
+                    RenderType type=profile==com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile.DEFAULT ? bodyType : DanmakuRenderTypes.translucentDepth(profile.texture());
                     usedTypes.add(type);
                     VertexConsumer body=buffers.getBuffer(type);
                     pose.mulPose(minecraft.gameRenderer.getMainCamera().rotation());
@@ -154,7 +154,8 @@ public final class ProgramDanmakuRenderer {
         float radius=(float)(member.style().visualRadius()*member.sizeMultiplier()*envelope);
         if (radius<=0) return;
         int tint=ProgramVisuals.tint(member.style());
-        double dim=member.alpha()*member.brightness();
+        // RGB has its own hidden-state dim; alpha already carries opacity/fade.
+        double dim=member.brightness();
         int r=channel(tint,16,dim),g=channel(tint,8,dim),b=channel(tint,0,dim);
         int cr=(int)((((tint>>16)&255)*.25+255*.75)*dim);
         int cg=(int)((((tint>>8)&255)*.25+255*.75)*dim);

@@ -2,7 +2,7 @@ package com.bitsson.gensokyou.danmaku.program.network;
 
 import com.bitsson.gensokyou.danmaku.motion.DanmakuServerClock;
 
-/** Per-dimension display clock with bounded small-error holdover and explicit hard recovery. */
+/** Per-dimension display clock. Recovery freezes the last pose instead of blanking attacks. */
 public final class ProgramClock {
     private final DanmakuServerClock estimator;
     private double last;
@@ -73,8 +73,8 @@ public final class ProgramClock {
     }
     private void beginRecovery(String cause,long serverTick,int localTick,boolean allowHoldover) {
         reason=cause; recoveryError=serverTick+Math.max(0,local-localTick)*lastRate-last; disruptions++;
-        // Freeze the last verified pose briefly on a modest accepted-fit recovery.
-        // This is not extrapolation on an untrusted mapping. Queued/severe recovery hides.
+        // Diagnostics retain the modest-recovery grace marker. Actual display now
+        // preserves its last pose even after grace; only holdover advances time.
         renderGrace=allowHoldover && cause.equals("display-error") && Math.abs(recoveryError)<=4;
         renderGraceLocal=localTick;
         holdover=allowHoldover && Math.abs(recoveryError)<=MAX_SMOOTH_ERROR;
@@ -105,8 +105,10 @@ public final class ProgramClock {
     }
     public boolean trusted() { return trusted; }
     public boolean renderable() {
-        return trusted || recovering && holdover && local-recoveryLocal<=2
-                || (renderGrace && local-renderGraceLocal<=1);
+        // Clock confidence controls advancement, not existence. Once initialized,
+        // keep the last pose while uncertain; the next independent observation
+        // may correct it in either direction. End/Release still clear replica state.
+        return !Double.isNaN(local);
     }
     public long disruptions() { return disruptions; }
     public String diagnostic() {

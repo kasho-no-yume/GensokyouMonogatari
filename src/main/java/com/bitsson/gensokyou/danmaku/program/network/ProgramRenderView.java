@@ -85,9 +85,19 @@ public final class ProgramRenderView {
                 double beamLength=profile instanceof CollisionProfile.Laser laser?laser.maxLength():0;
                 if (image.entries().get("l/"+ReplicaState.motionKey(id)) instanceof ReplicaState.Beam beam) beamLength=beam.length();
                 double fade=group.fadeEnd()==Long.MAX_VALUE?1:Math.max(0,Math.min(1,(group.fadeEnd()-tick)/10));
+                boolean hidden=program.presentation().visibility()!=null && !program.presentation().visibility().visible(
+                        new Presentation.Clocks(tick-clocks.card(),tick-clocks.cycle(),tick-clocks.group(),tick-batch.birth()));
+                double alpha=presentation.alpha(),brightness=presentation.brightness();
+                if (hidden) {
+                    double dim=profile instanceof CollisionProfile.Laser
+                            ?com.bitsson.gensokyou.danmaku.visual.DanmakuHiddenStyle.LASER_DIM
+                            :com.bitsson.gensokyou.danmaku.visual.DanmakuHiddenStyle.bodyAlpha(com.bitsson.gensokyou.danmaku.program.gameplay.ProgramVisuals.profile(template.style()));
+                    alpha=alpha/Presentation.HIDDEN_ALPHA*dim;
+                    if (profile instanceof CollisionProfile.Laser) brightness*=dim;
+                }
                 members.add(new Member(id,state.position(),direction,template.style().collisionRadius(),template.style(),
-                        presentation.visible(),batch.harmful(templatePosition) && presentation.damaging(),
-                         presentation.alpha()*fade,presentation.sizeMultiplier(),presentation.brightness(),profile,tick-batch.birth(),beamLength,program.lifetimeTicks()));
+                         presentation.visible(),batch.harmful(templatePosition) && presentation.damaging(),
+                          alpha*fade,presentation.sizeMultiplier(),brightness,profile,tick-batch.birth(),beamLength,program.lifetimeTicks()));
             }
             double previous=tick-1.0D;
             Presentation.Clocks previousClocks=new Presentation.Clocks(previous-clocks.card(),previous-clocks.cycle(),previous-clocks.group(),previous-batch.birth());

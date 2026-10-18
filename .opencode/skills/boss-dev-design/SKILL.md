@@ -10,7 +10,13 @@ metadata:
 
 ## 先确认后端与操作状态（重构设计期间必读）
 
-当前游戏仍主要使用旧Track/Beat/Behaviour实体路径。新的`DanmakuProgram`已有core与operations离线实现；CreateEmitter、ReplaceMembers等已有类型描述，但世界执行/事务/网络与游戏接线尚未实现，不能当成现成游戏API。
+阶段1–5已经完成：新的`DanmakuProgram`已有世界执行、事务、网络、碰撞和渲染闭环。第六期先提供作者入口（`danmaku/program/author/`），现有BOSS仍走旧Track/Beat/Behaviour，正式迁移尚未实施。**写新程序先读[可运行作者指南](../../../docs/danmaku-program-authoring.md)，照抄AuthoringTemplates；不要照抄预览的底层装配。**
+
+作者步骤：`CardProgram`建时间轴 → `targets/aimed`建目标和组 → `MemberProgram.attack/decoration`明确伤害 → 必选`fixedDirection/templateDirections/randomDirections` → `fire`/`emit`/`replace`组合 → `once/loop`编译。派生上界自动推导；颜色可用`#RRGGBB`；普通内容不改网络/渲染分支。底层扩展与接BOSS的范围、生命周期约束见指南。
+
+普通弹和激光的隐藏态用`MemberProgram.hiddenCycle(clock, period, activeTicks, phase)`：隐藏仍半透明可见，球弹/三维模型按profile.hiddenAlpha降本体alpha且保留RGB，激光按旧实体0.18同时降alpha/RGB；完全跳过实体和方块碰撞，正常相位恢复。不要用Fade代替隐藏，Fade单独不关碰撞；VisibilityCycle的非正常相位不再表示彻底消失。`author_hidden`可对照球/三维星形模型/激光。
+
+下文第3/4/8/15/17节的Track/Shape/Beat/实体发射和旧编队规则仅适用于维护旧后端。新卡遵守指南与新程序契约，不得把旧步骤复制到新框架；R1/R2/R3、角色签名、伤害属性等设计原则继续适用。
 
 总重构已拆成7个实施change，先读[拆分路线图](../../../openspec/changes/refactor-danmaku-program-runtime/roadmap.md)。原目录仅作总设计，不整包apply；core与operations实际状态见各自tasks与台账，后续须满足路线图的实现前置条件。
 

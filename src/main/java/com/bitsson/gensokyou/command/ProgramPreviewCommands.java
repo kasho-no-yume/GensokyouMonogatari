@@ -12,6 +12,15 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 public final class ProgramPreviewCommands {
     private ProgramPreviewCommands() {}
     @SubscribeEvent public static void register(RegisterCommandsEvent event) {
+        for (String template:java.util.List.of("author_volley","author_flower","author_carriers","author_hidden"))
+            event.getDispatcher().register(Commands.literal("gs_program_preview").requires(source->source.hasPermission(2))
+                    .then(Commands.literal("start").then(Commands.literal(template).executes(context->{
+                        var source=context.getSource();
+                        if (!ProgramPreviewHost.start(source.getPlayerOrException(),template,"sphere")) {
+                            source.sendFailure(Component.translatable("commands.gensokyou.program_preview.busy")); return 0;
+                        }
+                        source.sendSuccess(()->Component.translatable("commands.gensokyou.program_preview.started"),false); return 1;
+                    }))));
         event.getDispatcher().register(Commands.literal("gs_program_preview").requires(source->source.hasPermission(2))
                 .then(Commands.literal("start").then(Commands.literal("roaming_tower").executes(context->{
                     var source=context.getSource();

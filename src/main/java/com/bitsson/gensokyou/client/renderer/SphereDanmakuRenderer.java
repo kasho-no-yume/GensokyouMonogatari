@@ -128,7 +128,7 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         //
         // 本体层是 alpha 混合：对它而言降低 alpha 就等于降低亮度，故 RGB 保持原色
         // （暗态仍须可辨认出颜色，否则「隐藏」会读作「换成另一种弹」）。
-        float dim = hidden ? profile.hiddenAlpha() / 255.0F : 1.0F;
+        float dim = hidden ? (float)com.bitsson.gensokyou.danmaku.visual.DanmakuHiddenStyle.bodyAlpha(profile) : 1.0F;
         int bodyAlpha = hidden ? profile.hiddenAlpha() : 255;
         // 后窗收束淡出：进入收束年龄段后整体压暗，与相位隐藏叠加（乘性）。
         float collapseFade = entity.collapseFadeFactor();
