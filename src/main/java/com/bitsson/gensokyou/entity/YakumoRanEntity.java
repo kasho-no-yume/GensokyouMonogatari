@@ -64,6 +64,12 @@ public class YakumoRanEntity extends AbstractTouhouBoss implements GeoEntity {
         return BossCards.yakumoRan();
     }
 
+    /** 正式程序内容 id（migrate-boss-cards-to-programs）；蓝无独立底噪。 */
+    @Override
+    protected java.util.Optional<String> programContentId() {
+        return java.util.Optional.of("yakumo_ran");
+    }
+
     @Override
     protected SignaturePalette palette() {
         return BossCards.RAN_PALETTE;
@@ -139,7 +145,7 @@ public class YakumoRanEntity extends AbstractTouhouBoss implements GeoEntity {
         if (this.level().isClientSide) {
             return;
         }
-        tickDefaultAttack();
+        if (!programBackendActive()) tickDefaultAttack();
     }
 
     private void tickDefaultAttack() {

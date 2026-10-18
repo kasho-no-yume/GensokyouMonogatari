@@ -35,6 +35,11 @@ public final class MemberProgram {
     public MemberProgram fixedDirection() { direction=Actions.DirectionRule.FIXED; return this; }
     public MemberProgram templateDirections() { direction=Actions.DirectionRule.TEMPLATE; return this; }
     public MemberProgram randomDirections(long channel) { direction=Actions.DirectionRule.SEEDED_SPHERE; directionChannel=channel; return this; }
+    /**
+     * 每发弹朝「本拍采样到的目标点」飞（真实的源→目标向量，含真实距离与倾斜）。
+     * 采样点在运行期由服务端解析并随批次下发，客户端据此重建同一条方向。
+     */
+    public MemberProgram aimAtTarget() { direction=Actions.DirectionRule.AIM_LOCAL; return this; }
     public MemberProgram transform(Transforms.Transform value) { transform=Objects.requireNonNull(value); return this; }
     /** Normal phase first, then translucent/no-collision phase; repeats on the chosen clock. */
     public MemberProgram hiddenCycle(TimeDomain clock,double period,double activeTicks,double phase) {
@@ -47,6 +52,8 @@ public final class MemberProgram {
         presentation=value; return this;
     }
     public MemberProgram laser(double length,boolean clipBlocks,int hitInterval) { collision=new CollisionProfile.Laser(length,clipBlocks,hitInterval); return this; }
+    /** 球弹穿透方块（蛛丝等）：只判实体命中，方块不再截断。 */
+    public MemberProgram piercing() { collision=new CollisionProfile.Projectile(true); return this; }
     public MemberProgram child(Actions.ChildAction action) { actions.add(Objects.requireNonNull(action)); return this; }
     public MemberProgram emit(Selection parents,long firstAge,long period,int count,Actions.ChildProgram child) {
         return child(new Actions.ChildAction(Actions.ChildActionKind.EMIT,parents,new Actions.AtAge(firstAge),period,count,child,
@@ -58,7 +65,7 @@ public final class MemberProgram {
     }
     public Actions.ChildProgram build() {
         try {
-            if (direction==null) throw new IllegalArgumentException("choose fixedDirection(), templateDirections() or randomDirections()");
+            if (direction==null) throw new IllegalArgumentException("choose fixedDirection(), templateDirections(), aimAtTarget() or randomDirections()");
             if (attack && presentation.damageWindows().isEmpty()) throw new IllegalArgumentException("attack requires a damage window; use decoration() for harmless members");
             validateVisuals(pattern);
             for (var member:pattern.generate(new Deterministic.Seed(0,List.of()))) {

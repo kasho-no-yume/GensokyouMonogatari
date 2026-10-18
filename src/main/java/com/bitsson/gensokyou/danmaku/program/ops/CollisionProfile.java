@@ -4,7 +4,11 @@ import java.util.Objects;
 
 /** Typed gameplay collision description kept separate from visual style. */
 public sealed interface CollisionProfile permits CollisionProfile.Projectile, CollisionProfile.Laser {
-    record Projectile() implements CollisionProfile {}
+    /**
+     * @param piercesBlocks when true the projectile skips block clipping entirely (spider
+     *        threads etc.); it still hits entities. Mirrors the legacy {@code piercingSphere}.
+     */
+    record Projectile(boolean piercesBlocks) implements CollisionProfile {}
 
     record Laser(double maxLength, boolean piercesBlocks, int damageIntervalTicks) implements CollisionProfile {
         public Laser {
@@ -13,6 +17,7 @@ public sealed interface CollisionProfile permits CollisionProfile.Projectile, Co
         }
     }
 
-    static CollisionProfile projectile() { return new Projectile(); }
+    static CollisionProfile projectile() { return new Projectile(false); }
+    static CollisionProfile piercing() { return new Projectile(true); }
     static CollisionProfile require(CollisionProfile profile) { return Objects.requireNonNull(profile); }
 }

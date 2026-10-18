@@ -18,10 +18,14 @@ public final class ReplicaState {
     /** Mask bit positions address the ordered templates, never renumber stable member indices. */
     public record Batch(long group, long ordinal, long birth, Actions.Pose source, String description,
                         Actions.Binding binding, Deterministic.Seed seed, List<Pattern.Member> templates,
-                         List<Long> alive, List<Long> harmful, boolean warning, GroupMotion motion) {
+                         List<Long> alive, List<Long> harmful, boolean warning, GroupMotion motion, Vec3 aimLocal) {
         public Batch(long group,long ordinal,long birth,Actions.Pose source,String description,Actions.Binding binding,
                      Deterministic.Seed seed,List<Pattern.Member> templates,List<Long> alive,List<Long> harmful,boolean warning) {
-            this(group,ordinal,birth,source,description,binding,seed,templates,alive,harmful,warning,null);
+            this(group,ordinal,birth,source,description,binding,seed,templates,alive,harmful,warning,null,null);
+        }
+        public Batch(long group,long ordinal,long birth,Actions.Pose source,String description,Actions.Binding binding,
+                     Deterministic.Seed seed,List<Pattern.Member> templates,List<Long> alive,List<Long> harmful,boolean warning,GroupMotion motion) {
+            this(group,ordinal,birth,source,description,binding,seed,templates,alive,harmful,warning,motion,null);
         }
         public Batch { templates=List.copyOf(templates); alive=List.copyOf(alive); harmful=List.copyOf(harmful); }
         public boolean alive(int position) { return bit(alive,position); }
@@ -83,7 +87,7 @@ public final class ReplicaState {
                  String hash=wire.descriptionHash(p.program()); descriptions.put(hash,p.program());
                  Set<Integer> alive=living.getOrDefault(p.ordinal(),Set.of()), harmful=damaging.getOrDefault(p.ordinal(),Set.of());
                 out.put(batchKey(g.id(),p.ordinal()),new Batch(g.id(),p.ordinal(),p.birthTick(),p.source(),hash,p.binding(),p.seed(),p.members(),
-                         mask(p.members(),alive),mask(p.members(),harmful),g.plans().stream().anyMatch(plan->plan.ordinal()==p.ordinal()),p.motion()));
+                         mask(p.members(),alive),mask(p.members(),harmful),g.plans().stream().anyMatch(plan->plan.ordinal()==p.ordinal()),p.motion(),p.aimLocal()));
             }
             for (var m:g.members()) {
                 var id=m.id(); Actions.Source source=c.following().get(id); Long sourceGroup=null; DanmakuWorldRuntime.MemberId sourceMember=c.parentSources().get(id);
@@ -139,7 +143,7 @@ public final class ReplicaState {
                     if (n==words-1 && b.templates().size()%64!=0 && ((b.alive().get(n)|b.harmful().get(n))>>> (b.templates().size()%64))!=0) throw new IllegalArgumentException("mask padding");
                     members+=Long.bitCount(b.alive().get(n));
                 }
-                var program=descriptions.get(b.description()); if (program==null || b.templates().size()>program.pattern().countBound()) throw new IllegalArgumentException("missing batch description");
+                var program=descriptions.get(b.description()); if (program==null || b.templates().size()>512) throw new IllegalArgumentException("missing batch description");
             } else if (r instanceof Motion m) {
                 if (!entry.getKey().equals(motionKey(m.id())) || !hasMember(image,m.id())) throw new IllegalArgumentException("orphan motion");
                 if (m.sourceMember()!=null && !hasMember(image,m.sourceMember()) || m.sourceGroup()!=null && !image.entries().containsKey(groupKey(m.sourceGroup()))) throw new IllegalArgumentException("missing source closure");
@@ -190,7 +194,7 @@ public final class ReplicaState {
         if (motion!=null && motion.detached() instanceof DanmakuWorldRuntime.WorldDetached path && path.direction()!=null) return path.direction();
         if (motion!=null && motion.detached()!=null && (!(motion.detached() instanceof DanmakuWorldRuntime.Rebased rebase) || time>=rebase.start())) {
             var velocity=state(image,descriptions,id,time).velocity();
-            return velocity.length()>1e-9?velocity.unit():EmissionPlan.beamDirection(program,batch.source(),template,age);
+            return velocity.length()>1e-9?velocity.unit():EmissionPlan.beamDirection(program,batch.source(),template,age,batch.aimLocal());
         }
         if (motion!=null && motion.attached()) {
             var group=(Group)image.entries().get(groupKey(id.group()));
@@ -206,10 +210,14 @@ public final class ReplicaState {
                 pose=(group.motion()==null?GroupMotion.stationary(group.frame(),0):group.motion()).pose(time);
             }
             if (motion.nozzle()!=null) pose=motion.nozzle().apply(pose,time);
-            return EmissionPlan.beamDirection(program,pose,template,age);
+            return EmissionPlan.beamDirection(program,pose,template,age,batch.aimLocal());
         }
-        return batch.motion()==null?EmissionPlan.beamDirection(program,batch.source(),template,age)
-                :batch.motion().direction(program.transform().direction(template.direction(),age),time);
+        return batch.motion()==null?EmissionPlan.beamDirection(program,batch.source(),template,age,batch.aimLocal())
+                :batch.motion().direction(localDirection(program,template,age,batch.aimLocal()),time);
+    }
+    private static Vec3 localDirection(Actions.ChildProgram program,Pattern.Member template,double age,Vec3 aimLocal) {
+        return aimLocal==null?program.transform().direction(template.direction(),age)
+                :program.transform().direction(Actions.ChildProgram.aimDirection(template,aimLocal),age);
     }
     private static Path.State state(Image image,Map<String,Actions.ChildProgram> descriptions,DanmakuWorldRuntime.MemberId id,double time,Set<DanmakuWorldRuntime.MemberId> stack) {
         if (!hasMember(image,id) || stack.size()>=16 || !stack.add(id)) throw new IllegalArgumentException("missing/cyclic member");
@@ -221,7 +229,7 @@ public final class ReplicaState {
             if (motion!=null && motion.detached()!=null
                     && (!(motion.detached() instanceof DanmakuWorldRuntime.Rebased rebase) || time>=rebase.start()))
                 return motion.detached().at(time);
-            if (motion!=null && motion.attached()) return g.motion().apply(program.memberState(template,b.seed(),time-b.birth()),time);
+            if (motion!=null && motion.attached()) return g.motion().apply(program.memberState(template,b.seed(),time-b.birth(),b.aimLocal()),time);
             if (motion!=null && (motion.sourceGroup()!=null || motion.sourceMember()!=null)) {
                 Actions.Pose pose=motion.lastPose();
                 if (motion.sourceMember()!=null) { Path.State s=state(image,descriptions,motion.sourceMember(),time,stack); pose=new Actions.Pose(new Frame(s.position(),Vec3.X,Vec3.Y,Vec3.Z),s.velocity()); }
@@ -231,8 +239,8 @@ public final class ReplicaState {
                 var spawn=new Actions.SpawnChild(new Actions.GroupPose(new ProgramRef.Group(new NodeId(0))),program,b.binding());
                 return Actions.emittedState(spawn,(s,t)->Optional.of(t==b.birth()?b.source():current),b.birth(),time,template,b.seed()).orElseThrow();
             }
-            if (b.motion()!=null) return b.motion().apply(program.memberState(template,b.seed(),time-b.birth()),time);
-            return EmissionPlan.state(program,b.binding(),b.source(),b.seed(),template,time-b.birth());
+            if (b.motion()!=null) return b.motion().apply(program.memberState(template,b.seed(),time-b.birth(),b.aimLocal()),time);
+            return EmissionPlan.state(program,b.binding(),b.source(),b.seed(),template,time-b.birth(),b.aimLocal());
         } finally { stack.remove(id); }
     }
 }

@@ -2,6 +2,8 @@
 
 ## 当前入口（2026-10-18作者层）
 
+正式迁移代码更新：大妖精3卡、山女4卡、蓝8卡及2底噪位于`program/content`，`BossProgramBattle`接血量/HUD/移动锁，`ProgramBackendState`持久化后端/卡，默认legacy。作者新增`aimAtTarget`（真实目标快照）、`piercing`、`corridor`、`surfaceFire/AtTargets`与`FIRST_AIR_BELOW`。已核对wrapper build `20261018-154530-build.log`成功及XML结果139 suites / 1100 tests / 0 failures / 0 errors，strict通过。任务1.7实机/多人/读档验收仍未完成，露米娅/傩面排除；下文“正式迁移未实施”为历史。详见迁移change的`migration-manifest.md`及`docs/boss-program-migration-observation.md`，不以自动化代替真实观感验收。
+
 远程时钟最新策略：用户接受轻微校正/拉回以避免闪烁，ProgramClock初始化后不可信时保留最后姿态，短holdover后冻结，独立样本恢复可重锚；不因时钟置信度整批隐藏，不无限外推。End/Release照常清理。此项覆盖历史“严重积压必须隐藏/短grace后隐藏”口径，远程实机待复验。
 
 隐藏态修正：Presentation.VisibilityCycle非正常相位半透明无碰撞；球/三维模型本体使用profile.hiddenAlpha并保留RGB，激光使用共享旧实体0.18 alpha/RGB策略。MemberProgram.hiddenCycle为作者入口。ProgramAuthoringTest覆盖球/星形模型/激光网络投影与CollisionSink零派发。author_hidden增加三维模型并关闭预览净距；单人渲染使用集成服真实时钟，避免包到达拟合恢复导致全批短闪。旧“统一96/255 brightness”口径被替换。

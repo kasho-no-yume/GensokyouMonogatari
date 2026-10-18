@@ -33,8 +33,7 @@ public final class Actions {
     }
     public record ChildProgram(Pattern pattern,Path path,long lifetimeTicks,int maxGenerations,long descendantBound,
                                List<ChildAction> actions,Presentation.Profile presentation,Transforms.Transform transform,
-                               DirectionRule directionRule,long directionChannel,CollisionProfile collisionProfile) {
-        public ChildProgram(Pattern pattern,Path path,long lifetimeTicks,int maxGenerations,long descendantBound,
+                               DirectionRule directionRule,long directionChannel,CollisionProfile collisionProfile) {        public ChildProgram(Pattern pattern,Path path,long lifetimeTicks,int maxGenerations,long descendantBound,
                             List<ChildAction> actions,Presentation.Profile presentation,Transforms.Transform transform,
                             DirectionRule directionRule,long directionChannel) {
             this(pattern,path,lifetimeTicks,maxGenerations,descendantBound,actions,presentation,transform,
@@ -69,14 +68,29 @@ public final class Actions {
         public long totalMembersBound() { return Math.addExact(pattern.countBound(),descendantBound); }
         /** +Z path coordinates can explicitly follow each template or its stable random lineage. */
         public Path.State memberState(Pattern.Member member,Deterministic.Seed seed,double age) {
+            return memberState(member,seed,age,null);
+        }
+        /**
+         * @param aimLocal optional sampled aim point in the member's local space. Required by
+         *        {@link DirectionRule#AIM_LOCAL}, whose direction is each member's own
+         *        position-to-aim vector (a real sampled source→target distance, not a constant).
+         */
+        public Path.State memberState(Pattern.Member member,Deterministic.Seed seed,double age,Vec3 aimLocal) {
             Path.State state=path.at(age);
             Vec3 direction=switch(directionRule) {
                 case FIXED -> Vec3.Z;
                 case TEMPLATE -> member.direction();
+                case AIM_LOCAL -> aimDirection(member,aimLocal);
                 case SEEDED_SPHERE -> Deterministic.seedDirection(seed.child(member.index()),directionChannel,0,Deterministic.Distribution.UNIFORM_SPHERE,Vec3.Z,StrictMath.PI);
             };
             Frame frame=Frame.along(Vec3.ZERO,direction,Vec3.Y);
             return transform.apply(new Path.State(member.position().add(frame.direction(state.position())),frame.direction(state.velocity()),state.ended()||age>=lifetimeTicks),age);
+        }
+        /** Falls back to the template direction when the aim point is missing or coincident. */
+        public static Vec3 aimDirection(Pattern.Member member,Vec3 aimLocal) {
+            if (aimLocal==null) return member.direction();
+            Vec3 delta=aimLocal.subtract(member.position());
+            return delta.length()<1e-9?member.direction():delta.unit();
         }
         public long treeLifetimeBound() {
             long end=lifetimeTicks;
@@ -84,7 +98,7 @@ public final class Actions {
             return end;
         }
     }
-    public enum DirectionRule { FIXED, TEMPLATE, SEEDED_SPHERE }
+    public enum DirectionRule { FIXED, TEMPLATE, SEEDED_SPHERE, AIM_LOCAL }
     public sealed interface Trigger permits AtAge,AtPathSegmentEnd { double tick(Path path); }
     public record AtAge(double age) implements Trigger {
         public AtAge { Deterministic.nonnegative(age); }

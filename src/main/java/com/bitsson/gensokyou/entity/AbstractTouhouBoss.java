@@ -1,7 +1,10 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.balance.MonsterStatBudget;
 import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.danmaku.program.content.BossProgramCards;
+import com.bitsson.gensokyou.danmaku.program.gameplay.BossProgramBackend;
 import com.bitsson.gensokyou.danmaku.track.SignaturePalette;
 import com.bitsson.gensokyou.danmaku.track.SpellCard;
 import com.bitsson.gensokyou.danmaku.track.TrackLint;
@@ -92,6 +95,15 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
 
     private final TouhouBossBar bossBar;
     private TrackRunner runner;
+    /** 正式程序后端（显式迁移）；null = 走旧 TrackRunner。 */
+    private BossProgramBackend programBackend;
+    /** 开战前的后端选择结果；一场 encounter 内不变。 */
+    private boolean programBackendDecided;
+    private boolean programBackendSelected;
+    private boolean programFallback;
+    /** 存档恢复的后端标记；旧存档缺键时为 null。 */
+    private com.bitsson.gensokyou.danmaku.program.gameplay.ProgramBackendState persistedBackend;
+    private int lastAnnouncedProgramCard = -1;
     private List<Player> lockedTargets = new ArrayList<>();
     private Vec3 wanderTarget;
     /** 当前<b>注视</b>的那名被锁定目标（与主目标未必是同一个）。 */
@@ -193,6 +205,11 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
      */
     @Override
     public OptionalInt activeCardIndex() {
+        BossProgramBackend program = programBackend;
+        if (program != null && program.active()) {
+            int index = program.activeCardIndex();
+            return index < 1 ? OptionalInt.empty() : OptionalInt.of(index - 1);
+        }
         if (runner == null) {
             return OptionalInt.empty();
         }
@@ -378,6 +395,20 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
             this.statsApplied = true;
             applyStats();
         }
+        if (programBackendActive()) {
+            tickProgramBackend();
+            if (this.getTarget() == null && !lockedTargets.isEmpty()) {
+                this.setTarget(lockedTargets.get(0));
+            }
+            refreshTargets();
+            faceRandomTarget();
+            if (programBackend != null && programBackend.active()) {
+                programBackend.tick(hpFraction(), this.level().getGameTime());
+                announceProgramCard();
+            }
+            bossBar.setProgress(Math.max(0.0F, this.getHealth() / this.getMaxHealth()));
+            return;
+        }
         // runner 的创建与 statsApplied <b>解耦</b>：读档后属性与生命已由 NBT 恢复
         // （LivingEntity 把 attributes 存进 "attributes" 并在子类 readAdditionalSaveData
         // 之前读回），此时 MUST NOT 再跑 applyStats——它结尾有 setHealth(maxHealth)，
@@ -405,6 +436,108 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
             runner.tick(this, lockedTargets, danmakuDamage());
         }
         bossBar.setProgress(Math.max(0.0F, this.getHealth() / this.getMaxHealth()));
+    }
+
+    // ------------------------------------------------------------------
+    // 正式程序后端（migrate-boss-cards-to-programs）
+    //
+    // 逐 BOSS 在开战前选择；选择后整场不变，失败只在首卡安装前回退旧后端。
+    // 程序后端运行时，旧 TrackRunner 与子类默认攻击都不参与，因此同一 encounter
+    // 只有一个判伤后端。
+    // ------------------------------------------------------------------
+
+    /**
+     * 本 BOSS 的正式程序内容 id；返回空表示尚未迁移、永远走旧后端。
+     * 已迁移者覆写为与 {@code BossCards} / lang 同源的注册名。
+     */
+    protected Optional<String> programContentId() {
+        return Optional.empty();
+    }
+
+    /** 当前 encounter 是否由正式程序后端驱动（已决定且未回退）。 */
+    protected final boolean programBackendActive() {
+        if (!programBackendDecided) {
+            programBackendDecided = true;
+            if (persistedBackend != null) {
+                // 重载后沿用存档里的后端选择，不在半场按 config 热切换。
+                programBackendSelected = programContentId().isPresent() && persistedBackend.programMode();
+            } else {
+                programBackendSelected = programContentId().isPresent()
+                        && "program".equalsIgnoreCase(GensokyouConfig.BOSS_DANMAKU_BACKEND.get());
+            }
+        }
+        return programBackendSelected && !programFallback;
+    }
+
+    private void tickProgramBackend() {
+        if (programBackend != null) {
+            if (!programBackend.active()) programBackend = null;
+            return;
+        }
+        if (!(this.level() instanceof ServerLevel server)) return;
+        String id = programContentId().orElse(null);
+        if (id == null) return;
+        BossProgramCards.Deck deck;
+        try {
+            deck = BossProgramCards.forOwner(id).orElse(null);
+        } catch (RuntimeException invalidContent) {
+            programFallback = true;
+            Gensokyou.LOGGER.error("[boss-program] invalid content for {}; encounter falls back to legacy", id, invalidContent);
+            return;
+        }
+        if (deck == null) {
+            programFallback = true;
+            return;
+        }
+        try {
+            programBackend = BossProgramBackend.open(server, getUUID(), deck, hpFraction(), server.getGameTime() + 1,
+                    persistedBackend == null ? 0 : persistedBackend.cardIndex());
+            Gensokyou.LOGGER.info("[boss-program] opened owner={} content={} tick={}", getUUID(), id, server.getGameTime());
+        } catch (RuntimeException failure) {
+            programFallback = true;
+            programBackend = null;
+            Gensokyou.LOGGER.error("[boss-program] failed to open {}; encounter falls back to legacy", id, failure);
+        }
+    }
+
+    private double hpFraction() {
+        return this.getMaxHealth() <= 0.0F ? 0.0D : this.getHealth() / this.getMaxHealth();
+    }
+
+    private void announceProgramCard() {
+        if (programBackend == null) return;
+        int index = programBackend.activeCardIndex();
+        if (index < 1 || index - 1 == lastAnnouncedProgramCard) return;
+        lastAnnouncedProgramCard = index - 1;
+        ModNetworking.broadcastSpellCardName(this, index - 1);
+        NetProfile.onCardChanged(this, index - 1);
+    }
+
+    /** 结束本场战斗的程序后端；死亡/移除/卸载时调用，不会影响同维度其他 BOSS。 */
+    private void closeProgramBackend() {
+        BossProgramBackend battle = programBackend;
+        programBackend = null;
+        if (battle != null) {
+            try {
+                battle.close();
+            } catch (RuntimeException failure) {
+                Gensokyou.LOGGER.warn("[boss-program] close failed for {}", getUUID(), failure);
+            }
+        }
+    }
+
+    @Override
+    public void die(DamageSource source) {
+        closeProgramBackend();
+        super.die(source);
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        // Only a real death/discard ends the battle. Chunk/dimension unload must NOT end it, so the
+        // host can persist the live session for the next start (offline time is rebased on restore).
+        if (reason == RemovalReason.KILLED || reason == RemovalReason.DISCARDED) closeProgramBackend();
+        super.remove(reason);
     }
 
     /**
@@ -597,13 +730,20 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
     /**
      * 移动锁：{@code true} 时<b>位置锁死</b>，不产生任何游走位移。
      *
-     * <p>刻意<b>不</b>连朝向一起锁：朝向由 {@link #faceRandomTarget()} 独立驱动，
-     * 「站在原地不动但仍转头看你」与「完全石化」是两种读法，前者更像一个正在施法的 BOSS。
-     *
-     * <p>存在的理由：某些符卡要求 BOSS 定点（原地放一圈环、原地浇一片雨），
-     * 而默认的距离带游走会把生成点每 tick 都挪走——那类符卡的构图当场失效。
+     * <p>正式程序后端运行时，锁由程序控制轨声明（{@code lockMovement}）并在此读取；
+     * 旧后端则走子类覆写的 {@link #legacyMovementLocked()}。两条路径互斥，一场战斗
+     * 不会同时由两个后端决定锁。
      */
     protected boolean movementLocked() {
+        BossProgramBackend program = programBackend;
+        if (program != null && program.active()) {
+            return program.movementLocked();
+        }
+        return legacyMovementLocked();
+    }
+
+    /** 旧 TrackRunner 后端的移动锁钩子；程序后端启用时不会被调用。 */
+    protected boolean legacyMovementLocked() {
         return false;
     }
 
@@ -720,6 +860,10 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
             tag.putDouble("AnchorY", this.anchor.y);
             tag.putDouble("AnchorZ", this.anchor.z);
         }
+        if (this.programBackendDecided) {
+            new com.bitsson.gensokyou.danmaku.program.gameplay.ProgramBackendState(
+                    this.programBackendSelected, Math.max(0, this.lastAnnouncedProgramCard + 1)).write(tag);
+        }
     }
 
     @Override
@@ -733,6 +877,14 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
         // 属性与最大生命此时已由 LivingEntity 从 NBT 的 "attributes" 恢复，读档路径
         // MUST NOT 再动它们。
         this.statsApplied = true;
+        // 后端选择标记：恢复后本场不再按 config 热切换；旧存档缺键时保持 null 并回退 config 决定。
+        this.persistedBackend = com.bitsson.gensokyou.danmaku.program.gameplay.ProgramBackendState.read(tag).orElse(null);
+        if (this.persistedBackend != null) {
+            // Let the same selection path restore the saved mode on the next tick.
+            this.programBackendDecided = false;
+            this.programBackendSelected = false;
+            this.programFallback = false;
+        }
         // 旧存档可能残留 "BossSpawnRoll" 键——忽略即可（BOSS 数值已确定化，不再读它）。
         if (tag.contains("AnchorX")) {
             this.anchor = new Vec3(tag.getDouble("AnchorX"), tag.getDouble("AnchorY"),

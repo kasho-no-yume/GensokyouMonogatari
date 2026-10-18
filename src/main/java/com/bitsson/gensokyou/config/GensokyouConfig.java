@@ -99,6 +99,7 @@ public class GensokyouConfig {
 
     /** BOSS 同时锁定的玩家数上限。 */
     public static final ModConfigSpec.IntValue BOSS_MAX_TARGETS;
+    public static final ModConfigSpec.ConfigValue<String> BOSS_DANMAKU_BACKEND;
     /** 距离带内界（格）。 */
     public static final ModConfigSpec.DoubleValue BOSS_MOVE_MIN;
     /** 距离带外界（格）。 */
@@ -1016,6 +1017,11 @@ public class GensokyouConfig {
                 + "danmaku damage = referencePlayerEhp(tier) / hits. The difficulty dial is the graze-rate "
                 + "threshold, not the raw hit count, because the player can carry healing consumables.");
         BOSS_MAX_TARGETS = BUILDER.comment("Max players a BOSS locks at once (nearest N).").defineInRange("bossMaxTargets", 5, 1, 32);
+        BOSS_DANMAKU_BACKEND = BUILDER.comment("migrate-boss-cards-to-programs: authoritative danmaku backend chosen at encounter start.",
+                        "legacy = old Track/Shape entity backend (default; behavior unchanged).",
+                        "program = DanmakuProgram backend for migrated bosses (big_fairy / yamame / yakumo_ran).",
+                        "The choice is immutable for the encounter: a failure before the first card falls back to legacy,",
+                        "and no half-fight hot switch is performed.").define("bossDanmakuBackend", "legacy");
         BOSS_MOVE_MIN = BUILDER.comment("Default inner edge of the distance band; boss retreats inside it (blocks)").defineInRange("bossMoveMin", 10D, 2D, 64D);
         BOSS_MOVE_MAX = BUILDER.comment("Default outer edge of the distance band; boss advances beyond it (blocks)").defineInRange("bossMoveMax", 30D, 4D, 128D);
         BOSS_MOVE_SPEED = BUILDER.comment("Boss wander speed MULTIPLIER fed to FairyMoveControl as MoveControl.speedModifier."

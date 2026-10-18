@@ -8,7 +8,7 @@ import java.util.Objects;
 public final class AuthorityDescriptions {
     private AuthorityDescriptions() {}
     public enum TargetPoint { EYES, CHEST, FEET }
-    public enum SurfaceMode { DOWNWARD_SOLID_TOP, FIRST_AIR_ABOVE }
+    public enum SurfaceMode { DOWNWARD_SOLID_TOP, FIRST_AIR_ABOVE, FIRST_AIR_BELOW }
     public enum Failure { REJECT_BATCH, CANCEL_GROUP }
     public record CaptureTargets(double radius,int maximum,boolean excludeCreative,boolean excludeSpectator) {
         public CaptureTargets { Deterministic.positive(radius); if (maximum<1 || maximum>5) throw new IllegalArgumentException("1..5 targets required"); }

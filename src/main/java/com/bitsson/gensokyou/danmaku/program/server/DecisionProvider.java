@@ -68,13 +68,14 @@ public interface DecisionProvider {
             Optional<Vec3> found=Optional.empty();
             int x=(int)StrictMath.floor(point.x()), y=(int)StrictMath.floor(point.y()), z=(int)StrictMath.floor(point.z());
             for (int step=0;step<maxSteps && queries<maxQueries;step++) {
-                int sampleY=mode==AuthorityDescriptions.SurfaceMode.DOWNWARD_SOLID_TOP?y-step:y+step;
+                // FIRST_AIR_ABOVE steps up toward air; FIRST_AIR_BELOW and DOWNWARD_SOLID_TOP step down.
+                int sampleY=mode==AuthorityDescriptions.SurfaceMode.FIRST_AIR_ABOVE?y+step:y-step;
                 Block block=block(x,sampleY,z); queries++;
                 if (!block.loaded()) break;
                 if (mode==AuthorityDescriptions.SurfaceMode.DOWNWARD_SOLID_TOP && block.solid()) {
                     found=Optional.of(new Vec3(point.x(),sampleY+block.top(),point.z())); break;
                 }
-                if (mode==AuthorityDescriptions.SurfaceMode.FIRST_AIR_ABOVE && block.air()) {
+                if (mode!=AuthorityDescriptions.SurfaceMode.DOWNWARD_SOLID_TOP && block.air()) {
                     found=Optional.of(new Vec3(point.x(),sampleY,point.z())); break;
                 }
             }

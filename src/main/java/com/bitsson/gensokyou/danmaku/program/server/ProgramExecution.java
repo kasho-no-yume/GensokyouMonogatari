@@ -48,34 +48,71 @@ public final class ProgramExecution {
             if (installed==null || installed.type().schemaVersion()!=node.schemaVersion()) throw new IllegalArgumentException("missing authority implementation: "+node.operationId());
             parameters(installed,node);
         }
-        validateHandles(definition.root(),new HashSet<>(),new HashSet<>());
+        validateHandles(definition);
         validated.add(definition);
     }
-    private void validateHandles(ProgramNode node,Set<String> groups,Set<String> targets) {
-        if (node instanceof OperationNode operation) {
-            Object value=parameters(handlers.get(operation.operationId()),operation);
-            if (value instanceof ServerControlOperations.Capture capture) {
-                if (!targets.add(capture.name())) throw new IllegalArgumentException("duplicate target handle "+capture.name());
-            } else if (value instanceof ServerControlOperations.Group group) {
-                if (!targets.contains(group.targets())) throw new IllegalArgumentException("unavailable target handle "+group.targets());
-                if (!groups.add(group.name())) throw new IllegalArgumentException("duplicate group handle "+group.name());
-            } else if (value instanceof ServerControlOperations.OffsetGroup offset) {
-                if (!groups.contains(offset.source()) || !groups.add(offset.name())) throw new IllegalArgumentException("invalid shared frame handle "+offset.name());
-            } else {
-                String name=value instanceof ServerControlOperations.Fire p?p.group():value instanceof ServerControlOperations.Sample p?p.group():
-                        value instanceof ServerControlOperations.Surface p?p.group():value instanceof ServerControlOperations.Emitter p?p.group():
-                        value instanceof ServerControlOperations.Replace p?p.group():value instanceof ServerControlOperations.BindSource p?p.group():
-                        value instanceof ServerControlOperations.RadialRelease p?p.group():value instanceof ServerControlOperations.RebaseTarget p?p.group():value instanceof ServerControlOperations.Corridor p?p.group():value instanceof ServerControlOperations.Control p?p.group():null;
-                boolean whole=value instanceof ServerControlOperations.Control p && (p.kind()==com.bitsson.gensokyou.danmaku.program.ops.Actions.LifecycleKind.END_CARD
-                        || p.kind()==com.bitsson.gensokyou.danmaku.program.ops.Actions.LifecycleKind.END_ENCOUNTER);
-                if (name!=null && !whole && !groups.contains(name)) throw new IllegalArgumentException("unavailable group handle "+name);
+    /**
+     * Handle validation in <b>real execution order</b>: events run by (tick, node order), where a
+     * node's tick comes from its clock domain. Sorting the collected operations by
+     * (domain, earliest, insertion) reproduces that order for nested Parallel/At/Sequence
+     * structures, so validation no longer depends on AST list order.
+     */
+    private void validateHandles(ProgramDefinition definition) {
+        List<Timed> ordered=new ArrayList<>();
+        timing(definition.root(),new Timing(TimeDomain.CARD,0),ordered);
+        boolean once=definition.playback() instanceof PlaybackPolicy.Once;
+        if (once) ordered.sort(Comparator.comparingLong(Timed::earliest).thenComparingInt(Timed::index));
+        else ordered.sort(Comparator.<Timed>comparingInt(t->t.domain().ordinal())
+                .thenComparingLong(Timed::earliest).thenComparingInt(Timed::index));
+        Set<String> groups=new HashSet<>(), targets=new HashSet<>();
+        for (Timed timed:ordered) handleCheck(timed.operation(),groups,targets);
+    }
+    private record Timing(TimeDomain domain,long earliest) {
+        Timing plus(long value) { return new Timing(domain,Math.addExact(earliest,value)); }
+    }
+    private record Timed(OperationNode operation,TimeDomain domain,long earliest,int index) {}
+    private Timing timing(ProgramNode node,Timing start,List<Timed> out) {
+        if (node instanceof OperationNode operation) out.add(new Timed(operation,start.domain(),start.earliest(),out.size()));
+        return switch (node) {
+            case AtNode at -> timing(at.child(),new Timing(at.domain(),at.offset().ticks()),out);
+            case OffsetNode offset -> timing(offset.child(),start.plus(offset.offset().ticks()),out);
+            case SequenceNode sequence -> {
+                Timing cursor=start;
+                for (ProgramNode child:sequence.children()) cursor=timing(child,cursor,out);
+                yield cursor;
             }
-        } else if (node instanceof RepeatNode || node instanceof EveryNode || node instanceof CycleNode) {
-            for (ProgramNode child:node.children()) validateHandles(child,new HashSet<>(groups),new HashSet<>(targets));
-        } else if (node instanceof ParallelNode) {
-            // Cross-branch string handles have no typed dependency edge; require an explicit Sequence.
-            for (ProgramNode child:node.children()) validateHandles(child,new HashSet<>(groups),new HashSet<>(targets));
-        } else for (ProgramNode child:node.children()) validateHandles(child,groups,targets);
+            case RepeatNode repeat -> {
+                timing(repeat.child(),new Timing(start.domain(),start.earliest()),out);
+                yield start;
+            }
+            case EveryNode every -> timing(every.child(),new Timing(start.domain(),Math.addExact(start.earliest(),every.phase().ticks())),out);
+            case CycleNode cycle -> timing(cycle.child(),new Timing(TimeDomain.CYCLE,0),out);
+            default -> {
+                for (ProgramNode child:node.children()) timing(child,start,out);
+                yield start;
+            }
+        };
+    }
+    private void handleCheck(OperationNode operation,Set<String> groups,Set<String> targets) {
+        Object value=parameters(handlers.get(operation.operationId()),operation);
+        if (value instanceof ServerControlOperations.Capture capture) {
+            if (!targets.add(capture.name())) throw new IllegalArgumentException("duplicate target handle "+capture.name());
+        } else if (value instanceof ServerControlOperations.Group group) {
+            if (!targets.contains(group.targets())) throw new IllegalArgumentException("unavailable target handle "+group.targets());
+            if (!groups.add(group.name())) throw new IllegalArgumentException("duplicate group handle "+group.name());
+        } else if (value instanceof ServerControlOperations.OffsetGroup offset) {
+            if (!groups.contains(offset.source()) || !groups.add(offset.name())) throw new IllegalArgumentException("invalid shared frame handle "+offset.name());
+        } else {
+            String name=value instanceof ServerControlOperations.Fire p?p.group():value instanceof ServerControlOperations.SurfaceFire p?p.group():
+                    value instanceof ServerControlOperations.Sample p?p.group():
+                    value instanceof ServerControlOperations.Surface p?p.group():value instanceof ServerControlOperations.Emitter p?p.group():
+                    value instanceof ServerControlOperations.Replace p?p.group():value instanceof ServerControlOperations.BindSource p?p.group():
+                    value instanceof ServerControlOperations.RadialRelease p?p.group():value instanceof ServerControlOperations.RebaseTarget p?p.group():
+                    value instanceof ServerControlOperations.Corridor p?p.group():value instanceof ServerControlOperations.Control p?p.group():null;
+            boolean whole=value instanceof ServerControlOperations.Control p && (p.kind()==com.bitsson.gensokyou.danmaku.program.ops.Actions.LifecycleKind.END_CARD
+                    || p.kind()==com.bitsson.gensokyou.danmaku.program.ops.Actions.LifecycleKind.END_ENCOUNTER);
+            if (name!=null && !whole && !groups.contains(name)) throw new IllegalArgumentException("unavailable group handle "+name);
+        }
     }
     public void enqueueTick(ProgramCursor cursor,long tick,int maxEvents,DanmakuWorldRuntime runtime) {
         enqueueTick(cursor,tick,maxEvents,runtime,null);

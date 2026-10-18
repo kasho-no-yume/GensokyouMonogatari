@@ -48,7 +48,8 @@ public final class OperationLibrary {
                 .register("pattern:sphere_surface",Patterns.SphereSurface.class).register("pattern:sphere_directions",Patterns.SphereDirections.class)
                 .register("pattern:helix_column",Patterns.HelixColumn.class).register("pattern:radial",Patterns.Radial.class)
                 .register("pattern:shell",Patterns.Shell.class).register("pattern:cage",Patterns.Cage.class)
-                .register("pattern:around_point",Patterns.AroundPoint.class).register("pattern:lattice",Patterns.Lattice.class).register("pattern:rain",Patterns.Rain.class);
+                .register("pattern:around_point",Patterns.AroundPoint.class).register("pattern:lattice",Patterns.Lattice.class).register("pattern:rain",Patterns.Rain.class)
+                .register("pattern:tilted_grid",Patterns.TiltedGrid.class);
         codec.register("selection:range",Selection.IndexRange.class).register("selection:modulo",Selection.IndexModulo.class)
                 .register("selection:tag",Selection.Tag.class).register("selection:target_slot",Selection.TargetSlot.class).register("selection:all_of",Selection.AllOf.class);
         codec.register("program:node_id",NodeId.class).register("program:group_ref",ProgramRef.Group.class).register("program:frame_ref",ProgramRef.Frame.class)

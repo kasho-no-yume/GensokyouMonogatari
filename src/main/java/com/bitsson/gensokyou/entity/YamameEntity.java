@@ -66,6 +66,12 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
         return BossCards.yamame();
     }
 
+    /** 正式程序内容 id（migrate-boss-cards-to-programs）。 */
+    @Override
+    protected java.util.Optional<String> programContentId() {
+        return java.util.Optional.of("yamame");
+    }
+
     @Override
     protected SignaturePalette palette() {
         return BossCards.YAMAME_PALETTE;
@@ -105,7 +111,7 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
      * 故每张卡的前半循环锁位，后半（收束与喘息）恢复游走。
      */
     @Override
-    protected boolean movementLocked() {
+    protected boolean legacyMovementLocked() {
         if (runner() == null) {
             return false;
         }
@@ -162,7 +168,7 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
         if (this.level().isClientSide) {
             return;
         }
-        tickDefaultAttack();
+        if (!programBackendActive()) tickDefaultAttack();
     }
 
     private void tickDefaultAttack() {

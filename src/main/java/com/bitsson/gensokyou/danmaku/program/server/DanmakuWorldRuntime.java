@@ -100,6 +100,8 @@ public final class DanmakuWorldRuntime {
     private final Map<UUID,Long> epochs=new HashMap<>();
     private final Set<String> consumed=new HashSet<>();
     private final Set<Long> movementLocks=new HashSet<>();
+    /** Restored/unseen owners are not ended while their entity/chunk is still loading. */
+    private final Map<UUID,Integer> ownerGrace=new HashMap<>();
     private final List<Event> output=new ArrayList<>();
     private final List<Emitter> emitters=new ArrayList<>();
     private final Map<ProgramRef.Group,Long> sourceGroups=new HashMap<>();
@@ -139,9 +141,14 @@ public final class DanmakuWorldRuntime {
     }
     public void admissionLimits(AdmissionLimits value) { admissionLimits=Objects.requireNonNull(value); }
     public long tick() { return tick; }
+    public long revision() { return revision; }
+    public java.util.Collection<Encounter> encounters() { return List.copyOf(encounters.values()); }
+    public Optional<Encounter> encounter(UUID owner) { return Optional.ofNullable(encounters.get(owner)); }
     public boolean active(Encounter encounter) { return encounter.equals(encounters.get(encounter.owner())); }
     public boolean hasGroup(long group) { return groups.containsKey(group); }
     public Actions.Pose ownerPose(Encounter encounter) { requireEncounter(encounter); return world.entity(encounter.owner()).orElseThrow(); }
+    /** Empty while the owner entity/chunk is not loaded; callers must no-op rather than crash. */
+    public Optional<Actions.Pose> ownerPoseOptional(Encounter encounter) { requireEncounter(encounter); return world.entity(encounter.owner()); }
     public void targetHandle(String key,List<UUID> targets,double radius) {
         Deterministic.positive(radius);
         if (targets.size()>5 || new HashSet<>(targets).size()!=targets.size()) throw new IllegalArgumentException("fixed target slots required");
@@ -213,8 +220,24 @@ public final class DanmakuWorldRuntime {
     public void collisions(CollisionSink sink) { collisions=Objects.requireNonNull(sink); }
     public Encounter startEncounter(UUID owner) {
         Encounter old=encounters.get(owner); if (old!=null) endEncounter(old,"restart");
+        ownerGrace.remove(owner);
         Encounter encounter=new Encounter(owner,epochs.merge(owner,1L,Math::addExact));
         encounters.put(owner,encounter); emit(Kind.START,encounter,0,List.of(),"",null,List.of(),null); return encounter;
+    }
+    /**
+     * Allow an encounter whose owner has not loaded yet to survive this many authority ticks.
+     * Used when restoring from disk: the first owner to open must not end encounters whose
+     * entities/chunks load later. Counts down; a seen owner clears it immediately.
+     */
+    public void graceOwner(UUID owner,int ticks) { if (ticks>0) ownerGrace.merge(owner,ticks,Math::max); }
+    private void endIfOwnerUnavailable() {
+        for (Encounter e:List.copyOf(encounters.values())) {
+            if (world.entity(e.owner()).isPresent()) { ownerGrace.remove(e.owner()); continue; }
+            Integer grace=ownerGrace.get(e.owner());
+            if (grace==null) { endEncounter(e,"owner-unavailable"); continue; }
+            if (grace<=1) { ownerGrace.remove(e.owner()); endEncounter(e,"owner-unavailable"); }
+            else ownerGrace.put(e.owner(),grace-1);
+        }
     }
     private void requireEncounter(Encounter encounter) {
         if (!encounter.equals(encounters.get(encounter.owner()))) throw new IllegalArgumentException("stale encounter");
@@ -348,9 +371,12 @@ public final class DanmakuWorldRuntime {
     }
     private void terminateInvalid() {
         for (var end:Map.copyOf(ownershipEnds).entrySet()) if (tick>=end.getValue() && hasGroup(end.getKey())) cancel(end.getKey(),0,"ownership-end");
-        for (Encounter e:List.copyOf(encounters.values())) if (world.entity(e.owner()).isEmpty()) endEncounter(e,"owner-unavailable");
-        for (Group g:List.copyOf(groups.values())) updateFollowing(g);
+        for (Encounter e:List.copyOf(encounters.values())) endIfOwnerUnavailable();
+        for (Group g:List.copyOf(groups.values())) if (!ownerGrace.containsKey(g.encounter.owner())) updateFollowing(g);
         for (Group g:List.copyOf(groups.values())) {
+            // A restored owner whose entity/chunk is still loading must not have its targets
+            // invalidated or its emission stopped.
+            if (ownerGrace.containsKey(g.encounter.owner())) continue;
             for (int slot=0;slot<g.targets.size();slot++) if (!g.invalid.contains(slot) && !qualified(g,g.targets.get(slot))) {
                 g.invalid.add(slot); emit(Kind.INVALIDATE_TARGET,g.encounter,g.id,List.of(),Integer.toString(slot),null,List.of(),null);
                 for (Group personal:groups.values()) if (personal.encounter.equals(g.encounter) && personal.card==g.card
@@ -379,12 +405,35 @@ public final class DanmakuWorldRuntime {
         Group g=group(id);
         if (program.pattern().countBound()>512) throw new IllegalArgumentException("batch exceeds compiled member limit");
         if (!g.emitting || birthTick<tick || groups.values().stream().mapToInt(scope->scope.plans.size()).sum()>=limits.plans()) throw new IllegalStateException("inactive or full plan scope");
-        EmissionPlan plan=new EmissionPlan(id,g.nextBatch++,birthTick,source,program,binding,seed,program.pattern().generate(seed),motion);
+        Vec3 aimLocal=null;
+        if (program.directionRule()==Actions.DirectionRule.AIM_LOCAL && g.slot>=0) {
+            Optional<Vec3> target=sampleTarget(id,g.slot,AuthorityDescriptions.TargetPoint.EYES);
+            if (target.isPresent()) {
+                Frame frame=source.frame();
+                Vec3 world=target.orElseThrow().subtract(frame.origin());
+                aimLocal=new Vec3(world.dot(frame.right()),world.dot(frame.up()),world.dot(frame.forward()));
+            }
+        }
+        EmissionPlan plan=new EmissionPlan(id,g.nextBatch++,birthTick,source,program,binding,seed,program.pattern().generate(seed),motion,aimLocal);
+        g.plans.put(plan.ordinal(),plan); emit(Kind.PREPARE,g.encounter,id,List.of(),"",plan,List.of(),null); return plan;
+    }
+    /**
+     * Prepare a batch with an explicit member table (no pattern expansion). Used by generic
+     * placement operations whose positions are runtime world facts; the compile-time contract
+     * still bounds {@code members} by the declared maximum.
+     */
+    public EmissionPlan prepareExplicit(long id,long birthTick,Actions.Pose source,Actions.ChildProgram program,
+                                        List<Pattern.Member> members,Deterministic.Seed seed) {
+        Group g=group(id);
+        if (members.size()>512 || members.stream().map(Pattern.Member::index).distinct().count()!=members.size())
+            throw new IllegalArgumentException("invalid explicit member table");
+        if (!g.emitting || birthTick<tick || groups.values().stream().mapToInt(scope->scope.plans.size()).sum()>=limits.plans())
+            throw new IllegalStateException("inactive or full plan scope");
+        EmissionPlan plan=new EmissionPlan(id,g.nextBatch++,birthTick,source,program,Actions.Binding.snapshot(),seed,members,null,null);
         g.plans.put(plan.ordinal(),plan); emit(Kind.PREPARE,g.encounter,id,List.of(),"",plan,List.of(),null); return plan;
     }
     public EmissionPlan prepare(long id,Actions.PrepareEmission description,Actions.ChildProgram program,
-                                Actions.Binding binding,Deterministic.Seed seed) {
-        Frame frame=description.sampledTarget()==null
+                                Actions.Binding binding,Deterministic.Seed seed) {        Frame frame=description.sampledTarget()==null
                 ?new Frame(description.actualSource(),description.resolvedFrame().right(),description.resolvedFrame().up(),description.resolvedFrame().forward())
                 :Frame.along(description.actualSource(),description.aimDirection(),description.resolvedFrame().up());
         if (!description.pattern().equals(program.pattern())) throw new IllegalArgumentException("plan and member pattern differ");
@@ -544,9 +593,22 @@ public final class DanmakuWorldRuntime {
         collect();
     }
     public void endCycle(Encounter encounter,long card,long cycle) {
+        endCycle(encounter,card,cycle,false);
+    }
+    /**
+     * @param clearRetained when true, clears members of the previous cycle even if the group
+     *        declared {@code retain}. That flag only expresses "may cross cycles on purpose";
+     *        {@code TailPolicy.END_AT_BOUNDARY} is the author's explicit "clear the old round"
+     *        instruction and must win. Both are needed because group retention is per-group
+     *        while the tail policy is per-playback.
+     */
+    public void endCycle(Encounter encounter,long card,long cycle,boolean clearRetained) {
         requireEncounter(encounter);
         for (Group g:List.copyOf(groups.values())) if (g.encounter.equals(encounter) && g.card==card && g.cycle==cycle && !g.background) {
-            stopPlans(g.id); if (!g.retain) cancel(g.id,0,"cycle-end");
+            if (clearRetained || !g.retain) {
+                stopPlans(g.id);
+                cancel(g.id,0,"cycle-end");
+            }
         }
         collect();
     }

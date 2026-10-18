@@ -109,11 +109,11 @@ public final class ProgramRenderView {
             }
             if (batch.warning()) for (Pattern.Member template:batch.templates()) {
                 // Before birth hold the exact age-zero pose that will be committed, including transforms.
-                var warningState=com.bitsson.gensokyou.danmaku.program.server.EmissionPlan.state(program,batch.binding(),batch.source(),batch.seed(),template,0);
-                Vec3 warningDirection=com.bitsson.gensokyou.danmaku.program.server.EmissionPlan.beamDirection(program,batch.source(),template,0);
+                var warningState=com.bitsson.gensokyou.danmaku.program.server.EmissionPlan.state(program,batch.binding(),batch.source(),batch.seed(),template,0,batch.aimLocal());
+                Vec3 warningDirection=com.bitsson.gensokyou.danmaku.program.server.EmissionPlan.beamDirection(program,batch.source(),template,0,batch.aimLocal());
                 if (batch.motion()!=null) {
-                    warningState=batch.motion().apply(program.memberState(template,batch.seed(),0),tick);
-                    warningDirection=batch.motion().direction(program.transform().direction(template.direction(),0),tick);
+                    warningState=batch.motion().apply(program.memberState(template,batch.seed(),0,batch.aimLocal()),tick);
+                    warningDirection=batch.motion().direction(program.transform().direction(com.bitsson.gensokyou.danmaku.program.ops.Actions.ChildProgram.aimDirection(template,batch.aimLocal()),0),tick);
                 }
                 warnings.add(new Warning(batch.group(),batch.ordinal(),warningState.position(),
                          warningDirection,

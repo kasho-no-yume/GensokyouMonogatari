@@ -128,6 +128,7 @@ public final class ProgramWire {
             else { out.writeInt(b.templates().size()); for (var member:b.templates()) record(out,member); }
             out.writeInt(b.alive().size()); for (long word:b.alive()) out.writeLong(word);
             out.writeInt(b.harmful().size()); for (long word:b.harmful()) out.writeLong(word); out.writeBoolean(b.warning());
+            out.writeBoolean(b.aimLocal()!=null); if (b.aimLocal()!=null) vector(out,b.aimLocal());
             out.writeBoolean(b.motion()!=null); if (b.motion()!=null) record(out,b.motion()); return;
         }
         var fields=new TreeMap<>(data.encode(value)); out.writeInt(fields.size());
@@ -161,8 +162,8 @@ public final class ProgramWire {
             }
             int a=count(in,8); List<Long> alive=new ArrayList<>(); for (int i=0;i<a;i++) alive.add(in.readLong());
             int h=count(in,8); List<Long> harmful=new ArrayList<>(); for (int i=0;i<h;i++) harmful.add(in.readLong());
-            boolean warning=in.readBoolean(); var motion=in.readBoolean()?record(in,GroupMotion.class):null;
-            return type.cast(new ReplicaState.Batch(group,ordinal,birth,source,description,binding,seed,templates,alive,harmful,warning,motion));
+            boolean warning=in.readBoolean(); Vec3 aimLocal=in.readBoolean()?vector(in):null; var motion=in.readBoolean()?record(in,GroupMotion.class):null;
+            return type.cast(new ReplicaState.Batch(group,ordinal,birth,source,description,binding,seed,templates,alive,harmful,warning,motion,aimLocal));
         }
         if (n<0 || n>4096) throw new IOException("record field budget"); Map<String,String> fields=new TreeMap<>();
         for (int i=0;i<n;i++) if (fields.put(text(in),text(in))!=null) throw new IOException("duplicate data field");
@@ -198,7 +199,7 @@ public final class ProgramWire {
             if (previous instanceof ReplicaState.Instance a && next instanceof ReplicaState.Instance b && a.id()==b.id() && a.encounter().equals(b.encounter()) && a.card()==b.card() && a.background()==b.background() && a.hash().equals(b.hash()) && a.anchors().equals(b.anchors())) continue;
             if (Objects.equals(next,previous)) continue;
             if (previous instanceof ReplicaState.Batch a && next instanceof ReplicaState.Batch b
-                    && a.group()==b.group() && a.ordinal()==b.ordinal() && a.birth()==b.birth() && a.source().equals(b.source()) && a.description().equals(b.description()) && a.binding().equals(b.binding()) && a.seed().equals(b.seed()) && a.templates().equals(b.templates()) && Objects.equals(a.motion(),b.motion()))
+                    && a.group()==b.group() && a.ordinal()==b.ordinal() && a.birth()==b.birth() && a.source().equals(b.source()) && a.description().equals(b.description()) && a.binding().equals(b.binding()) && a.seed().equals(b.seed()) && a.templates().equals(b.templates()) && Objects.equals(a.motion(),b.motion()) && Objects.equals(a.aimLocal(),b.aimLocal()))
                 next=new ReplicaState.Mask(b.group(),b.ordinal(),b.alive(),b.harmful(),b.warning());
             changed.put(e.getKey(),next);
         }
@@ -216,7 +217,7 @@ public final class ProgramWire {
             Record value=e.getValue();
             if (value instanceof ReplicaState.Mask m) {
                 if (!e.getKey().equals(ReplicaState.batchKey(m.group(),m.ordinal())) || !(entries.get(e.getKey()) instanceof ReplicaState.Batch b)) throw new IllegalArgumentException("mask has no batch");
-                value=new ReplicaState.Batch(b.group(),b.ordinal(),b.birth(),b.source(),b.description(),b.binding(),b.seed(),b.templates(),m.alive(),m.harmful(),m.warning(),b.motion());
+                value=new ReplicaState.Batch(b.group(),b.ordinal(),b.birth(),b.source(),b.description(),b.binding(),b.seed(),b.templates(),m.alive(),m.harmful(),m.warning(),b.motion(),b.aimLocal());
             }
             entries.put(e.getKey(),value);
         }

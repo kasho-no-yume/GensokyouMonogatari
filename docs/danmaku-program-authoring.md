@@ -2,14 +2,24 @@
 
 ## 0. 现在能做什么，不能做什么
 
-**你现在可以编写、编译、测试和预览新程序；现有BOSS尚未迁移，写完不会自动出现在正式战斗中。**
+**你现在可以编写、编译、测试和预览新程序。大妖精、山女、八云蓝已有程序牌组与战斗接线，默认后端仍为legacy；实机迁移验收尚未完成。新写的卡仍需显式登记才能用于正式战斗。**
 
 - 普通内容作者：使用`danmaku/program/author/`，交付`CardProgram.Compiled`。
 - 想试效果：运行下面的预览指令；新增自己的预览需在`ProgramPreviewHost`与`ProgramPreviewCommands`登记入口。
-- 想让现有BOSS正式使用：还要完成第六期正式迁移中的血量/HUD/后端选择/加载策略。**本指南不授权顺手迁移。**
+- 想让现有BOSS正式使用：还要完成第六期正式迁移中的血量/HUD/后端选择/加载策略。普通写卡任务不包含这些接线；用户明确要求正式迁移时，按对应 change 的当前任务范围实施。
 - 不要复制旧预览里的codec、handler、网络安装代码；这些已由公共入口处理。
 
 读法：先照抄第2节，持续型卡接着看第3节；调伤害看第4节；生成失败看第8节。不需要先读OpenSpec设计稿。
+
+### 正式迁移任务先确认范围
+
+上面的“尚未迁移”描述当前接线状态，不是禁止执行迁移。收到正式迁移任务时，先读对应 change 的 `tasks.md` 和本轮用户要求，再读该 change 的 proposal/design/specs；历史交接中的“本轮不实施”只描述当时的授权范围。前置验收以最新明确记录为准，不能拿较早的“禁止迁移”覆盖后续已接受的结论，也不能把已接受的有限验收说成全部实机矩阵通过。
+
+先列出本轮要迁移的卡和明确排除的卡，再核对旧表格的总数。排除项应注明“不适用/跳过及原因”，不要为了凑历史总数迁移被排除的内容。逐卡验收要分别记录数量、时序、伤害窗口、多目标展开、循环尾弹和结束清场；编译通过只证明入口可用，不能证明这些行为等价。正式宿主接线看第10节，属于一次性的维护工作。
+
+**缺少快捷方法不代表允许改变符卡。** 如果旧卡要求地面采样、走廊净空、特殊瞄准或完整轮廓预警，而本指南没有对应调用，先检查标准操作是否已实现，再由维护者补通用作者入口与测试。登记差异有助于审查，但登记本身不代表差异获准；未经授权的平行弹替代收敛弹、空中光柱替代地面光柱等近似，不能标为等价迁移完成。
+
+等价检查要比较实际几何与世界输入，不能只比较总数。固定20格焦距不能代替“朝采样到的玩家位置收敛”；向上找空气不能代替向下找空气，空旷场地相同也不能证明顶棚下相同。测试应包含不同目标距离、高差和有顶棚的地形。总数正确之后，还要核对每批数量、各列位置、逐弹方向、目标快照时刻和失败撤批范围。
 
 ## 1. 先分清四种东西
 
@@ -27,6 +37,8 @@ card.fire(gun, bullets, 20, 31); // 不是fire(targets, ...)
 ```
 
 玩家按距离排序，最近者在第0槽。捕获5人**不会自动复制5份攻击**；需要逐人点名就为槽0..4分别建组，场地阵列只建一份。目标缺席时对应槽不发射，不把后来的人偷偷补到该槽。
+
+验收逐人点名时至少用1人和5人各跑一遍实际生成：检查每个槽的归属和数量，不只检查总数或卡说明。公共阵列和个人点名并存时，总数应为“公共部分 + 有效目标数 × 个人部分”。
 
 ### 单位与坐标
 
@@ -81,6 +93,8 @@ public static CardProgram.Compiled myCard() {
 
 这张卡在0/30/60开始预警，20/50/80出生，每批9颗；最后一批在180tick寿命结束，181tick清卡。示例数字是开发模板，正式BOSS可调平衡参数应从config传入。
 
+迁移旧时间表时，先标明表中 tick 是“开始预警”还是“实际出生”。`at(t, c -> c.fire(..., w, ...))`在`t+w`出生；旧表若要求在60出生、预警20，就在40调用`fire`。不要直接把旧出生拍点复制到`at`后又加一次预警。测试应读取实际runtime的出生/提交事件，不能只断言时间表节点是60。
+
 ### 标签不是组名：`"main"`到底做什么
 
 `styled`末尾是可选的`String... tags`，给每个生成成员贴标签，可写多个，也可不写。标签本身不会改变运动、伤害或颜色。
@@ -118,9 +132,11 @@ public static CardProgram.Compiled loopingFan() {
 | 策略 | 用途与注意事项 |
 |---|---|
 | `END_AT_BOUNDARY` | 轮结束清掉旧轮成员/计划，下一轮重开。入门优先选它，避免旧弹跨轮积累 |
-| `RETAIN_UNTIL_LIFETIME` | 已出生旧弹按自身寿命继续，有限派生可继续；旧轮顶层计划不继续。适合有意跨轮留下尾珠/母弹的设计，必须计算跨轮峰值 |
+| `RETAIN_UNTIL_LIFETIME` | 已出生旧弹按自身寿命继续，有限派生及已安排的跨边界预警出生可继续；旧轮不会重新执行时间表。适合有意跨轮留下尾珠/母弹/预警的设计，必须计算跨轮峰值 |
 
 例子中最后一拍在60tick出生，本可活到160；选择`END_AT_BOUNDARY`会在120tick截断旧轮。
+
+循环验收必须放入寿命长于轮长的成员并执行到下一轮，分别检查两种策略的真实存活数。只检查编译结果中的枚举值，无法发现运行时没有落实清场策略的问题。相应回归见`CardTimelineContractTest`。
 
 **循环体不要调用`endCard()`**，否则第一轮就结束整张卡。要在轮尾演出淡出，用`card.at(100, c -> c.collapse(gun, 10))`；真正结束整张循环卡由战斗控制器切卡。
 
@@ -133,10 +149,11 @@ public static CardProgram.Compiled loopingFan() {
 ```java
 .templateDirections() // 扇形/球面逐发向各自方向飞
 .fixedDirection()    // 所有路径共用局部轴，适合整片向前推进
+.aimAtTarget()       // 按真实采样目标点，让每个出生点分别朝该点收敛
 .randomDirections(7) // 按稳定随机谱系选方向；7是随机用途通道
 ```
 
-三选一，不是连续调用三项。`Fan`只给方向，没选`templateDirections`就不等于沿扇形飞出。复合变换按列表顺序执行，常见顺序为呼吸→旋转→平移。
+四选一，不是连续调用四项。`Fan`只给方向，没选`templateDirections`就不等于沿扇形飞出。`aimAtTarget`使用服务端本拍采样并随批次同步的目标点；不同出生位置分别求方向，不是固定焦距，也不是持续追踪。复合变换按列表顺序执行，常见顺序为呼吸→旋转→平移。
 
 ### 4.2 攻击与装饰不要混用
 
@@ -267,6 +284,11 @@ R1/R2/R3仍要人工审查：威胁有预警或在视野内；玩家有三维躲
 | 播放一次 / 重复整轮 | `once()` / `loop(ticks, TailPolicy.END_AT_BOUNDARY)` |
 | 攻击 / 装饰 | `MemberProgram.attack(...)` / `decoration(...)` |
 | 图案方向 / 统一轴方向 | `templateDirections()` / `fixedDirection()` |
+| 各出生点朝真实目标收敛 | `aimAtTarget()`；不是持续追踪 |
+| 球弹穿方块 | `piercing()`；仍按攻击窗口判玩家碰撞 |
+| 激活前检查局部走廊 | `corridor(group, from, until, halfWidth, maxQueries, cancelOnFailure)` |
+| 显式锚点解析世界面后发射 | `surfaceFire(...)` |
+| 逐有效目标解析脚下等世界面后发射 | `surfaceFireAtTargets(...)` |
 | 半透明无碰撞周期 | `hiddenCycle(clock, period, activeTicks, phase)` |
 | 母弹发射 / 替换 | 成员builder的`emit(...)` / `replace(...)` |
 | 花瓣径向脱离 / 重新瞄准 | `release(...)` / `reaim(group, slot, selection, speed)`；重瞄slot=-1随机有效目标 |
@@ -275,6 +297,10 @@ R1/R2/R3仍要人工审查：威胁有预警或在视野内；玩家有三维躲
 | 出生净距 / 编译上限 | `clearance(blocks)` / `limits(programLimits)` |
 
 `every`会有限展开，适合少量明确拍。高频大量发射使用成员`emit`或让框架维护者接`CreateEmitter`，不要展开几千个节点。路径分段用`Paths.Segments`，每段从零位移开始；旋转/呼吸/平移用`Transforms.Compose`。
+
+`arena`使用采样时owner的姿态帧；在BOSS宿主中其前向来自实体朝向，不会因为传入了目标集合就自动瞄准最近玩家。“公共一份”说明复制数量，“朝谁”说明坐标帧，两者须分别确认。需要朝玩家的公共攻击，可以只创建一次指向指定槽的`aimed`组。
+
+地形发射的完整参数和可运行用法见`BigFairyPrograms.rain()`及`ProgramContentTest`。`surfaceFire`的anchors在组局部坐标中；`steps/queries/maxPoints`约束搜索与数量，`warningTicks`仍会推迟实际出生。三种采样不能互换：`FIRST_AIR_BELOW`向下找空气，`FIRST_AIR_ABOVE`向上找空气，`DOWNWARD_SOLID_TOP`向下找固体顶面。走廊坐标也在组局部帧中，失败撤销范围由传入group决定。路径中的`Vec3.Y`是局部轴，经组帧映射后才成为世界方向；不要直接称为世界竖直。
 
 ## 8. 预览与诊断：看到什么，下一步做什么
 
@@ -285,11 +311,16 @@ R1/R2/R3仍要人工审查：威胁有预警或在视野内；玩家有三维躲
 /gs_program_preview start author_flower
 /gs_program_preview start author_carriers
 /gs_program_preview start author_hidden
+/gs_program_preview start formal_big_fairy
+/gs_program_preview start formal_yamame
+/gs_program_preview start formal_yakumo_ran
 /gs_program_preview stats
 /gs_program_preview stop
 ```
 
 `volley`看齐射；`flower`看复合变换与花瓣释放；`carriers`看两层派生。指令示例不是把你的`myCard()`自动注册进游戏，自己的预览要按第0节登记。
+
+`formal_*`目前预览对应正式牌组的**第一张卡**，不自动轮播全部卡。正式战斗通过config `bossDanmakuBackend=program`选择程序后端，默认仍为`legacy`。完整实机检查步骤见迁移change的`migration-manifest.md` §8，不能用首卡预览代替全牌组验收。
 
 `author_hidden`在当前视线前方生成固定阵地：左侧3颗青球、上方金色三维星形模型、右侧18格红激光。先预警40tick（2秒），成员寿命400tick（20秒），441tick结束本卡：**从启动到结束约22.05秒，其中弹幕展示20秒**。三类同步正常2秒/隐藏2秒。测试净距为0，可在隐藏期穿过；正常期有伤害，球命中会消耗，重执行可重置。用生存模式、非和平难度和空旷场地，随时stop。
 
@@ -340,6 +371,8 @@ events={COMMIT=..., REJECT=...} network={...recoveryRequests=...}
 
 扩展Path/Transform时必须提供可信的`radiusBound`（运动最多离原点多远）。新控制操作如果会把弹送出原范围，维护者须扩展通用分析或显式扩大包络，不能只在公共代码里按卡名特判。外部实体源支持逐发快照，任意外部跟随不属于快捷入口保证。
 
+世界采样后创建的新组也有同样要求：要检查采样/创建之前的预警与未来攻击范围如何进入兴趣订阅，不能只验证出生后组的包络。逐点创建组时另测组数峰值、寿命结束后回收和跨轮稳态；预算调整须给出需求与证据，不能用提高上限代替这些检查。
+
 ## 10. 接入正式BOSS：宿主维护者负责，不是每卡装配
 
 正式迁移时才接这条链路：
@@ -352,7 +385,9 @@ controller.movementLocked()                   移动AI读取锁
 BossProgramHost.close(level, controller)       结束该场战斗
 ```
 
-`firstTick`通常取`level.getGameTime()+1`，必须晚于已完成边界。同维度复用一份session且settings一致；最后一场结束才卸载公共宿主。不要每张卡创建runtime或安装网络host。现有实体血量/HUD/后端选择/加载策略尚未接完，交付内容不代表已经上线。
+`firstTick`通常取`level.getGameTime()+1`，必须晚于已完成边界。同维度复用一份session且settings一致；最后一场结束才卸载公共宿主。不要每张卡创建runtime或安装网络host。现有接线参考`BossProgramBattle`、`ProgramBackendState`与`AbstractTouhouBoss`；血量/HUD/移动锁/后端NBT已有实现，真实读档续战仍待实机验收。
+
+正式BOSS的活弹、预警、派生和调度由`ProgramSessionStore`保存整个持久化会话，`ProgramSessionCodec`恢复后保留剩余寿命；预览通过`openEphemeral`加入共享运行时，不写入存档。后端/卡号NBT只表示选择，不能替代运行态快照。维护者验收须包含：新建战斗首次保存、重开后的旧弹续飞、预警继续激活、恢复后切卡清旧卡、底噪不重复、预览不恢复、结束后不复活。仅有NBT或codec往返测试不代表这些接线已通过实机。
 
 ## 11. 提交前检查
 

@@ -12,6 +12,15 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 public final class ProgramPreviewCommands {
     private ProgramPreviewCommands() {}
     @SubscribeEvent public static void register(RegisterCommandsEvent event) {
+        for (String formal:java.util.List.of("formal_big_fairy","formal_yamame","formal_yakumo_ran"))
+            event.getDispatcher().register(Commands.literal("gs_program_preview").requires(source->source.hasPermission(2))
+                    .then(Commands.literal("start").then(Commands.literal(formal).executes(context->{
+                        var source=context.getSource();
+                        if (!ProgramPreviewHost.start(source.getPlayerOrException(),formal,"sphere")) {
+                            source.sendFailure(Component.translatable("commands.gensokyou.program_preview.busy")); return 0;
+                        }
+                        source.sendSuccess(()->Component.translatable("commands.gensokyou.program_preview.started"),false); return 1;
+                    }))));
         for (String template:java.util.List.of("author_volley","author_flower","author_carriers","author_hidden"))
             event.getDispatcher().register(Commands.literal("gs_program_preview").requires(source->source.hasPermission(2))
                     .then(Commands.literal("start").then(Commands.literal(template).executes(context->{

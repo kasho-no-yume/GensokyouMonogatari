@@ -10,7 +10,9 @@ metadata:
 
 ## 先确认后端与操作状态（重构设计期间必读）
 
-阶段1–5已经完成：新的`DanmakuProgram`已有世界执行、事务、网络、碰撞和渲染闭环。第六期先提供作者入口（`danmaku/program/author/`），现有BOSS仍走旧Track/Beat/Behaviour，正式迁移尚未实施。**写新程序先读[可运行作者指南](../../../docs/danmaku-program-authoring.md)，照抄AuthoringTemplates；不要照抄预览的底层装配。**
+**任务范围与历史状态分开读。** 用户明确要求正式迁移时，按对应change当前tasks及本轮授权实施；下文“尚未迁移”描述实现状态，“本轮不实施/禁止迁移”等旧交接措辞不能覆盖后续授权和验收。先核对明确排除项，再核对卡数；不能为了满足历史总数扩大迁移范围。当前有效验收看台账顶部与change最新记录，历史段落仅用于追踪，不代表所有实机矩阵已通过。
+
+阶段1–5已经完成：新的`DanmakuProgram`已有世界执行、事务、网络、碰撞和渲染闭环。第六期已有作者入口（`danmaku/program/author/`）与大妖精3卡/山女4卡/蓝8卡的程序内容及战斗接线；默认后端仍为legacy，地形/生存/真实多人/读档验收未执行，不能宣称迁移已全部验收。露米娅/傩面按本轮范围排除。**写新程序先读[可运行作者指南](../../../docs/danmaku-program-authoring.md)，照抄AuthoringTemplates；不要照抄预览的底层装配。**
 
 作者步骤：`CardProgram`建时间轴 → `targets/aimed`建目标和组 → `MemberProgram.attack/decoration`明确伤害 → 必选`fixedDirection/templateDirections/randomDirections` → `fire`/`emit`/`replace`组合 → `once/loop`编译。派生上界自动推导；颜色可用`#RRGGBB`；普通内容不改网络/渲染分支。底层扩展与接BOSS的范围、生命周期约束见指南。
 

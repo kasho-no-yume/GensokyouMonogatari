@@ -17,6 +17,7 @@ public final class StandardProgramOperations {
         add("rebase_target",ServerControlOperations.RebaseTarget.class); add("radial_release",ServerControlOperations.RadialRelease.class);
         add("emitter",ServerControlOperations.Emitter.class); add("bind_source",ServerControlOperations.BindSource.class);
         add("sample",ServerControlOperations.Sample.class); add("surface",ServerControlOperations.Surface.class);
+        add("surface_fire",ServerControlOperations.SurfaceFire.class);
         add("replace",ServerControlOperations.Replace.class); REGISTRY.freeze();
     }
     private StandardProgramOperations() {}

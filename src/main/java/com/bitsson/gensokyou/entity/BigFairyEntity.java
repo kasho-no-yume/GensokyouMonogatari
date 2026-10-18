@@ -69,6 +69,12 @@ public class BigFairyEntity extends AbstractTouhouBoss implements GeoEntity {
         return BossCards.bigFairy();
     }
 
+    /** 正式程序内容 id（migrate-boss-cards-to-programs）；旧后端仍是默认回退。 */
+    @Override
+    protected java.util.Optional<String> programContentId() {
+        return java.util.Optional.of("big_fairy");
+    }
+
     @Override
     protected SignaturePalette palette() {
         return BossCards.BIG_FAIRY_PALETTE;
@@ -159,7 +165,7 @@ public class BigFairyEntity extends AbstractTouhouBoss implements GeoEntity {
         if (this.level().isClientSide) {
             return;
         }
-        tickDefaultAttack();
+        if (!programBackendActive()) tickDefaultAttack();
     }
 
     private void tickDefaultAttack() {
@@ -206,7 +212,7 @@ public class BigFairyEntity extends AbstractTouhouBoss implements GeoEntity {
      * 后半段（弹幕已全部起飞）恢复游走，让阶段切换有「动起来」的读点。
      */
     @Override
-    protected boolean movementLocked() {
+    protected boolean legacyMovementLocked() {
         if (runner() == null) {
             return false;
         }

@@ -195,4 +195,36 @@ public final class Patterns {
         public int countBound() { return count; }
         public double radiusBound() { return halfExtents.length()+StrictMath.abs(height); }
     }
+    /**
+     * A {@code rows×columns} lattice whose columns tilt about local up:
+     * column sign ∈ [-1,1] rotates {@code forward} about local Y by {@code sign*columnTiltRadians}.
+     * Used for {@code normalize(F ± kR)} panels. Encoded as scalars, not per-member vectors.
+     */
+    public record TiltedGrid(int rows,int columns,double spacingX,double spacingY,
+                             Set<Integer> omittedColumns,Vec3 offset,Vec3 forward,double columnTiltRadians) implements Pattern {
+        public TiltedGrid {
+            if (rows<1 || columns<1) throw new IllegalArgumentException("positive dimensions required");
+            Deterministic.nonnegative(spacingX); Deterministic.nonnegative(spacingY);
+            omittedColumns=Set.copyOf(omittedColumns); java.util.Objects.requireNonNull(offset);
+            forward=forward.unit(); Deterministic.finite(columnTiltRadians);
+            for (int column:omittedColumns) if (column<0 || column>=columns) throw new IllegalArgumentException("column out of range");
+            count(rows*(columns-omittedColumns.size()));
+        }
+        private Vec3 direction(int column) {
+            if (columns<2 || columnTiltRadians==0) return forward;
+            double sign=2.0*column/(columns-1)-1;
+            return forward.rotate(Vec3.Y,sign*columnTiltRadians);
+        }
+        public List<Member> generate(Deterministic.Seed seed) {
+            var result=new ArrayList<Member>();
+            for (int row=0;row<rows;row++) for (int column=0;column<columns;column++) {
+                if (omittedColumns.contains(column)) continue;
+                result.add(member(row*columns+column,offset.add(new Vec3((column-(columns-1)/2.0)*spacingX,
+                        ((rows-1)/2.0-row)*spacingY,0)),direction(column)));
+            }
+            return List.copyOf(result);
+        }
+        public int countBound() { return rows*(columns-omittedColumns.size()); }
+        public double radiusBound() { return offset.length()+StrictMath.hypot((columns-1)*spacingX/2,(rows-1)*spacingY/2); }
+    }
 }

@@ -36,7 +36,10 @@ public final class ProgramSession {
             if (instance.cursor().definition().playback() instanceof PlaybackPolicy.Loop loop) {
                 long cycle=(tick-instance.cursor().anchors().card())/loop.length().ticks();
                 if (cycle>0 && (tick-instance.cursor().anchors().card())%loop.length().ticks()==0) {
-                    runtime.endCycle(instance.encounter(),instance.card(),cycle-1);
+                    // END_AT_BOUNDARY is the author's explicit "clear the old round" instruction;
+                    // it must win over a group's per-group retain flag.
+                    boolean clear = loop.tailPolicy()==TailPolicy.END_AT_BOUNDARY;
+                    runtime.endCycle(instance.encounter(),instance.card(),cycle-1,clear);
                     runtime.releaseOldOccurrences(instance.id(),cycle);
                 }
             }
@@ -58,10 +61,29 @@ public final class ProgramSession {
         runtime.endCard(encounter,card);
     }
     public Snapshot checkpoint() { return new Snapshot(runtime.checkpoint(),nextInstance,List.copyOf(instances.values())); }
+    /** Highest card id issued for this encounter (non-background); 0 when none. */
+    public long issuedCard(DanmakuWorldRuntime.Encounter encounter) {
+        long card=0;
+        for (Instance i:instances.values()) if (i.encounter().equals(encounter) && !i.background()) card=Math.max(card,i.card());
+        return card;
+    }
+    public boolean backgroundInstalled(DanmakuWorldRuntime.Encounter encounter) {
+        for (Instance i:instances.values()) if (i.encounter().equals(encounter) && i.background()) return true;
+        return false;
+    }
+    /** Hash of the newest installed non-background card's definition, or null when none. */
+    public String currentDefinitionHash(DanmakuWorldRuntime.Encounter encounter) {
+        String hash=null; long card=-1;
+        for (Instance i:instances.values())
+            if (i.encounter().equals(encounter) && !i.background() && i.card()>=card) { card=i.card(); hash=i.cursor().definition().hash(); }
+        return hash;
+    }
     public static ProgramSession restore(Snapshot snapshot,DanmakuWorldRuntime.Limits limits,DecisionProvider world,ProgramExecution execution) {
         ProgramSession session=new ProgramSession(DanmakuWorldRuntime.restore(snapshot.runtime(),limits,world),execution);
         session.nextInstance=snapshot.nextInstance();
         for (Instance instance:snapshot.instances()) { execution.validate(instance.cursor().definition()); session.instances.put(instance.id(),instance); }
+        // Restored owners may load after the first one opens; do not end them before their entity appears.
+        for (var encounter:snapshot.runtime().encounters()) session.runtime().graceOwner(encounter.owner(),600);
         return session;
     }
     public DanmakuWorldRuntime runtime() { return runtime; }

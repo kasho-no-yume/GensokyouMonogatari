@@ -36,8 +36,9 @@ public final class ProgramClientNetwork {
         // than fitting packet arrival time against an independently scheduled client clock.
         var integrated=minecraft.getSingleplayerServer();
         if (integrated!=null) {
-            var authority=integrated.getLevel(minecraft.level.dimension());
-            if (authority!=null) return replica.renderViews(dimension,authority.getGameTime()+(minecraft.isPaused()?0:partialTick));
+            var boundary=com.bitsson.gensokyou.danmaku.program.gameplay.IntegratedProgramTimeline.boundary(dimension);
+            if (boundary!=null) return replica.renderViews(dimension,boundary.time(System.nanoTime(),minecraft.isPaused()));
+            return List.of();
         }
         double time=replica.renderTime(dimension,tick+(minecraft.isPaused()?0:partialTick));
         // Uncertain clocks freeze their last pose; authority End/Release still removes content.
@@ -71,6 +72,12 @@ public final class ProgramClientNetwork {
                 Gensokyou.LOGGER.info("[program-client] local={} render={} clockError={} trusted={} clockRecoveries={} failures={} late={} transfers={}",
                     tick,clock.time(tick),clock.error(tick),clock.trusted(),clock.recoveries(),replica.failures(),replica.lateEvents(),replica.pendingTransfers());
                 Gensokyou.LOGGER.info("[program-clock] {}",clock.diagnostic());
+                if (Minecraft.getInstance().getSingleplayerServer()!=null) {
+                    var boundary=com.bitsson.gensokyou.danmaku.program.gameplay.IntegratedProgramTimeline.boundary(dimension);
+                    if (boundary!=null) Gensokyou.LOGGER.info("[program-integrated-time] authority={} rendered={} boundaryAgeMillis={}",
+                            boundary.tick(),boundary.time(System.nanoTime(),Minecraft.getInstance().isPaused()),
+                            (System.nanoTime()-boundary.nanos())/1_000_000.0);
+                }
                 Gensokyou.LOGGER.info("[program-client-timing] receive={} projection={} geometryAndSubmit={}",
                         RECEIVE_TIMING.snapshot(),ProgramDanmakuRenderer.projectionTiming(),ProgramDanmakuRenderer.renderTiming());
             }

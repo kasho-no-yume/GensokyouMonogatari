@@ -16,8 +16,8 @@ import java.util.*;
 /** Explicit dimension-local preview; members never become Minecraft entities. */
 @EventBusSubscriber(modid=Gensokyou.MODID)
 public final class ProgramPreviewHost {
-    private record Preview(UUID viewer,ArmorStand owner,ProgramSession session,ProgramGameplayStats gameplay,
-                           Map<DanmakuWorldRuntime.Kind,Long> events) {}
+    private record Preview(UUID viewer,ArmorStand owner,ProgramSession session,
+                            com.bitsson.gensokyou.danmaku.program.author.BossProgramController controller) {}
     private static final Map<ServerLevel,Preview> PREVIEWS=new IdentityHashMap<>();
     private ProgramPreviewHost() {}
 
@@ -30,7 +30,6 @@ public final class ProgramPreviewHost {
     public static boolean start(ServerPlayer player,String card,String projectile) {
         ServerLevel level=player.serverLevel();
         if (ProgramBenchmarkHost.active(level)) return false;
-        if (ProgramServerHost.installed(level) && !PREVIEWS.containsKey(level)) return false;
         stop(level,"preview-restart");
         var installed=switch (card) {
             case "author_volley", "author_flower", "author_carriers", "author_hidden" -> {
@@ -61,6 +60,9 @@ public final class ProgramPreviewHost {
             case "blue6" -> ProgramPreviewPrograms.blue6(projectile);
             case "blue4" -> ProgramPreviewPrograms.blue4(projectile);
             case "blue1_slice" -> ProgramPreviewPrograms.blue1Slice(projectile);
+            case "formal_big_fairy" -> formalCard("big_fairy");
+            case "formal_yamame" -> formalCard("yamame");
+            case "formal_yakumo_ran" -> formalCard("yakumo_ran");
             default -> throw new IllegalArgumentException("unknown program preview");
         };
         // Blue4 places a node ten blocks towards the viewer; 12 blocks violates its six-block birth clearance.
@@ -69,44 +71,39 @@ public final class ProgramPreviewHost {
         owner.setInvisible(true); owner.setNoGravity(true); owner.setSilent(true); owner.setInvulnerable(true);
         owner.setPos(anchor.x,anchor.y-1,anchor.z);
         if (!level.addFreshEntity(owner)) return false;
-        var runtime=new DanmakuWorldRuntime(level.dimension().location().toString(),
-                 new DanmakuWorldRuntime.Limits(Set.of("tail_pearls","flower_sea").contains(card)?4096:1024,256,128,128,8192),new ServerLevelDecisions(level));
-        var session=new ProgramSession(runtime,installed.execution());
-        var encounter=runtime.startEncounter(owner.getUUID());
+        var controller=BossProgramHost.openEphemeral(level,owner.getUUID(),BossProgramSettings.standard());
+        var session=BossProgramHost.session(level);
+        var runtime=session.runtime();
+        var encounter=controller.encounter();
         long first=level.getGameTime()+1;
-        session.install(encounter,1,false,installed.definition(),new ClockAnchors(first,first,null,null),first);
-        var preview=new Preview(player.getUUID(),owner,session,new ProgramGameplayStats(),new EnumMap<>(DanmakuWorldRuntime.Kind.class));
-        ProgramServerHost.install(level,session,256,events->{
-            for (var event:events) {
-                preview.events().merge(event.kind(),1L,Long::sum);
-                if (event.kind()==DanmakuWorldRuntime.Kind.REJECT || event.kind()==DanmakuWorldRuntime.Kind.CORRIDOR)
-                    Gensokyou.LOGGER.info("[program-preview] decision kind={} tick={} group={} reason={} accepted={}",event.kind(),event.tick(),event.group(),event.reason(),event.accepted());
-            }
-        });
-        var collision=new ProgramCollisionAdapter(level,preview.gameplay());
-        runtime.collisions(collision);
-        ProgramNetworkHost.install(level,session,NetworkLimits.defaults(),32,20,ProgramPreviewBounds::groups,collision::project);
-        ProgramNetworkHost.spatial(level,ProgramPreviewBounds::members,256,128);
+        controller.card(new com.bitsson.gensokyou.danmaku.program.author.CardProgram.Compiled(installed.definition(),installed.execution()),first);
+        var preview=new Preview(player.getUUID(),owner,session,controller);
         PREVIEWS.put(level,preview);
         Gensokyou.LOGGER.info("[program-preview] START viewer={} owner={} epoch={} definition={}",player.getUUID(),owner.getUUID(),encounter.epoch(),installed.definition().hash());
         return true;
     }
-    public static boolean stop(ServerLevel level,String reason) {
-        Preview preview=PREVIEWS.remove(level); if (preview==null) return false;
+    /** First formal card of a migrated deck, on the same runtime the live battle uses. */
+    private static ProgramPreviewPrograms.Installed formalCard(String owner) {
+        var deck = com.bitsson.gensokyou.danmaku.program.content.BossProgramCards.forOwner(owner)
+                .orElseThrow(() -> new IllegalArgumentException("no formal content for " + owner));
+        var compiled = deck.card(1).program();
+        return new ProgramPreviewPrograms.Installed(compiled.definition(), compiled.execution());
+    }
+    public static boolean stop(ServerLevel level,String reason) {        Preview preview=PREVIEWS.remove(level); if (preview==null) return false;
         var serverStats=ProgramServerHost.stats(level);
         var timing=ProgramServerHost.timing(level);
         var networkStats=ProgramNetworkHost.stats(level);
-        ProgramServerHost.remove(level,preview.session(),reason);
+        BossProgramHost.close(level,preview.controller());
         Gensokyou.LOGGER.info("[program-preview-timing] reason={} recentHost={}",reason,timing);
         preview.owner().discard();
-        Gensokyou.LOGGER.info("[program-preview] STOP reason={} runtime={} gameplay={} server={} events={} networkBeforeEnd={}",reason,
-                preview.session().runtime().stats(),preview.gameplay().snapshot(),serverStats,preview.events(),networkStats);
+        Gensokyou.LOGGER.info("[program-preview] STOP reason={} sharedRuntime={} server={} networkBeforeEnd={}",reason,
+                preview.session().runtime().stats(),serverStats,networkStats);
         return true;
     }
     public static String stats(ServerLevel level) {
         Preview p=PREVIEWS.get(level); if (p==null) return "program-preview: idle";
-        return "program-preview: tick="+p.session().runtime().tick()+" runtime="+p.session().runtime().stats()
-                 +" gameplay="+p.gameplay().snapshot()+" events="+p.events()+" server="+ProgramServerHost.stats(level)
+        return "program-preview: tick="+p.session().runtime().tick()+" sharedRuntime="+p.session().runtime().stats()
+                 +" server="+ProgramServerHost.stats(level)
                  +" recentHost="+ProgramServerHost.timing(level)+" network="+ProgramNetworkHost.stats(level);
     }
     @SubscribeEvent public static void tick(LevelTickEvent.Pre event) {
@@ -114,7 +111,7 @@ public final class ProgramPreviewHost {
         Preview p=PREVIEWS.get(level); if (p==null) return;
         var viewer=level.getServer().getPlayerList().getPlayer(p.viewer());
         if (viewer==null || !viewer.isAlive() || viewer.serverLevel()!=level || !p.owner().isAlive()) stop(level,"preview-owner-or-viewer-unavailable");
-        else if (p.session().checkpoint().instances().isEmpty()) stop(level,"preview-complete");
+        else if (p.session().checkpoint().instances().stream().noneMatch(i->i.encounter().equals(p.controller().encounter()))) stop(level,"preview-complete");
     }
     @SubscribeEvent public static void unload(LevelEvent.Unload event) {
         if (event.getLevel() instanceof ServerLevel level) stop(level,"dimension-unload");

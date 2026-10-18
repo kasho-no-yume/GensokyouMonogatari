@@ -86,7 +86,8 @@ public final class ProgramCollisionAdapter implements DanmakuWorldRuntime.Collis
         if (sampled.isEmpty()) { runtime.remove(id,"collision-curve-budget"); return; }
         List<ProgramCollisionSweep.Segment> segments=sampled.orElseThrow();
         boolean blocked=false;
-        if (!laser) {
+        boolean pierceBlocks = collisionProfile instanceof CollisionProfile.Projectile projectile && projectile.piercesBlocks();
+        if (!laser && !pierceBlocks) {
             var clipped=new ArrayList<ProgramCollisionSweep.Segment>();
             for (var segment:segments) {
                 var boxes=new ArrayList<AABB>();

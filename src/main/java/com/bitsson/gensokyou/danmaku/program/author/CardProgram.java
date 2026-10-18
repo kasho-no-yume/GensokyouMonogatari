@@ -72,6 +72,47 @@ public final class CardProgram {
     public CardProgram release(Group group,Selection center,Selection selected,double speed) {
         own(group.owner()); available(group.name()); add(new ServerControlOperations.RadialRelease(group.name(),center,selected,speed)); return this;
     }
+    /**
+     * Finite local corridor clearance check. When {@code cancelOnFailure} the whole group is
+     * cancelled if any sampled voxel is solid or unloaded; used to withdraw a batch whose
+     * declared physical gap is blocked by terrain. Coordinates are in the group's local frame.
+     */
+    public CardProgram corridor(Group group,Vec3 from,Vec3 until,double halfWidth,int maxQueries,boolean cancelOnFailure) {
+        own(group.owner()); available(group.name());
+        add(new ServerControlOperations.Corridor(group.name(),from,until,halfWidth,maxQueries,cancelOnFailure,true)); return this;
+    }
+    /**
+     * Resolve a world surface for each of {@code anchors} (local to the group frame) and emit
+     * {@code members} at every resolved point, in its own ordinary group. Used for
+     * first-air-below rain and ground-anchored pillars.
+     */
+    public CardProgram surfaceFire(Group group,String name,List<Vec3> anchors,AuthorityDescriptions.SurfaceMode mode,
+                                   int steps,int queries,Actions.ChildProgram members,long warningTicks,long seed,
+                                   Vec3 forward,int maxPoints) {
+        own(group.owner()); available(group.name());
+        add(new ServerControlOperations.SurfaceFire(group.name(),name,anchors,false,AuthorityDescriptions.TargetPoint.FEET,
+                mode,steps,queries,members,new Deterministic.Seed(seed,List.of()),Actions.Binding.snapshot(),
+                admission,warningTicks,forward,maxPoints)); return this;
+    }
+    /** Surface emission with one anchor per live target slot (player-ground style). */
+    public CardProgram surfaceFireAtTargets(Group group,String name,AuthorityDescriptions.TargetPoint point,
+                                            AuthorityDescriptions.SurfaceMode mode,int steps,int queries,
+                                            Actions.ChildProgram members,long warningTicks,long seed,
+                                            Vec3 forward,int maxPoints) {
+        own(group.owner()); available(group.name());
+        add(new ServerControlOperations.SurfaceFire(group.name(),name,List.of(),true,point,
+                mode,steps,queries,members,new Deterministic.Seed(seed,List.of()),Actions.Binding.snapshot(),
+                admission,warningTicks,forward,maxPoints)); return this;
+    }
+    /** Fresh world-horizontal disc samples per shot and cycle, not build-time repeated points. */
+    public CardProgram surfaceFireRandom(Group group,String name,int count,double radius,double height,
+                                        AuthorityDescriptions.SurfaceMode mode,int steps,int queries,
+                                        Actions.ChildProgram members,long warningTicks,long seed,Vec3 forward) {
+        own(group.owner()); available(group.name());
+        add(new ServerControlOperations.SurfaceFire(group.name(),name,List.of(Vec3.ZERO),false,AuthorityDescriptions.TargetPoint.FEET,
+                mode,steps,queries,members,new Deterministic.Seed(seed,List.of()),Actions.Binding.snapshot(),
+                admission,warningTicks,forward,count,radius,height)); return this;
+    }
     public CardProgram reaim(Group group,int slot,Selection selected,double speed) {
         own(group.owner()); available(group.name()); add(new ServerControlOperations.RebaseTarget(group.name(),slot,AuthorityDescriptions.TargetPoint.EYES,selected,speed)); return this;
     }
@@ -87,7 +128,13 @@ public final class CardProgram {
     public Compiled loop(long ticks,TailPolicy tail) { return compile(new PlaybackPolicy.Loop(new TickSpan(ticks),tail)); }
     private Compiled compile(PlaybackPolicy policy) {
         try {
-            var root=new SequenceNode(nodes.nextId(),timeline);
+            // Author entries are absolutely anchored AtNode(CYCLE,t). Scheduling orders same-tick
+            // events by node index and handle validation walks the AST in order, so sort by
+            // (tick, insertion) to make list order == execution order even for out-of-order `at`.
+            var ordered = timeline.stream()
+                    .sorted(Comparator.comparingLong(node -> ((AtNode) node).offset().ticks()))
+                    .toList();
+            var root=new ParallelNode(nodes.nextId(),ordered);
             var result=ProgramCompiler.compile(id,1,policy,root,limits,StandardProgramOperations.registry());
             if (!result.success()) throw error(result.diagnostics().toString());
             var execution=StandardProgramOperations.execution(); var definition=result.definition().orElseThrow(); execution.validate(definition);

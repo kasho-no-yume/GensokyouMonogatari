@@ -45,6 +45,7 @@ public final class ProgramServerHost {
         com.bitsson.gensokyou.danmaku.program.network.ProgramNetworkHost.publish(level,session,events);
         host.events().accept(events);
         SESSIONS.remove(level);
+        com.bitsson.gensokyou.danmaku.program.gameplay.IntegratedProgramTimeline.remove(level.dimension().location().toString());
         com.bitsson.gensokyou.danmaku.program.network.ProgramNetworkHost.unload(level);
     }
     public static void install(ServerLevel level,ProgramSession session,int maxEvents,Consumer<List<DanmakuWorldRuntime.Event>> events) {
@@ -59,6 +60,8 @@ public final class ProgramServerHost {
         if (time==host.session().runtime().tick()) return;
         long started=System.nanoTime();
         host.session().advance(time,host.maxEvents());
+        com.bitsson.gensokyou.danmaku.program.gameplay.IntegratedProgramTimeline.publish(
+                level.dimension().location().toString(),time,System.nanoTime());
         var events=host.session().runtime().drainEvents();
         host.stats().events(events);
         com.bitsson.gensokyou.danmaku.program.network.ProgramNetworkHost.publish(level,host.session(),events);
@@ -69,6 +72,7 @@ public final class ProgramServerHost {
     }
     @SubscribeEvent public static void unload(LevelEvent.Unload event) {
         if (!(event.getLevel() instanceof ServerLevel level)) return;
+        com.bitsson.gensokyou.danmaku.program.gameplay.IntegratedProgramTimeline.remove(level.dimension().location().toString());
         Hosted host=SESSIONS.remove(level); if (host==null) return;
         host.session().runtime().close("dimension-unload");
         var events=host.session().runtime().drainEvents();
