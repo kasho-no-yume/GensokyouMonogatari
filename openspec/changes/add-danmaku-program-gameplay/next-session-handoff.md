@@ -2,6 +2,8 @@
 
 ## 本轮实时更新（优先于以下历史）
 
+最终决定：用户明确同意将1.5按已有基础诊断与压力报告验收，统一旧后端CPU对照、跨场景报告与更细字节拆分转遇到实际瓶颈时按需开展。tasks现16/16，无需追加测试；覆盖下文15/16及“1.5仍阻塞”的历史。允许后续进入阶段6，但本会话没有执行正式BossCards迁移或归档。高延迟启动短闪仍为用户接受的限制，真实多人/1050容量/严格M2不冒充已测。25568延迟代理随后收到harness取消通知（server restarted），不再声称该代理仍运行；后续需要先核实进程。
+
 00:47收口：自然结束验证最终`benchmark idle`，server log记录第二次自然运行`START stress 2000`后`STOP ... runtime=groups0,members0,plans0,emitters0,frames0,locks0,commands0`；3.3已勾。2.7已完成：build003429完整通过、38项clock/network/latency与burst回归通过、strict通过；压力结果新增`pressure-results.md`。当前tasks 15/16，仅剩1.5（完整统一CPU/逻辑线上字节跨场景报告）。真实2/5人等继续保留后续限制；尚未归档/未执行正式BossCards迁移，不能把15/16称整change全部完成。
 
 00:45最终用户口径：用户明确看到高延迟启动约1秒处明显闪烁，但认为高延迟下约47ms可接受，要求停止追求完美修正、优先主任务。短时复验日志显示后续3次queued-samples均renderable=true，恢复0、协议错误0、停止runtime zero；首次display-error约7.76tick造成短隐藏作为已知限制记录。自然结束验证已启动：15秒内观测峰值2008→1848，后台等待210秒后查idle。若idle确认，tasks 3.2/3.3/3.4可收口；不宣称高延迟完全无闪烁、不宣称真实多人/M2。

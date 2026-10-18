@@ -1,5 +1,7 @@
 # 弹幕操作台账
 
+2026-10-18最终收口：gameplay按用户授权16/16完成，1.5以基础诊断与集中压力报告验收，详细跨场景/统一旧CPU/字节拆分转按需专项。2008峰值独立服零延迟及约500ms配置RTT各180秒完成，协议错误/恢复请求0、停止及自然结束归零；高延迟启动短闪获用户接受。详见gameplay/pressure-results.md与next-session-handoff.md。允许进入阶段6，尚未正式迁移BossCards或归档；下文旧未完成状态为历史，不宣称严格M2/真实多人通过。
+
 当前续接：用户授权以tasks§3集中压力验收替代旧严格M2阻塞，代表项2.1–2.6已收口，当前10/16；下文5/12及完整旧矩阵阻塞为历史。重新准备`ProgramStressLoad`，通过`gs_program_benchmark start stress 800|2000 300 <player>`复用正式runtime/网络/碰撞；200tick父寿命、age60派生160子弹（寿命80）+8旋转激光，目标峰值808/2008。`tools/program_stress_run.py`保存原始stats/ledger/frames/proxy和停止证据；尚未实机通过。旧build/reports/stress/stress_mixed-r1报告存在恢复数量误报，原stats恢复171/最终173，不作为通过证据。
 
 最后核对：2026-10-17。游戏程序后端已有显式预览闭环，正式BOSS仍走旧后端；实机与M2验收未完成。该台账与代码同步更新；设计文件不是实现证据。
