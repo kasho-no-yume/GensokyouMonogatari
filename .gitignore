@@ -58,3 +58,4 @@ __pycache__/
 # Performance profiling dumps (JFR records environment variables; keep local only)
 *.jfr
 logs/wall*
+logs/
