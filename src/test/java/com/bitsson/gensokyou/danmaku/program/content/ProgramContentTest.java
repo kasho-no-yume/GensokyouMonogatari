@@ -19,6 +19,39 @@ import static org.junit.jupiter.api.Assertions.*;
  * 仍需实机/多人复验，测试不替代那些记录。
  */
 class ProgramContentTest {
+    @Test void everyFormalCardPreservesFractionalPoseThroughSpatialWireProjection() {
+        for (var deck:BossProgramCards.all()) for (var card:deck.cards()) {
+            var runtime=new DanmakuWorldRuntime("test:all-card-wire",
+                    new DanmakuWorldRuntime.Limits(16384,2048,2048,2048,100000),new SurfaceWorld(5));
+            var session=new ProgramSession(runtime,StandardProgramOperations.execution());
+            var controller=new BossProgramController(session,OWNER);
+            controller.card(card.program(),0);
+            var wire=new com.bitsson.gensokyou.danmaku.program.network.ProgramWire(
+                    com.bitsson.gensokyou.danmaku.program.network.NetworkLimits.defaults());
+            for (int tick=0;tick<=240;tick++) {
+                session.advance(tick,100000); runtime.drainEvents();
+                if (tick%20!=0) continue;
+                var projection=com.bitsson.gensokyou.danmaku.program.network.ReplicaState.capture(session.checkpoint(),wire);
+                var bounds=com.bitsson.gensokyou.danmaku.program.gameplay.ProgramMotionBounds.groups(projection);
+                var spatial=com.bitsson.gensokyou.danmaku.program.network.ProgramInterest.spatial(projection,bounds,
+                        com.bitsson.gensokyou.danmaku.program.gameplay.ProgramMotionBounds.members(projection,bounds),new Vec3(0,1,18),64,256,128).projection();
+                var image=wire.image(wire.image(spatial.image()));
+                for (var group:session.checkpoint().runtime().groups()) for (var member:group.members()) {
+                    if (!com.bitsson.gensokyou.danmaku.program.network.ReplicaState.hasMember(image,member.id())) continue;
+                    for (double phase:new double[]{0,.375,.875}) {
+                        var expected=runtime.state(member.id(),tick+phase);
+                        var actual=com.bitsson.gensokyou.danmaku.program.network.ReplicaState.state(image,spatial.descriptions(),member.id(),tick+phase);
+                        assertTrue(expected.position().subtract(actual.position()).length()<1e-8,
+                                deck.ownerId()+" card="+card.index()+" tick="+tick+" id="+member.id());
+                        if (member.plan().program().collisionProfile() instanceof CollisionProfile.Laser)
+                            assertTrue(runtime.direction(member.id(),tick+phase).subtract(
+                                    com.bitsson.gensokyou.danmaku.program.network.ReplicaState.direction(image,spatial.descriptions(),member.id(),tick+phase)).length()<1e-8);
+                    }
+                }
+            }
+            controller.close();
+        }
+    }
     private static final UUID OWNER = new UUID(0, 1);
 
     // ------------------------------------------------------------------
@@ -126,19 +159,22 @@ class ProgramContentTest {
         battle.close();
     }
 
-    @Test void yamameNestTailPearlsEndBeforeTheNextCycle() {
+    @Test void yamameNestRetainsAuthoredTailPearlsAcrossCycles() {
         var deck=BossProgramCards.forOwner("yamame").orElseThrow();
         var session=session(1);
         var controller=new BossProgramController(session,OWNER);
         var battle=new com.bitsson.gensokyou.danmaku.program.gameplay.BossProgramBattle(controller,deck);
-        battle.install(0);
+        battle.install(.50D,0);
+        assertEquals(3,battle.activeCardIndex());
         int maxLive=0;
         for (int tick=0;tick<=519;tick++) {
             session.advance(tick,65536);
             session.runtime().drainEvents();
             maxLive=Math.max(maxLive,session.runtime().liveMembers());
         }
-        assertTrue(maxLive>0,"nest tails must remain active across the authored cycle boundary");
+        assertTrue(maxLive>3000,"exercise the original dense third card, peak="+maxLive);
+        assertTrue(session.checkpoint().runtime().groups().stream().flatMap(g->g.members().stream())
+                .anyMatch(m->m.plan().birthTick()<260 && m.plan().program().lifetimeTicks()==400),"original 400-tick tails survive across cycles");
         battle.close();
     }
 

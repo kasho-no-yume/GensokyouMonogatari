@@ -82,7 +82,7 @@ public final class ProgramCollisionAdapter implements DanmakuWorldRuntime.Collis
             beamLengths.put(id,fromWorld.distanceTo(untilWorld));
         }
         var sampled=laser?java.util.Optional.of(List.of(new ProgramCollisionSweep.Segment(fromWorld,untilWorld)))
-                :ProgramCollisionSweep.sample(t->world(runtime.state(id,t).position()),runtime.tick(),runtime.tick()+1D);
+                :ProgramCollisionSweep.sample(t->world(runtime.state(id,t).position()),runtime.tick(),runtime.tick()+1D,fromWorld,untilWorld);
         if (sampled.isEmpty()) { runtime.remove(id,"collision-curve-budget"); return; }
         List<ProgramCollisionSweep.Segment> segments=sampled.orElseThrow();
         boolean blocked=false;

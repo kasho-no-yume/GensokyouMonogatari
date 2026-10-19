@@ -75,7 +75,11 @@ public final class ProgramInterest {
             }
             Set<Integer> indices=new HashSet<>();
             if (!complete || closures.contains(b.group())) b.templates().forEach(m->indices.add(m.index()));
-            else for (Shard shard:shards(b.group(),b.ordinal(),bounds,maxSpan,maxMembers)) if (shard.bounds().near(viewer,margin)) indices.addAll(shard.indices());
+            else if (!bounds.isEmpty() && bounds.values().stream().allMatch(bounds.values().iterator().next()::equals)) {
+                // The standard host supplies a conservative shared group envelope. Partitioning
+                // identical boxes cannot change selection, regardless of shard size/span.
+                if (bounds.values().iterator().next().near(viewer,margin)) indices.addAll(bounds.keySet());
+            } else for (Shard shard:shards(b.group(),b.ordinal(),bounds,maxSpan,maxMembers)) if (shard.bounds().near(viewer,margin)) indices.addAll(shard.indices());
             selected.put(ReplicaState.batchKey(b.group(),b.ordinal()),indices);
         }
         // A visible child must retain its entire source evaluation closure, even outside the viewport.
@@ -106,7 +110,7 @@ public final class ProgramInterest {
                 for (int i=0;i<b.templates().size();i++) if (indices.contains(b.templates().get(i).index())) {
                     var member=b.templates().get(i); templates.add(member); if (b.alive(i)) living.add(member.index()); if (b.harmful(i)) damaging.add(member.index());
                 }
-                value=new ReplicaState.Batch(b.group(),b.ordinal(),b.birth(),b.source(),b.description(),b.binding(),b.seed(),templates,mask(templates,living),mask(templates,damaging),b.warning() && !templates.isEmpty(),b.motion());
+                value=new ReplicaState.Batch(b.group(),b.ordinal(),b.birth(),b.source(),b.description(),b.binding(),b.seed(),templates,mask(templates,living),mask(templates,damaging),b.warning() && !templates.isEmpty(),b.motion(),b.aimLocal());
                 if (templates.isEmpty()) continue;
             } else if (value instanceof ReplicaState.Batch) continue;
             if (value instanceof ReplicaState.Motion m && !selected.getOrDefault(ReplicaState.batchKey(m.id().group(),m.id().batch()),Set.of()).contains(m.id().index())) continue;

@@ -21,6 +21,8 @@ public final class ProgramClientNetwork {
     private static int tick;
     private static long request;
     private static int lastDiagnostic;
+    private static double lastPresentationTime=Double.NaN;
+    public static double lastPresentationTime() { return lastPresentationTime; }
     private static final com.bitsson.gensokyou.danmaku.program.gameplay.ProgramTimingWindow RECEIVE_TIMING=new com.bitsson.gensokyou.danmaku.program.gameplay.ProgramTimingWindow(2048);
     private ProgramClientNetwork() {}
     public static void install(OperationRegistry registry,ProgramLimits limits) { replica.clear(); replica=new ProgramReplica(WIRE,registry,limits); }
@@ -32,17 +34,9 @@ public final class ProgramClientNetwork {
         Minecraft minecraft=Minecraft.getInstance();
         if (minecraft.level==null) return List.of();
         String dimension=minecraft.level.dimension().location().toString();
-        // Integrated authority shares this JVM. Use its actual dimension boundary rather
-        // than fitting packet arrival time against an independently scheduled client clock.
-        var integrated=minecraft.getSingleplayerServer();
-        if (integrated!=null) {
-            var boundary=com.bitsson.gensokyou.danmaku.program.gameplay.IntegratedProgramTimeline.boundary(dimension);
-            if (boundary!=null) return replica.renderViews(dimension,boundary.time(System.nanoTime(),minecraft.isPaused()));
-            return List.of();
-        }
-        double time=replica.renderTime(dimension,tick+(minecraft.isPaused()?0:partialTick));
-        // Uncertain clocks freeze their last pose; authority End/Release still removes content.
-        return replica.clock(dimension).renderable()?replica.renderViews(dimension,time):List.of();
+        double time=replica.presentationTime(dimension,System.nanoTime(),minecraft.isPaused());
+        lastPresentationTime=time;
+        return Double.isFinite(time)?replica.renderViews(dimension,time):List.of();
     }
     public static void handle(ProgramDataPayload payload,IPayloadContext context) {
         context.enqueueWork(()->{
@@ -72,14 +66,9 @@ public final class ProgramClientNetwork {
                 Gensokyou.LOGGER.info("[program-client] local={} render={} clockError={} trusted={} clockRecoveries={} failures={} late={} transfers={}",
                     tick,clock.time(tick),clock.error(tick),clock.trusted(),clock.recoveries(),replica.failures(),replica.lateEvents(),replica.pendingTransfers());
                 Gensokyou.LOGGER.info("[program-clock] {}",clock.diagnostic());
-                if (Minecraft.getInstance().getSingleplayerServer()!=null) {
-                    var boundary=com.bitsson.gensokyou.danmaku.program.gameplay.IntegratedProgramTimeline.boundary(dimension);
-                    if (boundary!=null) Gensokyou.LOGGER.info("[program-integrated-time] authority={} rendered={} boundaryAgeMillis={}",
-                            boundary.tick(),boundary.time(System.nanoTime(),Minecraft.getInstance().isPaused()),
-                            (System.nanoTime()-boundary.nanos())/1_000_000.0);
-                }
                 Gensokyou.LOGGER.info("[program-client-timing] receive={} projection={} geometryAndSubmit={}",
                         RECEIVE_TIMING.snapshot(),ProgramDanmakuRenderer.projectionTiming(),ProgramDanmakuRenderer.renderTiming());
+                Gensokyou.LOGGER.info("[program-presentation] time={} {}",lastPresentationTime,replica.presentationDiagnostic(dimension));
             }
         }
         for (var scope:replica.recoveryRequests(tick)) replica.request(scope,++request).ifPresent(e->PacketDistributor.sendToServer(new ProgramResyncPayload(WIRE.encode(e))));

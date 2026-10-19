@@ -133,6 +133,12 @@ public final class DanmakuWorldRuntime {
     private Phase phase;
     private CollisionSink collisions=(r,id,a,b)->{};
     private final ThreadLocal<Set<MemberId>> evaluating=ThreadLocal.withInitial(HashSet::new);
+    // Only immutable world-snapshot trajectories are cached. Following/group/rebased
+    // trajectories may change during a phase and deliberately bypass this cache.
+    private final Map<MemberId,Path.State> boundaryStates=new HashMap<>();
+    private List<DecisionProvider.Player> admissionPlayers;
+    private long[] admissionNear;
+    private boolean childAdmissionPass;
 
     public DanmakuWorldRuntime(String dimension, Limits limits, DecisionProvider world) {
         if (dimension==null || dimension.isBlank()) throw new IllegalArgumentException("dimension required");
@@ -263,7 +269,7 @@ public final class DanmakuWorldRuntime {
     public void attachToGroup(MemberId id) {
         member(id).orElseThrow();
         if (!groupMotions.containsKey(id.group())) throw new IllegalStateException("install group motion first");
-        attachedMembers.add(id);
+        attachedMembers.add(id); boundaryStates.remove(id);
     }
     public List<UUID> captureTargets(Encounter encounter, Vec3 origin, AuthorityDescriptions.CaptureTargets policy) {
         requireEncounter(encounter); List<UUID> targets=world.captureTargets(origin,policy);
@@ -300,6 +306,7 @@ public final class DanmakuWorldRuntime {
         if (!discontinuousVelocity && initial.velocity().subtract(boundary.velocity()).length()>1e-8)
             throw new IllegalArgumentException("declare rebase velocity discontinuity");
         detached.put(id,new Rebased(boundary.position(),next,tick,member.plan().birthTick()+member.plan().program().lifetimeTicks()));
+        boundaryStates.remove(id);
         following.remove(id); parentSources.remove(id); nozzles.remove(id); attachedMembers.remove(id); lastSourcePoses.remove(id);
         motionEvent(id,"rebase",detached.get(id));
     }
@@ -346,7 +353,7 @@ public final class DanmakuWorldRuntime {
         if (serverTick<0 || serverTick<=tick) throw new IllegalArgumentException("strictly increasing authority ticks required");
         // Do not replay missed world facts against the present world.
         if (tick>=0 && serverTick!=tick+1) throw new IllegalArgumentException("advance every dimension tick");
-        tick=serverTick; births=0; evaluations=0;
+        tick=serverTick; births=0; evaluations=0; boundaryStates.clear();
         for (Phase current:Phase.values()) {
             phase=current;
             if (current==Phase.TERMINATE) terminateInvalid();
@@ -371,7 +378,7 @@ public final class DanmakuWorldRuntime {
     }
     private void terminateInvalid() {
         for (var end:Map.copyOf(ownershipEnds).entrySet()) if (tick>=end.getValue() && hasGroup(end.getKey())) cancel(end.getKey(),0,"ownership-end");
-        for (Encounter e:List.copyOf(encounters.values())) endIfOwnerUnavailable();
+        endIfOwnerUnavailable();
         for (Group g:List.copyOf(groups.values())) if (!ownerGrace.containsKey(g.encounter.owner())) updateFollowing(g);
         for (Group g:List.copyOf(groups.values())) {
             // A restored owner whose entity/chunk is still loading must not have its targets
@@ -480,7 +487,17 @@ public final class DanmakuWorldRuntime {
         evaluations+=work;
         for (DecisionProvider.Player player:combatPlayers) {
             long near=0;
-            for (Group scope:groups.values()) for (MemberSnapshot m:scope.members.values())
+            if (childAdmissionPass) {
+                if (!combatPlayers.equals(admissionPlayers)) {
+                    admissionPlayers=List.copyOf(combatPlayers); admissionNear=new long[combatPlayers.size()];
+                    for (Group scope:groups.values()) for (MemberSnapshot m:scope.members.values()) updateAdmissionNear(m,1);
+                }
+                near=admissionNear[combatPlayers.indexOf(player)];
+                for (MemberId id:releasedIds) {
+                    var member=member(id);
+                    if (member.isPresent() && player.distance(state(member.orElseThrow(),tick).position())<=admissionLimits.nearRadius()) near--;
+                }
+            } else for (Group scope:groups.values()) for (MemberSnapshot m:scope.members.values())
                 if (!releasedIds.contains(m.id()) && player.distance(state(m,tick).position())<=admissionLimits.nearRadius()) near++;
             for (EmissionPlan plan:plans) for (Pattern.Member m:plan.members())
                 if (player.distance(plan.state(m,tick).position())<=admissionLimits.nearRadius()) near++;
@@ -499,6 +516,7 @@ public final class DanmakuWorldRuntime {
     private void install(Group g,EmissionPlan p) {
         for (Pattern.Member m:p.members()) {
             MemberId id=new MemberId(g.id,p.ordinal(),m.index()); g.members.put(id,new MemberSnapshot(id,p,m,true));
+            updateAdmissionNear(g.members.get(id),1);
         }
         births+=p.members().size();
     }
@@ -517,12 +535,12 @@ public final class DanmakuWorldRuntime {
                 Actions.Pose pose=(parent!=null?parentPose(parent,time):source(group(id.group()),source,time)).orElse(lastSourcePoses.get(id));
                 if (pose==null) throw new IllegalStateException("laser source has no authoritative pose");
                 Nozzle nozzle=nozzles.get(id); if (nozzle!=null) pose=nozzle.apply(pose,time);
-                return EmissionPlan.beamDirection(snapshot.plan().program(),pose,snapshot.template(),time-snapshot.plan().birthTick());
+                return EmissionPlan.beamDirection(snapshot.plan().program(),pose,snapshot.template(),time-snapshot.plan().birthTick(),snapshot.plan().aimLocal());
             }
         }
         if (snapshot.plan().program().collisionProfile() instanceof CollisionProfile.Laser
                 && !following.containsKey(id) && !parentSources.containsKey(id) && !detached.containsKey(id)) {
-            Vec3 local=snapshot.plan().program().transform().direction(snapshot.template().direction(),time-snapshot.plan().birthTick());
+            Vec3 local=snapshot.plan().program().transform().direction(Actions.ChildProgram.aimDirection(snapshot.template(),snapshot.plan().aimLocal()),time-snapshot.plan().birthTick());
             return attachedMembers.contains(id)?groupMotions.get(id.group()).direction(local,time)
                     :snapshot.plan().direction(snapshot.template(),time);
         }
@@ -531,6 +549,14 @@ public final class DanmakuWorldRuntime {
         return snapshot.plan().source().frame().direction(snapshot.template().direction()).unit();
     }
     private Path.State state(MemberSnapshot m,double time) {
+        boolean cacheable=time==tick && !detached.containsKey(m.id()) && !following.containsKey(m.id())
+                && !parentSources.containsKey(m.id()) && !attachedMembers.contains(m.id());
+        if (cacheable) {
+            Path.State cached=boundaryStates.get(m.id());
+            if (cached!=null) return cached;
+            Path.State result=m.plan().state(m.template(),time);
+            boundaryStates.put(m.id(),result); return result;
+        }
         Set<MemberId> stack=evaluating.get();
         if (stack.size()>=16 || !stack.add(m.id())) throw new IllegalStateException("cyclic or excessive source dependency");
         try { return evaluateState(m,time); } finally { stack.remove(m.id()); }
@@ -551,10 +577,12 @@ public final class DanmakuWorldRuntime {
         Actions.Pose currentPose=pose;
         var spawn=new Actions.SpawnChild(attached==null?new Actions.GroupPose(new ProgramRef.Group(new NodeId(0))):attached,m.plan().program(),m.plan().binding());
         return Actions.emittedState(spawn,(source,t)->Optional.of(t==m.plan().birthTick()?m.plan().source():currentPose),
-                m.plan().birthTick(),time,m.template(),m.plan().seed()).orElseThrow();
+                m.plan().birthTick(),time,m.template(),m.plan().seed(),m.plan().aimLocal()).orElseThrow();
     }
     public void remove(MemberId id,String reason) {
         Group g=groups.get(id.group());
+        if (g!=null && g.members.containsKey(id)) updateAdmissionNear(g.members.get(id),-1);
+        boundaryStates.remove(id);
         if (g!=null && g.members.remove(id)!=null) {
             following.remove(id); lastSourcePoses.remove(id); detached.remove(id);
             parentSources.remove(id);
@@ -769,10 +797,23 @@ public final class DanmakuWorldRuntime {
         return true;
     }
     private void releaseMember(Group group,MemberId id) {
+        if (group.members.containsKey(id)) updateAdmissionNear(group.members.get(id),-1);
+        boundaryStates.remove(id);
         group.members.remove(id); following.remove(id); parentSources.remove(id); lastSourcePoses.remove(id); detached.remove(id);
         nozzles.remove(id); attachedMembers.remove(id);
     }
     private void runChildren() {
+        childAdmissionPass=true; admissionPlayers=null; admissionNear=null;
+        try { runChildrenPass(); }
+        finally { childAdmissionPass=false; admissionPlayers=null; admissionNear=null; }
+    }
+    private void updateAdmissionNear(MemberSnapshot member,int delta) {
+        if (!childAdmissionPass || admissionPlayers==null) return;
+        Vec3 position=state(member,tick).position();
+        for (int i=0;i<admissionPlayers.size();i++)
+            if (admissionPlayers.get(i).distance(position)<=admissionLimits.nearRadius()) admissionNear[i]+=delta;
+    }
+    private void runChildrenPass() {
         Set<MemberId> processed=new HashSet<>();
         boolean progress;
         do {
@@ -780,7 +821,7 @@ public final class DanmakuWorldRuntime {
         for (Group g:List.copyOf(groups.values())) if (!stoppedChildren.contains(g.id)) {
             List<MemberSnapshot> snapshot=List.copyOf(g.members.values());
             Set<String> handled=new HashSet<>();
-            for (MemberSnapshot m:snapshot) if (g.members.containsKey(m.id()) && processed.add(m.id())) {
+            for (MemberSnapshot m:snapshot) if (!m.plan().program().actions().isEmpty() && g.members.containsKey(m.id()) && processed.add(m.id())) {
                 progress=true;
                 List<Actions.ChildAction> actions=m.plan().program().actions();
                 for (int a=0;a<actions.size();a++) {
@@ -815,6 +856,8 @@ public final class DanmakuWorldRuntime {
                                 parentSources.put(child,m.id()); lastSourcePoses.put(child,new Actions.Pose(new Frame(boundary.position(),Vec3.X,Vec3.Y,Vec3.Z),boundary.velocity()));
                                 nozzles.put(child,new Nozzle(action.nozzleAngleRadians(),action.nozzleAxis(),m.plan().birthTick()));
                             }
+                            // Following can change the child's age-zero pose after installation.
+                            admissionPlayers=null; admissionNear=null;
                         }
                     }
                 }

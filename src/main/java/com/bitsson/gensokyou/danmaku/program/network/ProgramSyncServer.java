@@ -15,6 +15,7 @@ public final class ProgramSyncServer {
         ReplicaState.Image image;
         int lastRecovery=Integer.MIN_VALUE;
         boolean force;
+        long boundaryTick=Long.MIN_VALUE;
     }
     public record Stats(Map<ProgramWire.Kind,Long> logicalBytes,Map<ProgramWire.Kind,Long> wireBytes,long recoveryRequests,long throttled) {
         public Stats { logicalBytes=Map.copyOf(logicalBytes); wireBytes=Map.copyOf(wireBytes); }
@@ -54,7 +55,7 @@ public final class ProgramSyncServer {
             if (!subscriptions.containsKey(scope) && subscriptions.size()>=wire.limits().entries()) throw new IllegalArgumentException("subscription budget");
             Subscription sub=subscriptions.computeIfAbsent(scope,k->new Subscription());
             if (sub.epoch!=owner.getValue()) sub.image=null;
-            if (sub.image==null) { sub.epoch=owner.getValue(); sub.generation=++generation; sub.sequence=0; }
+            if (sub.image==null) { sub.epoch=owner.getValue(); sub.generation=++generation; sub.sequence=0; sub.boundaryTick=Long.MIN_VALUE; }
             ReplicaState.Image next=ProgramInterest.filter(image,owner.getKey(),selected);
             if (sub.image!=null) {
                 Set<String> oldGroups=new HashSet<>(),newGroups=new HashSet<>();
@@ -92,6 +93,12 @@ public final class ProgramSyncServer {
                 else next=sub.image; // No fact change: no age-driven revision or per-member traffic.
             }
             sub.image=next;
+            // Ordered after all fact transfers. Unlike Image.tick this advances even
+            // when no member fact changed. No coordinates or full digest are sent.
+            if (sub.boundaryTick!=image.tick()) {
+                send(scope,sub,ProgramWire.Kind.BOUNDARY,image.tick(),next.revision(),new byte[0]);
+                sub.boundaryTick=image.tick();
+            }
             if (owner.getKey().equals(digestOwner)) {
                 send(scope,sub,ProgramWire.Kind.CLOCK_DIGEST,image.tick(),next.revision(),wire.imageDigest(next).getBytes(StandardCharsets.US_ASCII));
                 lastClock.put(image.dimension(),image.tick());

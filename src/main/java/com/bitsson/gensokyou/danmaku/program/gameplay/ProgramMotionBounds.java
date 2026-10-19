@@ -88,8 +88,10 @@ public final class ProgramMotionBounds {
         return Map.copyOf(result);
     }
     public static Map<DanmakuWorldRuntime.MemberId,ProgramInterest.Box> members(ReplicaState.Projection projection) {
+        return members(projection,groups(projection));
+    }
+    public static Map<DanmakuWorldRuntime.MemberId,ProgramInterest.Box> members(ReplicaState.Projection projection,Map<Long,ProgramInterest.Box> groups) {
         Map<DanmakuWorldRuntime.MemberId,ProgramInterest.Box> result=new HashMap<>();
-        var groups=groups(projection);
         for (Record entry:projection.image().entries().values()) if (entry instanceof ReplicaState.Batch batch)
             // Keep bounds for dead template slots too. A partial table makes spatial()
             // fall back to the entire batch and changes subscriptions on every hit.

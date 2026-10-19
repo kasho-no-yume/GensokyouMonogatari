@@ -182,14 +182,18 @@ public final class Actions {
     }
     public static Optional<Path.State> emittedState(SpawnChild spawn,ResolvedSources sources,double birthTick,
                                                    double tick,Pattern.Member member,Deterministic.Seed seed) {
+        return emittedState(spawn,sources,birthTick,tick,member,seed,null);
+    }
+    public static Optional<Path.State> emittedState(SpawnChild spawn,ResolvedSources sources,double birthTick,
+                                                   double tick,Pattern.Member member,Deterministic.Seed seed,Vec3 aimLocal) {
         Deterministic.nonnegative(birthTick); Deterministic.nonnegative(tick);
         if (tick<birthTick) return Optional.empty();
         Optional<Pose> sampled=sources.at(spawn.source(),birthTick);
         if (sampled.isEmpty()) return Optional.empty();
         Pose birth=sampled.orElseThrow();
         double age=tick-birthTick;
-        Path.State child=spawn.child().memberState(member,seed,age);
-        Vec3 birthOffset=spawn.child().memberState(member,seed,0).position();
+        Path.State child=spawn.child().memberState(member,seed,age,aimLocal);
+        Vec3 birthOffset=spawn.child().memberState(member,seed,0,aimLocal).position();
         Vec3 inherited=spawn.binding().velocity()==Velocity.ADD_SOURCE_VELOCITY
                 ?birth.velocity().add(birth.angularVelocity().cross(birth.frame().direction(birthOffset))):Vec3.ZERO;
         boolean ended=child.ended() || age>=spawn.child().lifetimeTicks();

@@ -15,8 +15,12 @@ public final class ProgramCollisionSweep {
     private ProgramCollisionSweep() {}
 
     public static Optional<List<Segment>> sample(DoubleFunction<Vec3> path,double start,double end) {
+        return sample(path,start,end,path.apply(start),path.apply(end));
+    }
+    /** Reuse authoritative endpoints; quarter/midpoint checks remain for every curve. */
+    public static Optional<List<Segment>> sample(DoubleFunction<Vec3> path,double start,double end,Vec3 from,Vec3 until) {
         var segments=new ArrayList<Segment>(8);
-        return subdivide(path,start,end,path.apply(start),path.apply(end),0,segments)
+        return subdivide(path,start,end,from,until,0,segments)
                 ?Optional.of(List.copyOf(segments)):Optional.empty();
     }
     private static boolean subdivide(DoubleFunction<Vec3> path,double start,double end,Vec3 a,Vec3 b,

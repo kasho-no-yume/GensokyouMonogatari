@@ -149,7 +149,7 @@ public final class ProgramDanmakuRenderer {
         long renderNanos=System.nanoTime()-started;
         RENDER_TIMING.record(renderNanos);
         com.bitsson.gensokyou.danmaku.program.gameplay.ProgramMotionProbe.frame(System.nanoTime(),projectionNanos,renderNanos,
-                views.stream().mapToDouble(ProgramRenderView.Snapshot::tick).max().orElse(0),views);
+                ProgramClientNetwork.lastPresentationTime(),views);
     }
 
     private static void renderLaser(PoseStack pose,MultiBufferSource.BufferSource buffers,ProgramRenderView.Member member,java.util.Set<RenderType> used) {

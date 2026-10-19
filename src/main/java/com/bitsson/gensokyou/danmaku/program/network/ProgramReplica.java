@@ -17,6 +17,7 @@ public final class ProgramReplica {
     }
     private static final class Stream {
         long epoch,subscription,sequence,endEpoch;
+        long confirmedTick=Long.MIN_VALUE;
         boolean replacingSubscription;
         ReplicaState.Image image;
         final Deque<ReplicaState.Image> history=new ArrayDeque<>();
@@ -34,6 +35,7 @@ public final class ProgramReplica {
     private final Map<Transfer,Assembly> transfers=new HashMap<>();
     private final List<ProgramWire.Envelope> waiting=new ArrayList<>();
     private final Map<String,ProgramClock> clocks=new HashMap<>();
+    private final Map<String,ProgramPresentationClock> presentationClocks=new HashMap<>();
     private final Set<Scope> recovery=new LinkedHashSet<>();
     private final Map<Scope,Integer> lastRequest=new HashMap<>();
     private long late,duplicates,failures;
@@ -48,6 +50,7 @@ public final class ProgramReplica {
         if (e.kind()==ProgramWire.Kind.RESYNC) throw new IllegalArgumentException("client received request");
         if (e.kind()==ProgramWire.Kind.END) {
             stream.endEpoch=e.epoch(); stream.epoch=e.epoch(); stream.image=null; stream.history.clear();
+            stream.confirmedTick=Long.MIN_VALUE;
             waiting.removeIf(p->same(p,scope)); transfers.keySet().removeIf(t->t.scope().equals(scope)); recovery.remove(scope);
             releaseIdleClock(scope.dimension()); return;
         }
@@ -56,6 +59,7 @@ public final class ProgramReplica {
             boolean newEpoch=e.epoch()>stream.epoch;
             stream.replacingSubscription=true;
             stream.epoch=e.epoch(); stream.subscription=e.subscription(); stream.sequence=0;
+            stream.confirmedTick=Long.MIN_VALUE;
             // Keep the last complete image while a same-epoch checkpoint is assembled.
             if (newEpoch) { stream.image=null; stream.history.clear(); }
             waiting.removeIf(p->same(p,scope)); transfers.keySet().removeIf(t->t.scope().equals(scope));
@@ -92,6 +96,7 @@ public final class ProgramReplica {
         return new ProgramWire.Envelope(e.version(),e.dimension(),e.owner(),e.epoch(),e.subscription(),e.sequence(),e.revision(),e.tick(),e.kind(),e.transfer(),0,1,out.toByteArray());
     }
     private boolean ready(ProgramWire.Envelope e,Stream stream) {
+        if (e.kind()==ProgramWire.Kind.BOUNDARY) return stream.image!=null && !stream.replacingSubscription && stream.image.revision()==e.revision();
         ReplicaState.Image next=decodeImage(e,stream);
         return next!=null && available(next);
     }
@@ -120,7 +125,17 @@ public final class ProgramReplica {
         if (e.sequence()<=stream.sequence) { duplicates++; return; }
         if (e.kind()==ProgramWire.Kind.RELEASE) {
             stream.image=null; stream.history.clear(); stream.sequence=e.sequence(); waiting.removeIf(p->same(p,scope));
+            stream.confirmedTick=Long.MIN_VALUE;
             releaseIdleClock(scope.dimension()); return;
+        }
+        if (e.kind()==ProgramWire.Kind.BOUNDARY) {
+            if (!ready(e,stream)) {
+                if (waiting.size()<wire.limits().pendingTransfers() && waiting.stream().noneMatch(p->same(p,scope) && p.sequence()==e.sequence())) waiting.add(e);
+                recovery.add(scope); return;
+            }
+            stream.confirmedTick=Math.max(stream.confirmedTick,e.tick());
+            stream.sequence=e.sequence(); clock(e.dimension()).observe(e.tick(),localTick);
+            return;
         }
         if (e.kind()==ProgramWire.Kind.CLOCK_DIGEST) {
             clock(e.dimension()).observe(e.tick(),localTick);
@@ -198,8 +213,26 @@ public final class ProgramReplica {
     }
     public ProgramClock clock(String dimension) { return clocks.computeIfAbsent(dimension,k->new ProgramClock(wire.limits().staleTicks())); }
     private void releaseIdleClock(String dimension) {
-        if (streams.entrySet().stream().noneMatch(e->e.getKey().dimension().equals(dimension) && e.getValue().image!=null))
+        if (streams.entrySet().stream().noneMatch(e->e.getKey().dimension().equals(dimension) && e.getValue().image!=null)) {
             clocks.remove(dimension);
+            presentationClocks.remove(dimension);
+        }
+    }
+    /** Minimum complete watermark across visible owners; no shared-server-thread shortcut. */
+    public double presentationTime(String dimension,long now,boolean paused) {
+        long confirmed=Long.MAX_VALUE;
+        for (var entry:streams.entrySet()) if (entry.getKey().dimension().equals(dimension) && entry.getValue().image!=null) {
+            if (entry.getValue().confirmedTick==Long.MIN_VALUE) return Double.NaN;
+            confirmed=Math.min(confirmed,entry.getValue().confirmedTick);
+        }
+        if (confirmed==Long.MAX_VALUE) return Double.NaN;
+        var clock=presentationClocks.computeIfAbsent(dimension,k->new ProgramPresentationClock());
+        clock.observe(confirmed,now);
+        return clock.time(now,paused);
+    }
+    public String presentationDiagnostic(String dimension) {
+        var c=presentationClocks.get(dimension);
+        return c==null?"uninitialized":"confirmed="+c.authority()+" freezes="+c.freezes()+" resets="+c.resets();
     }
     public Optional<ReplicaState.Image> image(Scope scope) { Stream s=streams.get(scope); return Optional.ofNullable(s==null?null:s.image); }
     public Optional<ProgramRenderView.Snapshot> renderView(Scope scope,double tick) {
@@ -252,5 +285,5 @@ public final class ProgramReplica {
     public long failures() { return failures; }
     public boolean active(String dimension) { return streams.entrySet().stream().anyMatch(e->e.getKey().dimension().equals(dimension) && e.getValue().image!=null); }
     public int pendingTransfers() { return transfers.size(); }
-    public void clear() { streams.clear(); transfers.clear(); waiting.clear(); clocks.clear(); recovery.clear(); lastRequest.clear(); descriptions.clear(); definitions.clear(); }
+    public void clear() { streams.clear(); transfers.clear(); waiting.clear(); clocks.clear(); presentationClocks.clear(); recovery.clear(); lastRequest.clear(); descriptions.clear(); definitions.clear(); }
 }

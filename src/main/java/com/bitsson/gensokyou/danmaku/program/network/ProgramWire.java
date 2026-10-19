@@ -11,7 +11,7 @@ import java.util.*;
 
 /** Bounded canonical transport. Only local, explicitly registered data constructors are available. */
 public final class ProgramWire {
-    public enum Kind { DEFINITION, DESCRIPTION, START, CHECKPOINT, DECISIONS, CLOCK_DIGEST, RESYNC, END, RELEASE }
+    public enum Kind { DEFINITION, DESCRIPTION, START, CHECKPOINT, DECISIONS, CLOCK_DIGEST, RESYNC, END, RELEASE, BOUNDARY }
     public record Envelope(int version,String dimension,UUID owner,long epoch,long subscription,long sequence,
                            long revision,long tick,Kind kind,long transfer,int chunk,int count,byte[] payload) {
         public Envelope { payload=payload.clone(); Objects.requireNonNull(kind); Objects.requireNonNull(owner); }

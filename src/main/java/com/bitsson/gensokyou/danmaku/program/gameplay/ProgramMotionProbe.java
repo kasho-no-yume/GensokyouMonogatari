@@ -74,7 +74,7 @@ public final class ProgramMotionProbe {
         for (var snapshot:views) {
             maxRenderedMembers=Math.max(maxRenderedMembers,snapshot.members().size());
             if (snapshot.members().isEmpty()) continue;
-            var member=snapshot.members().getFirst();
+            var member=snapshot.members().stream().filter(m->m.id().equals(trackedMember)).findFirst().orElse(snapshot.members().getFirst());
             if (!member.id().equals(trackedMember)) { trackedMember=member.id(); lastPosition=member.position(); continue; }
             if (lastPosition!=null) { positionSamples.increment(); positionDeltaNanos.accumulate((long)(member.position().subtract(lastPosition).length()*1_000_000_000)); }
             lastPosition=member.position();
@@ -88,7 +88,7 @@ public final class ProgramMotionProbe {
                 +" serverAvgMs="+ms(st==0?0:serverNanos.sum()/st)+" serverMaxMs="+ms(serverMaxNanos.get())
                 +" serverAvgIntervalMs="+ms(st<=1?0:serverIntervalNanos.sum()/(st-1))+" serverMaxIntervalMs="+ms(serverMaxIntervalNanos.get())
                 +" maxLive="+maxLiveMembers+" frames="+fr
-                +" frameAvgMs="+ms(fr==0?0:frameNanos.sum()/fr)+" frameMaxMs="+ms(frameMaxNanos.get())
+                +" frameAvgMs="+ms(fr<=1?0:frameNanos.sum()/(fr-1))+" frameMaxMs="+ms(frameMaxNanos.get())
                 +" projectionAvgMs="+ms(fr==0?0:projectionNanos.sum()/fr)+" projectionMaxMs="+ms(projectionMaxNanos.get())
                 +" renderAvgMs="+ms(fr==0?0:renderNanos.sum()/fr)+" renderMaxMs="+ms(renderMaxNanos.get())
                 +" maxRendered="+maxRenderedMembers+" positionSamples="+ps

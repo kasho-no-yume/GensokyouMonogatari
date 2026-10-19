@@ -9,6 +9,50 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ProgramNetworkTest {
+    @Test void presentationWaitsForOrderedFactsAndAdvancesAcrossUnchangedImages() {
+        var f=new Fixture(); var plan=f.birth(2); f.publish(Vec3.ZERO); f.deliver(0);
+        long now=1_000_000_000L;
+        assertTrue(Double.isFinite(f.client.presentationTime("test:world",now,false)));
+        long imageTick=f.client.image(f.scope).orElseThrow().tick();
+        f.runtime.advance(1); f.publish(Vec3.ZERO); f.deliver(1);
+        assertEquals(imageTick,f.client.image(f.scope).orElseThrow().tick());
+        f.client.presentationTime("test:world",now+50_000_000L,false);
+        assertTrue(f.client.presentationTime("test:world",now+100_000_000L,false)>0);
+        var id=new DanmakuWorldRuntime.MemberId(f.group,plan.ordinal(),0);
+        f.runtime.advance(2); f.runtime.remove(id,"hit"); f.publish(Vec3.ZERO);
+        var boundary=f.sent.stream().filter(b->f.wire.decode(b).kind()==ProgramWire.Kind.BOUNDARY).findFirst().orElseThrow();
+        f.client.receive(boundary,2);
+        assertTrue(f.client.presentationTime("test:world",now+200_000_000L,false)<=1);
+        for (var bytes:List.copyOf(f.sent)) if (bytes!=boundary) f.client.receive(bytes,2);
+        assertFalse(ReplicaState.hasMember(f.client.image(f.scope).orElseThrow(),id));
+        f.client.presentationTime("test:world",now+210_000_000L,false);
+        assertTrue(f.client.presentationTime("test:world",now+260_000_000L,false)>1);
+    }
+    @Test void spatialWireRoundTripPreservesPerMemberAimAndLaserAxis() {
+        for (boolean laser:new boolean[]{false,true}) {
+            var f=new Fixture();
+            var pattern=new Patterns.ParallelGrid(1,3,2,0,Set.of(),Vec3.ZERO);
+            var program=new Actions.ChildProgram(pattern,new Paths.Linear(Vec3.Z,.5),100,0,0,List.of(),
+                    new Presentation.Profile(List.of(),null,null,List.of()),new Transforms.Compose(List.of()),
+                    Actions.DirectionRule.AIM_LOCAL,0,laser?new CollisionProfile.Laser(20,false,1):CollisionProfile.projectile());
+            var seed=new Deterministic.Seed(9,List.of());
+            var batch=new ReplicaState.Batch(f.group,0,0,new Actions.Pose(Frame.IDENTITY,Vec3.ZERO),f.wire.descriptionHash(program),
+                    Actions.Binding.snapshot(),seed,pattern.generate(seed),List.of(7L),List.of(7L),false,null,new Vec3(0,3,10));
+            var entries=new HashMap<>(f.projection().image().entries()); entries.put(ReplicaState.batchKey(f.group,0),batch);
+            var projection=new ReplicaState.Projection(new ReplicaState.Image("test:world",0,1,entries),Map.of(batch.description(),program),Map.of());
+            var box=new ProgramInterest.Box(new Vec3(-100,-100,-100),new Vec3(100,100,100));
+            var bounds=new HashMap<DanmakuWorldRuntime.MemberId,ProgramInterest.Box>();
+            for (var template:batch.templates()) bounds.put(new DanmakuWorldRuntime.MemberId(f.group,0,template.index()),box);
+            f.server.publishSpatial(projection,Map.of(f.group,box),bounds,Vec3.ZERO,0,256,128); f.deliver(0);
+            var received=f.client.image(f.scope).orElseThrow();
+            assertEquals(batch.aimLocal(),((ReplicaState.Batch)received.entries().get(ReplicaState.batchKey(f.group,0))).aimLocal());
+            for (var id:bounds.keySet()) for (double time:new double[]{0,.5,10.25}) {
+                assertEquals(ReplicaState.state(projection.image(),projection.descriptions(),id,time),f.client.state(f.scope,id,time));
+                assertEquals(ReplicaState.direction(projection.image(),projection.descriptions(),id,time),
+                        ReplicaState.direction(received,projection.descriptions(),id,time));
+            }
+        }
+    }
     @Test void repeatedDenseCohortsDoNotExhaustMemberTombstones() {
         var f=new Fixture();
         for (int round=0;round<48;round++) {
@@ -272,7 +316,8 @@ class ProgramNetworkTest {
     }
     @Test void steadyStateHasNoMemberTrafficAndDefinitionCacheIsShared() {
         var f=new Fixture(); f.birth(48); f.publish(Vec3.ZERO); f.deliver(0);
-        f.runtime.advance(1); f.publish(Vec3.ZERO); assertTrue(f.sent.isEmpty());
+        f.runtime.advance(1); f.publish(Vec3.ZERO);
+        assertTrue(f.sent.stream().allMatch(bytes->f.wire.decode(bytes).kind()==ProgramWire.Kind.BOUNDARY));
         f.publish(new Vec3(1000,0,0)); f.deliver(2); f.publish(Vec3.ZERO);
         assertTrue(f.sent.stream().noneMatch(b->f.wire.decode(b).kind()==ProgramWire.Kind.DESCRIPTION));
     }

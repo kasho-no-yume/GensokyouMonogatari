@@ -198,7 +198,7 @@ public final class ReplicaState {
         }
         if (motion!=null && motion.attached()) {
             var group=(Group)image.entries().get(groupKey(id.group()));
-            return group.motion().direction(program.transform().direction(template.direction(),age),time);
+            return group.motion().direction(localDirection(program,template,age,batch.aimLocal()),time);
         }
         if (motion!=null && (motion.sourceGroup()!=null || motion.sourceMember()!=null)) {
             Actions.Pose pose=motion.lastPose();
@@ -237,7 +237,7 @@ public final class ReplicaState {
                 if (motion.nozzle()!=null) pose=motion.nozzle().apply(pose,time);
                 Actions.Pose current=pose;
                 var spawn=new Actions.SpawnChild(new Actions.GroupPose(new ProgramRef.Group(new NodeId(0))),program,b.binding());
-                return Actions.emittedState(spawn,(s,t)->Optional.of(t==b.birth()?b.source():current),b.birth(),time,template,b.seed()).orElseThrow();
+                return Actions.emittedState(spawn,(s,t)->Optional.of(t==b.birth()?b.source():current),b.birth(),time,template,b.seed(),b.aimLocal()).orElseThrow();
             }
             if (b.motion()!=null) return b.motion().apply(program.memberState(template,b.seed(),time-b.birth(),b.aimLocal()),time);
             return EmissionPlan.state(program,b.binding(),b.source(),b.seed(),template,time-b.birth(),b.aimLocal());
