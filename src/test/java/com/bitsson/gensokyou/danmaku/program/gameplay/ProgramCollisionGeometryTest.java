@@ -8,6 +8,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProgramCollisionGeometryTest {
+    @Test void reducedHitRadiusAllowsGrazingButStillHitsTheCore() {
+        AABB target=new AABB(0,0,0,1,1,1);
+        for (boolean laser : new boolean[]{false,true}) {
+            var style=new com.bitsson.gensokyou.danmaku.program.ops.Pattern.Style(
+                    laser?"laser":"sphere","blue",.4,1,.8);
+            assertEquals(.2,style.effectiveCollisionRadius(),1e-9);
+            assertEquals(.8,style.visualRadius(),1e-9);
+            var grazing=java.util.List.of(new ProgramCollisionSweep.Segment(new Vec3(-1,1.3,.5),new Vec3(2,1.3,.5)));
+            assertTrue(ProgramCollisionSweep.nearest(grazing,java.util.List.of(target),box->box,style.collisionRadius(),laser).isPresent());
+            assertTrue(ProgramCollisionSweep.nearest(grazing,java.util.List.of(target),box->box,style.effectiveCollisionRadius(),laser).isEmpty());
+            var core=java.util.List.of(new ProgramCollisionSweep.Segment(new Vec3(-1,1.1,.5),new Vec3(2,1.1,.5)));
+            assertTrue(ProgramCollisionSweep.nearest(core,java.util.List.of(target),box->box,style.effectiveCollisionRadius(),laser).isPresent());
+        }
+    }
+
     @Test void sphereDoesNotHitTheExtraCornersOfAnExpandedBox() {
         AABB target=new AABB(0,0,0,1,1,1);
         Vec3 from=new Vec3(-1,1.15,1.15),until=new Vec3(2,1.15,1.15);

@@ -30,7 +30,7 @@ import java.util.Optional;
  *
  * <p>生命远超原版 {@code MAX_HEALTH} 的 1024 上限，以伤害除数承载（见基类）。
  */
-public class NomenMaskEntity extends AbstractTouhouBoss {
+public class NomenMaskEntity extends UnmigratedTouhouBoss {
 
     public NomenMaskEntity(EntityType<? extends NomenMaskEntity> type, Level level) {
         super(type, level);

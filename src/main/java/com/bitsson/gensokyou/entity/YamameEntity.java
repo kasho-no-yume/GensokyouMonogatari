@@ -2,25 +2,14 @@ package com.bitsson.gensokyou.entity;
 
 import com.bitsson.gensokyou.balance.BalanceNumbers;
 
-import com.bitsson.gensokyou.danmaku.DanmakuEmitter;
-import com.bitsson.gensokyou.danmaku.track.Behaviour;
-import com.bitsson.gensokyou.danmaku.track.BossCards;
-import com.bitsson.gensokyou.danmaku.track.Geometry;
-import com.bitsson.gensokyou.danmaku.track.Projectile;
-import com.bitsson.gensokyou.danmaku.track.Shape;
-import com.bitsson.gensokyou.danmaku.track.SignaturePalette;
-import com.bitsson.gensokyou.danmaku.track.SpellCard;
-import com.bitsson.gensokyou.danmaku.track.Track;
 import com.bitsson.gensokyou.registry.ModItems;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.Vec3;
 
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.animatable.instance.AnimatableInstanceCache;
@@ -31,7 +20,6 @@ import software.bernie.geckolib.animation.PlayState;
 import software.bernie.geckolib.animation.RawAnimation;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -62,21 +50,12 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
         return bossAttributes(120.0D, 6.0D);
     }
 
-    @Override
-    protected List<SpellCard> spellCards() {
-        return BossCards.yamame();
-    }
-
     /** 正式程序内容 id（migrate-boss-cards-to-programs）。 */
     @Override
     protected java.util.Optional<String> programContentId() {
         return java.util.Optional.of("yamame");
     }
 
-    @Override
-    protected SignaturePalette palette() {
-        return BossCards.YAMAME_PALETTE;
-    }
 
     @Override
     protected double configSeconds() {
@@ -104,24 +83,6 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
         return 26.0D;
     }
 
-    /**
-     * 织网 / 展开阶段锁定位置。
-     *
-     * <p>蛛丝与螺旋都是「多批共享同一中心」的图案：BOSS 一边游走一边分批发，
-     * 各批圆心会随游走偏移，图案当场散架（大妖精环卡记过同一现象）。
-     * 故每张卡的前半循环锁位，后半（收束与喘息）恢复游走。
-     */
-    @Override
-    protected boolean legacyMovementLocked() {
-        if (runner() == null) {
-            return false;
-        }
-        int cycle = runner().cycleTicks();
-        if (cycle <= 0) {
-            return false;
-        }
-        return runner().cycleTick() < cycle / 2;
-    }
 
     @Override
     protected int starDropCount() {
@@ -148,59 +109,8 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
     }
 
     @Override
-    protected void onCardChanged(SpellCard card) {
+    protected void onProgramCardChanged(int index) {
         this.triggerCast();
-    }
-
-    // ------------------------------------------------------------------
-    // 默认攻击（蛛丝扇）
-    //
-    // <p>刻意<b>不</b>进 {@code BossCards}：那张表是按血量阈值切分的内容，而默认攻击
-    // 是全程在符卡底下继续跑的底噪。符卡之间永不叠加，符卡与默认攻击则叠加。
-    //
-    // <p>全场一份（不按人复制）：底噪不该要求玩家做新决策。锥口朝最近的那名玩家。
-    // ------------------------------------------------------------------
-
-    private int webCooldown;
-
-    @Override
-    public void aiStep() {
-        super.aiStep();
-        if (this.level().isClientSide) {
-            return;
-        }
-        if (!programBackendActive()) tickDefaultAttack();
-    }
-
-    private void tickDefaultAttack() {
-        int interval = Math.max(5, BalanceNumbers.YAMAME_WEB_INTERVAL);
-        if (this.webCooldown > 0) {
-            this.webCooldown--;
-            return;
-        }
-        this.webCooldown = interval;
-        List<Player> locked = lockedTargets();
-        if (locked.isEmpty()) {
-            return;
-        }
-        Vec3 anchor = locked.get(0).position();
-        Vec3 forward = anchor.subtract(this.getEyePosition());
-        if (forward.lengthSqr() < 1.0E-6D) {
-            return;
-        }
-        forward = forward.normalize();
-        Shape.Params params = Shape.Params.defaults()
-                .count(BalanceNumbers.YAMAME_WEB_COUNT)
-                .spread(BalanceNumbers.YAMAME_WEB_SPREAD_DEG)
-                .speed(BalanceNumbers.YAMAME_WEB_SPEED)
-                .size(BalanceNumbers.YAMAME_WEB_SIZE);
-        for (Geometry.Shot shot : Geometry.build(Shape.FAN, this.getEyePosition(),
-                forward, anchor, new Vec3(0, 1, 0), params, 0.0D, 0.0D,
-                this.level().getRandom(), 1.0D, 1.0D)) {
-            DanmakuEmitter.emit(this, shot, Behaviour.NONE, palette().at(0),
-                    danmakuDamage(), null, null, Projectile.SPHERE,
-                    Track.Beat.SpawnAnchor.NONE, 0, 0);
-        }
     }
 
     // ------------------------------------------------------------------ GeckoLib

@@ -9,8 +9,7 @@ import java.util.UUID;
 /**
  * 实体侧的正式程序后端：开于战斗开始、逐 tick 切卡、结束/死亡时关闭共享宿主。
  *
- * <p>一个 encounter 只运行一个判伤后端——开启本后端时实体的旧 {@code TrackRunner} 与
- * 默认攻击都停用，因此不会双重判伤。开启失败时由实体回退到旧后端，且整场不热切换。
+ * <p>正式 BOSS 仅使用程序判伤；实体侧已移除旧轨道、默认发射与失败回退。
  */
 public final class BossProgramBackend {
     private final ServerLevel level;

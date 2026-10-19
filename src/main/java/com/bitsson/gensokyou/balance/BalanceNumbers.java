@@ -12,6 +12,9 @@ public final class BalanceNumbers {
     private BalanceNumbers() {
     }
 
+    /** 程序弹幕实际碰撞半径倍率；独立于视觉尺寸，普通弹与激光统一应用。 */
+    public static final double PROGRAM_DANMAKU_COLLISION_RADIUS_SCALE = 0.5D;
+
     /** grace 表的出厂默认行（原 GensokyouConfig.GRACE_DEFAULT_ROWS）。 */
     public static final List<String> GRACE_DEFAULT_ROWS = List.of(
             "1,max_spirit,1000,0.2", "1,spirit_power,1,0.2", "1,spirit_regen_rate,1.2,0.7",
@@ -209,13 +212,6 @@ public final class BalanceNumbers {
     public static final Double DANMAKU_MIN_SPAWN_DISTANCE = 6.0D;
     /** 由原 COMMON 配置迁移（键名 BOSS_MAX_TARGETS）。 */
     public static final Integer BOSS_MAX_TARGETS = 5;
-    /**
-     * ⚠️ 迁移开关，非玩家配置：正式战斗的弹幕后端。
-     * `"legacy"` = 旧 Track/Shape 实体后端（默认）；`"program"` = 程序后端。
-     * 迁移 `migrate-boss-cards-to-programs` 期间**改这里**并重编译即可切到 program。
-     * 由原 COMMON 键 `bossDanmakuBackend` 迁来（原为运行时可切换，现为常量）。
-     */
-    public static final String BOSS_DANMAKU_BACKEND = "legacy";
     /** 由原 COMMON 配置迁移（键名 BOSS_MOVE_MIN）。 */
     public static final Double BOSS_MOVE_MIN = 10D;
     /** 由原 COMMON 配置迁移（键名 BOSS_MOVE_MAX）。 */

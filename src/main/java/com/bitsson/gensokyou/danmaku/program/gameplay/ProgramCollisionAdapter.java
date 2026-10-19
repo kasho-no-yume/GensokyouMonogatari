@@ -61,7 +61,7 @@ public final class ProgramCollisionAdapter implements DanmakuWorldRuntime.Collis
         boolean laser = collisionProfile instanceof CollisionProfile.Laser;
         CollisionProfile.Laser laserProfile = laser ? (CollisionProfile.Laser) collisionProfile : null;
         ProgramCollisionSample sample = new ProgramCollisionSample(encounter, id, runtime.tick(), runtime.tick() + 1,
-                from, until, style.collisionRadius(), style.damageScale(), true, true,
+                from, until, style.effectiveCollisionRadius(), style.damageScale(), true, true,
                 laser ? ProgramCollisionSample.Profile.LASER : ProgramCollisionSample.Profile.PROJECTILE,
                 laser ? laserProfile.maxLength() : 0,
                 laser && laserProfile.piercesBlocks(),

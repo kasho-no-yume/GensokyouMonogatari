@@ -240,7 +240,7 @@ public final class DanmakuPreview {
     /** 全部可预览的符卡，供命令列出。 */
     public static String describeAll() {
         StringBuilder sb = new StringBuilder();
-        for (String id : new String[]{"big_fairy", "yamame", "yakumo_ran", "nomen_mask"}) {
+        for (String id : new String[]{"nomen_mask"}) {
             List<SpellCard> cards = setOf(id).cards();
             sb.append(id).append("  ");
             for (int i = 0; i < cards.size(); i++) {
@@ -254,12 +254,6 @@ public final class DanmakuPreview {
     /** 按 id 取符卡表 + 其真实签名色盘；未知 id 返回 null。 */
     public static CardSet setOf(String id) {
         return switch (id.toLowerCase(Locale.ROOT)) {
-            case "big_fairy", "大妖精" ->
-                    new CardSet(BossCards.bigFairy(), BossCards.BIG_FAIRY_PALETTE);
-            case "yamame", "黑谷山女", "山女" ->
-                    new CardSet(BossCards.yamame(), BossCards.YAMAME_PALETTE);
-            case "yakumo_ran", "ran", "八云蓝", "蓝", "八云蓝残影" ->
-                    new CardSet(BossCards.yakumoRan(), BossCards.RAN_PALETTE);
             case "nomen_mask", "nomen", "露米娅", "rumia" ->
                     new CardSet(BossCards.nomenMask(), BossCards.NOMEN_PALETTE);
             default -> null;

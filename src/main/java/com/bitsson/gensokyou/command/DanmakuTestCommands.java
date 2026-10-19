@@ -535,9 +535,19 @@ public final class DanmakuTestCommands {
         }
         DanmakuPreview.CardSet set = DanmakuPreview.setOf(bossId);
         if (set == null) {
+            String migrated = switch (bossId.toLowerCase(java.util.Locale.ROOT)) {
+                case "big_fairy", "大妖精" -> "formal_big_fairy";
+                case "yamame", "黑谷山女", "山女" -> "formal_yamame";
+                case "yakumo_ran", "ran", "八云蓝", "蓝", "八云蓝残影" -> "formal_yakumo_ran";
+                default -> null;
+            };
+            if (migrated != null) {
+                source.sendFailure(Component.translatable("commands.gensokyou.program_preview.migrated", "/gs_program_preview start " + migrated));
+                return 0;
+            }
             source.sendFailure(Component.literal("未知的 BOSS id: " + bossId));
             source.sendFailure(Component.literal("可用: " + String.join(", ",
-                    "big_fairy, yamame, yakumo_ran, nomen_mask")));
+                    "nomen_mask")));
             return 0;
         }
         List<SpellCard> cards = set.cards();

@@ -12,7 +12,7 @@ metadata:
 
 **任务范围与历史状态分开读。** 用户明确要求正式迁移时，按对应change当前tasks及本轮授权实施；下文“尚未迁移”描述实现状态，“本轮不实施/禁止迁移”等旧交接措辞不能覆盖后续授权和验收。先核对明确排除项，再核对卡数；不能为了满足历史总数扩大迁移范围。当前有效验收看台账顶部与change最新记录，历史段落仅用于追踪，不代表所有实机矩阵已通过。
 
-阶段1–5已经完成：新的`DanmakuProgram`已有世界执行、事务、网络、碰撞和渲染闭环。第六期已有作者入口（`danmaku/program/author/`）与大妖精3卡/山女4卡/蓝8卡的程序内容及战斗接线；默认后端仍为legacy，地形/生存/真实多人/读档验收未执行，不能宣称迁移已全部验收。露米娅/傩面按本轮范围排除。**写新程序先读[可运行作者指南](../../../docs/danmaku-program-authoring.md)，照抄AuthoringTemplates；不要照抄预览的底层装配。**
+阶段1–6已有`DanmakuProgram`世界执行、事务、网络、碰撞和渲染闭环、作者入口及大妖精3卡/山女4卡/蓝8卡内容。阶段7移除这三只的旧轨道、默认实体发射及失败回退，正式战斗直接使用程序；露米娅/傩面排除，旧执行隔离在`UnmigratedTouhouBoss`，玩家/妖精实体能力保留。自动化通过不代表地形/生存/真实多人/读档实机全部验收，最终证据见退役change。**写新程序先读[可运行作者指南](../../../docs/danmaku-program-authoring.md)，照抄AuthoringTemplates；不要照抄预览的底层装配。**
 
 作者步骤：`CardProgram`建时间轴 → `targets/aimed`建目标和组 → `MemberProgram.attack/decoration`明确伤害 → 必选`fixedDirection/templateDirections/randomDirections` → `fire`/`emit`/`replace`组合 → `once/loop`编译。派生上界自动推导；颜色可用`#RRGGBB`；普通内容不改网络/渲染分支。底层扩展与接BOSS的范围、生命周期约束见指南。
 
@@ -22,10 +22,10 @@ metadata:
 
 下文第3/4/8/15/17节的Track/Shape/Beat/实体发射和旧编队规则仅适用于维护旧后端。新卡遵守指南与新程序契约，不得把旧步骤复制到新框架；R1/R2/R3、角色签名、伤害属性等设计原则继续适用。
 
-总重构已拆成7个实施change，先读[拆分路线图](../../../openspec/changes/refactor-danmaku-program-runtime/roadmap.md)。原目录仅作总设计，不整包apply；core与operations实际状态见各自tasks与台账，后续须满足路线图的实现前置条件。
+总重构拆成7个实施change，[拆分路线图](../../../docs/danmaku-program/roadmap.md)和原总设计已移至稳定文档。不要归档父规范或把历史任务快照勾完；实际状态见各子change与台账。
 
 - 查原子操作与实现状态：[弹幕操作台账](references/danmaku-operations.md)。该文件是技能的统一入口，新增/实现原语时必须更新。
-- 设计入口：[通俗作者指南](../../../openspec/changes/refactor-danmaku-program-runtime/author-guide.md)、[操作契约](../../../openspec/changes/refactor-danmaku-program-runtime/operations.md)、[东方弹幕配方](../../../openspec/changes/refactor-danmaku-program-runtime/pattern-recipes.md)。
+- 设计入口：[通俗作者指南](../../../docs/danmaku-program/author-guide.md)、[操作契约](../../../docs/danmaku-program/operations.md)、[东方弹幕配方](../../../docs/danmaku-program/pattern-recipes.md)。
 - 下文“一轨一帧”“多拍不需要事件”“帧随每弹复制”等描述属于旧后端经验。设计/实施新程序时以该change的明确替代契约为准，不能用旧实现限制拒绝新需求；维护旧后端时仍核对实际代码与主spec。
 - R3必须同时审查真实展开/派生峰值、近域稳态密度和全局预算；下文“只限单拍”不是完整现行口径。以`openspec/specs/danmaku-track-composition/spec.md`和新程序预算契约为准。
 - 写新表演先找可组合操作，缺图案就扩Pattern，缺数学路径就扩Path，依赖当前世界事实就扩Decision。禁止为单张卡向通用主循环添加形状专用分支。

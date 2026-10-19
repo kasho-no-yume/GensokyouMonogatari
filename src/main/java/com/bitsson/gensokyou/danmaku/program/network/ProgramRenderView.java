@@ -95,7 +95,7 @@ public final class ProgramRenderView {
                     alpha=alpha/Presentation.HIDDEN_ALPHA*dim;
                     if (profile instanceof CollisionProfile.Laser) brightness*=dim;
                 }
-                members.add(new Member(id,state.position(),direction,template.style().collisionRadius(),template.style(),
+                members.add(new Member(id,state.position(),direction,template.style().effectiveCollisionRadius(),template.style(),
                          presentation.visible(),batch.harmful(templatePosition) && presentation.damaging(),
                           alpha*fade,presentation.sizeMultiplier(),brightness,profile,tick-batch.birth(),beamLength,program.lifetimeTicks()));
             }

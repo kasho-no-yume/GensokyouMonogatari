@@ -1,5 +1,13 @@
 # 弹幕操作台账
 
+## 退役交接（2026-10-19，优先于历史状态）
+
+正式大妖精/山女/蓝仅走`AbstractTouhouBoss → BossProgramBackend → BossProgramBattle → BossProgramHost`；后端开关/失败回退/子类旧默认弹已移除。排除的傩面走`UnmigratedTouhouBoss`，旧实体工具、玩家与妖精能力保留。`ProgramBackendState`仅兼容旧存档和恢复卡号；不再决定正式内容是否走程序。
+
+`Style.effectiveCollisionRadius()`统一应用0.5判定倍率，视觉尺寸不变。`ProgramRetirementTest`覆盖2008峰值×20次回收；缩放与负载见`ProgramScalingGateTest`、`ProgramBenchmarkLoadTest`。阶段7已按用户最终确认归档，7项delta合入主spec；验证边界与最终证据见[退役报告](../../../../openspec/changes/archive/2026-10-19-retire-legacy-boss-danmaku/validation.md)，未执行矩阵见[后续专项](../../../../docs/danmaku-program/follow-up-validation.md)。历史记录中的“默认legacy/正式迁移未实施/消费者待gameplay”均非现行实现状态。
+
+操作表中的服务端/网络/组合纯函数已接通正式runtime。分裂与派生见`ProgramSplitPreviewTest`/`ProgramSourceIntegrationTest`；视觉/窗口/隐藏见`ProgramAuthoringTest`；声音见`ProgramRenderView`；血量/移动锁/存档见`ProgramContentTest`/`ProgramResumeTest`/`ProgramSessionCodecTest`。这些是自动化/代码证据，不能替代真实多人、整帧、线上压缩字节验收。真实反弹、连续追踪、力场、传送、倒流与亚tick发射仍为future，无可用API。
+
 ## 当前入口（2026-10-18作者层）
 
 正式迁移代码更新：大妖精3卡、山女4卡、蓝8卡及2底噪位于`program/content`，`BossProgramBattle`接血量/HUD/移动锁，`ProgramBackendState`持久化后端/卡，默认legacy。作者新增`aimAtTarget`（真实目标快照）、`piercing`、`corridor`、`surfaceFire/AtTargets`与`FIRST_AIR_BELOW`。已核对wrapper build `20261018-154530-build.log`成功及XML结果139 suites / 1100 tests / 0 failures / 0 errors，strict通过。任务1.7实机/多人/读档验收仍未完成，露米娅/傩面排除；下文“正式迁移未实施”为历史。详见迁移change的`migration-manifest.md`及`docs/boss-program-migration-observation.md`，不以自动化代替真实观感验收。
@@ -20,7 +28,7 @@
 
 最后核对：2026-10-17。游戏程序后端已有显式预览闭环，正式BOSS仍走旧后端；实机与M2验收未完成。该台账与代码同步更新；设计文件不是实现证据。
 
-最终用户更新：petal_release、roaming_tower已实机确认表现通过，不再待观察；500ms高延迟整批闪烁仍严重，ProgramClock冻结grace未根治，不标稳定性通过。完整重写的第五期[next-session-handoff.md](../../../../openspec/changes/add-danmaku-program-gameplay/next-session-handoff.md)为下一会话入口，旧段落的待验收措辞属历史。整项网络矩阵/多视角与量化M2仍欠，任务主项5/12，不归档/迁移。
+历史用户记录：petal_release、roaming_tower实机通过，500ms高延迟闪烁曾未解决；当时的第五期[next-session-handoff.md](../../../../openspec/changes/archive/2026-10-19-add-danmaku-program-gameplay/next-session-handoff.md)保留追溯。其后状态以页首最终授权、退役报告与后续专项为准。
 
 最新用户证据：dynamic_warning/high_frequency_circle/sphere_split/moving_carriers/参数化moving_tornado在单人及500ms独立服通过表现/性能，不能外推量化M2。高延迟闪烁日志为display-error恢复，ProgramClock补最多1tick冻结呈现桥接并有严重积压撤销；用户无需复测。新增petal_release通过现有稳定IndexRange释放3整瓣27成员，roaming_tower以Bezier+HelixColumn+ChildAction顶节点每20tick发环，24批192子弹；ProgramSplitPreviewTest/ProgramMotionLabTest覆盖计数、路径保持、wire/包络、独立子代与清场，新增两项仍待集中观察。
 
@@ -28,13 +36,13 @@
 
 ProgramLatencyMatrixTest新增72组双向队列延迟/停顿/低TPS副本测试，输出build/reports/program-latency-matrix.csv，不代替真实多人。ProgramScalingGateTest对完整确定性pattern+seed批次测得48→480逻辑字节2415→2529（1.047倍，门槛≤2），空间子集/例外仍展开。NetProfile.program_tickcost接程序host原始CPU样本，现有ClientFrameProbe可记整帧；tools/program_network_matrix.py与program_ab_report.py准备矩阵/汇总证据。完整等负载M2仍欠，不能进入迁移。
 
-阶段5：`program/gameplay/`已有碰撞/伤害/渲染适配与基础诊断；`ProgramPreviewHost`、`ProgramPreviewPrograms`、`ProgramPreviewBounds`装配正式session、网络、静止owner与线性网格fixture，入口`/gs_program_preview start blue1_slice|stop|stats`。`ProgramPreviewTest`验证编译程序预警/出生/恢复/owner丢失/终止回收、全寿命包络以及正式定义晚加入到render view和End抗旧包重放。完整蓝1/4/6、组合案例、实机多人/延迟和A/B未通过，不能进入迁移。详见[第五期交接](../../../../openspec/changes/add-danmaku-program-gameplay/handoff.md)。
+阶段5历史交接：`program/gameplay/`接入碰撞/伤害/渲染、预览及诊断；`ProgramPreviewTest`验证预警/出生/恢复/回收、包络、晚加入与End抗旧包重放。当时状态见[第五期交接](../../../../openspec/changes/archive/2026-10-19-add-danmaku-program-gameplay/handoff.md)，最终边界以页首记录为准。
 
-阶段4：`program/network/`已提供有界协议、批次共享/mask投影、纯客户端副本、共享时钟、幂等/tombstone、分片原子提交、按包络订阅/父源闭包、空间分片发布、恢复限流和NeoForge显式接线。协议测试不替代真实延迟、画面或流量性能验收；真实内容包络生产者交gameplay。详见[network-api.md](../../../../openspec/changes/add-danmaku-program-network/network-api.md)。
+阶段4：网络协议、副本、共享时钟、兴趣管理与恢复入口见[network-api.md](../../../../openspec/changes/archive/2026-10-19-add-danmaku-program-network/network-api.md)。协议测试不替代真实延迟、画面或流量性能验收。
 
-阶段3：`program/server/`已有runtime、ProgramSession/Execution、编译程序控制操作、GroupMotion、Plan/Commit/Replace、有限查询、发射器、伤害门与显式宿主。`WorldRuntimeTest`验证真实内存事务和session恢复；真实专用服探针验证半砖顶面、首空气、通路与level tick。正式BOSS、网络、碰撞和画面未迁移。详见[server-api.md](../../../../openspec/changes/add-danmaku-program-server/server-api.md)。
+阶段3：runtime、事务、有限世界查询、发射器与宿主入口见[server-api.md](../../../../openspec/changes/archive/2026-10-19-add-danmaku-program-server/server-api.md)。`WorldRuntimeTest`验证事务/恢复，专用服探针验证真实方块查询与level tick。
 
-2026-10-16：已按[路线图](../../../../openspec/changes/refactor-danmaku-program-runtime/roadmap.md)拆成7个子change。core阶段（`add-danmaku-program-core`）已完成：纯核实现、测试、旧后端花海三次基线与阶段验证均有证据；operations已有离线实现。描述完成不表示游戏能力已可用。
+2026-10-16：已按[路线图](../../../../docs/danmaku-program/roadmap.md)拆成7个子change。core阶段（`add-danmaku-program-core`）已完成：纯核实现、测试、旧后端花海三次基线与阶段验证均有证据；operations已有离线实现。描述完成不表示游戏能力已可用。
 
 ## 状态规则
 
@@ -53,7 +61,7 @@ ProgramLatencyMatrixTest新增72组双向队列延迟/停顿/低TPS副本测试�
 
 ## 新程序操作索引
 
-除下表单独列出的纯核能力外，其余条目仍为planned。真实入口与离线约束见[core-api.md](../../../../openspec/changes/add-danmaku-program-core/core-api.md)。
+下表历史状态以页首现行记录为准。真实入口与离线约束见[core-api.md](../../../../openspec/changes/archive/2026-10-19-add-danmaku-program-core/core-api.md)。
 
 | 类别 | 操作 | 状态 | 代码/验证 |
 |---|---|---|---|
@@ -80,9 +88,9 @@ ProgramLatencyMatrixTest新增72组双向队列延迟/停顿/低TPS副本测试�
 | 视觉与判伤 | Telegraph/Billboard/Flash/SoundCue/Fade/DamageWindow/VisibilityCycle/LaserWindow | verified（描述与相位求值，画面/判伤未接入） | ops/Presentation；ProgramOperationsTest；实际声音/渲染/碰撞待gameplay |
 | 管理 | StopEmission/EndMembers/Collapse/CancelScope/EndCard/EndEncounter/Lifetime/EndOnReturn/LockBossMovement | verified（服务端状态） | server/DanmakuWorldRuntime、ProgramSession、ProgramServerHost；WorldRuntimeTest淡出/锁/卸载/20次回收；BOSS移动锁消费者待gameplay |
 
-阶段2交接与限制：[operations-api.md](../../../../openspec/changes/add-danmaku-program-operations/operations-api.md)。数值fixture目前仅本机Windows/JDK21实跑，不等于已完成多平台验证。
+阶段2交接与限制：[operations-api.md](../../../../openspec/changes/archive/2026-10-19-add-danmaku-program-operations/operations-api.md)。数值fixture目前仅本机Windows/JDK21实跑，不等于已完成多平台验证。
 
-快速配方：[两代分裂、移动母弹、龙卷风、旋转法阵](../../../../openspec/changes/refactor-danmaku-program-runtime/pattern-recipes.md)。通俗术语与写作步骤：[author-guide.md](../../../../openspec/changes/refactor-danmaku-program-runtime/author-guide.md)。
+快速配方：[两代分裂、移动母弹、龙卷风、旋转法阵](../../../../docs/danmaku-program/pattern-recipes.md)。通俗术语与写作步骤：[author-guide.md](../../../../docs/danmaku-program/author-guide.md)。
 
 真实反弹、连续追踪、力场、传送、倒流和亚tick发射是future方向，**不计为本次交付，也没有可用API**。
 

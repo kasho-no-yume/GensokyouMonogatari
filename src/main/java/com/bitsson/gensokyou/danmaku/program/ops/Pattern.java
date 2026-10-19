@@ -7,6 +7,10 @@ import java.util.Set;
 /** Ordered templates, never world entities. Implementations supply conservative bounds. */
 public interface Pattern {
     record Style(String projectile, String visual, double collisionRadius, double damageScale, double visualRadius) {
+        /** 实际判伤/碰墙半径；内容与存档保留基准半径，统一在使用处应用平衡倍率。 */
+        public double effectiveCollisionRadius() {
+            return collisionRadius * com.bitsson.gensokyou.balance.BalanceNumbers.PROGRAM_DANMAKU_COLLISION_RADIUS_SCALE;
+        }
         public Style(String projectile,String visual,double collisionRadius,double damageScale) {
             this(projectile,visual,collisionRadius,damageScale,collisionRadius);
         }

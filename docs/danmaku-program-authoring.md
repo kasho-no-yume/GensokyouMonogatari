@@ -2,11 +2,11 @@
 
 ## 0. 现在能做什么，不能做什么
 
-**你现在可以编写、编译、测试和预览新程序。大妖精、山女、八云蓝已有程序牌组与战斗接线，默认后端仍为legacy；实机迁移验收尚未完成。新写的卡仍需显式登记才能用于正式战斗。**
+**你现在可以编写、编译、测试和预览新程序。大妖精、山女、八云蓝的正式战斗仅使用程序牌组，临时后端开关与旧回退已移除；露米娅/傩面排除。最终实机验收边界见[退役记录](../openspec/changes/archive/2026-10-19-retire-legacy-boss-danmaku/validation.md)。新写的卡仍需显式登记才能用于正式战斗。**
 
 - 普通内容作者：使用`danmaku/program/author/`，交付`CardProgram.Compiled`。
 - 想试效果：运行下面的预览指令；新增自己的预览需在`ProgramPreviewHost`与`ProgramPreviewCommands`登记入口。
-- 想让现有BOSS正式使用：还要完成第六期正式迁移中的血量/HUD/后端选择/加载策略。普通写卡任务不包含这些接线；用户明确要求正式迁移时，按对应 change 的当前任务范围实施。
+- 想接新BOSS：登记`BossProgramCards`牌组并覆写`programContentId()`；血量/HUD/加载/结束走公共战斗宿主。普通写卡任务不包含实体接线；用户明确要求接入时按当前任务范围实施。
 - 不要复制旧预览里的codec、handler、网络安装代码；这些已由公共入口处理。
 
 读法：先照抄第2节，持续型卡接着看第3节；调伤害看第4节；生成失败看第8节。不需要先读OpenSpec设计稿。
@@ -81,7 +81,9 @@ public static CardProgram.Compiled myCard() {
 | 调用 | 参数含义 |
 |---|---|
 | `Fan(9, radians(60), 0)` | 9发；总张角60度；整个扇形的偏转角0弧度。第3项不是间隔或随机种子 |
-| `styled(pattern, "sphere", "#62D6B4", .12, 1, .22, "main")` | 图案；弹型；颜色；碰撞半径；伤害倍率；视觉半径；成员标签 |
+| `styled(pattern, "sphere", "#62D6B4", .12, 1, .22, "main")` | 图案；弹型；颜色；基准碰撞半径；伤害倍率；视觉半径；成员标签 |
+
+程序弹幕实际碰撞半径为基准值 × `BalanceNumbers.PROGRAM_DANMAKU_COLLISION_RADIUS_SCALE`（当前 `0.5`），普通弹判伤/碰墙及激光判伤统一应用；激光长度和视觉尺寸保持原值。上述 `.12` 对应实际半径 `.06`。网络与存档保留基准值，避免重复缩放；生成净距与运动包络仍保守使用基准半径。
 | `attack("main fan", pattern, path, 100)` | 用于报错定位的名字；图案；路径；每颗弹出生后的寿命100tick |
 | `Linear(Vec3.Z, .18)` | 路径沿局部前方，速度.18格/tick；方向最终怎样分配由下一项决定 |
 | `templateDirections()` | 把这条前向路径分别朝向Fan给出的每发方向，形成散开的扇 |

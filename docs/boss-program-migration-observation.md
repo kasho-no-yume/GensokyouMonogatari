@@ -134,6 +134,6 @@ DeepSeek交付版本化二进制ProgramSessionCodec、SavedData、host保存恢�
 
 新日志单人authority在约10秒墙钟仅前进34tick，边界年龄160–316ms；这是明显的服务端运行退化，不能继续以时间校准推断为纯渲染冻结。存档解码逐成员重建整份EmissionPlan/ChildProgram，原本同批共享的描述变成不同对象；rebase又逐成员复制plan。网络descriptionHash按对象identity缓存，因此读档后放大重复编码，且磁盘重复写plan/program导致超过8MB。
 
-用户最终确认：掉速已改善，**山女第一卡运动仍明显抖动、不平滑**。本轮停止Java修改，交由新会话专项处理；完整交接见[运行时跑测交接](../openspec/changes/migrate-boss-cards-to-programs/runtime-playtest-handoff.md)。后续由主代理直接处理，不再委派DeepSeek，不能将之前测试通过当作运动问题已解决。
+用户最终确认：掉速已改善，**山女第一卡运动仍明显抖动、不平滑**。本轮停止Java修改，交由新会话专项处理；完整交接见[运行时跑测交接](../openspec/changes/archive/2026-10-19-migrate-boss-cards-to-programs/runtime-playtest-handoff.md)。后续由主代理直接处理，不再委派DeepSeek，不能将之前测试通过当作运动问题已解决。
 
 观察者直接修改codec v2：有界记录字典复用相同数据，保留v1读取并intern重复记录；解码及rebase按组内batch恢复同一plan共享。未提高8MB容量。新增真实山女首卡160tick负载保存/解码/重定位测试，断言文件小于2MB且同batch assertSame(plan)。定向codec测试`20261018-193618-test.log`成功。完整回归另跑；未宣称实际TPS已恢复，未再次调整时钟。

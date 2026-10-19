@@ -1,5 +1,6 @@
 {
   "commands.gensokyou.program_preview.busy": "此维度已有程序宿主，或预览发射者创建失败。",
+  "commands.gensokyou.program_preview.migrated": "此 BOSS 已使用程序弹幕。首卡预览请用 %s；完整战斗请生成对应 BOSS。",
   "commands.gensokyou.program_preview.started": "已启动蓝 1 程序切片。可用 /gs_program_preview stats 或 stop；验证命中请使用生存模式。",
   "commands.gensokyou.program_preview.stopped": "已停止此维度的程序预览。",
   "affix.gensokyou.attack_rate_pct": "射速 +%s%%",

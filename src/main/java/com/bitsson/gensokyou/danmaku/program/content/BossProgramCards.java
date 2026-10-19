@@ -74,9 +74,11 @@ public final class BossProgramCards {
         }
     }
 
-    private static Deck bigFairyDeck() { return BigFairyPrograms.deck(); }
-    private static Deck yamameDeck() { return YamamePrograms.deck(); }
-    private static Deck yakumoRanDeck() { return YakumoRanPrograms.deck(); }
+    // Cache immutable decks for HUD lookup without turning content errors into class-init errors.
+    private static final Map<String,Deck> DECKS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static Deck bigFairyDeck() { return DECKS.computeIfAbsent("big_fairy", id -> BigFairyPrograms.deck()); }
+    private static Deck yamameDeck() { return DECKS.computeIfAbsent("yamame", id -> YamamePrograms.deck()); }
+    private static Deck yakumoRanDeck() { return DECKS.computeIfAbsent("yakumo_ran", id -> YakumoRanPrograms.deck()); }
 
     /** 已正式迁移的 BOSS ownerId（不含被排除者）。 */
     public static List<String> migratedOwners() {

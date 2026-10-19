@@ -5,14 +5,10 @@ import net.minecraft.nbt.Tag;
 import java.util.Optional;
 
 /**
- * 持久化的后端选择标记（migrate tasks 1.6「旧弹加载标记」的可自动验证部分）。
+ * 兼容迁移期的后端标记与当前符卡下标。
  *
- * <p>BOSS 实体把「本场战斗选了哪个判伤后端 + 当前符卡下标」写入自身 NBT。这样：
- * <ul>
- *   <li>重载后不会在 config 变化时半场热切换后端；</li>
- *   <li>旧存档缺键时返回 {@link Optional#empty()}，实体按当前 config 重新决定，行为不劣于本变更之前，
- *       且 MUST NOT 报错（对齐 {@code danmaku-age-continuity} 的「旧存档缺键回退」口径）。</li>
- * </ul>
+ * <p>正式内容始终使用程序战斗。旧 legacy 标记不再阻止迁移；其卡号不用于强制恢复新程序卡，
+ * 由当前血量选择阶段。旧程序标记仍可恢复原卡号，完整运行态由 ProgramSessionStore 承载。
  * 本标记不改变任何 legacy 弹幕实体自身的存档规则：旧弹继续按既有 NBT 加载。
  */
 public record ProgramBackendState(boolean programMode, int cardIndex) {
@@ -31,7 +27,7 @@ public record ProgramBackendState(boolean programMode, int cardIndex) {
         tag.put(TAG, nested);
     }
 
-    /** 缺键 / 旧存档 → 空；调用方据此回退到 config 决定，不报错。 */
+    /** 缺键 / 旧存档 → 空；正式战斗按当前血量安装程序，不报错。 */
     public static Optional<ProgramBackendState> read(CompoundTag tag) {
         if (!tag.contains(TAG, Tag.TAG_COMPOUND)) return Optional.empty();
         CompoundTag nested = tag.getCompound(TAG);

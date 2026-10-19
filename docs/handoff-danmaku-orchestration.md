@@ -1,5 +1,7 @@
 # 交接文档：八云蓝残魂 → 弹幕编排扩展
 
+> 2026-10-19交接：以下为历史快照；程序路线及旧需求去向以[替代记录](danmaku-program/superseded-extensions.md)为准。orchestration已在archive，shapes原change文件当前不存在；不按下文旧路径继续实施。正式蓝8卡已在`program/content/YakumoRanPrograms`实现。
+
 > 状态截至 2026-10-15。本文件是**会话交接**，不是 spec。需求与验收以
 > `openspec/changes/` 下的两份变更为准。
 
