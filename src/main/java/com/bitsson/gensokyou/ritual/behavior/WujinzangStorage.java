@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.ritual.WujinzangState;
 
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
@@ -7,7 +9,6 @@ import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 import com.bitsson.gensokyou.block.CrystalBlock;
 import com.bitsson.gensokyou.block.entity.CrystalBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.ritual.RitualMatch;
 import com.bitsson.gensokyou.ritual.RitualPedestals;
@@ -401,7 +402,7 @@ public final class WujinzangStorage {
         if (minY == Integer.MAX_VALUE) {
             minY = c.getY();
         }
-        double r = Math.max(1.0D, radius * GensokyouConfig.FX_WUJINZANG_LASER_RADIUS_RATIO.get());
+        double r = Math.max(1.0D, radius * BalanceNumbers.FX_WUJINZANG_LASER_RADIUS_RATIO);
         long[] out = new long[8];
         for (int i = 0; i < 8; i++) {
             double angle = i * Math.PI / 4.0D;

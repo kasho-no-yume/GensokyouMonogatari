@@ -1,12 +1,14 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.BousenState;
 import com.bitsson.gensokyou.ritual.RitualBehaviorState;
 
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.BousenLanterns;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -201,32 +203,32 @@ public class BousenBehavior implements RitualBehavior {
 
     /** 每秒产灵（全亮时）。 */
     public static long produceRatePerSecond(int level) {
-        return Math.round(tableValue(GensokyouConfig.BOUSEN_PRODUCE_RATE_PER_SECOND.get(), level));
+        return Math.round(tableValue(GensokyouServerConfig.BOUSEN_PRODUCE_RATE_PER_SECOND.get(), level));
     }
 
     /** 缓存上限。 */
     public static long capacityOf(int level) {
-        return Math.round(tableValue(GensokyouConfig.BOUSEN_CAPACITY.get(), level));
+        return Math.round(tableValue(GensokyouServerConfig.BOUSEN_CAPACITY.get(), level));
     }
 
     /** 供灵端点上限（静态，MUST NOT 随灯火明灭变化，否则路由源会闪断）。 */
     public static long outRateOf(int level) {
-        return Math.round(tableValue(GensokyouConfig.BOUSEN_OUT_RATE_PER_SECOND.get(), level));
+        return Math.round(tableValue(GensokyouServerConfig.BOUSEN_OUT_RATE_PER_SECOND.get(), level));
     }
 
     /** 每根蜡烛在单个结算帧的熄灭概率。 */
     public static double extinguishChance(int level) {
-        return Math.min(1.0D, tableValue(GensokyouConfig.BOUSEN_EXTINGUISH_CHANCE.get(), level));
+        return Math.min(1.0D, tableValue(GensokyouServerConfig.BOUSEN_EXTINGUISH_CHANCE.get(), level));
     }
 
     /** 熄灭结算周期（tick）。 */
     public static int extinguishPeriodTicks() {
-        return Math.max(1, GensokyouConfig.BOUSEN_EXTINGUISH_PERIOD_TICKS.get());
+        return Math.max(1, BalanceNumbers.BOUSEN_EXTINGUISH_PERIOD_TICKS);
     }
 
     /** 蜡烛全量重扫周期（tick）。 */
     public static int scanPeriodTicks() {
-        return Math.max(1, GensokyouConfig.BOUSEN_CANDLE_SCAN_PERIOD_TICKS.get());
+        return Math.max(1, BalanceNumbers.BOUSEN_CANDLE_SCAN_PERIOD_TICKS);
     }
 
     // ================================================================= tick 通道

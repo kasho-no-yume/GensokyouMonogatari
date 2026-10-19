@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.event;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.bitsson.gensokyou.spirit.SpiritPowerData;
@@ -52,9 +53,9 @@ public final class SpiritLeechHandler {
         }
         LedgerData ledger = player.getData(ModAttachments.SPIRIT_LEECH_LEDGER.get())
                 .advance(player.level().getGameTime(),
-                        Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get()),
-                        GensokyouConfig.SPIRIT_LEECH_MAX_PER_SECOND.get().floatValue()
-                                * Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get()) / 20F);
+                        Math.max(1, BalanceNumbers.SETTLE_PERIOD_TICKS),
+                        BalanceNumbers.SPIRIT_LEECH_MAX_PER_SECOND.floatValue()
+                                * Math.max(1, BalanceNumbers.SETTLE_PERIOD_TICKS) / 20F);
         float gain = AttributeMath.leechGain(dealt, rate, ledger.remaining());
         if (gain > 0F) {
             player.setData(ModAttachments.SPIRIT_LEECH_LEDGER.get(), ledger.consume(gain));

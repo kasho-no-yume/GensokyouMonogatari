@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.event;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModItems;
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.bitsson.gensokyou.spirit.SpiritPowerData;
@@ -45,7 +46,7 @@ public final class GensokyouArmorEvents {
         if (pieces == 0) {
             return;
         }
-        double multiplier = (double) GensokyouConfig.ARMOR_SPIRIT_REGEN_BONUS.get();
+        double multiplier = (double) BalanceNumbers.ARMOR_SPIRIT_REGEN_BONUS;
         if (multiplier <= 1.0D) {
             return;
         }

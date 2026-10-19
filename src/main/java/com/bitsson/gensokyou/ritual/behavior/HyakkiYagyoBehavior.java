@@ -1,5 +1,8 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SummonSession;
 import com.bitsson.gensokyou.ritual.SummonPhase;
 import com.bitsson.gensokyou.ritual.RitualBehaviorState;
@@ -7,7 +10,6 @@ import com.bitsson.gensokyou.ritual.RitualBehaviorState;
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -80,7 +82,7 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
         com.bitsson.gensokyou.ritual.SummonSession s = summon(core);
         boolean active = s.phase() != SummonPhase.IDLE;
         return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SUMMON, active, match.level(), s.fxStart(),
-                com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_BURST_TICKS.get(), com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_PILLAR_HOLD_TICKS.get(),
+                BalanceNumbers.FX_SUMMON_BURST_TICKS, BalanceNumbers.FX_SUMMON_PILLAR_HOLD_TICKS,
                 new long[0], 0, s.phase().ordinal());
     }
 
@@ -305,7 +307,7 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
         if (!!summon(core).isIdle()) {
             return 0L;
         }
-        int divisor = Math.max(1, GensokyouConfig.SUMMON_IN_RATE_DIVISOR.get());
+        int divisor = Math.max(1, GensokyouServerConfig.SUMMON_IN_RATE_DIVISOR.get());
         return Math.max(1L, summon(core).cost() / divisor);
     }
 
@@ -319,15 +321,15 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
                                         SpiritPowerAccess core) {
         int elapsed = elapsed(level, core);
         if (summon(core).phase() == SummonPhase.BURST) {
-            if (elapsed >= GensokyouConfig.FX_SUMMON_BURST_TICKS.get()) {
+            if (elapsed >= BalanceNumbers.FX_SUMMON_BURST_TICKS) {
                 summon(core).setPhase(SummonPhase.PILLAR); core.markDirty();
                 spawnBoss(level, corePos, core);
             }
             return;
         }
-        int total = GensokyouConfig.FX_SUMMON_BURST_TICKS.get()
-                + GensokyouConfig.FX_SUMMON_PILLAR_HOLD_TICKS.get()
-                + GensokyouConfig.FX_SUMMON_PILLAR_RETRACT_TICKS.get();
+        int total = BalanceNumbers.FX_SUMMON_BURST_TICKS
+                + BalanceNumbers.FX_SUMMON_PILLAR_HOLD_TICKS
+                + BalanceNumbers.FX_SUMMON_PILLAR_RETRACT_TICKS;
         if (elapsed < total) {
             return;
         }
@@ -399,7 +401,7 @@ public class HyakkiYagyoBehavior implements RitualBehavior {
             return 0L;
         }
         long cost = summon(core).cost();
-        int divisor = Math.max(1, GensokyouConfig.SUMMON_IN_RATE_DIVISOR.get());
+        int divisor = Math.max(1, GensokyouServerConfig.SUMMON_IN_RATE_DIVISOR.get());
         return cost <= 0L ? 0L : Math.max(1L, cost / divisor);
     }
 

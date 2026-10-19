@@ -1,7 +1,9 @@
 package com.bitsson.gensokyou.client.book;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.client.ritual.ClientRitualData;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualRecipe;
 import com.bitsson.gensokyou.ritual.RitualScaling;
@@ -26,7 +28,7 @@ import java.util.function.UnaryOperator;
 
 /**
  * 仪式「阶级详情」组件：读取 {@code ritual} + {@code tier}，渲染该阶的**具体参数**
- * （按该阶从 {@link GensokyouConfig} 计算，不写公式、不带类型标签）与该阶配方/供品。
+ * （按该阶从 {@link BalanceNumbers} 计算，不写公式、不带类型标签）与该阶配方/供品。
  * 页面本身挂对应阶级门槛（世界进度：下界/末地/幻想乡；4/5 阶为过渡）。
  *
  * <p>complete-ritual-book-entries D3：不再渲染「搭建材料」段；全部文本经
@@ -144,63 +146,63 @@ public class RitualTierComponent implements ICustomComponent {
         int L = Math.max(0, tier);
         switch (id.getPath()) {
             case "kagutsuchi_flame_circle" -> {
-                add(out, "产灵", secs(GensokyouConfig.KAGUTSUICHI_BASE_RATE_PER_SECOND.get() * pow(4, L)));
-                add(out, "输出上限", secs(GensokyouConfig.KAGUTSUICHI_BASE_OUT_RATE_PER_SECOND.get() * pow(4, L)));
-                add(out, "缓存", compact(GensokyouConfig.KAGUTSUICHI_BASE_CAPACITY.get() * pow(10, L)));
+                add(out, "产灵", secs(GensokyouServerConfig.KAGUTSUICHI_BASE_RATE_PER_SECOND.get() * pow(4, L)));
+                add(out, "输出上限", secs(GensokyouServerConfig.KAGUTSUICHI_BASE_OUT_RATE_PER_SECOND.get() * pow(4, L)));
+                add(out, "缓存", compact(GensokyouServerConfig.KAGUTSUICHI_BASE_CAPACITY.get() * pow(10, L)));
             }
             case "yumewatari_circle" -> {
-                add(out, "每次睡觉产灵", compact(GensokyouConfig.YUMEWATARI_PRODUCTION_PER_SLEEPER.get() * pow(4, L)));
-                add(out, "输出上限", compact(GensokyouConfig.YUMEWATARI_OUT_RATE_PER_SECOND.get()) + " /秒");
-                add(out, "缓存", compact(GensokyouConfig.YUMEWATARI_BASE_CAPACITY.get() * pow(4, L)));
+                add(out, "每次睡觉产灵", compact(GensokyouServerConfig.YUMEWATARI_PRODUCTION_PER_SLEEPER.get() * pow(4, L)));
+                add(out, "输出上限", compact(GensokyouServerConfig.YUMEWATARI_OUT_RATE_PER_SECOND.get()) + " /秒");
+                add(out, "缓存", compact(GensokyouServerConfig.YUMEWATARI_BASE_CAPACITY.get() * pow(4, L)));
             }
             case "haniyasu_circle", "kukunochi_circle", "kaya_no_hime_circle", "oyamatsumi_circle" -> {
-                add(out, "受灵上限", compact(GensokyouConfig.SACRIFICE_SPIRIT_IN_RATE.get()) + " /秒");
-                add(out, "缓存", compact(GensokyouConfig.SACRIFICE_BASE_CAPACITY.get() * pow(4, L)));
-                add(out, "每次结算", "耗灵 " + compact(GensokyouConfig.SACRIFICE_BASE_SP_COST.get()
-                        * pow(GensokyouConfig.SACRIFICE_SP_COST_MULT.get(), L))
-                        + "，产出 " + compact(GensokyouConfig.SACRIFICE_BASE_COUNT.get()
-                        * pow(GensokyouConfig.SACRIFICE_COUNT_MULT.get(), L)) + " 件");
-                add(out, "冷却", (GensokyouConfig.SACRIFICE_COOLDOWN_TICKS.get() / 20) + " 秒");
+                add(out, "受灵上限", compact(GensokyouServerConfig.SACRIFICE_SPIRIT_IN_RATE.get()) + " /秒");
+                add(out, "缓存", compact(GensokyouServerConfig.SACRIFICE_BASE_CAPACITY.get() * pow(4, L)));
+                add(out, "每次结算", "耗灵 " + compact(GensokyouServerConfig.SACRIFICE_BASE_SP_COST.get()
+                        * pow(GensokyouServerConfig.SACRIFICE_SP_COST_MULT.get(), L))
+                        + "，产出 " + compact(BalanceNumbers.SACRIFICE_BASE_COUNT
+                        * pow(GensokyouServerConfig.SACRIFICE_COUNT_MULT.get(), L)) + " 件");
+                add(out, "冷却", (GensokyouServerConfig.SACRIFICE_COOLDOWN_TICKS.get() / 20) + " 秒");
             }
             case "watatsumi_circle" -> {
-                add(out, "受灵上限", compact(GensokyouConfig.SACRIFICE_SPIRIT_IN_RATE.get()) + " /秒");
-                add(out, "缓存", compact(GensokyouConfig.SACRIFICE_BASE_CAPACITY.get() * pow(4, L)));
-                add(out, "每次结算", "耗灵 " + compact(GensokyouConfig.SACRIFICE_BASE_SP_COST.get()
-                        * pow(GensokyouConfig.SACRIFICE_SP_COST_MULT.get(), L))
-                        + "，产出 " + compact(GensokyouConfig.WATATSUMI_BASE_COUNT.get()
-                        * pow(GensokyouConfig.WATATSUMI_COUNT_MULT.get(), L)) + " 件");
-                String cd = "冷却 " + (GensokyouConfig.WATATSUMI_BASE_COOLDOWN_TICKS.get() / 20) + " 秒";
+                add(out, "受灵上限", compact(GensokyouServerConfig.SACRIFICE_SPIRIT_IN_RATE.get()) + " /秒");
+                add(out, "缓存", compact(GensokyouServerConfig.SACRIFICE_BASE_CAPACITY.get() * pow(4, L)));
+                add(out, "每次结算", "耗灵 " + compact(GensokyouServerConfig.SACRIFICE_BASE_SP_COST.get()
+                        * pow(GensokyouServerConfig.SACRIFICE_SP_COST_MULT.get(), L))
+                        + "，产出 " + compact(BalanceNumbers.WATATSUMI_BASE_COUNT
+                        * pow(GensokyouServerConfig.WATATSUMI_COUNT_MULT.get(), L)) + " 件");
+                String cd = "冷却 " + (GensokyouServerConfig.WATATSUMI_BASE_COOLDOWN_TICKS.get() / 20) + " 秒";
                 if (L >= 2) {
-                    cd += "；宝藏冷却 " + (GensokyouConfig.WATATSUMI_BONUS_COOLDOWN_TICKS.get() / 20) + " 秒";
+                    cd += "；宝藏冷却 " + (GensokyouServerConfig.WATATSUMI_BONUS_COOLDOWN_TICKS.get() / 20) + " 秒";
                 }
                 add(out, "冷却", cd);
             }
             case "shujou_yoroku_circle" -> {
-                add(out, "缓存", compact((long) GensokyouConfig.SHUJOU_BASE_CAPACITY.get()
-                        * pow(GensokyouConfig.SHUJOU_CAPACITY_MULT.get(), L)));
-                add(out, "受灵上限", compact(GensokyouConfig.SHUJOU_SPIRIT_IN_RATE.get()) + " /秒");
-                add(out, "周期", (GensokyouConfig.SHUJOU_CYCLE_TICKS.get() / 20) + " 秒");
-                add(out, "每种耗灵", compact((long) GensokyouConfig.SHUJOU_BASE_SP_COST.get()
-                        * pow(GensokyouConfig.SHUJOU_SP_COST_MULT.get(), L)));
-                String loot = "模拟抢夺 " + GensokyouConfig.SHUJOU_LOOTING_LEVEL.get();
+                add(out, "缓存", compact((long) GensokyouServerConfig.SHUJOU_BASE_CAPACITY.get()
+                        * pow(GensokyouServerConfig.SHUJOU_CAPACITY_MULT.get(), L)));
+                add(out, "受灵上限", compact(GensokyouServerConfig.SHUJOU_SPIRIT_IN_RATE.get()) + " /秒");
+                add(out, "周期", (GensokyouServerConfig.SHUJOU_CYCLE_TICKS.get() / 20) + " 秒");
+                add(out, "每种耗灵", compact((long) GensokyouServerConfig.SHUJOU_BASE_SP_COST.get()
+                        * pow(GensokyouServerConfig.SHUJOU_SP_COST_MULT.get(), L)));
+                String loot = "模拟抢夺 " + GensokyouServerConfig.SHUJOU_LOOTING_LEVEL.get();
                 if (L >= 2) {
-                    loot += "；产出 ×" + GensokyouConfig.SHUJOU_L2_OUTPUT_MULT.get();
+                    loot += "；产出 ×" + GensokyouServerConfig.SHUJOU_L2_OUTPUT_MULT.get();
                 }
                 add(out, "产出", loot);
             }
             case "chinkon_hanshou_circle" -> {
-                long cap = (long) GensokyouConfig.CHINKON_BASE_CAPACITY.get();
+                long cap = (long) GensokyouServerConfig.CHINKON_BASE_CAPACITY.get();
                 for (int i = 1; i < L; i++) {
-                    cap *= GensokyouConfig.CHINKON_CAPACITY_MULT.get();
+                    cap *= GensokyouServerConfig.CHINKON_CAPACITY_MULT.get();
                 }
                 add(out, "缓存", compact(cap));
-                add(out, "受灵上限", compact(GensokyouConfig.CHINKON_SPIRIT_IN_RATE.get()) + " /秒");
-                add(out, "耗灵(品阶1)", compact((long) GensokyouConfig.CHINKON_BASE_SP_COST.get()));
-                add(out, "耗灵放大", "×" + GensokyouConfig.CHINKON_SP_COST_MULT.get() + "^(残魂品阶-1)");
-                add(out, "产出", "碎符卡星 " + GensokyouConfig.CHINKON_STAR_MIN.get()
-                        + "~" + GensokyouConfig.CHINKON_STAR_MAX.get()
-                        + "、主题信物 " + GensokyouConfig.CHINKON_SIGNATURE_MIN.get()
-                        + "~" + GensokyouConfig.CHINKON_SIGNATURE_MAX.get());
+                add(out, "受灵上限", compact(GensokyouServerConfig.CHINKON_SPIRIT_IN_RATE.get()) + " /秒");
+                add(out, "耗灵(品阶1)", compact((long) GensokyouServerConfig.CHINKON_BASE_SP_COST.get()));
+                add(out, "耗灵放大", "×" + GensokyouServerConfig.CHINKON_SP_COST_MULT.get() + "^(残魂品阶-1)");
+                add(out, "产出", "碎符卡星 " + GensokyouServerConfig.CHINKON_STAR_MIN.get()
+                        + "~" + GensokyouServerConfig.CHINKON_STAR_MAX.get()
+                        + "、主题信物 " + GensokyouServerConfig.CHINKON_SIGNATURE_MIN.get()
+                        + "~" + GensokyouServerConfig.CHINKON_SIGNATURE_MAX.get());
             }
             case "houjouno_teihou_circle" -> {
                 int slots = switch (L) {
@@ -209,24 +211,24 @@ public class RitualTierComponent implements ICustomComponent {
                     default -> 4;
                 };
                 long capacity = RitualScaling.scale(
-                        GensokyouConfig.HOUJOUNO_TEIHOU_BASE_CAPACITY.get(),
-                        GensokyouConfig.HOUJOUNO_TEIHOU_CAPACITY_MULTIPLIER.get(), L);
+                        GensokyouServerConfig.HOUJOUNO_TEIHOU_BASE_CAPACITY.get(),
+                        GensokyouServerConfig.HOUJOUNO_TEIHOU_CAPACITY_MULTIPLIER.get(), L);
                 long inRate = RitualScaling.scale(
-                        GensokyouConfig.HOUJOUNO_TEIHOU_BASE_IN_RATE_PER_SECOND.get(),
-                        GensokyouConfig.HOUJOUNO_TEIHOU_IN_RATE_MULTIPLIER.get(), L);
+                        GensokyouServerConfig.HOUJOUNO_TEIHOU_BASE_IN_RATE_PER_SECOND.get(),
+                        GensokyouServerConfig.HOUJOUNO_TEIHOU_IN_RATE_MULTIPLIER.get(), L);
                 long unitCost = RitualScaling.scale(
-                        GensokyouConfig.HOUJOUNO_TEIHOU_BASE_COST_PER_PEDESTAL.get(),
-                        GensokyouConfig.HOUJOUNO_TEIHOU_COST_MULTIPLIER.get(), L);
+                        GensokyouServerConfig.HOUJOUNO_TEIHOU_BASE_COST_PER_PEDESTAL.get(),
+                        GensokyouServerConfig.HOUJOUNO_TEIHOU_COST_MULTIPLIER.get(), L);
                 long totalCost = RitualScaling.saturatingMultiply(unitCost, slots);
                 long samples = RitualScaling.scale(
-                        GensokyouConfig.HOUJOUNO_TEIHOU_BASE_SAMPLE_COUNT.get(),
-                        GensokyouConfig.HOUJOUNO_TEIHOU_SAMPLE_COUNT_MULTIPLIER.get(), L);
+                        BalanceNumbers.HOUJOUNO_TEIHOU_BASE_SAMPLE_COUNT,
+                        GensokyouServerConfig.HOUJOUNO_TEIHOU_SAMPLE_COUNT_MULTIPLIER.get(), L);
                 add(out, "缓存", compact(capacity));
                 add(out, "受灵上限", compact(inRate) + " /秒");
                 add(out, "单台耗灵", compact(unitCost));
                 add(out, "满台耗灵", compact(totalCost));
                 add(out, "每台采样", compact(samples) + " 次");
-                add(out, "冷却", ((GensokyouConfig.HOUJOUNO_TEIHOU_CYCLE_TICKS.get() + 19) / 20) + " 秒");
+                add(out, "冷却", ((GensokyouServerConfig.HOUJOUNO_TEIHOU_CYCLE_TICKS.get() + 19) / 20) + " 秒");
             }
             case "sunako_circle" -> {
                 // 祭品台数取自 sunako_circle pattern 的四重展开结果（4 / 4 / 8），与结构同源；
@@ -264,37 +266,37 @@ public class RitualTierComponent implements ICustomComponent {
                 });
             }
             case "nichirin_circle" -> {
-                add(out, "峰值产灵", secs(GensokyouConfig.NICHIRIN_BASE_RATE_PER_SECOND.get() * pow(4, L)));
-                add(out, "输出上限", compact(GensokyouConfig.NICHIRIN_OUT_RATE_PER_SECOND.get()) + " /秒");
-                add(out, "缓存", compact(GensokyouConfig.NICHIRIN_BASE_CAPACITY.get() * pow(4, L)));
+                add(out, "峰值产灵", secs(GensokyouServerConfig.NICHIRIN_BASE_RATE_PER_SECOND.get() * pow(4, L)));
+                add(out, "输出上限", compact(GensokyouServerConfig.NICHIRIN_OUT_RATE_PER_SECOND.get()) + " /秒");
+                add(out, "缓存", compact(GensokyouServerConfig.NICHIRIN_BASE_CAPACITY.get() * pow(4, L)));
             }
             case "tsukikage_circle" -> {
-                add(out, "峰值产灵", secs(GensokyouConfig.TSUKIKAGE_BASE_RATE_PER_SECOND.get() * pow(4, L)));
-                add(out, "输出上限", compact(GensokyouConfig.TSUKIKAGE_OUT_RATE_PER_SECOND.get()) + " /秒");
-                add(out, "缓存", compact(GensokyouConfig.TSUKIKAGE_BASE_CAPACITY.get() * pow(4, L)));
+                add(out, "峰值产灵", secs(GensokyouServerConfig.TSUKIKAGE_BASE_RATE_PER_SECOND.get() * pow(4, L)));
+                add(out, "输出上限", compact(GensokyouServerConfig.TSUKIKAGE_OUT_RATE_PER_SECOND.get()) + " /秒");
+                add(out, "缓存", compact(GensokyouServerConfig.TSUKIKAGE_BASE_CAPACITY.get() * pow(4, L)));
             }
             case "wujinzang_circle" -> {
-                add(out, "缓存", compact((long) GensokyouConfig.WUJINZANG_BASE_CAPACITY.get()
-                        * pow(GensokyouConfig.WUJINZANG_MULT.get(), L)));
-                add(out, "受灵上限", compact(GensokyouConfig.WUJINZANG_IN_RATE.get()) + " /秒");
-                add(out, "运行耗灵", compact((long) GensokyouConfig.WUJINZANG_BASE_DRAIN.get()
-                        * pow(GensokyouConfig.WUJINZANG_MULT.get(), L)) + " /秒");
+                add(out, "缓存", compact((long) GensokyouServerConfig.WUJINZANG_BASE_CAPACITY.get()
+                        * pow(GensokyouServerConfig.WUJINZANG_MULT.get(), L)));
+                add(out, "受灵上限", compact(GensokyouServerConfig.WUJINZANG_IN_RATE.get()) + " /秒");
+                add(out, "运行耗灵", compact((long) GensokyouServerConfig.WUJINZANG_BASE_DRAIN.get()
+                        * pow(GensokyouServerConfig.WUJINZANG_MULT.get(), L)) + " /秒");
             }
             case "kanayamahiko_circle" -> {
-                long divisor = Math.max(1L, pow(GensokyouConfig.KANAYAMAHIKO_DURATION_LEVEL_DIVISOR.get(), L));
-                long durationTicks = Math.max(1L, (GensokyouConfig.KANAYAMAHIKO_BASE_DURATION_SECONDS.get() * 20L
+                long divisor = Math.max(1L, pow(GensokyouServerConfig.KANAYAMAHIKO_DURATION_LEVEL_DIVISOR.get(), L));
+                long durationTicks = Math.max(1L, (GensokyouServerConfig.KANAYAMAHIKO_BASE_DURATION_SECONDS.get() * 20L
                         + divisor - 1L) / divisor);
                 add(out, "熔炼时间", String.format(java.util.Locale.ROOT, "%.1f", durationTicks / 20.0D) + " 秒");
-                add(out, "单件耗灵", compact((long) GensokyouConfig.KANAYAMAHIKO_BASE_DRAIN_PER_SECOND.get()
-                        * pow(GensokyouConfig.KANAYAMAHIKO_POWER_MULTIPLIER.get(), L)) + " /秒");
-                add(out, "缓存", compact((long) GensokyouConfig.KANAYAMAHIKO_BASE_CAPACITY.get()
-                        * pow(GensokyouConfig.KANAYAMAHIKO_CAPACITY_MULTIPLIER.get(), L)));
-                add(out, "受灵上限", compact((long) GensokyouConfig.KANAYAMAHIKO_BASE_ROUTED_INPUT_PER_SECOND.get()
-                        * pow(GensokyouConfig.KANAYAMAHIKO_IN_RATE_MULTIPLIER.get(), L)) + " /秒");
+                add(out, "单件耗灵", compact((long) GensokyouServerConfig.KANAYAMAHIKO_BASE_DRAIN_PER_SECOND.get()
+                        * pow(GensokyouServerConfig.KANAYAMAHIKO_POWER_MULTIPLIER.get(), L)) + " /秒");
+                add(out, "缓存", compact((long) GensokyouServerConfig.KANAYAMAHIKO_BASE_CAPACITY.get()
+                        * pow(GensokyouServerConfig.KANAYAMAHIKO_CAPACITY_MULTIPLIER.get(), L)));
+                add(out, "受灵上限", compact((long) GensokyouServerConfig.KANAYAMAHIKO_BASE_ROUTED_INPUT_PER_SECOND.get()
+                        * pow(GensokyouServerConfig.KANAYAMAHIKO_IN_RATE_MULTIPLIER.get(), L)) + " /秒");
             }
-            case "zaohua_circle" -> add(out, "受灵上限", compact((long) GensokyouConfig.ZAOHUA_SPIRIT_IN_RATE_BASE.get()
-                    * pow(GensokyouConfig.ZAOHUA_SPIRIT_IN_RATE_MULT.get(), L)) + " /秒");
-            case "kami_no_megumi_circle" -> add(out, "受灵上限", compact(GensokyouConfig.GRACE_SPIRIT_IN_RATE.get()) + " /秒");
+            case "zaohua_circle" -> add(out, "受灵上限", compact((long) GensokyouServerConfig.ZAOHUA_SPIRIT_IN_RATE_BASE.get()
+                    * pow(GensokyouServerConfig.ZAOHUA_SPIRIT_IN_RATE_MULT.get(), L)) + " /秒");
+            case "kami_no_megumi_circle" -> add(out, "受灵上限", compact(GensokyouServerConfig.GRACE_SPIRIT_IN_RATE.get()) + " /秒");
             case "bafang_guiyuan_circle" -> add(out, "可托管核心", "tier ≤ " + L + " 的灵力核心");
             case "tsukumogami_no_tsuka" -> {
                 // 数值全部现算自 config（与行为侧同一组静态函数口径），不写公式。
@@ -322,18 +324,18 @@ public class RitualTierComponent implements ICustomComponent {
             }
             case "resonance_relay" -> {
                 long scale = pow(2, Math.max(0, L - 2));
-                add(out, "输入连接", String.valueOf(GensokyouConfig.RESONANCE_BASE_IN_QUOTA.get() * scale));
-                add(out, "输出连接", String.valueOf(GensokyouConfig.RESONANCE_BASE_OUT_QUOTA.get() * scale));
-                add(out, "连接半径", (GensokyouConfig.RESONANCE_BASE_RADIUS.get() * scale) + " 格");
+                add(out, "输入连接", String.valueOf(GensokyouServerConfig.RESONANCE_BASE_IN_QUOTA.get() * scale));
+                add(out, "输出连接", String.valueOf(GensokyouServerConfig.RESONANCE_BASE_OUT_QUOTA.get() * scale));
+                add(out, "连接半径", (GensokyouServerConfig.RESONANCE_BASE_RADIUS.get() * scale) + " 格");
             }
             case "barrier_break_circle" -> {
                 // 单一阶级，故各项不随 L 变化；数值全部现算自 config，不写公式。
                 // 受灵上限一行刻意不填数值——它等于八方归元的聚合输出，随托管核而变，
                 // 写死任何数字都是谎报；且在阶门槛（末地）之前尚无可用的二阶灵核。
-                add(out, "结界缓存", compact(GensokyouConfig.BARRIER_CAPACITY.get()));
-                add(out, "自然流失", compact(GensokyouConfig.BARRIER_DRAIN_PER_SECOND.get()) + " /秒");
+                add(out, "结界缓存", compact(GensokyouServerConfig.BARRIER_CAPACITY.get()));
+                add(out, "自然流失", compact(GensokyouServerConfig.BARRIER_DRAIN_PER_SECOND.get()) + " /秒");
                 add(out, "受灵上限", "视归元托管数而定");
-                add(out, "建议备料", compact(GensokyouConfig.BARRIER_SUPPLY_HINT.get()));
+                add(out, "建议备料", compact(GensokyouServerConfig.BARRIER_SUPPLY_HINT.get()));
             }
             default -> {
             }

@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.goal.FanDanmakuGoal;
 import com.bitsson.gensokyou.registry.ModItems;
 import net.minecraft.server.level.ServerLevel;
@@ -26,14 +27,14 @@ public class CirnoEntity extends FairyEntity {
     @Override
     protected void addAttackGoals() {
         this.goalSelector.addGoal(3, new FanDanmakuGoal(this,
-                GensokyouConfig.FAIRY_SHOT_INTERVAL.get(), 5, 30D,
-                GensokyouConfig.DANMAKU_SPEED.get(),
-                (float) (GensokyouConfig.BIG_FAIRY_DAMAGE.get() * 1.5D)));
+                BalanceNumbers.FAIRY_SHOT_INTERVAL, 5, 30D,
+                BalanceNumbers.DANMAKU_SPEED,
+                (float) (BalanceNumbers.BIG_FAIRY_DAMAGE * 1.5D)));
     }
 
     @Override
     protected double maxHealthValue() {
-        return GensokyouConfig.BIG_FAIRY_MAX_HEALTH.get() * 2.5D;
+        return BalanceNumbers.BIG_FAIRY_MAX_HEALTH * 2.5D;
     }
 
     @Override

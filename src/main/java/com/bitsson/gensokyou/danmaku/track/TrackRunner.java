@@ -1,6 +1,9 @@
 package com.bitsson.gensokyou.danmaku.track;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.DanmakuEmitter;
 import net.minecraft.server.level.ServerLevel;
@@ -271,7 +274,7 @@ public final class TrackRunner {
         }
         prevCycleStep = step;
         // 符印调度：在本轮到期的拍之前 lead tick，按锁轴规则生成符印（与真弹共用同一快照）。
-        if (GensokyouConfig.DANMAKU_TELEGRAPH_ENABLED.get()) {
+        if (GensokyouServerConfig.DANMAKU_TELEGRAPH_ENABLED.get()) {
             scheduleTelegraphs(boss, targets, step);
         }
         for (int i = 0; i < current.tracks().size(); i++) {
@@ -494,7 +497,7 @@ public final class TrackRunner {
      * <p>最小安全距离为 0 时整条关闭，行为与引入前一致。
      */
     private static boolean spawnGroupSafe(List<Geometry.Shot> shots, List<Player> targets) {
-        double min = GensokyouConfig.DANMAKU_MIN_SPAWN_DISTANCE.get();
+        double min = BalanceNumbers.DANMAKU_MIN_SPAWN_DISTANCE;
         if (min <= 0.0D || targets.isEmpty()) {
             return true;
         }
@@ -570,7 +573,7 @@ public final class TrackRunner {
         out.add("tick=" + tick);
         out.add("tracks=" + (current == null ? 0 : current.tracks().size()));
         out.add("palette=" + palette.size());
-        out.add("budget=" + GensokyouConfig.DANMAKU_ENTITY_CAP.get());
+        out.add("budget=" + BalanceNumbers.DANMAKU_ENTITY_CAP);
         return out;
     }
 }

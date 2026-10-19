@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.item.weapon;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.registry.ModDataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -40,7 +41,7 @@ public final class WeaponSlotsHelper {
 
     /** 槽2等级对应的伤害增强系数（配置表，等级越高越大）。 */
     public static float weaponLevelMult(ItemStack weapon) {
-        List<? extends Double> table = GensokyouConfig.WEAPON_LEVEL_MULT.get();
+        List<? extends Double> table = BalanceNumbers.WEAPON_LEVEL_MULT;
         int level = Math.max(1, weaponLevel(weapon));
         int index = Math.min(level - 1, table.size() - 1);
         return index < 0 ? 1.0F : table.get(index).floatValue();

@@ -1,12 +1,14 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.GraceSession;
 import com.bitsson.gensokyou.ritual.GracePhase;
 
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualMatch;
@@ -240,7 +242,7 @@ public final class YaoyorozuGraceService {
             abortSession(level, corePos, core, "msg.gensokyou.grace_initiator_lost");
             return;
         }
-        double radius = GensokyouConfig.GRACE_PRESENCE_RADIUS.get();
+        double radius = BalanceNumbers.GRACE_PRESENCE_RADIUS;
         if (initiator.distanceToSqr(corePos.getX() + 0.5D, corePos.getY() + 0.5D,
                 corePos.getZ() + 0.5D) > radius * radius) {
             return; // 在场约束：离开半径暂停收灵等待回来（不算失败）
@@ -288,13 +290,13 @@ public final class YaoyorozuGraceService {
     private static void tickPerform(ServerLevel level, BlockPos corePos,
                                     SpiritPowerAccess core) {
         grace(core).advancePerform();
-        int duration = GensokyouConfig.GRACE_PERFORM_TICKS.get();
+        int duration = GensokyouServerConfig.GRACE_PERFORM_TICKS.get();
         ServerPlayer initiator = resolveInitiator(level, grace(core).initiator());
         if (initiator == null || !initiator.isAlive()) {
             finishPerform(level, corePos, core, null);
             return;
         }
-        double maxDistance = GensokyouConfig.GRACE_PERFORM_MAX_DISTANCE.get();
+        double maxDistance = BalanceNumbers.GRACE_PERFORM_MAX_DISTANCE;
         if (initiator.distanceToSqr(corePos.getX() + 0.5D, corePos.getY() + 0.5D,
                 corePos.getZ() + 0.5D) > maxDistance * maxDistance) {
             finishPerform(level, corePos, core, initiator);
@@ -319,8 +321,8 @@ public final class YaoyorozuGraceService {
         initiator.setDeltaMovement(Vec3.ZERO);
         // 脚本掉血/回血：每 10 tick 一档（3♥/s 扣、8♥/s 回，保底 1 心不致死）
         if (ticks % 10 == 9) {
-            double damage = Math.max(0D, GensokyouConfig.GRACE_PERFORM_DAMAGE_PER_SECOND.get() / 2D);
-            double heal = Math.max(0D, GensokyouConfig.GRACE_PERFORM_HEAL_PER_SECOND.get() / 2D);
+            double damage = Math.max(0D, BalanceNumbers.GRACE_PERFORM_DAMAGE_PER_SECOND / 2D);
+            double heal = Math.max(0D, BalanceNumbers.GRACE_PERFORM_HEAL_PER_SECOND / 2D);
             float affordable = Math.max(0F, (float) (initiator.getHealth() - 2.0F));
             float dealt = (float) Math.min(damage, affordable);
             if (dealt > 0F) {
@@ -330,7 +332,7 @@ public final class YaoyorozuGraceService {
             initiator.heal((float) heal);
         }
         // 装饰落雷（isEffect：无火无伤）
-        if (ticks % Math.max(1, GensokyouConfig.GRACE_PERFORM_LIGHTNING_INTERVAL.get()) == 0) {
+        if (ticks % Math.max(1, BalanceNumbers.GRACE_PERFORM_LIGHTNING_INTERVAL) == 0) {
             strikeLightning(level, core, corePos);
         }
         // 环绕玩家与核心的紫色粒子柱
@@ -369,7 +371,7 @@ public final class YaoyorozuGraceService {
                 }
             }
         }
-        int count = Math.max(1, GensokyouConfig.GRACE_PERFORM_LIGHT_COUNT.get());
+        int count = Math.max(1, BalanceNumbers.GRACE_PERFORM_LIGHT_COUNT);
         for (int i = 0; i < count; i++) {
             double x = minX + level.random.nextDouble() * (maxX - minX + 1);
             double z = minZ + level.random.nextDouble() * (maxZ - minZ + 1);

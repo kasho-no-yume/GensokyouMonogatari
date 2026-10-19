@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.command;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.danmaku.DanmakuEmitter;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
@@ -428,7 +430,7 @@ public final class DanmakuTestCommands {
                 new DanmakuPreview.CardSet(List.of(card),
                         com.bitsson.gensokyou.danmaku.track.SignaturePalette.of(0x66E8FF)),
                 List.of(card), 6, 0.0F);
-        double min = com.bitsson.gensokyou.config.GensokyouConfig.DANMAKU_MIN_SPAWN_DISTANCE.get();
+        double min = BalanceNumbers.DANMAKU_MIN_SPAWN_DISTANCE;
         player.sendSystemMessage(Component.literal(String.format(
                 "§c安全取消 §7目标出生距玩家约 %.1f 格（最小安全距离 %.1f）。§f%s",
                 offset, min,
@@ -504,7 +506,7 @@ public final class DanmakuTestCommands {
                 new DanmakuPreview.CardSet(List.of(card),
                         com.bitsson.gensokyou.danmaku.track.SignaturePalette.of(0x66E8FF)),
                 List.of(card), 30, 0.0F);
-        double min = com.bitsson.gensokyou.config.GensokyouConfig.DANMAKU_MIN_SPAWN_DISTANCE.get();
+        double min = BalanceNumbers.DANMAKU_MIN_SPAWN_DISTANCE;
         player.sendSystemMessage(Component.literal(String.format(
                 "§c安全观察 §7每 20 tick 在装置处重发一组。§f%s（最小安全距离 %.1f）",
                 "朝装置走近到 6 格内：整组应消失；走远：整组恢复。读 safetyCancelled 是否随走位递增",

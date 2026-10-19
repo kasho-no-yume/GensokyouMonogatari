@@ -1,7 +1,9 @@
 package com.bitsson.gensokyou.menu;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
+
 import com.bitsson.gensokyou.block.entity.SpiritBombBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.network.SpiritBombStatePayload;
 import com.bitsson.gensokyou.registry.ModMenus;
@@ -112,6 +114,6 @@ public class SpiritBombMenu extends AbstractContainerMenu {
 
     /** 新放置引爆器的默认引信（服务端在放置时写入）。 */
     public static int defaultFuseTicks() {
-        return GensokyouConfig.SPIRIT_BOMB_DEFAULT_FUSE_TICKS.get();
+        return GensokyouServerConfig.SPIRIT_BOMB_DEFAULT_FUSE_TICKS.get();
     }
 }

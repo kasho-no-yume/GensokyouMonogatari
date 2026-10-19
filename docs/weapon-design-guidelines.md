@@ -122,7 +122,7 @@
 
 ## 7. 变更流程
 
-- 改数值先改本文档与 spec，再改 `GensokyouConfig`；禁止在行为代码里硬编码。
+- 改数值先改本文档与 spec，再改**代码常量**（`*Numbers`）；战力数值 MUST NOT 配置化。
 - 与玩家曲线（`balance-player-monster-stats`）联动：任何改动都要重跑 §2 的 ×10/阶校验。
 
 ## 8. 改 `spirit_power` 时的牵连面

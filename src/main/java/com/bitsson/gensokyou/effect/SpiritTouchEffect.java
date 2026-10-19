@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.effect;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 
@@ -9,7 +10,7 @@ import net.minecraft.world.effect.MobEffectCategory;
  *
  * <p><b>为什么加成的常量在构造期写死而不是读 config</b>：
  * {@code MobEffect#addAttributeModifier} 在<b>构造函数</b>里就把修饰符固化进内部 map，
- * 而效果注册发生在 config 加载之前——在那里读 {@code GensokyouConfig} 会直接抛
+ * 而效果注册发生在 config 加载之前——在那里读 {@code BalanceNumbers} 会直接抛
  * {@code IllegalStateException: Cannot get config value before config is loaded}。
  * 这是原版属性修饰体系的固有约束：修饰符是条目级静态数据，不是每实例动态值。
  *
@@ -52,6 +53,6 @@ public class SpiritTouchEffect extends MobEffect {
 
     /** 配置读取入口（运行期安全）：供工具提示与调试面板用。 */
     public static double configuredBase() {
-        return Math.max(0.0D, GensokyouConfig.SPIRIT_TOUCH_RANGE_BONUS.get());
+        return Math.max(0.0D, BalanceNumbers.SPIRIT_TOUCH_RANGE_BONUS);
     }
 }

@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.danmaku;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.AbstractDanmakuProjectile;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -174,7 +175,7 @@ public final class DanmakuBudget {
 
     /** 实际生效的上限（含地板）。 */
     public static long effectiveCap() {
-        return Math.max(16L, GensokyouConfig.DANMAKU_ENTITY_CAP.get());
+        return Math.max(16L, BalanceNumbers.DANMAKU_ENTITY_CAP);
     }
 
     /**
@@ -362,7 +363,7 @@ public final class DanmakuBudget {
                 "emitted=%d entityHits=%d blockHits=%d damageSum=%d live=%d cap=%d "
                         + "splitReq=%d splitCapped=%d trailReq=%d trailCapped=%d rejected=%s",
                 EMITTED.get(), ENTITY_HITS.get(), BLOCK_HITS.get(), DAMAGE_SUM.get(),
-                live(level), GensokyouConfig.DANMAKU_ENTITY_CAP.get(),
+                live(level), BalanceNumbers.DANMAKU_ENTITY_CAP,
                 SPLIT_REQUESTED.get(), SPLIT_CAPPED.get(),
                 TRAIL_REQUESTED.get(), TRAIL_CAPPED.get(), REJECTED);
     }
@@ -833,7 +834,7 @@ public final class DanmakuBudget {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
-        int interval = GensokyouConfig.DANMAKU_FROZEN_SWEEP_INTERVAL_TICKS.get();
+        int interval = BalanceNumbers.DANMAKU_FROZEN_SWEEP_INTERVAL_TICKS;
         if (interval <= 0 || ++sweepTicks < interval) {
             return;
         }

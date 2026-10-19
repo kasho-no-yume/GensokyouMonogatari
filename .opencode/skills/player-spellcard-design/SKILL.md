@@ -223,7 +223,7 @@ S      = 玩家当前灵力强度（PlayerAttributes.spiritPower(player)）
   □ 持续型 → 宿主实体 / 附件（禁止裸一坨逻辑）
   □ 控制/挡弹 → 走 §5.3 钩子
   □ BOSS 需生效 → BOSS 侧开关
-  □ config：Base / α_card / 各固定参数进 defineInRange
+  □ 代码常量：Base / α_card / 各固定参数（`*Numbers`/`SpellCardScaling`）
   □ lang zh_cn + en_us：符卡名 + 必要的提示语
   □ 图标：gen_tex.py
   □ 道具形态：SpellCardItem 子类 + ModItems 注册
@@ -254,4 +254,4 @@ S      = 玩家当前灵力强度（PlayerAttributes.spiritPower(player)）
 - 现有已定稿卡表（6 张，含逐档数值 + 特效/音效/UI 需求）：`reference/card-roster.md`
   （openspec 变更 `add-player-spellcards/card-specs.md` 为其镜像，改动同步两边）
 - BOSS 侧规范：`boss-dev-design`
-- 灵力/神恩数值来源：`config/GensokyouConfig` 的 `grace` 段 + `balance/MonsterStatBudget`
+- 灵力/神恩数值来源：代码常量（`GraceNumbers`）+ `balance/MonsterStatBudget`

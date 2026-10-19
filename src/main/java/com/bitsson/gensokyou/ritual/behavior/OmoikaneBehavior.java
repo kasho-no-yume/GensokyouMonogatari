@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
@@ -36,7 +38,7 @@ public class OmoikaneBehavior implements RitualBehavior, RitualExtraSlots {
     public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
         if (core.sacrificeFxTicks() <= 0) return null;
         return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SACRIFICE, core.isEnabled(), match.level(),
-                (int) Math.round(com.bitsson.gensokyou.config.GensokyouConfig.FX_PILLAR_HEIGHT.get()), core.sacrificeFxTicks(),
+                (int) Math.round(BalanceNumbers.FX_PILLAR_HEIGHT), core.sacrificeFxTicks(),
                 com.bitsson.gensokyou.ritual.RitualBehaviors.sacrificeColorIndex(match.patternId()), new long[0], 0, 0L);
     }
 

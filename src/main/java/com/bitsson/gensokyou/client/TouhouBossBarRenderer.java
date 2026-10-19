@@ -1,7 +1,9 @@
 package com.bitsson.gensokyou.client;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouClientConfig;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.entity.TouhouBoss;
 import com.bitsson.gensokyou.registry.TierPalette;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -260,7 +262,7 @@ public final class TouhouBossBarRenderer {
         int required = cardName.isPresent() ? rowHeightWithCard() : rowHeightNoCard();
         // 行高取 config 与实际所需的最大值：config 是下限，保证任何取值下都不重叠
         event.setIncrement(Math.max(event.getIncrement(),
-                Math.max(GensokyouConfig.TALISMAN_BAR_ROW_HEIGHT.get(), required)));
+                Math.max(BalanceNumbers.TALISMAN_BAR_ROW_HEIGHT, required)));
         draw(g, bar, boss, x, y, cardName.orElse(null));
         event.setCanceled(true);
     }
@@ -270,7 +272,7 @@ public final class TouhouBossBarRenderer {
     private static void draw(GuiGraphics g, LerpingBossEvent bar, Entity boss, int x, int y,
                              Component cardName) {
         Font font = Minecraft.getInstance().font;
-        int width = GensokyouConfig.TALISMAN_BAR_WIDTH.get();
+        int width = GensokyouClientConfig.BOSS_BAR_WIDTH.get();
         int tier = clampTier(((TouhouBoss) boss).bossTier());
 
         // 名字画在符纸之上（原版是画在条上方，这里上移到符首里，读作"符上书名"）
@@ -287,7 +289,7 @@ public final class TouhouBossBarRenderer {
         // 燕尾撕边会与条身之间留一道 3px 缝。
         int underY;
         if (!framePresent(tier)) {
-            int legacyH = GensokyouConfig.TALISMAN_BAR_BODY_HEIGHT.get();
+            int legacyH = BalanceNumbers.TALISMAN_BAR_BODY_HEIGHT;
             drawLegacy(g, x, bodyY, width, legacyH, health, progress);
             underY = bodyY + legacyH + 2;
         } else {
@@ -309,7 +311,7 @@ public final class TouhouBossBarRenderer {
         }
 
         drawTornEdge(g, x, underY, width, bodyH());
-        int seal = Mth.ceil(GensokyouConfig.TALISMAN_BAR_SEAL_SIZE.get());
+        int seal = Mth.ceil(BalanceNumbers.TALISMAN_BAR_SEAL_SIZE);
         if (seal > 0) {
             fill(g, x + width - seal, underY, seal, seal, frameColor());
         }
@@ -370,7 +372,7 @@ public final class TouhouBossBarRenderer {
         int ghostW = Mth.floor(width * Mth.clamp(health, 0.0F, 1.0F));
         fill(g, x, bodyY, ghostW, legacyH, ghostColor());
         int fillW = Mth.floor(width * progress);
-        fill(g, x, bodyY, fillW, legacyH, GensokyouConfig.TALISMAN_BAR_COLOR_FILL.get());
+        fill(g, x, bodyY, fillW, legacyH, BalanceNumbers.TALISMAN_BAR_COLOR_FILL);
         fill(g, x, bodyY - 2, width, 2, frameColor());
         fill(g, x, bodyY + legacyH, width, 2, frameColor());
     }
@@ -382,7 +384,7 @@ public final class TouhouBossBarRenderer {
      * （2 + 7 + 2 + 撕边 = 17）更高，取大者即可覆盖两者。
      */
     private static int rowHeightNoCard() {
-        int torn = GensokyouConfig.TALISMAN_BAR_TORN_EDGE.get() > 0
+        int torn = BalanceNumbers.TALISMAN_BAR_TORN_EDGE > 0
                 ? Math.max(1, bodyH() / 2) : 0;
         return FRAME_TEX_H + torn + 2;
     }
@@ -504,7 +506,7 @@ public final class TouhouBossBarRenderer {
         ghost.lastHealth = health;
         // 残影永不低于本体（否则会出现"白条比血还多"的倒挂读数）
         ghost.health = Math.max(ghost.health, health);
-        if (now - ghost.changedAtMs >= GensokyouConfig.TALISMAN_BAR_GHOST_DELAY_MS.get()) {
+        if (now - ghost.changedAtMs >= BalanceNumbers.TALISMAN_BAR_GHOST_DELAY_MS) {
             ghost.health = Math.max(health, ghost.health - GHOST_CATCHUP_PER_FRAME);
         }
         if (Math.abs(ghost.health - health) < 0.002F) {
@@ -515,7 +517,7 @@ public final class TouhouBossBarRenderer {
 
     /** 燕尾撕边：沿宽度均分若干三角齿，齿高取条身高的一半。 */
     private static void drawTornEdge(GuiGraphics g, int x, int y, int width, int bodyH) {
-        int teeth = GensokyouConfig.TALISMAN_BAR_TORN_EDGE.get();
+        int teeth = BalanceNumbers.TALISMAN_BAR_TORN_EDGE;
         if (teeth <= 0 || width <= 0 || bodyH <= 0) {
             return;
         }
@@ -540,14 +542,14 @@ public final class TouhouBossBarRenderer {
     // 只有「当前血量」那一层走阶色贴图。旧值保留不删——降级画法仍可能用到。
 
     private static int frameColor() {
-        return GensokyouConfig.TALISMAN_BAR_COLOR_FRAME.get();
+        return BalanceNumbers.TALISMAN_BAR_COLOR_FRAME;
     }
 
     private static int trackColor() {
-        return GensokyouConfig.TALISMAN_BAR_COLOR_TRACK.get();
+        return BalanceNumbers.TALISMAN_BAR_COLOR_TRACK;
     }
 
     private static int ghostColor() {
-        return GensokyouConfig.TALISMAN_BAR_COLOR_GHOST.get();
+        return BalanceNumbers.TALISMAN_BAR_COLOR_GHOST;
     }
 }

@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
@@ -28,6 +29,6 @@ public class DanmakuProjectile extends SphereDanmaku {
     /** 旧工厂方法，保留以兼容历史调用点。 */
     public static DanmakuProjectile basic(Level level, LivingEntity owner) {
         return new DanmakuProjectile(level, owner,
-                GensokyouConfig.DANMAKU_BASE_DAMAGE.get().floatValue());
+                BalanceNumbers.DANMAKU_BASE_DAMAGE.floatValue());
     }
 }

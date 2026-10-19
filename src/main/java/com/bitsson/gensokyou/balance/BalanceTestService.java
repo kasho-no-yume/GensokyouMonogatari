@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.balance;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.BalanceTestBossEntity;
 import com.bitsson.gensokyou.item.weapon.RuneGenerator;
 import com.bitsson.gensokyou.item.weapon.WeaponSlots;
@@ -149,11 +150,11 @@ public final class BalanceTestService {
         double dps = MonsterStatBudget.referencePlayerDps(tier);
         double ehp = MonsterStatBudget.referencePlayerEhp(tier);
         double seconds = maxVariant
-                ? GensokyouConfig.TEST_BOSS_MAX_SECONDS.get()
-                : GensokyouConfig.TEST_BOSS_MIN_SECONDS.get();
+                ? BalanceNumbers.TEST_BOSS_MAX_SECONDS
+                : BalanceNumbers.TEST_BOSS_MIN_SECONDS;
         int hits = maxVariant
-                ? GensokyouConfig.TEST_BOSS_MAX_HITS.get()
-                : GensokyouConfig.TEST_BOSS_MIN_HITS.get();
+                ? BalanceNumbers.TEST_BOSS_MAX_HITS
+                : BalanceNumbers.TEST_BOSS_MIN_HITS;
         double hp = TestBossTuning.hp(dps, seconds);
         double damage = TestBossTuning.damage(ehp, hits);
         boss.configure(tier, maxVariant, (float) hp, (float) damage);

@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.CraftSession;
 import com.bitsson.gensokyou.ritual.CraftPhase;
 import com.bitsson.gensokyou.ritual.RitualBehaviorState;
@@ -7,7 +9,6 @@ import com.bitsson.gensokyou.ritual.RitualBehaviorState;
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualMatch;
@@ -47,8 +48,8 @@ public class ZaohuaCraftingBehavior implements RitualBehavior {
 
     /** 受灵汇速率：基项 × 倍率^等级（量级取大，担当合成供能主干）。 */
     public static long spiritInRatePerSecond(int level) {
-        long rate = GensokyouConfig.ZAOHUA_SPIRIT_IN_RATE_BASE.get();
-        long mult = GensokyouConfig.ZAOHUA_SPIRIT_IN_RATE_MULT.get();
+        long rate = GensokyouServerConfig.ZAOHUA_SPIRIT_IN_RATE_BASE.get();
+        long mult = GensokyouServerConfig.ZAOHUA_SPIRIT_IN_RATE_MULT.get();
         for (int i = 0; i < level; i++) {
             rate *= mult;
         }
@@ -121,7 +122,7 @@ public class ZaohuaCraftingBehavior implements RitualBehavior {
             case FLIGHT -> lines.add(new InfoLine("gui.gensokyou.ritual.zaohua.flight",
                     new String[0], "", 0xFFCE93D8,
                     Math.min(1F, (float) craft(core).ticks()
-                            / (float) Math.max(1, GensokyouConfig.ZAOHUA_CRAFT_DURATION_TICKS.get())),
+                            / (float) Math.max(1, GensokyouServerConfig.ZAOHUA_CRAFT_DURATION_TICKS.get())),
                     null));
             default -> {
             }

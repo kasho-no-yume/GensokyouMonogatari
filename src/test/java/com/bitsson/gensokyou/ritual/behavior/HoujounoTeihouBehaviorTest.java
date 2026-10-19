@@ -1,6 +1,8 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.RitualScaling;
 import com.bitsson.gensokyou.ritual.harvest.HarvestContext;
 import com.bitsson.gensokyou.ritual.harvest.HarvestProvider;
@@ -42,14 +44,14 @@ class HoujounoTeihouBehaviorTest {
 
     @Test
     void formulasUseConfiguredDefaultsAndSaturate() {
-        long capacityBase = GensokyouConfig.HOUJOUNO_TEIHOU_BASE_CAPACITY.getDefault();
-        long capacityMultiplier = GensokyouConfig.HOUJOUNO_TEIHOU_CAPACITY_MULTIPLIER.getDefault();
-        long inRateBase = GensokyouConfig.HOUJOUNO_TEIHOU_BASE_IN_RATE_PER_SECOND.getDefault();
-        long inRateMultiplier = GensokyouConfig.HOUJOUNO_TEIHOU_IN_RATE_MULTIPLIER.getDefault();
-        long costBase = GensokyouConfig.HOUJOUNO_TEIHOU_BASE_COST_PER_PEDESTAL.getDefault();
-        long costMultiplier = GensokyouConfig.HOUJOUNO_TEIHOU_COST_MULTIPLIER.getDefault();
-        long sampleBase = GensokyouConfig.HOUJOUNO_TEIHOU_BASE_SAMPLE_COUNT.getDefault();
-        long sampleMultiplier = GensokyouConfig.HOUJOUNO_TEIHOU_SAMPLE_COUNT_MULTIPLIER.getDefault();
+        long capacityBase = GensokyouServerConfig.HOUJOUNO_TEIHOU_BASE_CAPACITY.getDefault();
+        long capacityMultiplier = GensokyouServerConfig.HOUJOUNO_TEIHOU_CAPACITY_MULTIPLIER.getDefault();
+        long inRateBase = GensokyouServerConfig.HOUJOUNO_TEIHOU_BASE_IN_RATE_PER_SECOND.getDefault();
+        long inRateMultiplier = GensokyouServerConfig.HOUJOUNO_TEIHOU_IN_RATE_MULTIPLIER.getDefault();
+        long costBase = GensokyouServerConfig.HOUJOUNO_TEIHOU_BASE_COST_PER_PEDESTAL.getDefault();
+        long costMultiplier = GensokyouServerConfig.HOUJOUNO_TEIHOU_COST_MULTIPLIER.getDefault();
+        long sampleBase = BalanceNumbers.HOUJOUNO_TEIHOU_BASE_SAMPLE_COUNT;
+        long sampleMultiplier = GensokyouServerConfig.HOUJOUNO_TEIHOU_SAMPLE_COUNT_MULTIPLIER.getDefault();
         assertEquals(40_000L, capacityBase);
         assertEquals(12L, capacityMultiplier);
         assertEquals(40_000L, inRateBase);

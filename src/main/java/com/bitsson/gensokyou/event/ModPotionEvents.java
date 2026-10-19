@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.event;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.effect.SpiritualSightEffect;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModMobEffects;
@@ -119,7 +120,7 @@ public final class ModPotionEvents {
             return;
         }
         event.setNewDamage((float) (event.getNewDamage()
-                * GensokyouConfig.HIGANBANA_POISON_DAMAGE_SCALE.get()));
+                * BalanceNumbers.HIGANBANA_POISON_DAMAGE_SCALE));
     }
 
     /** 虚空与 {@code /kill}（genericKill）刻意不纳入契约。 */

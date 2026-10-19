@@ -1,9 +1,10 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualMatch;
@@ -19,13 +20,13 @@ import java.util.List;
  * <p>被动型仪式，成型即生效，无启动态、无配方、无激活费（pattern 不写 {@code toggleable}）。
  * 结构仅「核心 + 同层八邻 {@code minecraft:bedrock}」共 9 格——基岩无法在生存合法获取，天然构成
  * 创造门槛。行为每 1 秒（20 tick）在 {@code serverPassiveTick}（不受 enabled 门控）把核心缓存
- * 补满至 {@link GensokyouConfig#SAIR_ENERGY_BASE_CAPACITY}（默认 100 亿），使本仪式对外表现为
+ * 补满至 {@link BalanceNumbers#SAIR_ENERGY_BASE_CAPACITY}（默认 100 亿），使本仪式对外表现为
  * 永不枯竭的源：缓存被路由抽取后于下个补满周期恢复满额。补满走普通 {@code receive} 通道，
  * MUST NOT 走 {@code extractRouted/receiveRouted}（否则被自身 in=0 账本误截）。
  * 补满后同周期把缓存回流槽内灵力核心（{@code tickBatteryAutoFill}，按核心注灵速率），
  * 槽核亦表现为永不枯竭。
  *
- * <p>对外供灵速率 {@link #spiritOutRatePerSecond} 恒为 {@link GensokyouConfig#SAIR_ENERGY_OUT_RATE_PER_SECOND}
+ * <p>对外供灵速率 {@link #spiritOutRatePerSecond} 恒为 {@link BalanceNumbers#SAIR_ENERGY_OUT_RATE_PER_SECOND}
  * （默认 10 亿/s），静态不随阶级/时刻/结构状态变化（路由端点速率按周期 memo，动态速率会致源闪断）。
  * in 速率保持默认 0，本仪式不可作为受灵汇。
  */
@@ -33,7 +34,7 @@ public final class SairEnergyBehavior implements RitualBehavior {
 
     @Override
     public long capacity(int level, SpiritPowerAccess core) {
-        return GensokyouConfig.SAIR_ENERGY_BASE_CAPACITY.get();
+        return BalanceNumbers.SAIR_ENERGY_BASE_CAPACITY;
     }
 
     /** 恒定满缓存的补满周期（20 tick = 1 秒）。 */
@@ -54,7 +55,7 @@ public final class SairEnergyBehavior implements RitualBehavior {
     @Override
     public long spiritOutRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
                                        SpiritPowerAccess core) {
-        return GensokyouConfig.SAIR_ENERGY_OUT_RATE_PER_SECOND.get().longValue();
+        return BalanceNumbers.SAIR_ENERGY_OUT_RATE_PER_SECOND.longValue();
     }
 
     /** 供灵源仪式：能量方向是缓存 → 电池，显式豁免默认的"电池 → 缓存"。 */

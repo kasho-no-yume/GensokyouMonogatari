@@ -49,9 +49,9 @@ BOSS 每 `testPatternIntervalTicks`（默认 3 秒）随机切换一种模式（
 | 4 | 扇弹「孔雀开屏」（9 向扇形） | 9 | 追符「执念灵符」（追踪符） |
 | 5 | 星芒「十字星辉」（8 向+旋次环） | 10 | 弹幕雨「无尽散华」（随机乱流） |
 
-阶段（按生命阈值，config 可调）：P1 100-66% 用模式 1-5；P2 66-33% 用 4-9；P3 33-0% 用全部 + 更快间隔/弹速。
+阶段（按生命阈值，代码常量可调）：P1 100-66% 用模式 1-5；P2 66-33% 用 4-9；P3 33-0% 用全部 + 更快间隔/弹速。
 
-全部参数在 config `testHarness` 段；几何（角度/数量）在 `entity/TestBossPattern`。
+全部参数为 dev-only 代码常量（`balance/TestBossTuning`）；几何（角度/数量）在 `entity/TestBossPattern`。
 
 ## 建议测试流程
 

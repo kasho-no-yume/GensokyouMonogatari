@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.danmaku.render;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.AbstractDanmakuProjectile;
 import com.bitsson.gensokyou.network.DanmakuCalibrationPayload;
 import com.bitsson.gensokyou.network.DanmakuResyncRequestPayload;
@@ -105,7 +106,7 @@ public final class DanmakuSyncServer {
         MinecraftServer server = event.getServer();
         int tick = ++serverTicks;
         DanmakuTrackingIndex.prune(id -> entityAlive(server, id));
-        int interval = GensokyouConfig.DANMAKU_CALIBRATION_INTERVAL_TICKS.get();
+        int interval = BalanceNumbers.DANMAKU_CALIBRATION_INTERVAL_TICKS;
         if (interval <= 0 || tick % interval != 0) {
             return;
         }
@@ -142,7 +143,7 @@ public final class DanmakuSyncServer {
         if (tracked.isEmpty()) {
             return;
         }
-        int cap = Math.max(1, GensokyouConfig.DANMAKU_CALIBRATION_BATCH_CAP.get());
+        int cap = Math.max(1, BalanceNumbers.DANMAKU_CALIBRATION_BATCH_CAP);
         int sequence = ++calibrationSequence;
         List<DanmakuCalibrationPayload.Sample> samples = new ArrayList<>();
         for (Integer id : tracked) {

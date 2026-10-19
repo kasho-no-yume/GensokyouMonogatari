@@ -1,11 +1,13 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -71,8 +73,8 @@ public class WatatsumiBehavior implements RitualBehavior {
 
     /** 单次总产出件数 = 基值 × 倍率^等级（默认 5 × 4^L = 5/20/80）。 */
     public static int totalCount(int level) {
-        long value = GensokyouConfig.WATATSUMI_BASE_COUNT.get();
-        long mult = GensokyouConfig.WATATSUMI_COUNT_MULT.get();
+        long value = BalanceNumbers.WATATSUMI_BASE_COUNT;
+        long mult = GensokyouServerConfig.WATATSUMI_COUNT_MULT.get();
         for (int i = 0; i < level; i++) {
             value *= mult;
         }
@@ -107,8 +109,8 @@ public class WatatsumiBehavior implements RitualBehavior {
     /** 本次结算冷却：命中额外奖励走 10 分钟，否则 1 分钟。 */
     public static int cooldownTicks(boolean bonusTriggered) {
         return bonusTriggered
-                ? GensokyouConfig.WATATSUMI_BONUS_COOLDOWN_TICKS.get()
-                : GensokyouConfig.WATATSUMI_BASE_COOLDOWN_TICKS.get();
+                ? GensokyouServerConfig.WATATSUMI_BONUS_COOLDOWN_TICKS.get()
+                : GensokyouServerConfig.WATATSUMI_BASE_COOLDOWN_TICKS.get();
     }
 
     /** tick → 秒（向上取整），供 GUI 显示。 */
@@ -217,7 +219,7 @@ public class WatatsumiBehavior implements RitualBehavior {
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
                                       SpiritPowerAccess core) {
-        return GensokyouConfig.SACRIFICE_SPIRIT_IN_RATE.get().longValue();
+        return GensokyouServerConfig.SACRIFICE_SPIRIT_IN_RATE.get().longValue();
     }
 
     @Override
@@ -254,14 +256,14 @@ public class WatatsumiBehavior implements RitualBehavior {
         }
         boolean bonus = false;
         if (ritualLevel >= 2
-                && level.random.nextDouble() < GensokyouConfig.WATATSUMI_BONUS_CHANCE.get()) {
+                && level.random.nextDouble() < GensokyouServerConfig.WATATSUMI_BONUS_CHANCE.get()) {
             bonus = true;
             outputs.addAll(rollBuriedTreasure(level, corePos));
         }
         dropStacks(level, corePos, outputs);
 
         core.setActionCooldown(cooldownTicks(bonus));
-        core.triggerSacrificeFx(GensokyouConfig.FX_PILLAR_TICKS.get());
+        core.triggerSacrificeFx(BalanceNumbers.FX_PILLAR_TICKS);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
     }
 
@@ -303,7 +305,7 @@ public class WatatsumiBehavior implements RitualBehavior {
         }
         lines.add(new InfoLine(stateKey, stateArgs, "", ACCENT, -1F, null));
         lines.add(new InfoLine(KEY_COOLDOWN,
-                new String[]{String.valueOf(toSeconds(GensokyouConfig.WATATSUMI_BASE_COOLDOWN_TICKS.get()))},
+                new String[]{String.valueOf(toSeconds(GensokyouServerConfig.WATATSUMI_BASE_COOLDOWN_TICKS.get()))},
                 "", ACCENT, -1F, null));
         int pedestals = RitualPedestals.positions(match).size();
         lines.add(new InfoLine(KEY_RODS,
@@ -341,7 +343,7 @@ public class WatatsumiBehavior implements RitualBehavior {
                 + " treasure=" + treasureUnlocked(ritualLevel)
                 + " specialUnlocked=" + specialUnlocked(ritualLevel)
                 + " cost=" + spiritCost(ritualLevel)
-                + " bonusChance=" + GensokyouConfig.WATATSUMI_BONUS_CHANCE.get()
+                + " bonusChance=" + GensokyouServerConfig.WATATSUMI_BONUS_CHANCE.get()
                 + " specialPool={" + pool.toString().trim() + "}";
     }
 }

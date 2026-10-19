@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.spirit.attr;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -20,62 +21,62 @@ public enum AttributeKey {
     MAX_SPIRIT("max_spirit", true, false,
             p -> ModAttachments.get(p).max(), () -> -1D),
     SPIRIT_REGEN_RATE("spirit_regen_rate", false, true,
-            p -> GensokyouConfig.BASE_REGEN_PER_SECOND.get(), () -> -1D),
+            p -> BalanceNumbers.BASE_REGEN_PER_SECOND, () -> -1D),
     SPIRIT_POWER("spirit_power", false, true,
             p -> ModAttachments.get(p).spiritDamage(), () -> -1D),
     HEALTH_BONUS("health_bonus", true, true,
-            p -> GensokyouConfig.ATTR_BASE_HEALTH_BONUS.get(),
-            () -> GensokyouConfig.ATTR_HEALTH_BONUS_CAP.get()),
+            p -> BalanceNumbers.ATTR_BASE_HEALTH_BONUS,
+            () -> BalanceNumbers.ATTR_HEALTH_BONUS_CAP),
     MOVE_SPEED_BONUS("move_speed_bonus", false, true,
-            p -> GensokyouConfig.ATTR_BASE_MOVE_SPEED.get(),
-            () -> GensokyouConfig.ATTR_MOVE_SPEED_CAP.get()),
+            p -> BalanceNumbers.ATTR_BASE_MOVE_SPEED,
+            () -> BalanceNumbers.ATTR_MOVE_SPEED_CAP),
 
     // ---- 防御 ----
     GRAZE_CHANCE("graze_chance", false, false,
-            p -> GensokyouConfig.ATTR_BASE_GRAZE_CHANCE.get(),
-            () -> GensokyouConfig.ATTR_GRAZE_CHANCE_CAP.get()),
+            p -> BalanceNumbers.ATTR_BASE_GRAZE_CHANCE,
+            () -> BalanceNumbers.ATTR_GRAZE_CHANCE_CAP),
     DANMAKU_REDUCE("danmaku_reduce", false, false,
-            p -> GensokyouConfig.ATTR_BASE_DANMAKU_REDUCE.get(),
+            p -> BalanceNumbers.ATTR_BASE_DANMAKU_REDUCE,
             () -> -1D),
     DANMAKU_RESIST("danmaku_resist", true, false,
             p -> 0D,
             () -> -1D),
     TENACITY("tenacity", false, false,
-            p -> GensokyouConfig.ATTR_BASE_TENACITY.get(),
-            () -> GensokyouConfig.ATTR_TENACITY_CAP.get()),
+            p -> BalanceNumbers.ATTR_BASE_TENACITY,
+            () -> BalanceNumbers.ATTR_TENACITY_CAP),
 
     // ---- 输出 ----
     CRIT_CHANCE("crit_chance", false, false,
-            p -> GensokyouConfig.ATTR_BASE_CRIT_CHANCE.get(),
-            () -> GensokyouConfig.ATTR_CRIT_CHANCE_CAP.get()),
+            p -> BalanceNumbers.ATTR_BASE_CRIT_CHANCE,
+            () -> BalanceNumbers.ATTR_CRIT_CHANCE_CAP),
     CRIT_DAMAGE("crit_damage", false, false,
-            p -> GensokyouConfig.ATTR_BASE_CRIT_DAMAGE.get(),
-            () -> GensokyouConfig.ATTR_CRIT_DAMAGE_CAP.get()),
+            p -> BalanceNumbers.ATTR_BASE_CRIT_DAMAGE,
+            () -> BalanceNumbers.ATTR_CRIT_DAMAGE_CAP),
     SPELL_AMP("spell_amp", false, true,
-            p -> GensokyouConfig.ATTR_BASE_SPELL_AMP.get(),
-            () -> GensokyouConfig.ATTR_SPELL_AMP_CAP.get()),
+            p -> BalanceNumbers.ATTR_BASE_SPELL_AMP,
+            () -> BalanceNumbers.ATTR_SPELL_AMP_CAP),
 
     // ---- 技能 / 续航 ----
     SPELL_CDR("spell_cdr", false, false,
-            p -> GensokyouConfig.ATTR_BASE_SPELL_CDR.get(),
-            () -> GensokyouConfig.ATTR_SPELL_CDR_CAP.get()),
+            p -> BalanceNumbers.ATTR_BASE_SPELL_CDR,
+            () -> BalanceNumbers.ATTR_SPELL_CDR_CAP),
     BUFF_EXTEND("buff_extend", false, false,
-            p -> GensokyouConfig.ATTR_BASE_BUFF_EXTEND.get(),
-            () -> GensokyouConfig.ATTR_BUFF_EXTEND_CAP.get()),
+            p -> BalanceNumbers.ATTR_BASE_BUFF_EXTEND,
+            () -> BalanceNumbers.ATTR_BUFF_EXTEND_CAP),
     SPIRIT_LEECH_RATE("spirit_leech_rate", false, false,
-            p -> GensokyouConfig.SPIRIT_LEECH_RATE.get(),
-            () -> GensokyouConfig.SPIRIT_LEECH_RATE_CAP.get()),
+            p -> BalanceNumbers.SPIRIT_LEECH_RATE,
+            () -> BalanceNumbers.SPIRIT_LEECH_RATE_CAP),
 
     // ---- 修灵馈赠（add-cultivation-gifts，与东方弹幕战斗解耦的身体强化） ----
     JUMP("jump", true, false,
-            p -> GensokyouConfig.ATTR_BASE_JUMP.get(),
-            () -> GensokyouConfig.ATTR_JUMP_CAP.get()),
+            p -> BalanceNumbers.ATTR_BASE_JUMP,
+            () -> BalanceNumbers.ATTR_JUMP_CAP),
     PHYS_RESIST("phys_resist", false, false,
-            p -> GensokyouConfig.ATTR_BASE_PHYS_RESIST.get(),
-            () -> GensokyouConfig.ATTR_PHYS_RESIST_CAP.get()),
+            p -> BalanceNumbers.ATTR_BASE_PHYS_RESIST,
+            () -> BalanceNumbers.ATTR_PHYS_RESIST_CAP),
     MELEE_DAMAGE("melee_damage", true, false,
-            p -> GensokyouConfig.ATTR_BASE_MELEE_DAMAGE.get(),
-            () -> GensokyouConfig.ATTR_MELEE_DAMAGE_CAP.get());
+            p -> BalanceNumbers.ATTR_BASE_MELEE_DAMAGE,
+            () -> BalanceNumbers.ATTR_MELEE_DAMAGE_CAP);
 
     private final String id;
     /** true=固定值语义（生命/抵抗），false=百分比语义。仅影响展示；容器内同为加法贡献。 */

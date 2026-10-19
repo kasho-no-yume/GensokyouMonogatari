@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouClientConfig;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
 import com.bitsson.gensokyou.registry.ModAttributes;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
@@ -43,6 +44,7 @@ public class Gensokyou {
         ModDataComponents.DATA_COMPONENTS.register(modEventBus);
         ModAttributes.ATTRIBUTES.register(modEventBus);
         ModEquipmentMaterials.ARMOR_MATERIALS.register(modEventBus);
-        modContainer.registerConfig(ModConfig.Type.COMMON, GensokyouConfig.SPEC);
+        modContainer.registerConfig(ModConfig.Type.SERVER, GensokyouServerConfig.SPEC);
+        modContainer.registerConfig(ModConfig.Type.CLIENT, GensokyouClientConfig.SPEC);
     }
 }

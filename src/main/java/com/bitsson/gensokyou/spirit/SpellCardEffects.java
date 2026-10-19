@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.spirit;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.entity.OrbitYinYangOrb;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
 import com.bitsson.gensokyou.entity.spell.DarknessFieldEntity;
@@ -86,12 +87,12 @@ public final class SpellCardEffects {
     static {
         // 既有三卡：α=0 保持行为不变（视为品 1 道具卡，迁移条款）
         register(MUSOU_FUUIN, SpellCardEffects::performMusouFuuin,
-                () -> GensokyouConfig.SKILL_MUSOU_SP_COST.get(),
-                () -> GensokyouConfig.SKILL_MUSOU_COOLDOWN.get(),
+                () -> BalanceNumbers.SKILL_MUSOU_SP_COST,
+                () -> BalanceNumbers.SKILL_MUSOU_COOLDOWN,
                 0xFFF44336, () -> 0D, () -> 0D);   // 无想封印：红
         register(ICICLE_FALL, SpellCardEffects::performIcicleFall,
-                () -> GensokyouConfig.SKILL_ICICLE_SP_COST.get(),
-                () -> GensokyouConfig.SKILL_ICICLE_COOLDOWN.get(),
+                () -> BalanceNumbers.SKILL_ICICLE_SP_COST,
+                () -> BalanceNumbers.SKILL_ICICLE_COOLDOWN,
                 0xFF4FC3F7, () -> 0D, () -> 0D);   // 冰符：冰蓝
         register(LIGHT_REFLECT, SpellCardEffects::performNoop,
                 () -> 5, () -> 60,
@@ -99,31 +100,31 @@ public final class SpellCardEffects {
 
         // 前期 BOSS 主题玩家符卡（add-player-spellcards）
         register(HEALING_GARDEN, SpellCardEffects::performHealingGarden,
-                () -> GensokyouConfig.HEALING_GARDEN_SP_COST.get(),
-                () -> GensokyouConfig.HEALING_GARDEN_COOLDOWN.get(),
-                0xFFF8BBD0, () -> GensokyouConfig.HEALING_GARDEN_BASE.get(),
-                () -> GensokyouConfig.HEALING_GARDEN_ALPHA.get());
+                () -> BalanceNumbers.HEALING_GARDEN_SP_COST,
+                () -> BalanceNumbers.HEALING_GARDEN_COOLDOWN,
+                0xFFF8BBD0, () -> BalanceNumbers.HEALING_GARDEN_BASE,
+                () -> BalanceNumbers.HEALING_GARDEN_ALPHA);
         register(FLOWER_ARMOR, SpellCardEffects::performFlowerArmor,
-                () -> GensokyouConfig.FLOWER_ARMOR_SP_COST.get(),
-                () -> GensokyouConfig.FLOWER_ARMOR_COOLDOWN.get(),
+                () -> BalanceNumbers.FLOWER_ARMOR_SP_COST,
+                () -> BalanceNumbers.FLOWER_ARMOR_COOLDOWN,
                 0xFFF48FB1, () -> 0D, () -> 0D);
         register(DEMARCATION, SpellCardEffects::performDemarcation,
-                () -> GensokyouConfig.DEMARCATION_SP_COST.get(),
-                () -> GensokyouConfig.DEMARCATION_COOLDOWN.get(),
-                0xFF311B92, () -> 0D, () -> GensokyouConfig.DEMARCATION_ALPHA.get());
+                () -> BalanceNumbers.DEMARCATION_SP_COST,
+                () -> BalanceNumbers.DEMARCATION_COOLDOWN,
+                0xFF311B92, () -> 0D, () -> BalanceNumbers.DEMARCATION_ALPHA);
         register(SPIDER_WEB, SpellCardEffects::performSpiderWeb,
-                () -> GensokyouConfig.SPIDER_WEB_SP_COST.get(),
-                () -> GensokyouConfig.SPIDER_WEB_COOLDOWN.get(),
-                0xFFB0BEC5, () -> 0D, () -> GensokyouConfig.SPIDER_WEB_ALPHA.get());
+                () -> BalanceNumbers.SPIDER_WEB_SP_COST,
+                () -> BalanceNumbers.SPIDER_WEB_COOLDOWN,
+                0xFFB0BEC5, () -> 0D, () -> BalanceNumbers.SPIDER_WEB_ALPHA);
         register(PLAGUE_REPAY, SpellCardEffects::performPlagueRepay,
-                () -> GensokyouConfig.PLAGUE_REPAY_SP_COST.get(),
-                () -> GensokyouConfig.PLAGUE_REPAY_COOLDOWN.get(),
-                0xFF7CB342, () -> 0D, () -> GensokyouConfig.PLAGUE_REPAY_ALPHA.get());
+                () -> BalanceNumbers.PLAGUE_REPAY_SP_COST,
+                () -> BalanceNumbers.PLAGUE_REPAY_COOLDOWN,
+                0xFF7CB342, () -> 0D, () -> BalanceNumbers.PLAGUE_REPAY_ALPHA);
         register(FOX_SERVANT, SpellCardEffects::performFoxServant,
-                () -> GensokyouConfig.FOX_SERVANT_SP_COST.get(),
-                () -> GensokyouConfig.FOX_SERVANT_COOLDOWN.get(),
-                0xFF7E57C2, () -> GensokyouConfig.FOX_SERVANT_BASE.get(),
-                () -> GensokyouConfig.FOX_SERVANT_ALPHA.get());
+                () -> BalanceNumbers.FOX_SERVANT_SP_COST,
+                () -> BalanceNumbers.FOX_SERVANT_COOLDOWN,
+                0xFF7E57C2, () -> BalanceNumbers.FOX_SERVANT_BASE,
+                () -> BalanceNumbers.FOX_SERVANT_ALPHA);
     }
 
     private SpellCardEffects() {
@@ -176,10 +177,10 @@ public final class SpellCardEffects {
     private static void performMusouFuuin(CastContext ctx) {
         Level level = ctx.level();
         Player player = ctx.player();
-        double radius = GensokyouConfig.MUSOU_RADIUS.get();
-        double angularSpeed = GensokyouConfig.MUSOU_ANGULAR_SPEED.get();
-        int duration = GensokyouConfig.MUSOU_DURATION_TICKS.get();
-        float damageCap = GensokyouConfig.MUSOU_DAMAGE_CAP.get().floatValue();
+        double radius = BalanceNumbers.MUSOU_RADIUS;
+        double angularSpeed = BalanceNumbers.MUSOU_ANGULAR_SPEED;
+        int duration = BalanceNumbers.MUSOU_DURATION_TICKS;
+        float damageCap = BalanceNumbers.MUSOU_DAMAGE_CAP.floatValue();
         for (int i = 0; i < 6; i++) {
             OrbitYinYangOrb orb = new OrbitYinYangOrb(level, player, i, radius, angularSpeed, duration, damageCap);
             level.addFreshEntity(orb);
@@ -189,9 +190,9 @@ public final class SpellCardEffects {
     private static void performIcicleFall(CastContext ctx) {
         Level level = ctx.level();
         Player player = ctx.player();
-        int count = GensokyouConfig.ICICLE_COUNT.get();
-        double speed = GensokyouConfig.ICICLE_SPEED.get();
-        float damage = GensokyouConfig.ICICLE_DAMAGE.get().floatValue();
+        int count = BalanceNumbers.ICICLE_COUNT;
+        double speed = BalanceNumbers.ICICLE_SPEED;
+        float damage = BalanceNumbers.ICICLE_DAMAGE.floatValue();
         Vec3 look = player.getLookAngle().normalize();
         for (int i = 0; i < count; i++) {
             double offset = Math.toRadians((i - (count - 1) / 2.0D) * 12D);
@@ -239,8 +240,8 @@ public final class SpellCardEffects {
         }
         double perSecond = amplified(ctx);
         float radius = (float) SpellCardScaling.tableEntry(
-                GensokyouConfig.HEALING_GARDEN_RADIUS.get(), ctx.quality());
-        int duration = durationTicks(ctx, GensokyouConfig.HEALING_GARDEN_DURATION_SECONDS.get());
+                BalanceNumbers.HEALING_GARDEN_RADIUS, ctx.quality());
+        int duration = durationTicks(ctx, BalanceNumbers.HEALING_GARDEN_DURATION_SECONDS);
         level.addFreshEntity(new FlowerGardenEntity(level,
                 ctx.player().getX(), ctx.player().getY(), ctx.player().getZ(),
                 radius, duration, perSecond));
@@ -252,8 +253,8 @@ public final class SpellCardEffects {
             return;
         }
         int petals = (int) Math.round(SpellCardScaling.tableEntry(
-                GensokyouConfig.FLOWER_ARMOR_BLOCKS.get(), ctx.quality()));
-        int duration = secondsToTicks(GensokyouConfig.FLOWER_ARMOR_DURATION_SECONDS.get());
+                BalanceNumbers.FLOWER_ARMOR_BLOCKS, ctx.quality()));
+        int duration = secondsToTicks(BalanceNumbers.FLOWER_ARMOR_DURATION_SECONDS);
         ModAttachments.setSpellBuffs(player, ModAttachments.spellBuffs(player)
                 .withFlowerArmor(petals, player.level().getGameTime() + duration));
         player.displayClientMessage(
@@ -266,8 +267,8 @@ public final class SpellCardEffects {
             return;
         }
         float radius = (float) SpellCardScaling.tableEntry(
-                GensokyouConfig.DEMARCATION_RADIUS.get(), ctx.quality());
-        int duration = secondsToTicks(GensokyouConfig.DEMARCATION_DURATION_SECONDS.get());
+                BalanceNumbers.DEMARCATION_RADIUS, ctx.quality());
+        int duration = secondsToTicks(BalanceNumbers.DEMARCATION_DURATION_SECONDS);
         level.addFreshEntity(new DarknessFieldEntity(level, ctx.player(), radius, duration));
     }
 
@@ -277,9 +278,9 @@ public final class SpellCardEffects {
             return;
         }
         float edge = (float) SpellCardScaling.tableEntry(
-                GensokyouConfig.SPIDER_WEB_EDGE.get(), ctx.quality());
-        int duration = durationTicks(ctx, GensokyouConfig.SPIDER_WEB_DURATION_SECONDS.get());
-        double mult = GensokyouConfig.SPIDER_WEB_SPEED_MULT.get();
+                BalanceNumbers.SPIDER_WEB_EDGE, ctx.quality());
+        int duration = durationTicks(ctx, BalanceNumbers.SPIDER_WEB_DURATION_SECONDS);
+        double mult = BalanceNumbers.SPIDER_WEB_SPEED_MULT;
         double distance = edge; // 生成距离 = 边长
         Vec3 dir = ctx.player().getLookAngle().normalize();
         level.addFreshEntity(new SilkProjectileEntity(level, ctx.player(), dir,
@@ -291,7 +292,7 @@ public final class SpellCardEffects {
         if (!(ctx.player() instanceof ServerPlayer player)) {
             return;
         }
-        int duration = durationTicks(ctx, GensokyouConfig.PLAGUE_REPAY_DURATION_SECONDS.get());
+        int duration = durationTicks(ctx, BalanceNumbers.PLAGUE_REPAY_DURATION_SECONDS);
         ModAttachments.setSpellBuffs(player, ModAttachments.spellBuffs(player)
                 .withPlagueRepay(player.level().getGameTime() + duration));
     }
@@ -301,11 +302,11 @@ public final class SpellCardEffects {
         if (!(ctx.level() instanceof ServerLevel level)) {
             return;
         }
-        double damage = Math.min(GensokyouConfig.FOX_SERVANT_DAMAGE_CAP.get(), amplified(ctx));
+        double damage = Math.min(BalanceNumbers.FOX_SERVANT_DAMAGE_CAP, amplified(ctx));
         double range = SpellCardScaling.tableEntry(
-                GensokyouConfig.FOX_SERVANT_RANGE.get(), ctx.quality());
-        int duration = durationTicks(ctx, GensokyouConfig.FOX_SERVANT_DURATION_SECONDS.get());
-        int interval = GensokyouConfig.FOX_SERVANT_INTERVAL_TICKS.get();
+                BalanceNumbers.FOX_SERVANT_RANGE, ctx.quality());
+        int duration = durationTicks(ctx, BalanceNumbers.FOX_SERVANT_DURATION_SECONDS);
+        int interval = BalanceNumbers.FOX_SERVANT_INTERVAL_TICKS;
         level.addFreshEntity(new FoxServantEntity(level, ctx.player(), range, duration, damage, interval));
     }
 }

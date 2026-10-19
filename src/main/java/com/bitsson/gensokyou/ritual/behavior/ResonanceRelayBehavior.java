@@ -1,9 +1,11 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
@@ -58,7 +60,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         }
         return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_RELAY, core.isEnabled(), match.level(),
                 core.structureMinY(), core.structureMaxY(),
-                Math.max(1, com.bitsson.gensokyou.config.GensokyouConfig.SETTLE_PERIOD_TICKS.get()), links, inCount,
+                Math.max(1, BalanceNumbers.SETTLE_PERIOD_TICKS), links, inCount,
                 com.bitsson.gensokyou.ritual.RitualRenderState.clampMask(core.resoMovingMask(), total));
     }
 
@@ -118,15 +120,15 @@ public class ResonanceRelayBehavior implements RitualBehavior {
     }
 
     public static int inQuota(int level) {
-        return GensokyouConfig.RESONANCE_BASE_IN_QUOTA.get() * (1 << levelShift(level));
+        return GensokyouServerConfig.RESONANCE_BASE_IN_QUOTA.get() * (1 << levelShift(level));
     }
 
     public static int outQuota(int level) {
-        return GensokyouConfig.RESONANCE_BASE_OUT_QUOTA.get() * (1 << levelShift(level));
+        return GensokyouServerConfig.RESONANCE_BASE_OUT_QUOTA.get() * (1 << levelShift(level));
     }
 
     public static int radius(int level) {
-        return GensokyouConfig.RESONANCE_BASE_RADIUS.get() * (1 << levelShift(level));
+        return GensokyouServerConfig.RESONANCE_BASE_RADIUS.get() * (1 << levelShift(level));
     }
 
     // ---- UI ----
@@ -147,7 +149,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
                 new String[]{String.valueOf(core.inLinks().size()), String.valueOf(inQuota(match.level())),
                         String.valueOf(core.outLinks().size()), String.valueOf(outQuota(match.level()))},
                 "", 0, -1F, null));
-        int period = Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get());
+        int period = Math.max(1, BalanceNumbers.SETTLE_PERIOD_TICKS);
         long nowPeriod = Math.floorDiv(level.getGameTime(), period);
         long flow = (st.flowPeriod == nowPeriod || st.flowPeriod == nowPeriod - 1L)
                 ? st.flowRate : 0L;
@@ -240,7 +242,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         }
         // 仅在结算周期边界搬运（D7）；非边界 tick 无实搬，lastMoved 归零。
         // 表现全部移交客户端 BER：此处只按周期发布"实搬通道"掩码（变化推送在 BE 侧收敛）。
-        int period = Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get());
+        int period = Math.max(1, BalanceNumbers.SETTLE_PERIOD_TICKS);
         if (level.getGameTime() % period == 0L) {
             core.setResoMovingMask(routeTick(level, core, st, period));
             // 展示取本周期精确实搬量的每秒化值（不做窗口差分 → 关/开界面无相位波动）
@@ -570,7 +572,7 @@ public class ResonanceRelayBehavior implements RitualBehavior {
         long in = inRateOf(level, endpoint);
         long[] actual = out <= 0L && in <= 0L ? new long[]{0L, 0L}
                 : actualEndpointRates(endpoint, level.getGameTime(),
-                        Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get()));
+                        Math.max(1, BalanceNumbers.SETTLE_PERIOD_TICKS));
         if (out > 0L && in > 0L) {
             return new TipSpec("gui.gensokyou.ritual.reso_row_both",
                     new String[]{tier, dist, compactNumber(out), compactNumber(actual[1]),

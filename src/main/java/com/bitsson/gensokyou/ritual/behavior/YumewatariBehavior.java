@@ -1,9 +1,10 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -62,7 +63,7 @@ public class YumewatariBehavior implements RitualBehavior {
     @Override
     public long spiritOutRatePerSecond(ServerLevel level, BlockPos corePos,
                                        RitualMatch match, SpiritPowerAccess core) {
-        return GensokyouConfig.YUMEWATARI_OUT_RATE_PER_SECOND.get().longValue();
+        return GensokyouServerConfig.YUMEWATARI_OUT_RATE_PER_SECOND.get().longValue();
     }
 
     /** 发电仪式：能量方向是缓存 → 电池，故显式豁免默认的"电池 → 缓存"。 */
@@ -119,7 +120,7 @@ public class YumewatariBehavior implements RitualBehavior {
 
     /** 单生物产灵 = 基值 × 4^等级。 */
     public static long unitPerSleeper(int level) {
-        long unit = GensokyouConfig.YUMEWATARI_PRODUCTION_PER_SLEEPER.get().longValue();
+        long unit = GensokyouServerConfig.YUMEWATARI_PRODUCTION_PER_SLEEPER.get().longValue();
         for (int i = 0; i < level; i++) {
             unit *= 4L;
         }

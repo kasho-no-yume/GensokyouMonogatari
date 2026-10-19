@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.danmaku.program.gameplay;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.danmaku.program.*;
 import com.bitsson.gensokyou.danmaku.program.math.*;
@@ -114,7 +116,7 @@ public final class ProgramBenchmarkHost {
             });
         } else for (var child:ProgramBenchmarkLoad.batches(run.count())) for (var member:child.pattern().generate(new Deterministic.Seed(ProgramBenchmarkLoad.SEED,List.of()))) {
             var state=EmissionPlan.state(child,Actions.Binding.snapshot(),new Actions.Pose(run.frame(),Vec3.ZERO),new Deterministic.Seed(ProgramBenchmarkLoad.SEED,List.of()),member,0);
-            var bullet=new SphereDanmaku(level,run.owner(),com.bitsson.gensokyou.config.GensokyouConfig.DANMAKU_BASE_DAMAGE.get().floatValue(),0x4080FF,.4F,Set.of(EntityType.ARMOR_STAND));
+            var bullet=new SphereDanmaku(level,run.owner(),BalanceNumbers.DANMAKU_BASE_DAMAGE.floatValue(),0x4080FF,.4F,Set.of(EntityType.ARMOR_STAND));
             bullet.setPos(state.position().x(),state.position().y(),state.position().z());
             bullet.setVelocity(new net.minecraft.world.phys.Vec3(state.velocity().x(),state.velocity().y(),state.velocity().z()));
             bullet.setLifetimeTicks(ProgramBenchmarkLoad.LIFETIME);

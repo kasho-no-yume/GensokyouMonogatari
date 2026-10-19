@@ -157,7 +157,7 @@ placed_feature/ multi_noise_biome_source_parameter_list/ damage_type/ loot_table
 
 ## 数值与调试
 
-- 所有可调数值进 `config/GensokyouConfig.java`（COMMON），禁止硬编码——例外需在 design.md 记录。
+- 数值按三分法归位（见 `docs/config-guidelines.md`）：**战力数值进代码常量（`*Numbers`/`*Scaling`），MUST NOT 配置化**；非战力经济进 `gensokyou-server.toml`；表现偏好进 `gensokyou-client.toml`。**新增可调项 MUST 先经用户确认或由用户主动提出。**
 - 调试指令：`/gs_debug spirit get|current|max|temper|cooldown clear`、`/gs_learn <card>`、
   `/gs_ritual_capture <name> <r> <h>`（结构采集）、`/gs_ritual_debug` 系列。
 - 日志排查顺序：latest.log 的 `Errors in registry` 汇总区 → debug.log 同偏移找 Caused by →

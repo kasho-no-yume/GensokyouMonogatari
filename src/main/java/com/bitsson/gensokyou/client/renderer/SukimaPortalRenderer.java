@@ -1,9 +1,11 @@
 package com.bitsson.gensokyou.client.renderer;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.block.entity.SukimaBlockEntity;
 import com.bitsson.gensokyou.client.GensokyouTextures;
 import com.bitsson.gensokyou.client.ShatterScreenFx;
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.client.VisualPreferences;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -231,7 +233,7 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
      * 由满向零递减，正是闭眼进度。
      */
     private static float openProgress01(SukimaBlockEntity portal) {
-        int duration = Math.max(1, GensokyouConfig.SUKIMA_PORTAL_OPEN_TICKS.get());
+        int duration = Math.max(1, BalanceNumbers.SUKIMA_PORTAL_OPEN_TICKS);
         if (portal.isClosing()) {
             return 1.0F - Math.min(1.0F, (float) portal.closingTicks() / duration);
         }
@@ -456,11 +458,11 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
      */
     private void renderScanRings(float progress, double now, float radius,
                                  PoseStack poseStack, MultiBufferSource buffers) {
-        int rings = GensokyouConfig.FX_SHATTER_SCAN_RINGS.get();
+        int rings = BalanceNumbers.FX_SHATTER_SCAN_RINGS;
         if (rings <= 0 || radius <= 1.0E-3F) {
             return;
         }
-        int puffs = GensokyouConfig.FX_SHATTER_SCAN_PUFFS.get();
+        int puffs = VisualPreferences.count(BalanceNumbers.FX_SHATTER_SCAN_PUFFS);
         VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(RADIAL_BLOB_TEXTURE));
         PoseStack.Pose pose = poseStack.last();
         for (int ring = 0; ring < rings; ring++) {
@@ -520,16 +522,16 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
      */
     private void renderGroundShockwave(int since, float scale,
                                        PoseStack poseStack, MultiBufferSource buffers) {
-        int len = GensokyouConfig.FX_SHATTER_SHOCKWAVE_TICKS.get();
+        int len = BalanceNumbers.FX_SHATTER_SHOCKWAVE_TICKS;
         if (len <= 0 || since < 0 || since >= len) {
             return;
         }
         float t = (float) since / len;
-        float radius = GensokyouConfig.FX_SHATTER_SHOCKWAVE_RADIUS.get().floatValue() * easeOutCubic(t);
+        float radius = BalanceNumbers.FX_SHATTER_SHOCKWAVE_RADIUS.floatValue() * easeOutCubic(t);
         if (radius <= 1.0E-3F) {
             return;
         }
-        int puffs = GensokyouConfig.FX_SHATTER_SHOCKWAVE_PUFFS.get();
+        int puffs = VisualPreferences.count(BalanceNumbers.FX_SHATTER_SHOCKWAVE_PUFFS);
         // 一闪即逝：比烟环的包络陡得多
         float alpha = (1.0F - t) * (1.0F - t) * 210.0F;
         if (alpha < 3.0F) {
@@ -570,9 +572,12 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
     private void renderCharge(int elapsed, int chargeEnd, double now, float scale, Vec3 center,
                               Level level, SukimaBlockEntity portal,
                               PoseStack poseStack, MultiBufferSource buffers) {
+        if (!VisualPreferences.enabled()) {
+            return;
+        }
         float progress = Mth.clamp((float) elapsed / chargeEnd, 0F, 1F);
         float eased = easeOutCubic(progress);
-        float finalRadius = GensokyouConfig.FX_SHATTER_BALL_RADIUS.get().floatValue();
+        float finalRadius = BalanceNumbers.FX_SHATTER_BALL_RADIUS.floatValue();
         float radius = finalRadius * eased;
         if (radius <= 1.0E-3F) {
             return;
@@ -581,7 +586,7 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
         // 而把 breath 乘进 scale 会让最外层轮廓 ±10% 摆动，那就不单调了。
         // （顺带一条纪律：别让注释和代码分家——上一版这里就写着"不动几何"却动了。）
         float breath = 1.0F + 0.16F * Mth.sin((float) (now * 2.1D));
-        int layers = Math.max(2, GensokyouConfig.FX_SHATTER_BALL_LAYERS.get());
+        int layers = Math.max(2, VisualPreferences.count(BalanceNumbers.FX_SHATTER_BALL_LAYERS));
         VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(RADIAL_BLOB_TEXTURE));
         PoseStack.Pose pose = poseStack.last();
         for (int i = 0; i < layers; i++) {
@@ -611,7 +616,7 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
      */
     private void emitInflowMotes(SukimaBlockEntity portal, Level level, Vec3 center,
                                  float radius, double now) {
-        int perSec = GensokyouConfig.FX_SHATTER_INFLOW_PER_SEC.get();
+        int perSec = VisualPreferences.count(BalanceNumbers.FX_SHATTER_INFLOW_PER_SEC);
         if (perSec <= 0 || radius <= 0.15F) {
             return;
         }
@@ -661,12 +666,12 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
      */
     private void renderChargeBeams(int elapsed, double now, float radius,
                                    PoseStack poseStack, MultiBufferSource buffers) {
-        int count = GensokyouConfig.FX_SHATTER_BEAM_COUNT.get();
+        int count = VisualPreferences.count(BalanceNumbers.FX_SHATTER_BEAM_COUNT);
         if (count <= 0 || radius <= 1.0E-3F) {
             return;
         }
-        float reach = GensokyouConfig.FX_SHATTER_BEAM_REACH.get().floatValue();
-        float jitter = GensokyouConfig.FX_SHATTER_BEAM_JITTER.get().floatValue();
+        float reach = BalanceNumbers.FX_SHATTER_BEAM_REACH.floatValue();
+        float jitter = BalanceNumbers.FX_SHATTER_BEAM_JITTER.floatValue();
         float scroll = (float) (now * 0.9D);
         long rollSeed = (long) elapsed * 0x9E3779B97F4A7C15L;
         int segments = Math.max(4, Math.min(24, (int) (radius * 2.0F)));
@@ -746,12 +751,12 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
     private void renderSmokeRing(int since, int burstTicks, float scale,
                                  PoseStack poseStack, MultiBufferSource buffers) {
         float t = Mth.clamp((float) since / burstTicks, 0F, 1F);
-        float radius = GensokyouConfig.FX_SHATTER_RING_RADIUS.get().floatValue() * easeOutCubic(t);
+        float radius = BalanceNumbers.FX_SHATTER_RING_RADIUS.floatValue() * easeOutCubic(t);
         if (radius <= 1.0E-3F) {
             return;
         }
-        int layers = GensokyouConfig.FX_SHATTER_RING_LAYERS.get();
-        int perLayer = GensokyouConfig.FX_SHATTER_RING_PUFFS_PER_LAYER.get();
+        int layers = BalanceNumbers.FX_SHATTER_RING_LAYERS;
+        int perLayer = VisualPreferences.count(BalanceNumbers.FX_SHATTER_RING_PUFFS_PER_LAYER);
         // 中段达峰、两端归零
         float alpha = (float) (4.0D * t * (1.0D - t) * 96.0D);
         if (alpha < 2.0F) {
@@ -811,7 +816,7 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
      */
     private void emitAmbientMotes(SukimaBlockEntity portal, Level level, Vec3 center,
                                   float extent, double now) {
-        int perSec = GensokyouConfig.SUKIMA_PORTAL_MOTES_PER_SEC.get();
+        int perSec = VisualPreferences.count(BalanceNumbers.SUKIMA_PORTAL_MOTES_PER_SEC);
         if (perSec <= 0 || extent <= 1.0E-3F) {
             return;
         }
@@ -829,7 +834,7 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
             return;
         }
         float scale = portal.scale();
-        float orbit = GensokyouConfig.FX_SHATTER_MOTE_ORBIT_SCALE.get().floatValue();
+        float orbit = BalanceNumbers.FX_SHATTER_MOTE_ORBIT_SCALE.floatValue();
         float rx = HALF_W * scale * orbit;
         float ry = RECT_HALF_H * scale * orbit;
         // 帧率无关的发射预算，状态存在 BE 上（见 SukimaBlockEntity#takeMoteBudget）
@@ -864,7 +869,7 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
     @Override
     public AABB getRenderBoundingBox(SukimaBlockEntity blockEntity) {
         float scale = blockEntity.scale();
-        float ring = GensokyouConfig.FX_SHATTER_RING_RADIUS.get().floatValue();
+        float ring = BalanceNumbers.FX_SHATTER_RING_RADIUS.floatValue();
         float reach = Math.max(HALF_W * scale, ring);
         float up = Math.max((UPPER_LID + LOWER_LID) * scale, reach);
         BlockPos p = blockEntity.getBlockPos();

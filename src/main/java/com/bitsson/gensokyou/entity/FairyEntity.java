@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.goal.FairyLaserGoal;
 import com.bitsson.gensokyou.entity.goal.FairyNetGoal;
 import com.bitsson.gensokyou.entity.goal.FairySingleShotGoal;
@@ -72,8 +73,8 @@ public class FairyEntity extends FlyingMob implements Enemy, TouhouMonster, GeoE
 
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
-                .add(Attributes.MAX_HEALTH, GensokyouConfig.FAIRY_MAX_HEALTH.getDefault())
-                .add(Attributes.ATTACK_DAMAGE, GensokyouConfig.FAIRY_DAMAGE.getDefault())
+                .add(Attributes.MAX_HEALTH, BalanceNumbers.FAIRY_MAX_HEALTH)
+                .add(Attributes.ATTACK_DAMAGE, BalanceNumbers.FAIRY_DAMAGE)
                 .add(Attributes.MOVEMENT_SPEED, 0.25D)
                 .add(Attributes.FLYING_SPEED, 0.25D)
                 .add(Attributes.FOLLOW_RANGE, 32.0D);
@@ -162,11 +163,11 @@ public class FairyEntity extends FlyingMob implements Enemy, TouhouMonster, GeoE
     }
 
     protected double maxHealthValue() {
-        return GensokyouConfig.FAIRY_MAX_HEALTH.get();
+        return BalanceNumbers.FAIRY_MAX_HEALTH;
     }
 
     protected double attributeDamage() {
-        return GensokyouConfig.FAIRY_DAMAGE.get();
+        return BalanceNumbers.FAIRY_DAMAGE;
     }
 
     // ------------------------------------------------------------------
@@ -216,7 +217,7 @@ public class FairyEntity extends FlyingMob implements Enemy, TouhouMonster, GeoE
 
     /** 妖精弹幕速度 = 全局弹幕速度 × 妖精倍率。 */
     public float bulletSpeed() {
-        return (float) (GensokyouConfig.DANMAKU_SPEED.get() * GensokyouConfig.FAIRY_DANMAKU_SPEED_MULT.get());
+        return (float) (BalanceNumbers.DANMAKU_SPEED * BalanceNumbers.FAIRY_DANMAKU_SPEED_MULT);
     }
 
     // ------------------------------------------------------------------

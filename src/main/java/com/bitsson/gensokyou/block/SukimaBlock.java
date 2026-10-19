@@ -1,8 +1,9 @@
 package com.bitsson.gensokyou.block;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.SukimaBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
@@ -55,7 +56,7 @@ public class SukimaBlock extends Block implements EntityBlock {
         }
         return (lvl, pos, blkState, be) -> {
             if (be instanceof SukimaBlockEntity portal) {
-                portal.serverTick(GensokyouConfig.SUKIMA_PORTAL_OPEN_TICKS.get());
+                portal.serverTick(BalanceNumbers.SUKIMA_PORTAL_OPEN_TICKS);
                 portal.syncIfChanged();
             }
         };

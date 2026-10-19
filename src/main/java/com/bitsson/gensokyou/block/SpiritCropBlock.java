@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.block;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.mojang.serialization.MapCodec;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -111,11 +112,11 @@ public class SpiritCropBlock extends CropBlock {
     /** 随机刻命中分母：越小越容易触发加速。返回 {@code 0} 表示不触发。 */
     private int growthDivisor(BlockState below) {
         if (below.getBlock() instanceof SpiritSoilFarmlandBlock) {
-            return Math.max(1, GensokyouConfig.SPIRIT_SOIL_GROWTH_CHANCE.get());
+            return Math.max(1, GensokyouServerConfig.SPIRIT_SOIL_GROWTH_CHANCE.get());
         }
         if (higanSoilCrop && below.is(ModBlocks.HIGAN_SOIL.get())) {
-            int base = Math.max(1, GensokyouConfig.SPIRIT_SOIL_GROWTH_CHANCE.get());
-            int mult = Math.max(1, GensokyouConfig.HIGAN_SOIL_GROWTH_MULTIPLIER.get());
+            int base = Math.max(1, GensokyouServerConfig.SPIRIT_SOIL_GROWTH_CHANCE.get());
+            int mult = Math.max(1, GensokyouServerConfig.HIGAN_SOIL_GROWTH_MULTIPLIER.get());
             return Math.max(1, base / mult);
         }
         return 0;

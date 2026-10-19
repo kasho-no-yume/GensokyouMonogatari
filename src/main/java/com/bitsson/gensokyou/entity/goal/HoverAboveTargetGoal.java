@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity.goal;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
@@ -51,8 +52,8 @@ public class HoverAboveTargetGoal extends Goal {
             return;
         }
 
-        double min = GensokyouConfig.FAIRY_HOVER_MIN_DIST.get();
-        double max = Math.max(min, GensokyouConfig.FAIRY_HOVER_MAX_DIST.get());
+        double min = BalanceNumbers.FAIRY_HOVER_MIN_DIST;
+        double max = Math.max(min, BalanceNumbers.FAIRY_HOVER_MAX_DIST);
 
         double dx = this.mob.getX() - target.getX();
         double dz = this.mob.getZ() - target.getZ();
@@ -68,7 +69,7 @@ public class HoverAboveTargetGoal extends Goal {
 
         double targetX = target.getX() + this.offsetX;
         double targetZ = target.getZ() + this.offsetZ;
-        double desiredY = target.getY() + GensokyouConfig.FAIRY_HOVER_HEIGHT.get();
+        double desiredY = target.getY() + BalanceNumbers.FAIRY_HOVER_HEIGHT;
 
         double hoverY = Math.min(desiredY, this.findCeilingY(targetX, targetZ, desiredY));
         if (hoverY < this.mob.getY()) {
@@ -76,7 +77,7 @@ public class HoverAboveTargetGoal extends Goal {
         }
 
         this.mob.getMoveControl().setWantedPosition(targetX, hoverY, targetZ,
-                GensokyouConfig.FAIRY_FLY_SPEED.get());
+                BalanceNumbers.FAIRY_FLY_SPEED);
     }
 
     /** 从妖精头顶向 desiredY 上方做竖直射线，返回首个实心方块下的可站高度。 */

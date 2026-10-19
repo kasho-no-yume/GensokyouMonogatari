@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import net.minecraft.util.RandomSource;
 
 /**
@@ -18,9 +19,9 @@ public enum FairyVariant {
      * 按配置权重随机 roll 一种变体（仅服务端调用）。
      */
     public static FairyVariant roll(RandomSource random) {
-        int single = Math.max(0, GensokyouConfig.FAIRY_VARIANT_SINGLE_WEIGHT.get());
-        int net = Math.max(0, GensokyouConfig.FAIRY_VARIANT_NET_WEIGHT.get());
-        int laser = Math.max(0, GensokyouConfig.FAIRY_VARIANT_LASER_WEIGHT.get());
+        int single = Math.max(0, BalanceNumbers.FAIRY_VARIANT_SINGLE_WEIGHT);
+        int net = Math.max(0, BalanceNumbers.FAIRY_VARIANT_NET_WEIGHT);
+        int laser = Math.max(0, BalanceNumbers.FAIRY_VARIANT_LASER_WEIGHT);
         int total = single + net + laser;
         if (total <= 0) {
             return SINGLE;

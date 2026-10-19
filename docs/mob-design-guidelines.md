@@ -14,7 +14,7 @@
 ## 2. 非弹幕抗性（核心战斗语义）
 
 - 东方怪对**非** `gensokyou:danmaku` 伤害天然减免 **90%**
-  （`GensokyouConfig.touhouNonDanmakuResist`，默认 `0.9`）。
+  （代码常量 `BalanceNumbers.NON_DANMAKU_RESIST`，默认 `0.9`）。
 - 豁免：`GENERIC_KILL`（`/kill`）与 `FELL_OUT_OF_WORLD`（虚空）不受减免，
   保证管理员与坠落机制正常生效。
 - 结算收口于 `event/TouhouCombatEvents#onIncomingDamage`（`LivingIncomingDamageEvent`），
@@ -42,8 +42,8 @@
 - `playerEHP = HP / (2^(−护壁) × (1 − 擦弹))`；`playerDPS`/`playerEHP` 由 grace 表与武器倍率表折算。
 - BOSS 生命用**秒带**而非无量纲倍带：`bossSeconds` 覆盖 **2~15 分钟**（T1~T5 = 160/260/380/520/720s，配置区间 120~900s）。
 - **秒带是弹性目标不是保证**：BOSS 的无敌时间与其移动造成的命中率下降会实打实削减有效 DPS。
-  实测偏长/偏短就改 config 回写实测值，**不要**靠加弹数或加 `damageScale` 补时长。
-- 比率带与跨阶倍率全部在 config `monsterBudget` 段；工具类 `balance/MonsterStatBudget`。
+  实测偏长/偏短就改**代码常量**回写实测值，**不要**靠加弹数或加 `damageScale` 补时长。
+- 比率带与跨阶倍率全部为**代码常量**（`balance/MonsterStatBudget` 内）。
 - **非 BOSS 怪**（杂兵/精英）每次 spawn 在该区间内独立 roll（±25%），并随实体 NBT 持久化（存活期间不重掷）。
 - **BOSS 数值确定**：BOSS 的有效生命严格等于 `playerDPS(N) × bossSeconds[N]`，MUST NOT 施加出生随机
   （±25% 已撤销，见 change `boss-stats-deterministic`）。秒带的弹性只来自无敌时间与 BOSS 移动造成的
@@ -57,7 +57,7 @@
 - 怪物弹幕 MUST 使用 `gensokyou:danmaku` 伤害类型，并加入对应的
   `DanmakuWhitelists` 白名单以避免同类误伤。
 - 弹幕命中玩家盾牌时，该击被挡下后 MUST 禁用盾牌 5 秒
-  （`GensokyouConfig.danmakuShieldDisableTicks`），由 `TouhouCombatEvents` 统一处理。
+  （代码常量 `BalanceNumbers.DANMAKU_SHIELD_DISABLE_TICKS`），由 `TouhouCombatEvents` 统一处理。
 
 ## 5. 资产
 

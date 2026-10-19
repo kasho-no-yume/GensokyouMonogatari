@@ -1,10 +1,13 @@
 package com.bitsson.gensokyou.client.renderer;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.client.ritual.ClientRitualData;
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.client.VisualPreferences;
 import com.bitsson.gensokyou.ritual.BousenLanterns;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualFxLayout;
@@ -206,7 +209,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
     public void render(RitualCoreBlockEntity blockEntity, float partialTick, PoseStack poseStack,
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
         Level level = blockEntity.getLevel();
-        if (level == null) {
+        if (level == null || !VisualPreferences.enabled()) {
             return;
         }
         RitualRenderState state = blockEntity.renderState();
@@ -271,10 +274,10 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         double r = kind == RitualRenderState.KIND_RELAY ? 96.0D
                 : kind == RitualRenderState.KIND_WUJINZANG ? 32.0D : 16.0D;
         // 煅炉火星场铺满结构水平半径（maxY 即半径），L2 约 20 格，向上抬到火柱顶
-        double forgeLift = GensokyouConfig.FX_FORGE_EMBER_LIFT.get()
-                + GensokyouConfig.FX_FORGE_PILLAR_HEIGHT.get();
+        double forgeLift = BalanceNumbers.FX_FORGE_EMBER_LIFT
+                + BalanceNumbers.FX_FORGE_PILLAR_HEIGHT;
         double up = kind == RitualRenderState.KIND_WUJINZANG
-                ? Math.max(48.0D, GensokyouConfig.FX_WUJINZANG_LASER_HEIGHT.get())
+                ? Math.max(48.0D, BalanceNumbers.FX_WUJINZANG_LASER_HEIGHT)
                 : kind == RitualRenderState.KIND_KANAYAMAHIKO
                         ? Math.max(16.0D, blockEntity.renderState().maxY() + forgeLift)
                         : 48.0D;
@@ -306,9 +309,9 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             //    BER 局部系原点在核心方块，故一律先减去 coreY 换成偏移再用。
             int level1 = blockEntity.renderState().tier();
             // 灵气横截半径已绑到充灵半径（见 renderBathQi），此处按张开后的最大值留余量
-            double qi = GensokyouConfig.REIYOKU_BATH_RADIUS.get()
-                    * GensokyouConfig.FX_REIYOKU_QI_WIDTH_RATIO.get()
-                    * (1.0F + GensokyouConfig.FX_REIYOKU_QI_GROW.get());
+            double qi = GensokyouServerConfig.REIYOKU_BATH_RADIUS.get()
+                    * BalanceNumbers.FX_REIYOKU_QI_WIDTH_RATIO
+                    * (1.0F + BalanceNumbers.FX_REIYOKU_QI_GROW);
             double reach = Math.max(r, Math.max(bathSurface(level1).radiusXZ() + 2.0D, qi + 2.0D));
             double minOffset = blockEntity.renderState().minY() - p.getY();
             double worldTop = blockEntity.getLevel() == null
@@ -355,11 +358,11 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         double height = yTop - yBottom;
         int turns = Math.max(2, Mth.ceil(height / 1.6D));
         int segments = Math.min(160, turns * 20);
-        int layers = Mth.clamp(1 + state.tier() / 2, 1, GensokyouConfig.FX_MIST_LAYERS_MAX.get());
-        float scroll = (float) (now * GensokyouConfig.FX_MIST_SCROLL_SPEED.get());
-        double radiusBase = GensokyouConfig.FX_MIST_RADIUS.get();
-        float bandHalf = GensokyouConfig.FX_MIST_BAND_WIDTH.get().floatValue() * 0.5F;
-        double wobble = GensokyouConfig.FX_MIST_WOBBLE.get();
+        int layers = Mth.clamp(1 + state.tier() / 2, 1, BalanceNumbers.FX_MIST_LAYERS_MAX);
+        float scroll = (float) (now * BalanceNumbers.FX_MIST_SCROLL_SPEED);
+        double radiusBase = BalanceNumbers.FX_MIST_RADIUS;
+        float bandHalf = BalanceNumbers.FX_MIST_BAND_WIDTH.floatValue() * 0.5F;
+        double wobble = BalanceNumbers.FX_MIST_WOBBLE;
         double rot = now * MIST_ROT_SPEED;
 
         VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(MIST_TEXTURE));
@@ -405,20 +408,20 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             return;
         }
         float[] envs = boltEnvelopes(core, channels);
-        long roll = (long) (now / Math.max(1, GensokyouConfig.FX_BOLT_ROLL_TICKS.get()));
+        long roll = (long) (now / Math.max(1, BalanceNumbers.FX_BOLT_ROLL_TICKS));
         BoltPaths paths = BOLT_PATHS.computeIfAbsent(core, k -> new BoltPaths());
         if (paths.rollTick != roll || paths.paths.length != channels) {
             paths.reset(channels, roll);
         }
-        int ramp = Math.max(1, GensokyouConfig.FX_RAMP_TICKS.get());
+        int ramp = Math.max(1, BalanceNumbers.FX_RAMP_TICKS);
         float step = (float) Mth.clamp(now - paths.lastTime, 0.0D, 2.0D) / ramp;
         paths.lastTime = now;
 
-        float segLen = GensokyouConfig.FX_BOLT_SEGMENT_LEN.get().floatValue();
-        float jitter = GensokyouConfig.FX_BOLT_JITTER.get().floatValue();
-        float coreHalf = GensokyouConfig.FX_BOLT_CORE_WIDTH.get().floatValue();
-        float glowHalf = GensokyouConfig.FX_BOLT_GLOW_WIDTH.get().floatValue();
-        int maxSegments = GensokyouConfig.FX_BOLT_MAX_SEGMENTS.get();
+        float segLen = BalanceNumbers.FX_BOLT_SEGMENT_LEN.floatValue();
+        float jitter = BalanceNumbers.FX_BOLT_JITTER.floatValue();
+        float coreHalf = BalanceNumbers.FX_BOLT_CORE_WIDTH.floatValue();
+        float glowHalf = BalanceNumbers.FX_BOLT_GLOW_WIDTH.floatValue();
+        int maxSegments = BalanceNumbers.FX_BOLT_MAX_SEGMENTS;
         double startY = state.maxY() - core.getY() + 1.2D;
         float scroll = (float) (now * 0.35D);
 
@@ -563,18 +566,18 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         }
         List<RitualFxLayout.FirePoint> points = RitualFxLayout.fireBed(
                 core, state.linkPos(), tier,
-                GensokyouConfig.FX_FIRE_DENSITY_BASE.get(),
-                GensokyouConfig.FX_FIRE_DENSITY_PER_TIER.get(),
+                VisualPreferences.count(BalanceNumbers.FX_FIRE_DENSITY_BASE),
+                VisualPreferences.count(BalanceNumbers.FX_FIRE_DENSITY_PER_TIER),
                 state.maxY(),   // kind=KAGUTSUCHI 时 maxY 语义为结构水平半径
-                GensokyouConfig.FX_FIRE_RADIUS_RATIO.get());
-        int planes = GensokyouConfig.FX_FIRE_TONGUE_PLANES.get();
-        float halfWidth = GensokyouConfig.FX_FIRE_TONGUE_WIDTH.get().floatValue();
-        float height = GensokyouConfig.FX_FIRE_TONGUE_HEIGHT_BASE.get().floatValue()
-                + GensokyouConfig.FX_FIRE_TONGUE_HEIGHT_PER_TIER.get().floatValue() * tier;
-        float glow = GensokyouConfig.FX_FIRE_GLOW_RADIUS.get().floatValue() + 0.25F * tier;
-        float glowAlpha = GensokyouConfig.FX_FIRE_GLOW_INTENSITY.get().floatValue();
-        double pulseSpeed = GensokyouConfig.FX_FIRE_GLOW_PULSE_SPEED.get();
-        float scroll = (float) (now * GensokyouConfig.FX_FIRE_SCROLL_SPEED.get());
+                BalanceNumbers.FX_FIRE_RADIUS_RATIO);
+        int planes = BalanceNumbers.FX_FIRE_TONGUE_PLANES;
+        float halfWidth = BalanceNumbers.FX_FIRE_TONGUE_WIDTH.floatValue();
+        float height = BalanceNumbers.FX_FIRE_TONGUE_HEIGHT_BASE.floatValue()
+                + BalanceNumbers.FX_FIRE_TONGUE_HEIGHT_PER_TIER.floatValue() * tier;
+        float glow = BalanceNumbers.FX_FIRE_GLOW_RADIUS.floatValue() + 0.25F * tier;
+        float glowAlpha = BalanceNumbers.FX_FIRE_GLOW_INTENSITY.floatValue();
+        double pulseSpeed = BalanceNumbers.FX_FIRE_GLOW_PULSE_SPEED;
+        float scroll = (float) (now * BalanceNumbers.FX_FIRE_SCROLL_SPEED);
 
         // 两遍严格顺序提交（不同 RenderType 会立即结算上一批）：先地面辉光，再火舌
         VertexConsumer ground = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(FIRE_BED_TEXTURE));
@@ -655,16 +658,16 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         // ---- 1. 密集火星场 ----
         List<RitualFxLayout.EmberPoint> embers = RitualFxLayout.emberField(
                 core, tier,
-                GensokyouConfig.FX_FORGE_EMBER_COUNT_BASE.get(),
-                GensokyouConfig.FX_FORGE_EMBER_COUNT_PER_TIER.get(),
+                VisualPreferences.count(BalanceNumbers.FX_FORGE_EMBER_COUNT_BASE),
+                VisualPreferences.count(BalanceNumbers.FX_FORGE_EMBER_COUNT_PER_TIER),
                 state.maxY(),   // kind=KANAYAMAHIKO 时 maxY 语义为结构水平半径
-                GensokyouConfig.FX_FORGE_EMBER_RADIUS_RATIO.get());
-        float emberHalf = GensokyouConfig.FX_FORGE_EMBER_WIDTH.get().floatValue();
-        float emberHeight = GensokyouConfig.FX_FORGE_EMBER_HEIGHT.get().floatValue();
-        float lift = GensokyouConfig.FX_FORGE_EMBER_LIFT.get().floatValue();
+                BalanceNumbers.FX_FORGE_EMBER_RADIUS_RATIO);
+        float emberHalf = BalanceNumbers.FX_FORGE_EMBER_WIDTH.floatValue();
+        float emberHeight = BalanceNumbers.FX_FORGE_EMBER_HEIGHT.floatValue();
+        float lift = BalanceNumbers.FX_FORGE_EMBER_LIFT.floatValue();
         // 上升周期（tick）：阶级越高火星越密，单点循环越快，铺满感来自"数量"而非"速度"
         double cycleTicks = Math.max(6.0D, 26.0D - 4.0D * tier);
-        float scroll = (float) (now * GensokyouConfig.FX_FIRE_SCROLL_SPEED.get() * 1.6D);
+        float scroll = (float) (now * BalanceNumbers.FX_FIRE_SCROLL_SPEED * 1.6D);
         for (RitualFxLayout.EmberPoint ember : embers) {
             float edgeFade = 1.0F - 0.55F * ember.edge();
             if (edgeFade <= 0.01F) {
@@ -697,11 +700,11 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         // ---- 2. 祭品台火柱（火舌条带贴图，与火星场刻意区分）----
         VertexConsumer flames = buffers.getBuffer(
                 DanmakuRenderTypes.additiveGlow(FIRE_TONGUE_TEXTURE));
-        int planes = GensokyouConfig.FX_FORGE_PILLAR_PLANES.get();
-        int segments = GensokyouConfig.FX_FORGE_PILLAR_SEGMENTS.get();
-        float pillarHalf = GensokyouConfig.FX_FORGE_PILLAR_WIDTH.get().floatValue();
-        float pillarHeight = GensokyouConfig.FX_FORGE_PILLAR_HEIGHT.get().floatValue();
-        float pillarScroll = (float) (now * GensokyouConfig.FX_FIRE_SCROLL_SPEED.get() * 1.15D);
+        int planes = BalanceNumbers.FX_FORGE_PILLAR_PLANES;
+        int segments = BalanceNumbers.FX_FORGE_PILLAR_SEGMENTS;
+        float pillarHalf = BalanceNumbers.FX_FORGE_PILLAR_WIDTH.floatValue();
+        float pillarHeight = BalanceNumbers.FX_FORGE_PILLAR_HEIGHT.floatValue();
+        float pillarScroll = (float) (now * BalanceNumbers.FX_FIRE_SCROLL_SPEED * 1.15D);
         for (int i = 0; i < state.channelCount(); i++) {
             if (!state.forgePedestalBurning(i)) {
                 continue;
@@ -829,15 +832,15 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
 
     /** 焦点核中心的<b>局部</b> Y（相对核心方块原点）：方块顶面以上 {@code fxFocusHeight} 格。 */
     private static float focusLocalY() {
-        return (float) (1.0D + GensokyouConfig.FX_FOCUS_HEIGHT.get());
+        return (float) (1.0D + BalanceNumbers.FX_FOCUS_HEIGHT);
     }
 
     /** 焦点核半径（含呼吸）。 */
     private static float focusRadius(double now) {
-        float radius = GensokyouConfig.FX_FOCUS_RADIUS.get().floatValue();
-        double period = Math.max(2.0D, GensokyouConfig.FX_FOCUS_BREATH_PERIOD_TICKS.get());
+        float radius = BalanceNumbers.FX_FOCUS_RADIUS.floatValue();
+        double period = Math.max(2.0D, BalanceNumbers.FX_FOCUS_BREATH_PERIOD_TICKS);
         float breath = (float) Math.sin(now * Math.PI * 2.0D / period);
-        return radius * (1.0F + GensokyouConfig.FX_FOCUS_BREATH_AMP.get().floatValue() * breath);
+        return radius * (1.0F + BalanceNumbers.FX_FOCUS_BREATH_AMP.floatValue() * breath);
     }
 
     /** 有效台数占比 → 核的亮度系数（读作"在充能"）。 */
@@ -852,7 +855,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         float glow = focusGlow(active, total);
         if (SpiritOrbRenderTypes.densityUniform != null) {
             SpiritOrbRenderTypes.densityUniform.set(
-                    GensokyouConfig.FX_FOCUS_DENSITY.get().floatValue());
+                    BalanceNumbers.FX_FOCUS_DENSITY.floatValue());
         }
         poseStack.pushPose();
         poseStack.translate(0.5D, focusLocalY(), 0.5D);
@@ -870,10 +873,10 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
      */
     private void renderPedestalBeams(BlockPos core, List<BlockPos> pedestals, float[] beamEnv,
                                      double now, PoseStack poseStack, MultiBufferSource buffers) {
-        float half = GensokyouConfig.FX_FOCUS_BEAM_WIDTH.get().floatValue();
-        float alpha = (int) (255.0F * GensokyouConfig.FX_FOCUS_BEAM_ALPHA.get().floatValue());
+        float half = BalanceNumbers.FX_FOCUS_BEAM_WIDTH.floatValue();
+        float alpha = (int) (255.0F * BalanceNumbers.FX_FOCUS_BEAM_ALPHA.floatValue());
         float scroll = (float) (now * 0.45D);
-        double sourceY = GensokyouConfig.FX_PEDESTAL_BEAM_SOURCE_HEIGHT.get();
+        double sourceY = BalanceNumbers.FX_PEDESTAL_BEAM_SOURCE_HEIGHT;
         float targetY = focusLocalY();
         int beamR = BEAM_R, beamG = BEAM_G, beamB = BEAM_B;
 
@@ -909,17 +912,17 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
     private void renderQiField(RitualRenderState state, double now, float env,
                                PoseStack poseStack, MultiBufferSource buffers) {
         // 单点装配：阶级 → 半径/高度（未来水位表现仅改此处取值源）
-        float radius = GensokyouConfig.FX_ORB_RADIUS_BASE.get().floatValue()
-                + GensokyouConfig.FX_ORB_RADIUS_PER_TIER.get().floatValue() * state.tier();
+        float radius = BalanceNumbers.FX_ORB_RADIUS_BASE.floatValue()
+                + BalanceNumbers.FX_ORB_RADIUS_PER_TIER.floatValue() * state.tier();
         // 悬浮高度与半径联动：大球抬得更高、底缘将触未触核心，"凝于塔上"
-        float hover = 1.0F + GensokyouConfig.FX_ORB_HOVER_BASE.get().floatValue()
-                + GensokyouConfig.FX_ORB_HOVER_PER_TIER.get().floatValue() * state.tier()
+        float hover = 1.0F + BalanceNumbers.FX_ORB_HOVER_BASE.floatValue()
+                + BalanceNumbers.FX_ORB_HOVER_PER_TIER.floatValue() * state.tier()
                 + radius * 0.6F;
-        double period = Math.max(2.0D, GensokyouConfig.FX_ORB_BREATH_PERIOD_TICKS.get());
+        double period = Math.max(2.0D, BalanceNumbers.FX_ORB_BREATH_PERIOD_TICKS);
         double breath = Math.sin(now * Math.PI * 2.0D / period);
-        float scale = radius * (1.0F + (float) (GensokyouConfig.FX_ORB_BREATH_AMP.get() * breath));
+        float scale = radius * (1.0F + (float) (BalanceNumbers.FX_ORB_BREATH_AMP * breath));
         float bob = hover + 0.1F * (float) breath;
-        int alpha = (int) (255.0F * GensokyouConfig.FX_FIELD_ALPHA.get().floatValue() * env);
+        int alpha = (int) (255.0F * BalanceNumbers.FX_FIELD_ALPHA.floatValue() * env);
 
         poseStack.pushPose();
         poseStack.translate(0.5D, bob, 0.5D);
@@ -927,7 +930,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             SpiritOrbRenderTypes.timeUniform.set((float) (now % 1000000.0D));
         }
         if (SpiritOrbRenderTypes.fillUniform != null) {
-            SpiritOrbRenderTypes.fillUniform.set(GensokyouConfig.FX_FIELD_FILL.get().floatValue());
+            SpiritOrbRenderTypes.fillUniform.set(BalanceNumbers.FX_FIELD_FILL.floatValue());
         }
         FxGeometry.emitUnitSphere(buffers.getBuffer(SpiritOrbRenderTypes.ORB), poseStack.last(),
                 scale, 255, 255, 255, alpha);
@@ -962,7 +965,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         return REIYOKU_SURFACE.computeIfAbsent(level, lv -> ClientRitualData
                 .pattern(RitualBehaviors.REIYOKU)
                 .map(pattern -> RitualFxLayout.bathSurface(pattern, lv,
-                        GensokyouConfig.REIYOKU_BATH_RADIUS.get()))
+                        GensokyouServerConfig.REIYOKU_BATH_RADIUS.get()))
                 .orElseGet(() -> new RitualFxLayout.BathSurface(List.of(), 0)));
     }
 
@@ -976,7 +979,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         return SUNAKO_SURFACE.computeIfAbsent(level, lv -> ClientRitualData
                 .pattern(RitualBehaviors.SUNAKO)
                 .map(pattern -> RitualFxLayout.brewPool(pattern, lv,
-                        GensokyouConfig.FX_SUNAKO_WATER_RADIUS.get()))
+                        BalanceNumbers.FX_SUNAKO_WATER_RADIUS))
                 .orElseGet(() -> new RitualFxLayout.BathSurface(List.of(), 0)));
     }
 
@@ -1021,9 +1024,9 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
      */
     private void renderPillar(RitualCoreBlockEntity be, RitualRenderState state, double now,
                               PoseStack poseStack, MultiBufferSource buffers) {
-        int total = Math.max(1, GensokyouConfig.FX_PILLAR_TICKS.get());
+        int total = Math.max(1, BalanceNumbers.FX_PILLAR_TICKS);
         int remain = Math.max(0, state.maxY());
-        float ramp = Math.max(1, GensokyouConfig.FX_RAMP_TICKS.get());
+        float ramp = Math.max(1, BalanceNumbers.FX_RAMP_TICKS);
         float fadeIn = Mth.clamp((total - remain) / ramp, 0F, 1F);
         float fadeOut = Mth.clamp(remain / ramp, 0F, 1F);
         float env = Math.min(fadeIn, fadeOut);
@@ -1031,7 +1034,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             return;
         }
         float height = Math.max(1, state.minY());
-        float half = GensokyouConfig.FX_PILLAR_WIDTH.get().floatValue();
+        float half = BalanceNumbers.FX_PILLAR_WIDTH.floatValue();
         float scroll = (float) (now * 0.9D);
         int[] rgb = pillarColor(state.period());
         float pulse = 0.85F + 0.15F * Mth.sin((float) (now * 0.6D));
@@ -1133,8 +1136,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         double x = core.getX() + 0.5D;
         double y = core.getY() + 1.0D;
         double z = core.getZ() + 0.5D;
-        int glow = GensokyouConfig.FX_SEII_DIAL_GLOW_BASE.get()
-                + GensokyouConfig.FX_SEII_DIAL_GLOW_PER_TIER.get() * tier;
+        int glow = VisualPreferences.count(BalanceNumbers.FX_SEII_DIAL_GLOW_BASE
+                + BalanceNumbers.FX_SEII_DIAL_GLOW_PER_TIER * tier);
         if (glow > 0) {
             for (int i = 0; i < glow; i++) {
                 // 微光螺旋：角度随 tick 推进，固定半径 2.2 格
@@ -1147,8 +1150,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             }
         }
         if (tier >= 3) {
-            int nodes = GensokyouConfig.FX_SEII_RING_NODES.get();
-            double radius = GensokyouConfig.FX_SEII_RING_RADIUS.get();
+            int nodes = VisualPreferences.countMin1(BalanceNumbers.FX_SEII_RING_NODES);
+            double radius = BalanceNumbers.FX_SEII_RING_RADIUS;
             double spin = elapsed * 0.35D;
             for (int i = 0; i < nodes; i++) {
                 double ang = spin + i * (Math.PI * 2D / Math.max(1, nodes));
@@ -1158,7 +1161,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             }
         }
         if (tier >= 5) {
-            int height = GensokyouConfig.FX_SEII_PILLAR_HEIGHT.get();
+            int height = BalanceNumbers.FX_SEII_PILLAR_HEIGHT;
             // (0,0,1..h) 通道自下而上逐段点亮
             for (int h = 1; h <= height; h++) {
                 double lit = Math.min(1D, Math.max(0D, (elapsed - h * 2D) / 6D));
@@ -1203,15 +1206,15 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         double height = yTop - yBottom;
         int turns = Math.max(2, Mth.ceil(height / 1.6D));
         int segments = Math.min(lod ? 80 : 160, turns * 20);
-        int layers = Mth.clamp(1 + state.tier() / 2, 1, GensokyouConfig.FX_WUJINZANG_MIST_LAYERS_MAX.get());
-        float scroll = (float) (now * GensokyouConfig.FX_MIST_SCROLL_SPEED.get());
-        double radiusBase = GensokyouConfig.FX_WUJINZANG_MIST_RADIUS.get();
-        float bandHalf = GensokyouConfig.FX_MIST_BAND_WIDTH.get().floatValue() * 0.5F;
-        double wobble = lod ? 0.0D : GensokyouConfig.FX_MIST_WOBBLE.get();
+        int layers = Mth.clamp(1 + state.tier() / 2, 1, BalanceNumbers.FX_WUJINZANG_MIST_LAYERS_MAX);
+        float scroll = (float) (now * BalanceNumbers.FX_MIST_SCROLL_SPEED);
+        double radiusBase = BalanceNumbers.FX_WUJINZANG_MIST_RADIUS;
+        float bandHalf = BalanceNumbers.FX_MIST_BAND_WIDTH.floatValue() * 0.5F;
+        double wobble = lod ? 0.0D : BalanceNumbers.FX_MIST_WOBBLE;
         double rot = now * MIST_ROT_SPEED;
-        int r = GensokyouConfig.FX_WUJINZANG_MIST_R.get();
-        int g = GensokyouConfig.FX_WUJINZANG_MIST_G.get();
-        int b = GensokyouConfig.FX_WUJINZANG_MIST_B.get();
+        int r = BalanceNumbers.FX_WUJINZANG_MIST_R;
+        int g = BalanceNumbers.FX_WUJINZANG_MIST_G;
+        int b = BalanceNumbers.FX_WUJINZANG_MIST_B;
 
         VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(MIST_TEXTURE));
         for (int layer = 0; layer < layers; layer++) {
@@ -1241,7 +1244,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
             }
         }
 
-        int minTier = GensokyouConfig.FX_WUJINZANG_LASER_MIN_TIER.get();
+        int minTier = BalanceNumbers.FX_WUJINZANG_LASER_MIN_TIER;
         if (!lod && state.tier() >= minTier && state.channelCount() > 0) {
             renderWujinzangLasers(poseStack, buffers, core, state, env, now);
         }
@@ -1253,11 +1256,11 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
      */
     private void renderWujinzangLasers(PoseStack poseStack, MultiBufferSource buffers,
                                        BlockPos core, RitualRenderState state, float env, double now) {
-        float laserH = Math.max(8.0F, GensokyouConfig.FX_WUJINZANG_LASER_HEIGHT.get().floatValue());
-        float half = GensokyouConfig.FX_WUJINZANG_LASER_WIDTH.get().floatValue();
-        int r = GensokyouConfig.FX_WUJINZANG_MIST_R.get();
-        int g = GensokyouConfig.FX_WUJINZANG_MIST_G.get();
-        int b = GensokyouConfig.FX_WUJINZANG_MIST_B.get();
+        float laserH = Math.max(8.0F, BalanceNumbers.FX_WUJINZANG_LASER_HEIGHT.floatValue());
+        float half = BalanceNumbers.FX_WUJINZANG_LASER_WIDTH.floatValue();
+        int r = BalanceNumbers.FX_WUJINZANG_MIST_R;
+        int g = BalanceNumbers.FX_WUJINZANG_MIST_G;
+        int b = BalanceNumbers.FX_WUJINZANG_MIST_B;
         float scroll = (float) (now * 0.6D);
         float pulse = 0.82F + 0.18F * Mth.sin((float) (now * 0.25D));
         VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(BOLT_GLOW_TEXTURE));
@@ -1291,7 +1294,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         if (player == null) {
             return false;
         }
-        double limit = GensokyouConfig.FX_WUJINZANG_LOD_DISTANCE.get();
+        double limit = VisualPreferences.lodDistance();
         return player.distanceToSqr(core.getX() + 0.5D, core.getY() + 0.5D, core.getZ() + 0.5D)
                 > limit * limit;
     }
@@ -1326,29 +1329,29 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         float minOffset = state.minY() - core.getY();
 
         // 呼吸：整片水面同步起伏，幅度极小（读作"水面在动"而非"整块在缩放"）。
-        float period = Math.max(1, GensokyouConfig.FX_REIYOKU_WATER_BREATH_PERIOD_TICKS.get());
-        float breath = 1.0F + GensokyouConfig.FX_REIYOKU_WATER_BREATH_AMP.get().floatValue()
+        float period = Math.max(1, BalanceNumbers.FX_REIYOKU_WATER_BREATH_PERIOD_TICKS);
+        float breath = 1.0F + BalanceNumbers.FX_REIYOKU_WATER_BREATH_AMP.floatValue()
                 * (float) Mth.sin((float) (now * (Math.PI * 2.0D / period)));
 
         if (!surface.cells().isEmpty()) {
-            float waterH = GensokyouConfig.FX_REIYOKU_WATER_HEIGHT.get().floatValue() * breath;
-            int r = GensokyouConfig.FX_REIYOKU_WATER_R.get();
-            int g = GensokyouConfig.FX_REIYOKU_WATER_G.get();
-            int b = GensokyouConfig.FX_REIYOKU_WATER_B.get();
+            float waterH = BalanceNumbers.FX_REIYOKU_WATER_HEIGHT.floatValue() * breath;
+            int r = BalanceNumbers.FX_REIYOKU_WATER_R;
+            int g = BalanceNumbers.FX_REIYOKU_WATER_G;
+            int b = BalanceNumbers.FX_REIYOKU_WATER_B;
             // ⚠️ 配置项是 0..1 不透明度，vertex alpha 要 0..255 —— 必须先乘 255 再截断。
             //    直接 (int)(0.55f * env) 会截成 0，整片水面全透明（"只有一小块"）。
-            float opacity = GensokyouConfig.FX_REIYOKU_WATER_ALPHA.get().floatValue() * env;
-            float scroll = (float) (now * GensokyouConfig.FX_REIYOKU_WATER_SCROLL_SPEED.get());
+            float opacity = BalanceNumbers.FX_REIYOKU_WATER_ALPHA.floatValue() * env;
+            float scroll = (float) (now * BalanceNumbers.FX_REIYOKU_WATER_SCROLL_SPEED);
             // 远距降采样：主池 + 4 院子共 328 格，逐帧全画在多人观察时无谓。
             int stride = waterStride(core, surface.cells().size());
             // 底面 Y 由 WaterCell 自带：主池 = minY+1，院子低一格（见 RitualFxLayout.bathSurface）
             emitBathWater(poseStack, buffers, core, surface, stride, waterH,
                     scroll, r, g, b, opacity,
-                    GensokyouConfig.FX_REIYOKU_WATER_RIM_FADE.get().floatValue());
+                    BalanceNumbers.FX_REIYOKU_WATER_RIM_FADE.floatValue());
             // 池底辉光：紧贴各自底面的一层暗面，给 0.8 格水深以体积感（不滚动）。
             emitBathWater(poseStack, buffers, core, surface, stride, 0.02F,
                     0F, r, g, b, opacity * 0.35F,
-                    GensokyouConfig.FX_REIYOKU_WATER_RIM_FADE.get().floatValue());
+                    BalanceNumbers.FX_REIYOKU_WATER_RIM_FADE.floatValue());
         }
 
         renderBathQi(be, poseStack, buffers, minOffset, env, now);
@@ -1374,17 +1377,17 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         RitualFxLayout.BathSurface pool = sunakoPool(state.tier());
         if (!pool.cells().isEmpty()) {
             // 呼吸：整片水面同步起伏，幅度极小（读作"水面在动"而非"整块在缩放"）。
-            float period = Math.max(1, GensokyouConfig.FX_SUNAKO_WATER_BREATH_PERIOD_TICKS.get());
-            float breath = 1.0F + GensokyouConfig.FX_SUNAKO_WATER_BREATH_AMP.get().floatValue()
+            float period = Math.max(1, BalanceNumbers.FX_SUNAKO_WATER_BREATH_PERIOD_TICKS);
+            float breath = 1.0F + BalanceNumbers.FX_SUNAKO_WATER_BREATH_AMP.floatValue()
                     * (float) Mth.sin((float) (now * (Math.PI * 2.0D / period)));
-            int r = GensokyouConfig.FX_SUNAKO_WATER_R.get();
-            int g = GensokyouConfig.FX_SUNAKO_WATER_G.get();
-            int b = GensokyouConfig.FX_SUNAKO_WATER_B.get();
+            int r = BalanceNumbers.FX_SUNAKO_WATER_R;
+            int g = BalanceNumbers.FX_SUNAKO_WATER_G;
+            int b = BalanceNumbers.FX_SUNAKO_WATER_B;
             // ⚠️ 配置项是 0..1 不透明度，vertex alpha 要 0..255 —— 必须先乘 255 再截断。
-            float opacity = GensokyouConfig.FX_SUNAKO_WATER_ALPHA.get().floatValue() * env;
-            float rim = GensokyouConfig.FX_SUNAKO_WATER_RIM_FADE.get().floatValue();
-            float scroll = (float) (now * GensokyouConfig.FX_SUNAKO_WATER_SCROLL_SPEED.get());
-            float waterH = GensokyouConfig.FX_SUNAKO_WATER_HEIGHT.get().floatValue() * breath;
+            float opacity = BalanceNumbers.FX_SUNAKO_WATER_ALPHA.floatValue() * env;
+            float rim = BalanceNumbers.FX_SUNAKO_WATER_RIM_FADE.floatValue();
+            float scroll = (float) (now * BalanceNumbers.FX_SUNAKO_WATER_SCROLL_SPEED);
+            float waterH = BalanceNumbers.FX_SUNAKO_WATER_HEIGHT.floatValue() * breath;
             int stride = sunakoWaterStride(be.getBlockPos(), pool.cells().size());
             emitBathWater(poseStack, buffers, be.getBlockPos(), pool, stride, waterH,
                     scroll, r, g, b, opacity, rim);
@@ -1404,13 +1407,13 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         if (player == null) {
             return 1;
         }
-        double limit = GensokyouConfig.FX_SUNAKO_WATER_LOD_DISTANCE.get();
+        double limit = VisualPreferences.lodDistance();
         double distSq = player.distanceToSqr(core.getX() + 0.5D, core.getY() + 0.5D,
                 core.getZ() + 0.5D);
         if (distSq <= limit * limit) {
             return 1;
         }
-        double keep = GensokyouConfig.FX_SUNAKO_WATER_LOD_RATIO.get();
+        double keep = BalanceNumbers.FX_SUNAKO_WATER_LOD_RATIO;
         if (keep >= 1.0D || cells <= 0) {
             return 1;
         }
@@ -1424,13 +1427,13 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         if (player == null) {
             return 1;
         }
-        double limit = GensokyouConfig.FX_REIYOKU_WATER_LOD_DISTANCE.get();
+        double limit = VisualPreferences.lodDistance();
         double distSq = player.distanceToSqr(core.getX() + 0.5D, core.getY() + 0.5D,
                 core.getZ() + 0.5D);
         if (distSq <= limit * limit) {
             return 1;
         }
-        double keep = GensokyouConfig.FX_REIYOKU_WATER_LOD_RATIO.get();
+        double keep = BalanceNumbers.FX_REIYOKU_WATER_LOD_RATIO;
         if (keep >= 1.0D || cells <= 0) {
             return 1;
         }
@@ -1525,15 +1528,15 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                               MultiBufferSource buffers, float minOffset, float env,
                               double now) {
         // 横截半径绑到充灵半径：MUST NOT 单设绝对值，否则两者迟早漂移
-        float radius = (float) (GensokyouConfig.REIYOKU_BATH_RADIUS.get()
-                * GensokyouConfig.FX_REIYOKU_QI_WIDTH_RATIO.get());
+        float radius = (float) (GensokyouServerConfig.REIYOKU_BATH_RADIUS.get()
+                * BalanceNumbers.FX_REIYOKU_QI_WIDTH_RATIO);
         if (radius <= 0F) {
             return;
         }
-        int r = GensokyouConfig.FX_REIYOKU_QI_R.get();
-        int g = GensokyouConfig.FX_REIYOKU_QI_G.get();
-        int b = GensokyouConfig.FX_REIYOKU_QI_B.get();
-        float opacity = GensokyouConfig.FX_REIYOKU_QI_ALPHA.get().floatValue() * env;
+        int r = BalanceNumbers.FX_REIYOKU_QI_R;
+        int g = BalanceNumbers.FX_REIYOKU_QI_G;
+        int b = BalanceNumbers.FX_REIYOKU_QI_B;
+        float opacity = BalanceNumbers.FX_REIYOKU_QI_ALPHA.floatValue() * env;
         if (opacity <= 0.001F) {
             return;
         }
@@ -1544,25 +1547,25 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         float worldTop = (float) (be.getLevel() == null
                 ? 320.0D : be.getLevel().getMaxBuildHeight());
         float ratio = Math.max(0.05F,
-                GensokyouConfig.FX_REIYOKU_QI_HEIGHT_RATIO.get().floatValue());
+                BalanceNumbers.FX_REIYOKU_QI_HEIGHT_RATIO.floatValue());
         float height = Math.max(1.0F, (worldTop - core.getY() - baseY) * ratio);
 
-        float tall = Mth.clamp(GensokyouConfig.FX_REIYOKU_QI_TALL.get().floatValue(), 0.2F, 8F);
-        float grow = Mth.clamp(GensokyouConfig.FX_REIYOKU_QI_GROW.get().floatValue(), 0F, 8F);
+        float tall = Mth.clamp(BalanceNumbers.FX_REIYOKU_QI_TALL.floatValue(), 0.2F, 8F);
+        float grow = Mth.clamp(BalanceNumbers.FX_REIYOKU_QI_GROW.floatValue(), 0F, 8F);
         float spacingRatio = Mth.clamp(
-                GensokyouConfig.FX_REIYOKU_QI_SPACING_RATIO.get().floatValue(), 0.02F, 1.0F);
+                BalanceNumbers.FX_REIYOKU_QI_SPACING_RATIO.floatValue(), 0.02F, 1.0F);
         // 间距按"柱底处雾团的高度"成比例：底处最窄，用它定间距才能保证全程重叠不露缝
         float baseSprite = 2.0F * radius * tall;
         float spacing = Math.max(0.05F, baseSprite * spacingRatio);
-        int cap = Math.max(1, GensokyouConfig.FX_REIYOKU_QI_MAX_SPRITES.get());
+        int cap = Math.max(1, VisualPreferences.count(BalanceNumbers.FX_REIYOKU_QI_MAX_SPRITES));
         int sprites = Mth.clamp((int) Math.ceil(height / spacing), 1, cap);
         // 封顶会把实际间距拉大于上面的比例（默认参数下不会触发：256 格 ÷ 2.7 ≈ 95 < 192），
         // 拉大即重叠变少、读作"一股一股"。调小 maxSprites 省帧时要留意这条。
 
         float topAlphaRatio = Mth.clamp(
-                GensokyouConfig.FX_REIYOKU_QI_TOP_ALPHA.get().floatValue(), 0.0F, 1.0F);
-        float spread = Mth.clamp(GensokyouConfig.FX_REIYOKU_QI_SPREAD.get().floatValue(), 0.05F, 8F);
-        float drift = GensokyouConfig.FX_REIYOKU_QI_DRIFT.get().floatValue();
+                BalanceNumbers.FX_REIYOKU_QI_TOP_ALPHA.floatValue(), 0.0F, 1.0F);
+        float spread = Mth.clamp(BalanceNumbers.FX_REIYOKU_QI_SPREAD.floatValue(), 0.05F, 8F);
+        float drift = BalanceNumbers.FX_REIYOKU_QI_DRIFT.floatValue();
         float edgeBand = 1.0F / Math.max(2, sprites);
         float pulse = 0.9F + 0.1F * (float) Mth.sin((float) (now * 0.18D));
 
@@ -1614,7 +1617,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         float last = st[4];
         double elapsed = last < 0F ? 0F : Mth.clamp(now - last, 0F, 2.0D);
         st[4] = (float) now;
-        float ramp = Math.max(1, GensokyouConfig.FX_RAMP_TICKS.get());
+        float ramp = Math.max(1, BalanceNumbers.FX_RAMP_TICKS);
         float step = (float) elapsed / ramp;
         st[5] = step;
         float value = st[slot];
@@ -1671,7 +1674,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         }
         int burstTicks = state.summonBurstTicks();
         int holdTicks = state.summonPillarHoldTicks();
-        int retractTicks = Math.max(1, GensokyouConfig.FX_SUMMON_PILLAR_RETRACT_TICKS.get());
+        int retractTicks = Math.max(1, BalanceNumbers.FX_SUMMON_PILLAR_RETRACT_TICKS);
         int elapsed = state.summonElapsed((int) now);
         if (elapsed < burstTicks) {
             // 球在爆散前 3 tick 闪白作预告，故这里仍要画球
@@ -1692,18 +1695,18 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
 
     /** 该阶的充能球半径（格）。1 阶与结界破碎的最大球同规格，后两阶各为其 2 倍 / 3 倍。 */
     private static double summonBallRadius(int tier) {
-        return GensokyouConfig.FX_SUMMON_BALL_RADIUS_BASE.get()
-                + GensokyouConfig.FX_SUMMON_BALL_RADIUS_PER_TIER.get() * Math.max(0, tier - 1);
+        return BalanceNumbers.FX_SUMMON_BALL_RADIUS_BASE
+                + BalanceNumbers.FX_SUMMON_BALL_RADIUS_PER_TIER * Math.max(0, tier - 1);
     }
 
     private static double summonBurstRadius(int tier) {
-        return GensokyouConfig.FX_SUMMON_BURST_RADIUS_BASE.get()
-                + GensokyouConfig.FX_SUMMON_BURST_RADIUS_PER_TIER.get() * Math.max(0, tier - 1);
+        return BalanceNumbers.FX_SUMMON_BURST_RADIUS_BASE
+                + BalanceNumbers.FX_SUMMON_BURST_RADIUS_PER_TIER * Math.max(0, tier - 1);
     }
 
     private static double summonPillarRadius(int tier) {
-        return GensokyouConfig.FX_SUMMON_PILLAR_RADIUS_BASE.get()
-                + GensokyouConfig.FX_SUMMON_PILLAR_RADIUS_PER_TIER.get() * Math.max(0, tier - 1);
+        return BalanceNumbers.FX_SUMMON_PILLAR_RADIUS_BASE
+                + BalanceNumbers.FX_SUMMON_PILLAR_RADIUS_PER_TIER * Math.max(0, tier - 1);
     }
 
     /**
@@ -1737,10 +1740,10 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         if (radius <= 1.0E-3F) {
             return;
         }
-        int layers = Math.max(2, GensokyouConfig.FX_SUMMON_BALL_LAYERS.get());
+        int layers = Math.max(2, VisualPreferences.count(BalanceNumbers.FX_SUMMON_BALL_LAYERS));
         float cy = summonBallLocalY(state.tier());
-        float breathAmp = GensokyouConfig.FX_SUMMON_BALL_BREATH_AMP.get().floatValue();
-        float glowAmp = GensokyouConfig.FX_SUMMON_BALL_GLOW_AMP.get().floatValue();
+        float breathAmp = BalanceNumbers.FX_SUMMON_BALL_BREATH_AMP.floatValue();
+        float glowAmp = BalanceNumbers.FX_SUMMON_BALL_GLOW_AMP.floatValue();
         // 闲置呼吸：半径整体小幅起伏。**只随时间，不随充能进度**——进度绑定被明令禁止
         // （断供时球停在半途会与进度条一起读作"卡住"），而闲置呼吸与之无关。
         float scale = 1.0F + breathAmp * (float) Math.sin(now * 1.9D);
@@ -1814,18 +1817,18 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
      */
     private void renderSummonBeams(RitualRenderState state, double now, int nowTick,
                                    PoseStack poseStack, MultiBufferSource buffers) {
-        int count = GensokyouConfig.FX_SUMMON_BEAM_COUNT.get();
+        int count = VisualPreferences.count(BalanceNumbers.FX_SUMMON_BEAM_COUNT);
         float radius = (float) summonBallRadius(state.tier());
         if (count <= 0 || radius <= 1.0E-3F) {
             return;
         }
         float cy = summonBallLocalY(state.tier());
-        float reach = GensokyouConfig.FX_SUMMON_BEAM_REACH.get().floatValue();
-        float jitter = GensokyouConfig.FX_SUMMON_BEAM_JITTER.get().floatValue();
+        float reach = BalanceNumbers.FX_SUMMON_BEAM_REACH.floatValue();
+        float jitter = BalanceNumbers.FX_SUMMON_BEAM_JITTER.floatValue();
         float scroll = (float) (now * 0.9D);
         int segments = Math.max(4, Math.min(24, (int) (radius * 2.0F)));
         float length = radius * (1.0F + reach);
-        int growTicks = Math.max(1, GensokyouConfig.FX_SUMMON_BEAM_GROW_TICKS.get());
+        int growTicks = Math.max(1, BalanceNumbers.FX_SUMMON_BEAM_GROW_TICKS);
 
         for (int pass = 0; pass < 2; pass++) {
             boolean inner = pass == 1;
@@ -1970,7 +1973,7 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         }
 
         // ---- 冲击环：贴核心顶面、加法、一闪即逝 ----
-        int puffs = GensokyouConfig.FX_SUMMON_BURST_RING_PUFFS.get();
+        int puffs = VisualPreferences.count(BalanceNumbers.FX_SUMMON_BURST_RING_PUFFS);
         float ringAlpha = (1.0F - t) * (1.0F - t) * 220.0F;
         if (ringAlpha >= 3.0F) {
             VertexConsumer glow = buffers.getBuffer(DanmakuRenderTypes.additiveGlow(SUMMON_BLOB_TEXTURE));
@@ -1985,8 +1988,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         }
 
         // ---- 碎片：自球心四散，alpha 混合（读作"碎"而非"光"）----
-        int layers = Math.max(1, GensokyouConfig.FX_SUMMON_BURST_DEBRIS_LAYERS.get());
-        int perLayer = GensokyouConfig.FX_SUMMON_BURST_DEBRIS_PER_LAYER.get();
+        int layers = Math.max(1, BalanceNumbers.FX_SUMMON_BURST_DEBRIS_LAYERS);
+        int perLayer = VisualPreferences.count(BalanceNumbers.FX_SUMMON_BURST_DEBRIS_PER_LAYER);
         float debrisAlpha = (1.0F - t) * (1.0F - t) * 200.0F;
         if (debrisAlpha < 3.0F) {
             return;
@@ -2040,8 +2043,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         if (height <= 1.0F) {
             return;
         }
-        float alphaMin = GensokyouConfig.FX_SUMMON_PILLAR_ALPHA_MIN.get().floatValue();
-        float alphaMax = GensokyouConfig.FX_SUMMON_PILLAR_ALPHA_MAX.get().floatValue();
+        float alphaMin = BalanceNumbers.FX_SUMMON_PILLAR_ALPHA_MIN.floatValue();
+        float alphaMax = BalanceNumbers.FX_SUMMON_PILLAR_ALPHA_MAX.floatValue();
         int alpha = (int) (255.0F * Mth.lerp(alphaMin, alphaMax, Mth.clamp(grow, 0.0F, 1.0F)) * fade);
         if (alpha <= 2) {
             return;
@@ -2173,9 +2176,9 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         if (env <= 0.01F) {
             return;
         }
-        int puffs = GensokyouConfig.TSUKUMOGAMI_FX_PUFFS_PER_COLUMN.get();
-        double height = GensokyouConfig.TSUKUMOGAMI_FX_COLUMN_HEIGHT.get();
-        float size = GensokyouConfig.TSUKUMOGAMI_FX_PUFF_SIZE.get().floatValue();
+        int puffs = BalanceNumbers.TSUKUMOGAMI_FX_PUFFS_PER_COLUMN;
+        double height = BalanceNumbers.TSUKUMOGAMI_FX_COLUMN_HEIGHT;
+        float size = BalanceNumbers.TSUKUMOGAMI_FX_PUFF_SIZE.floatValue();
         float tierScale = 1.0F + 0.25F * state.tier();
         // 整座仪式布气：每根结构柱顶都冒，形成一片黑气而非只在祭品台
         for (int i = 0; i < columns.size(); i++) {
@@ -2234,16 +2237,16 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         boolean allLit = mask == full;
         // 坛面铺光（第三段）：只认「已启动 ∧ 全亮」，停机/缺灯一律不画
         if (state.enabled() && allLit) {
-            float goldAlpha = GensokyouConfig.BOUSEN_FX_GOLD_ALPHA.get().floatValue();
+            float goldAlpha = BalanceNumbers.BOUSEN_FX_GOLD_ALPHA.floatValue();
             if (goldAlpha > 0.001F) {
                 float breathe = 0.88F + 0.12F * Mth.sin((float) (now * 0.09D));
-                float radius = GensokyouConfig.BOUSEN_FX_GOLD_RADIUS.get().floatValue();
+                float radius = BalanceNumbers.BOUSEN_FX_GOLD_RADIUS.floatValue();
                 // 高度 MUST 由结构自身推导，MUST NOT 硬编码：坛面是 y-1 层的顶面（= 行走面），
                 // 而内圈祭品台（y0）与各环缘石就坐在上面——把光贴死在行走面上会被这些方块
                 // 逐面遮掉，读作"金光在地底下"。故取**最内圈蜡烛的中点高度**（三阶同为 1.5），
                 // 语义即"灯火本身的光"；再用 config 的 fxGoldLift 微调。
                 float goldY = (float) (lowestCandleMidY(offsets)
-                        + GensokyouConfig.BOUSEN_FX_GOLD_LIFT.get());
+                        + BalanceNumbers.BOUSEN_FX_GOLD_LIFT);
                 FxGeometry.emitGroundGlow(poseStack,
                         buffers.getBuffer(DanmakuRenderTypes.additiveGlow(LANTERN_HALO_TEXTURE)),
                         0.0F, goldY, 0.0F, radius,
@@ -2253,12 +2256,12 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         }
 
         // ---- 第一段：逐烛光晕（一张贴图、一个 consumer、一个 draw call）----
-        float litHalf = GensokyouConfig.BOUSEN_FX_HALO_SIZE.get().floatValue();
-        float outHalfBase = GensokyouConfig.BOUSEN_FX_OUT_HALO_SIZE.get().floatValue();
-        float litAlpha = GensokyouConfig.BOUSEN_FX_HALO_ALPHA.get().floatValue();
-        float outAlpha = GensokyouConfig.BOUSEN_FX_OUT_HALO_ALPHA.get().floatValue();
-        float pulsePeriod = Math.max(1.0F, GensokyouConfig.BOUSEN_FX_PULSE_PERIOD.get().floatValue());
-        float pulseAmt = GensokyouConfig.BOUSEN_FX_PULSE_AMOUNT.get().floatValue();
+        float litHalf = BalanceNumbers.BOUSEN_FX_HALO_SIZE.floatValue();
+        float outHalfBase = BalanceNumbers.BOUSEN_FX_OUT_HALO_SIZE.floatValue();
+        float litAlpha = BalanceNumbers.BOUSEN_FX_HALO_ALPHA.floatValue();
+        float outAlpha = BalanceNumbers.BOUSEN_FX_OUT_HALO_ALPHA.floatValue();
+        float pulsePeriod = Math.max(1.0F, BalanceNumbers.BOUSEN_FX_PULSE_PERIOD.floatValue());
+        float pulseAmt = BalanceNumbers.BOUSEN_FX_PULSE_AMOUNT.floatValue();
         int litA = (int) (litAlpha * 255.0F);
         if (litA <= 0 && outAlpha <= 0.0F) {
             return;
@@ -2286,8 +2289,8 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         }
 
         // ---- 第二段：熄灭态冲天光柱（另一张贴图 ⇒ MUST 写完上面整批再取）----
-        float beaconH = GensokyouConfig.BOUSEN_FX_BEACON_HEIGHT.get().floatValue();
-        float beaconA = GensokyouConfig.BOUSEN_FX_BEACON_ALPHA.get().floatValue();
+        float beaconH = BalanceNumbers.BOUSEN_FX_BEACON_HEIGHT.floatValue();
+        float beaconA = BalanceNumbers.BOUSEN_FX_BEACON_ALPHA.floatValue();
         if (beaconH <= 0.0F || beaconA <= 0.0F || mask == full) {
             return;
         }

@@ -1,6 +1,6 @@
 package com.bitsson.gensokyou.balance;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
 import com.bitsson.gensokyou.spirit.attr.AttributeKey;
 import com.bitsson.gensokyou.spirit.grace.GraceNumbers;
 
@@ -41,7 +41,7 @@ public final class MonsterStatBudget {
      * @param playerTier  参照玩家阶级（1..5）
      */
     public static Budget forTier(Band band, int monsterTier, int playerTier) {
-        double scale = Math.pow(GensokyouConfig.MONSTER_TIER_SCALE.get(),
+        double scale = Math.pow(BalanceNumbers.MONSTER_TIER_SCALE,
                 monsterTier - playerTier);
         double dps = referencePlayerDps(playerTier) * scale;
         double ehp = referencePlayerEhp(playerTier) * scale;
@@ -51,22 +51,22 @@ public final class MonsterStatBudget {
         int hitsMax;
         switch (band) {
             case TRASH -> {
-                hpMin = GensokyouConfig.MONSTER_TRASH_HP_MIN.get();
-                hpMax = GensokyouConfig.MONSTER_TRASH_HP_MAX.get();
-                hitsMin = GensokyouConfig.MONSTER_TRASH_HITS_MIN.get();
-                hitsMax = GensokyouConfig.MONSTER_TRASH_HITS_MAX.get();
+                hpMin = BalanceNumbers.MONSTER_TRASH_HP_MIN;
+                hpMax = BalanceNumbers.MONSTER_TRASH_HP_MAX;
+                hitsMin = BalanceNumbers.MONSTER_TRASH_HITS_MIN;
+                hitsMax = BalanceNumbers.MONSTER_TRASH_HITS_MAX;
             }
             case ELITE -> {
-                hpMin = GensokyouConfig.MONSTER_ELITE_HP_MIN.get();
-                hpMax = GensokyouConfig.MONSTER_ELITE_HP_MAX.get();
-                hitsMin = GensokyouConfig.MONSTER_ELITE_HITS_MIN.get();
-                hitsMax = GensokyouConfig.MONSTER_ELITE_HITS_MAX.get();
+                hpMin = BalanceNumbers.MONSTER_ELITE_HP_MIN;
+                hpMax = BalanceNumbers.MONSTER_ELITE_HP_MAX;
+                hitsMin = BalanceNumbers.MONSTER_ELITE_HITS_MIN;
+                hitsMax = BalanceNumbers.MONSTER_ELITE_HITS_MAX;
             }
             default -> {
-                hpMin = GensokyouConfig.MONSTER_BOSS_HP_MIN.get();
-                hpMax = GensokyouConfig.MONSTER_BOSS_HP_MAX.get();
-                hitsMin = GensokyouConfig.MONSTER_BOSS_HITS_MIN.get();
-                hitsMax = GensokyouConfig.MONSTER_BOSS_HITS_MAX.get();
+                hpMin = BalanceNumbers.MONSTER_BOSS_HP_MIN;
+                hpMax = BalanceNumbers.MONSTER_BOSS_HP_MAX;
+                hitsMin = BalanceNumbers.MONSTER_BOSS_HITS_MIN;
+                hitsMax = BalanceNumbers.MONSTER_BOSS_HITS_MAX;
             }
         }
         // 命中数少 = 单发更痛：damage 下界取 hitsMax，上界取 hitsMin。
@@ -79,7 +79,7 @@ public final class MonsterStatBudget {
         double weaponMult = weaponLevelMult(tier);
         double critAvg = 1D + critChance(tier) * critDamageBonus(tier);
         return spiritPower * weaponMult * critAvg
-                * GensokyouConfig.MONSTER_REF_SHOTS_PER_SECOND.get();
+                * BalanceNumbers.MONSTER_REF_SHOTS_PER_SECOND;
     }
 
     /** 参照玩家某阶级的有效血量 EHP（含护壁指数与擦弹率）。 */
@@ -92,19 +92,19 @@ public final class MonsterStatBudget {
     }
 
     private static double critChance(int tier) {
-        double base = GensokyouConfig.ATTR_BASE_CRIT_CHANCE.get();
-        double cap = GensokyouConfig.ATTR_CRIT_CHANCE_CAP.get();
+        double base = BalanceNumbers.ATTR_BASE_CRIT_CHANCE;
+        double cap = BalanceNumbers.ATTR_CRIT_CHANCE_CAP;
         return Math.min(cap, base + cumulative(tier, AttributeKey.CRIT_CHANCE));
     }
 
     private static double critDamageBonus(int tier) {
-        double base = GensokyouConfig.ATTR_BASE_CRIT_DAMAGE.get();
-        double cap = GensokyouConfig.ATTR_CRIT_DAMAGE_CAP.get();
+        double base = BalanceNumbers.ATTR_BASE_CRIT_DAMAGE;
+        double cap = BalanceNumbers.ATTR_CRIT_DAMAGE_CAP;
         return Math.min(cap, base + cumulative(tier, AttributeKey.CRIT_DAMAGE));
     }
 
     private static double weaponLevelMult(int tier) {
-        List<? extends Double> table = GensokyouConfig.WEAPON_LEVEL_MULT.get();
+        List<? extends Double> table = BalanceNumbers.WEAPON_LEVEL_MULT;
         if (table.isEmpty()) {
             return 1D;
         }

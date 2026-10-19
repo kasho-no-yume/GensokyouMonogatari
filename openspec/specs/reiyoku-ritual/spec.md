@@ -176,7 +176,7 @@ TBD - created by archiving change add-reiyoku-ritual. Update Purpose after archi
 - **THEN** 两者耗时均约 10 秒
 
 ### Requirement: 容量分派与配置基项
-`RitualCoreBlockEntity.getCapacity()` SHALL 对灵浴的 patternId 返回 `REIYOKU_BASE_CAPACITY`（默认 10000）按 `12^(结构等级-1)` 缩放后的值，MUST NOT 落回 `DEFAULT_CORE_CAPACITY` 兜底分支。容量、受灵上限、标准池表、充灵百分比、换算比、浴区半径与浴区高度 SHALL 全部定义于 `GensokyouConfig`（COMMON），MUST NOT 硬编码字面量于行为代码。容量与受灵上限因超出 `int` 范围 MUST 使用 `LongValue`。
+`RitualCoreBlockEntity.getCapacity()` SHALL 对灵浴的 patternId 返回 `REIYOKU_BASE_CAPACITY`（默认 10000）按 `12^(结构等级-1)` 缩放后的值，MUST NOT 落回 `DEFAULT_CORE_CAPACITY` 兜底分支。容量、受灵上限、充灵百分比、换算比、浴区半径与浴区高度 SHALL 定义于 `gensokyou-server.toml`（SERVER），MUST NOT 硬编码字面量于行为代码；**各阶标准灵力池表 SHALL 为代码常量**（`config-surface` 三分法：该表编码了战力曲线，不参与可调经济）。容量与受灵上限因超出 `int` 范围 MUST 在该 SERVER 配置中使用 `LongValue`。
 
 > 注：`DEFAULT_CORE_CAPACITY` 恰好等于 1 阶目标值，故缺失该分支时 1 阶表现正确、2~5 阶静默偏差。验证 MUST 覆盖 2~5 阶。
 
@@ -184,13 +184,17 @@ TBD - created by archiving change add-reiyoku-ritual. Update Purpose after archi
 - **WHEN** 分别查询 1~5 阶灵浴核心的 `getCapacity()`
 - **THEN** 返回 10,000 / 120,000 / 1,440,000 / 17,280,000 / 207,360,000，2 阶起 MUST NOT 等于 10,000
 
-#### Scenario: 配置可调
-- **WHEN** 管理员修改 COMMON 配置中的容量或受灵基项并重载
+#### Scenario: 服务端配置可调
+- **WHEN** 管理员修改 SERVER 配置中的容量或受灵基项并重载
 - **THEN** 行为与核心读取到新值，无需改代码
 
 #### Scenario: 浴区参数可配
 - **WHEN** 管理员把浴区半径改为 2
 - **THEN** 仅欧氏距离 ≤ 2 的玩家被充灵
+
+#### Scenario: 战力参考量不可调
+- **WHEN** 检索各阶标准灵力池表的来源
+- **THEN** 唯一来源为代码常量，MUST NOT 存在对应的配置键或 `ModConfigSpec` 条目
 
 ### Requirement: 玩家池逐 tick 写入，并在充灵期间逐 tick 同步
 
@@ -264,28 +268,7 @@ cadence SHALL 做成配置项以留退路（20 = 退回 1Hz 行为）。客户�
 - **THEN** 退出码为 0，无缺失键
 
 ### Requirement: 运行态特效
-灵浴 SHALL 新增专属渲染态 kind，由客户端绘制两段表现，MUST NOT 以服务端 `sendParticles` 作为主体载体：
-
-1. **蓝色灵力水面**：自各区域自身底面向上占据 0.8 格高（`REIYOKU_WATER_HEIGHT`，默认 0.8），呈流动感。占地 SHALL 为**主池 + 外圈院子**两块（定义见下），MUST NOT 取包围盒，MUST NOT 铺满外圈走道。
-2. **浅绿灵气**：自水面上方升腾、**直到世界建筑上限**的软雾柱，由沿高度堆叠的 **camera-facing billboard** 构成。其**横截面积 SHALL 等于充灵范围**（横截半径 = `REIYOKU_BATH_RADIUS × FX_REIYOKU_QI_WIDTH_RATIO`，默认比例 1.0），且 SHALL 读作**一根连贯的柱**而非一串独立烟团。
-
-**水面占地 SHALL 由同一份 pattern 纯函数推导，MUST NOT 硬编码坐标**：
-
-| 区域 | 定义 | 实测格数 |
-|---|---|---|
-| **主池** | `y = 核心Y` 层**未被 pattern 声明**、且**格坐标距** ≤ `REIYOKU_BATH_RADIUS`（默认 3）的格位 | 各阶恒 12 |
-| **院子** | `y = 核心Y-1`（最低层）中未被声明、且**被已声明格位包围**的空连通块（4 邻域 flood fill 自图外起） | L1–L3 = 0 块；L4/L5 = 4 块 × 79 格 |
-
-约束：
-
-- **包围判定 MUST 在最低层做**。外圈石砖环只在最低层是实心的；上一层的环有缺口，在那里 flood fill 只会得到 3 个 8~9 格的小口袋。院子在 4 阶起才随外圈环出现，MUST 由几何**自然导出**，MUST NOT 按阶硬编码特判。
-- **主池 MUST 取"未声明"格位**，MUST NOT 取最低层全部格位：最低层含核心基座与仪式石环（它们占 `y = 核心Y` 那一格），水画进去会被埋在方块内不可见，而只有未声明处才有空气。所得集合恰等于"玩家能站进去泡水"的全部格位。
-- **主池 MUST 四向对称**。半径 MUST 按**格坐标距** `hypot(x, z)` 算，MUST NOT 按格心算成 `hypot(x + 0.5, z + 0.5)`：后者把 `|−3|` 记成 2.5、`|+3|` 记成 3.5，r = 3 时多出的格位全落在一个象限，主池读作偏心。此错只在整数半径下暴露，MUST 以默认 3.0 做回归。
-- **院子格位在 pattern 中未声明**（不受结构约束、亦无地板），故 MUST NOT 用"pattern 声明了什么"定位；靠"被声明格位包围"反推，边界来源仍是同一份 pattern。
-- **两块底面 MUST 相差一格**：主池坐在最低层顶面（`minY + 1`），院子低一格（`minY`）—— 院子处无地板，地面在更低一层。同高会读作"悬空平板架在齐腰的池子旁"，而非下沉一格的水院。逐格底面 SHALL 由布局数据自带，渲染端 MUST NOT 再叠加整体基准 Y。
-- **外圈走道与轴向通道 MUST NOT 铺水**。轴向通道未声明但**与图外连通**，包围法天然排除；外圈石砖环已声明，同样天然排除。
-
-两段表现的参数（高度、半径、颜色、雾团间距、上升速率、高度分布指数、张开倍数、不透明度、脉动/呼吸速率）SHALL 全部为 `GensokyouConfig`（COMMON）项，MUST NOT 硬编码。新增水面贴图 SHALL 经 `tools/gen_tex.py` 产出，MUST NOT 使用坐标循环脚本。
+水面与灵气两段表现的参数（高度、半径、颜色、雾团间距、上升速率、高度分布指数、张开倍数、不透明度、脉动/呼吸速率）SHALL 为**客户端常量**，MUST NOT 声明为任何配置项；其可调性由 CLIENT 配置的画质档统一收口（`config-surface`）。新增水面贴图 SHALL 经 `tools/gen_tex.py` 产出，MUST NOT 使用坐标循环脚本。
 
 水面底面 SHALL 由布局数据自带的逐格 Y 换算得出，客户端 MUST 注意渲染态 `minY` 是**绝对世界 Y**、BER 局部系原点即核心方块原点（MUST NOT 把绝对世界 Y 直接当作局部坐标 —— 会把水面与灵气画到结构上方数十格处，表现为"完全没有特效"）。
 
@@ -297,15 +280,15 @@ cadence SHALL 做成配置项以留退路（20 = 退回 1Hz 行为）。客户�
 
 **相邻雾团 MUST 显著重叠，MUST NOT 露缝**（否则读作"一股一股、像烟囱"）。为此三条 SHALL 同时成立：
 
-- **垂直间距 SHALL 是雾团自身高度的比例**（`FX_REIYOKU_QI_SPACING_RATIO`，默认 0.25），MUST NOT 是绝对格数。绝对间距与雾团尺寸脱钩：改宽或改高都不会跟随。比例化后雾团变大则间距同比变大，光滑度与尺寸解耦。
-- **横截半径 SHALL 绑到充灵半径**（`REIYOKU_BATH_RADIUS × FX_REIYOKU_QI_WIDTH_RATIO`，默认 1.0），MUST NOT 单设绝对值 —— 两个独立旋钮迟早漂移，漂移后柱身比浴区窄又变回烟囱管。
-- **雾团 SHALL 允许竖向拉伸**（`FX_REIYOKU_QI_TALL`，默认 1.8，只拉高不拉宽）。这是把「垂直叠得够密」与「横截面积固定」解耦的唯一手段：否则要更光滑只能加宽，而那会破坏横截面积的要求。
+- **垂直间距 SHALL 是雾团自身高度的比例**（默认 0.25），MUST NOT 是绝对格数。绝对间距与雾团尺寸脱钩：改宽或改高都不会跟随。比例化后雾团变大则间距同比变大，光滑度与尺寸解耦。
+- **横截半径 SHALL 绑到充灵半径**（`REIYOKU_BATH_RADIUS × 比例`，默认 1.0），MUST NOT 单设绝对值 —— 两个独立旋钮迟早漂移，漂移后柱身比浴区窄又变回烟囱管。
+- **雾团 SHALL 允许竖向拉伸**（默认 1.8，只拉高不拉宽）。这是把「垂直叠得够密」与「横截面积固定」解耦的唯一手段：否则要更光滑只能加宽，而那会破坏横截面积的要求。
 
 **摆动 SHALL 沿高度连续**：相位 MUST 取自高度比例，MUST NOT 取自片序号。片数上百时按序号取相会让相邻两片反向摆动，读作杂乱喷溅而非一根连贯的柱。
 
-整柱 SHALL 循环上升（`FX_REIYOKU_QI_DRIFT`），SHALL 在回绕处两端交叉淡入淡出，否则高不透明度片从顶端跳回柱底会读作"闪一下"。**单片不透明度 SHALL 压得很低**：片数上百且相互重叠，观感由**累积**而成，任何一片都不该自己就看得见。
+整柱 SHALL 循环上升，SHALL 在回绕处两端交叉淡入淡出，否则高不透明度片从顶端跳回柱底会读作"闪一下"。**单片不透明度 SHALL 压得很低**：片数上百且相互重叠，观感由**累积**而成，任何一片都不该自己就看得见。
 
-**片数封顶 SHALL NOT 在默认参数下触发**（封顶会拉大实际间距、重叠变少、又变回"一股一股"）；封顶被触发时该取舍 MUST 在配置注释中写明。
+**片数封顶 SHALL NOT 在默认参数下触发**（封顶会拉大实际间距、重叠变少、又变回"一股一股"）；封顶被触发时该取舍 MUST 在代码注释中写明。
 
 **高度分布指数的方向 MUST 明确**：`y = 底 + 柱高 × u^k` 中 `k > 1` 才是"低处密、高处疏"；`k < 1` 把采样点**往上推**。默认值 SHALL 取 1.0（沿柱均匀）。
 
@@ -369,9 +352,9 @@ cadence SHALL 做成配置项以留退路（20 = 退回 1Hz 行为）。客户�
 - **WHEN** 一名玩家独自在 5 阶灵浴附近观察满配特效
 - **THEN** 水面与灵气全量渲染且该玩家与服务器之间无逐 tick 粒子包
 
-#### Scenario: 调参不重编译
-- **WHEN** 修改水面高度或灵气雾团间距等任一 FX 配置项并重载
-- **THEN** 运行态表现随之变化，无需改动代码
+#### Scenario: 画质档收口而非逐项调参
+- **WHEN** 玩家切换 CLIENT 配置的画质档
+- **THEN** 水面/灵气的密度与层数随档位整体变化，而配置文件中 MUST NOT 存在任何逐效果的尺寸/颜色/间距键
 
 ### Requirement: 调试探针
 调试子命令 SHALL 输出机读单行摘要，至少含 `level`、`capacity`、`inRate`、`stored`、`chargePerSecond`、`cachePerSecond` 与结构命中状态，供外部 harness 解析断言。世界无关的速率/容量/换算内核 SHALL 实现为可直接调用的静态函数（先例：`DayCycleGeneratorBehavior.producedPerSecond`、`BafangGuiyuanBehavior.weightedSplit`）。

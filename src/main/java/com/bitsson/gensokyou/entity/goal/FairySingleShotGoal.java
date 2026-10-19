@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity.goal;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.DanmakuWhitelists;
 import com.bitsson.gensokyou.entity.FairyEntity;
 import com.bitsson.gensokyou.entity.FairyVariant;
@@ -40,7 +41,7 @@ public class FairySingleShotGoal extends Goal {
 
     @Override
     public void start() {
-        this.cooldown = GensokyouConfig.FAIRY_SINGLE_INTERVAL.get();
+        this.cooldown = BalanceNumbers.FAIRY_SINGLE_INTERVAL;
     }
 
     @Override
@@ -54,14 +55,14 @@ public class FairySingleShotGoal extends Goal {
         if (--this.cooldown > 0) {
             return;
         }
-        this.cooldown = GensokyouConfig.FAIRY_SINGLE_INTERVAL.get();
+        this.cooldown = BalanceNumbers.FAIRY_SINGLE_INTERVAL;
         this.fire(target);
     }
 
     private void fire(LivingEntity target) {
         Vec3 origin = this.fairy.getEyePosition();
         Vec3 dir = target.getEyePosition().subtract(origin).normalize();
-        float damage = GensokyouConfig.FAIRY_SINGLE_DAMAGE.get().floatValue();
+        float damage = BalanceNumbers.FAIRY_SINGLE_DAMAGE.floatValue();
 
         SphereDanmaku bullet = new SphereDanmaku(
                 this.fairy.level(), this.fairy, damage, 0, 0.4F, DanmakuWhitelists.FAIRY);

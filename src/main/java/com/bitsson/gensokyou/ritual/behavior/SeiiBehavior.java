@@ -1,12 +1,13 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.RitualBehaviorState;
 import com.bitsson.gensokyou.ritual.SeiiSession;
 
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.item.weapon.AmpCoreItem;
 import com.bitsson.gensokyou.item.weapon.RuneAffix;
 import com.bitsson.gensokyou.item.weapon.RuneSummary;
@@ -47,7 +48,7 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
         net.minecraft.world.level.Level lv = core.getLevel();
         boolean performing = lv != null && !lv.isClientSide
                 && session.phase() == com.bitsson.gensokyou.ritual.SeiiSession.Phase.PERFORM;
-        int duration = com.bitsson.gensokyou.config.GensokyouConfig.SEII_PERFORM_TICKS.get();
+        int duration = GensokyouServerConfig.SEII_PERFORM_TICKS.get();
         int startTick = performing ? (int) (lv.getGameTime() - session.ticks()) : 0;
         return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SEII, performing, match.level(), startTick, duration, 0, new long[0], 0, 0L);
     }
@@ -175,7 +176,7 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
             case PERFORM -> lines.add(new InfoLine("gui.gensokyou.ritual.seii.perform",
                     new String[0], "", 0xFFCE93D8,
                     Math.min(1F, (float) session.ticks()
-                            / (float) Math.max(1, GensokyouConfig.SEII_PERFORM_TICKS.get())), null));
+                            / (float) Math.max(1, GensokyouServerConfig.SEII_PERFORM_TICKS.get())), null));
             case REVIEW -> {
                 if (initiator) {
                     appendReview(lines, session.pending());

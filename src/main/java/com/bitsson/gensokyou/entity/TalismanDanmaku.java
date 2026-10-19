@@ -1,9 +1,10 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.client.ClientEntityUuidIndex;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.DanmakuTargetRef;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -113,7 +114,7 @@ public class TalismanDanmaku extends AbstractDanmakuProjectile {
      * （客户端本就应该领先，见 {@code DanmakuSyncProbeTest#delayShowsUpAsAConstantPhaseDeficit}），
      * 相比「两端结论不一致且无法发现」它是可测量、可预期、随延迟收敛的量。
      *
-     * <p>阈值取 {@code GensokyouConfig#TALISMAN_TARGET_LOSS_ANGLE_DEG}，
+     * <p>阈值取 {@code BalanceNumbers.TALISMAN_TARGET_LOSS_ANGLE_DEG}，
      * 不在此复述其数值（默认值随配置版本变，复述的那个数已经漂过一次）。
      */
     private void tickHoming() {
@@ -143,7 +144,7 @@ public class TalismanDanmaku extends AbstractDanmakuProjectile {
         // 整段判定（含夹角计算）都在服务端：客户端走下面的转向分支，
         // 即「尚未收到丢失状态 ⇒ 继续按持有目标表现」。
         if (!this.level().isClientSide) {
-            double lossAngle = Math.toRadians(GensokyouConfig.TALISMAN_TARGET_LOSS_ANGLE_DEG.get());
+            double lossAngle = Math.toRadians(BalanceNumbers.TALISMAN_TARGET_LOSS_ANGLE_DEG);
             double angle = Math.acos(Mth.clamp(currentDir.dot(targetDir), -1.0D, 1.0D));
             if (angle > lossAngle) {
                 this.entityData.set(DATA_TARGET_LOST, true);

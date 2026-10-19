@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.RitualScaling;
 
 /**
@@ -34,9 +35,9 @@ public final class SunakoScaling {
 
     public static long capacityOf(int level) {
         return capacityOf(level,
-                GensokyouConfig.SUNAKO_BASE_CAPACITY.get(),
-                GensokyouConfig.SUNAKO_CAPACITY_MULTIPLIER.get(),
-                GensokyouConfig.SUNAKO_CAPACITY_OVERRIDE_LEVEL3.get());
+                GensokyouServerConfig.SUNAKO_BASE_CAPACITY.get(),
+                GensokyouServerConfig.SUNAKO_CAPACITY_MULTIPLIER.get(),
+                GensokyouServerConfig.SUNAKO_CAPACITY_OVERRIDE_LEVEL3.get());
     }
 
     /** 1 阶 = 基值，2 阶 = 基值 × 倍率，≥3 阶 = 显式覆盖值（非几何外推）。 */
@@ -53,9 +54,9 @@ public final class SunakoScaling {
 
     public static long inRateOf(int level) {
         return inRateOf(level,
-                GensokyouConfig.SUNAKO_BASE_IN_RATE_PER_SECOND.get(),
-                GensokyouConfig.SUNAKO_IN_RATE_MULTIPLIER.get(),
-                GensokyouConfig.SUNAKO_IN_RATE_OVERRIDE_LEVEL3.get());
+                GensokyouServerConfig.SUNAKO_BASE_IN_RATE_PER_SECOND.get(),
+                GensokyouServerConfig.SUNAKO_IN_RATE_MULTIPLIER.get(),
+                GensokyouServerConfig.SUNAKO_IN_RATE_OVERRIDE_LEVEL3.get());
     }
 
     /** 1 阶 = 基值，2 阶 = 基值 × 倍率，≥3 阶 = 显式值（10k/50k/200k 是 ×5 后 ×4，非几何）。 */
@@ -71,9 +72,9 @@ public final class SunakoScaling {
 
     public static long unitCostOf(int level) {
         return unitCostOf(level,
-                GensokyouConfig.SUNAKO_UNIT_COST_LEVEL1.get(),
-                GensokyouConfig.SUNAKO_UNIT_COST_LEVEL2.get(),
-                GensokyouConfig.SUNAKO_UNIT_COST_LEVEL3.get());
+                GensokyouServerConfig.SUNAKO_UNIT_COST_LEVEL1.get(),
+                GensokyouServerConfig.SUNAKO_UNIT_COST_LEVEL2.get(),
+                GensokyouServerConfig.SUNAKO_UNIT_COST_LEVEL3.get());
     }
 
     /** 三档显式表，阶数钳到 [1, 3]。 */

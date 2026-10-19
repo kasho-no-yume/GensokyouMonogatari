@@ -1,6 +1,9 @@
 package com.bitsson.gensokyou.client.screen;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
+import com.bitsson.gensokyou.config.GensokyouClientConfig;
+
 import com.bitsson.gensokyou.menu.SpiritBombMenu;
 import com.bitsson.gensokyou.network.SpiritBombStatePayload;
 import net.minecraft.client.gui.GuiGraphics;
@@ -85,7 +88,7 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
     }
 
     private static double defaultFuseSeconds() {
-        return GensokyouConfig.SPIRIT_BOMB_DEFAULT_FUSE_TICKS.get() / 20.0D;
+        return GensokyouServerConfig.SPIRIT_BOMB_DEFAULT_FUSE_TICKS.get() / 20.0D;
     }
 
     private int fuseTicks() {

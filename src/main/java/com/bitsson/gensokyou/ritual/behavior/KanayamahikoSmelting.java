@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.KanayamahikoSmeltSession;
 
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
@@ -7,7 +9,6 @@ import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualMatch;
@@ -318,8 +319,8 @@ public final class KanayamahikoSmelting {
     }
 
     public static int durationTicks(int level) {
-        return durationTicks(level, GensokyouConfig.KANAYAMAHIKO_BASE_DURATION_SECONDS.get(),
-                GensokyouConfig.KANAYAMAHIKO_DURATION_LEVEL_DIVISOR.get());
+        return durationTicks(level, GensokyouServerConfig.KANAYAMAHIKO_BASE_DURATION_SECONDS.get(),
+                GensokyouServerConfig.KANAYAMAHIKO_DURATION_LEVEL_DIVISOR.get());
     }
 
     static int durationTicks(int level, int baseSeconds, int levelDivisor) {
@@ -333,18 +334,18 @@ public final class KanayamahikoSmelting {
     }
 
     public static long drainPerSecond(int level) {
-        return scaled(GensokyouConfig.KANAYAMAHIKO_BASE_DRAIN_PER_SECOND.get(),
-                GensokyouConfig.KANAYAMAHIKO_POWER_MULTIPLIER.get(), level);
+        return scaled(GensokyouServerConfig.KANAYAMAHIKO_BASE_DRAIN_PER_SECOND.get(),
+                GensokyouServerConfig.KANAYAMAHIKO_POWER_MULTIPLIER.get(), level);
     }
 
     public static long capacity(int level) {
-        return scaled(GensokyouConfig.KANAYAMAHIKO_BASE_CAPACITY.get(),
-                GensokyouConfig.KANAYAMAHIKO_CAPACITY_MULTIPLIER.get(), level);
+        return scaled(GensokyouServerConfig.KANAYAMAHIKO_BASE_CAPACITY.get(),
+                GensokyouServerConfig.KANAYAMAHIKO_CAPACITY_MULTIPLIER.get(), level);
     }
 
     public static long inRate(int level) {
-        return scaled(GensokyouConfig.KANAYAMAHIKO_BASE_ROUTED_INPUT_PER_SECOND.get(),
-                GensokyouConfig.KANAYAMAHIKO_IN_RATE_MULTIPLIER.get(), level);
+        return scaled(GensokyouServerConfig.KANAYAMAHIKO_BASE_ROUTED_INPUT_PER_SECOND.get(),
+                GensokyouServerConfig.KANAYAMAHIKO_IN_RATE_MULTIPLIER.get(), level);
     }
 
     public static boolean isBlockOre(ItemStack stack) {

@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.block.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.spirit.ModAttachments;
@@ -56,9 +57,9 @@ public class LandscapingBlockEntity extends BlockEntity {
 
     public LandscapingBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.LANDSCAPING.get(), pos, state);
-        this.sizeX = GensokyouConfig.LANDSCAPING_DEFAULT_SIZE.get();
-        this.sizeZ = GensokyouConfig.LANDSCAPING_DEFAULT_SIZE.get();
-        this.height = GensokyouConfig.LANDSCAPING_DEFAULT_HEIGHT.get();
+        this.sizeX = GensokyouServerConfig.LANDSCAPING_DEFAULT_SIZE.get();
+        this.sizeZ = GensokyouServerConfig.LANDSCAPING_DEFAULT_SIZE.get();
+        this.height = GensokyouServerConfig.LANDSCAPING_DEFAULT_HEIGHT.get();
     }
 
     @Override
@@ -90,9 +91,9 @@ public class LandscapingBlockEntity extends BlockEntity {
     }
 
     public void setParams(int sizeX, int sizeZ, int height) {
-        this.sizeX = clamp(sizeX, 1, GensokyouConfig.LANDSCAPING_MAX_SIZE.get());
-        this.sizeZ = clamp(sizeZ, 1, GensokyouConfig.LANDSCAPING_MAX_SIZE.get());
-        this.height = clamp(height, 1, GensokyouConfig.LANDSCAPING_MAX_HEIGHT.get());
+        this.sizeX = clamp(sizeX, 1, GensokyouServerConfig.LANDSCAPING_MAX_SIZE.get());
+        this.sizeZ = clamp(sizeZ, 1, GensokyouServerConfig.LANDSCAPING_MAX_SIZE.get());
+        this.height = clamp(height, 1, GensokyouServerConfig.LANDSCAPING_MAX_HEIGHT.get());
         setChanged();
         // 推给客户端：线框渲染器读客户端 BE 的参数，不推则绿框不更新
         syncToClients();
@@ -152,7 +153,7 @@ public class LandscapingBlockEntity extends BlockEntity {
         int cleared = clearTerrain(server, player);
         int filled = (player.isCreative() || hasDirt(player)) ? paveBottom(server, player) : 0;
         if (!player.isCreative()) {
-            cooldownUntil = server.getGameTime() + GensokyouConfig.LANDSCAPING_COOLDOWN_TICKS.get();
+            cooldownUntil = server.getGameTime() + GensokyouServerConfig.LANDSCAPING_COOLDOWN_TICKS.get();
         }
         setChanged();
         syncToClients();
@@ -168,7 +169,7 @@ public class LandscapingBlockEntity extends BlockEntity {
 
     /** 按长/宽/高估算消耗（供 GUI 与服务端共用）。 */
     public static long costFor(int sizeX, int sizeZ, int height) {
-        long base = GensokyouConfig.LANDSCAPING_BASE_COST.get();
+        long base = GensokyouServerConfig.LANDSCAPING_BASE_COST.get();
         return base * (long) sizeX * sizeZ * height;
     }
 
@@ -284,11 +285,11 @@ public class LandscapingBlockEntity extends BlockEntity {
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
-        int defSize = GensokyouConfig.LANDSCAPING_DEFAULT_SIZE.get();
+        int defSize = GensokyouServerConfig.LANDSCAPING_DEFAULT_SIZE.get();
         sizeX = tag.contains(TAG_X) ? tag.getInt(TAG_X) : defSize;
         sizeZ = tag.contains(TAG_Z) ? tag.getInt(TAG_Z) : defSize;
         height = tag.contains(TAG_HEIGHT) ? tag.getInt(TAG_HEIGHT)
-                : GensokyouConfig.LANDSCAPING_DEFAULT_HEIGHT.get();
+                : GensokyouServerConfig.LANDSCAPING_DEFAULT_HEIGHT.get();
         cooldownUntil = tag.getLong(TAG_COOLDOWN);
     }
 }

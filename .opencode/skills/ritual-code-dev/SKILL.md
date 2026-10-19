@@ -10,17 +10,17 @@ metadata:
 
 ## 0. 角色与边界（先读）
 
-- 本 skill 管**代码侧**：行为、注册、灵力四件套、端点、UI 信息行、config、lang、调试。
+- 本 skill 管**代码侧**：行为、注册、灵力四件套、端点、UI 信息行、配置/常量、lang、调试。
 - **pattern JSON 设计**（`data/gensokyou/rituals/*.json`）走 `ritual-design`（明确"只设计不读码"）。
 - **NeoForge/1.21.1 通用坑**走 `neoforge-1211-dev`。
 - 写码前先读契约 spec（`openspec/specs/`）：`ritual-lifecycle`、`ritual-core-interface`、`ritual-power-attributes`、`ritual-core-registry`、`ritual-gui-info-lines`，以及该仪式已有的能力 spec。
-- **红线：所有可调数值进 `GensokyouConfig`（COMMON），禁止硬编码**；例外须 design.md 记录。
+- **红线：战力数值（伤害/血量/属性/怪物预算）进代码常量，禁止配置化；仪式经济进 `gensokyou-server.toml`。** 归属判据见 `docs/config-guidelines.md`；新增可调项 MUST 先经用户确认。
 
 ## 1. 一个仪式 = 三件套
 
 ```
-  pattern JSON             Behavior                     config + lang
- data/gensokyou/rituals/  ritual/behavior/*.java       GensokyouConfig.java
+  pattern JSON             Behavior                     常量/配置 + lang
+ data/gensokyou/rituals/  ritual/behavior/*.java       server config / *Numbers
  ┌────────────────┐       ┌────────────────────┐       ┌──────────────────┐
  │ id / anchorKey │       │ implements          │       │ *_BASE_RATE       │
  │ palette        │──────▶│   RitualBehavior    │◀─────▶│ *_BASE_OUT_RATE   │
@@ -178,7 +178,7 @@ default int slotX(int index); default int slotY(int index);   // 缺省横排一
  2. Behavior 类            ritual/behavior/<Name>Behavior.java
  3. 注册                   ritual/RitualBehaviors.java（+常量 +register）
  4. 容量钩子              覆写 capacity(level, core)（**不再改 BE 分派链**）
- 5. config 基项            config/GensokyouConfig.java（声明块 + defineInRange）
+ 5. 数值归位               战力→`*Numbers` 常量；经济→`gensokyou-server.toml`（defineInRange）
  6. tick 通道选型          启停型→serverTick + pattern "toggleable": true
                           被动型→serverPassiveTick + pattern 不写 toggleable
  7. 端点声明               如需路由：覆写 in/out（双发分道，禁止合并）
@@ -206,7 +206,7 @@ default int slotX(int index); default int slotY(int index);   // 缺省横排一
 | **空物品格画不出来** | `RitualCoreScreen.layoutRow` 的图标预留曾判 `if (!iconItemId().isEmpty())`，而 `CONTROL_ITEM` 空槽的 `iconItemId` 恰恰是空串 → 整行退化成纯文本，玩家看不见这里能放东西。凡"空态也要画出容器"的行，判据 MUST 是 `framed \|\| !iconItemId().isEmpty()` | `RitualCoreScreen.layoutRow` |
 | **只描边不填底的槽等于隐形** | 固定槽（电池槽）的槽底是 GUI 贴图里**烘焙**的；动态槽（额外槽）落在贴图空白处。`paintSlotFrame` 照抄"1px 描边、无填充"后，空槽在深色面板上几乎不可见——玩家要等东西放进去才注意到（实机反馈）。动态槽 MUST 自绘暗色凹底 | `RitualCoreScreen.paintSlotFrame` |
 | **不要用"聚合数字"替玩家下结论** | 探针报 `water=0` 只说明"此刻没有三途川水"，不能推断"玩家从没摆过"——实机反馈是探针在仪式**执行完之后**跑的，台面本就该空。**先问清探针的时机**（执行前/后、reload 前/后）再解读，否则会把猜测当结论写进任务文档 | `DebugCommands.probeSunako` |
-| 数值硬编码 | 可调数值一律进 `GensokyouConfig`（COMMON） | neoforge skill |
+| 数值硬编码 | 战力数值一律进代码常量；经济进 SERVER 配置（见 `docs/config-guidelines.md`） | neoforge skill |
 | 注册表冻结 | 内建 worldgen 注册表（biome_source/density_function_type 等）mod 期不可写，只能数据包 | neoforge skill |
 | lang 漏键 | `translatableWithFallback` 的回退裸路径 = 玩家看到没翻译的英文 | neoforge skill |
 | 潜行让行 | 核心成型让位必须 `useItemOn` 与 `useWithoutItem` **两处都放行**，否则被 `openOrHint` 抢回开 GUI | neoforge skill |
@@ -298,7 +298,7 @@ default int slotX(int index); default int slotY(int index);   // 缺省横排一
 
 ### 9.2b 阶级参数与产物
 
-- 参数 SHALL 显示在**该阶结构页之后**的 `gensokyou:ritual_tier_page` 上，由客户端组件 `RitualTierComponent` 按 `tier` 从 `GensokyouConfig` **现算具体数值**（不写公式）；MUST NOT 加「会话型／启停型」等标签。产灵类给产灵/输出速率；功能类给缓存/受灵/耗灵；特殊类给专有项（如共鸣塔的输入/输出连接数与半径）。阶级页只显示 `minTier == 该阶` 的配方；开放/极多配方的仪式由生成器写 `"show_recipes": false`，组件据此不渲染配方（先例：源初造化）。
+- 参数 SHALL 显示在**该阶结构页之后**的 `gensokyou:ritual_tier_page` 上，由客户端组件 `RitualTierComponent` 按 `tier` 从**服务端同步值/代码常量** **现算具体数值**（不写公式）；MUST NOT 加「会话型／启停型」等标签。产灵类给产灵/输出速率；功能类给缓存/受灵/耗灵；特殊类给专有项（如共鸣塔的输入/输出连接数与半径）。阶级页只显示 `minTier == 该阶` 的配方；开放/极多配方的仪式由生成器写 `"show_recipes": false`，组件据此不渲染配方（先例：源初造化）。
 - 生产/献祭类仪式的配方/掉落 SHALL 用 `gensokyou:loot_page`（`RitualLootComponent`）以**物品图标网格**呈现，顶部摆出**献祭工具**；4 个工具仪式（铲/斧/锄/镐）各按工具材质出 **6 页**（分常规/下界/末地池），绵津见按等级出 **3 页**（**所有产物混排单网格，不分池**）。概率由 `tools/gen_ritual_book_entries.py` 按 `ritual_loot` 权重归一算出后内联（口径与 JEI `RitualLootCardWrapper` 完全一致）。
 - 关联物品（如众生典籍、仪式构建器）SHALL 用 `$(l:<entry_id>)…$(/l)` 链接到物品词条；词条不存在时先建**占位条目**（`category: gensokyou:items`）。
 
@@ -340,7 +340,7 @@ default int slotX(int index); default int slotY(int index);   // 缺省横排一
 |---|---|
 | 条目 JSON | `assets/gensokyou/patchouli_books/gensokyou_book/en_us/entries/`（`ritual_<path>.json`、`rituals_basics.json`、物品占位词条） |
 | 页面模板 | `.../en_us/templates/`：`ritual_page`（配方卡）、`ritual_tier_page`（阶级参数）、`loot_page`（产出网格） |
-| 客户端组件 | `client/book/`：`RitualTierComponent`（阶级参数，按 config 现算）、`RitualPageComponent`（配方卡）、`RitualLootComponent`（献祭产出网格 + 工具）、`RitualPageProcessor`（变量透传） |
+| 客户端组件 | `client/book/`：`RitualTierComponent`（阶级参数，按服务端同步值/常量现算）、`RitualPageComponent`（配方卡）、`RitualLootComponent`（献祭产出网格 + 工具）、`RitualPageProcessor`（变量透传） |
 | 门槛 advancement | `data/gensokyou/advancement/guide/{nether,end,gensokyo}_unlock.json`、`tier_4/5.json`（过渡） |
 | 结构/产出生成 | `tools/gen_ritual_multiblock.py`（结构 + gate 映射）、`tools/gen_ritual_book_entries.py`（批量条目 + 产出概率） |
 | 数据源 | `data/gensokyou/rituals/*.json`、`ritual_recipes/*.json`、`ritual_loot/*.json`、`ritual_special/*.json` |

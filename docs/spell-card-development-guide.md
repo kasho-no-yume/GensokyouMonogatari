@@ -65,7 +65,7 @@ step = cycleTicks > 0 ? tick % cycleTicks : tick
 5. 逐发差异（某几发伤害/尺寸不同）→ `Beat.centreDamage` / `centreSize`（不是 `Shape.Params`）
 6. 需要地面定位 → `Beat.SpawnAnchor`；需要生效前延迟（全向随机的可读性兑现）→ `Beat.harmlessTicks`
 7. 跑 `BossCardLintTest.allBossCardTablesPassLint`
-8. 数值：生命/弹伤/秒数走 config，不写进符卡表
+8. 数值：生命/弹伤/秒数为**代码常量**（`*Numbers`/`SpellCardScaling`），不写进符卡表
 
 ### 2.2 代码骨架
 

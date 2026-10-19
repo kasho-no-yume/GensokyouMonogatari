@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.goal.EightAngleDanmakuGoal;
 import com.bitsson.gensokyou.entity.goal.FanDanmakuGoal;
 import com.bitsson.gensokyou.entity.goal.FlashToNearestPlayerGoal;
@@ -66,25 +67,25 @@ public class FlandreEntity extends Monster implements TouhouMonster, TouhouBoss 
 
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
-                .add(Attributes.MAX_HEALTH, GensokyouConfig.FLANDRE_MAX_HEALTH.getDefault())
-                .add(Attributes.ATTACK_DAMAGE, GensokyouConfig.FLANDRE_ATTACK_DAMAGE.getDefault())
-                .add(Attributes.ARMOR, GensokyouConfig.FLANDRE_ARMOR.getDefault())
-                .add(Attributes.MOVEMENT_SPEED, GensokyouConfig.FLANDRE_MOVEMENT_SPEED.getDefault())
-                .add(Attributes.FOLLOW_RANGE, GensokyouConfig.FLANDRE_FOLLOW_RANGE.getDefault());
+                .add(Attributes.MAX_HEALTH, BalanceNumbers.FLANDRE_MAX_HEALTH)
+                .add(Attributes.ATTACK_DAMAGE, BalanceNumbers.FLANDRE_ATTACK_DAMAGE)
+                .add(Attributes.ARMOR, BalanceNumbers.FLANDRE_ARMOR)
+                .add(Attributes.MOVEMENT_SPEED, BalanceNumbers.FLANDRE_MOVEMENT_SPEED)
+                .add(Attributes.FOLLOW_RANGE, BalanceNumbers.FLANDRE_FOLLOW_RANGE);
     }
 
     @Override
     protected void registerGoals() {
         goalSelector.addGoal(0, new FloatGoal(this));
         goalSelector.addGoal(3, new FlashToNearestPlayerGoal(this,
-                GensokyouConfig.FLASH_INTERVAL.get()));
+                BalanceNumbers.FLASH_INTERVAL));
         goalSelector.addGoal(3, new EightAngleDanmakuGoal(this,
-                GensokyouConfig.EIGHT_ANGLE_INTERVAL.get(),
-                GensokyouConfig.DANMAKU_SPEED.get().floatValue(),
-                GensokyouConfig.EIGHT_ANGLE_DAMAGE.get().floatValue()));
+                BalanceNumbers.EIGHT_ANGLE_INTERVAL,
+                BalanceNumbers.DANMAKU_SPEED.floatValue(),
+                BalanceNumbers.EIGHT_ANGLE_DAMAGE.floatValue()));
         goalSelector.addGoal(3, new FanDanmakuGoal(this,
-                GensokyouConfig.RANDOM_SHOT_INTERVAL.get(), 3, 15D,
-                GensokyouConfig.DANMAKU_SPEED.get(), 8F));
+                BalanceNumbers.RANDOM_SHOT_INTERVAL, 3, 15D,
+                BalanceNumbers.DANMAKU_SPEED, 8F));
         goalSelector.addGoal(4, new FourOfAKindGoal(this));
         goalSelector.addGoal(6, new WaterAvoidingRandomStrollGoal(this, 0.7D));
         goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 8F));
@@ -108,12 +109,12 @@ public class FlandreEntity extends Monster implements TouhouMonster, TouhouBoss 
     }
 
     protected void applyRuntimeStats() {
-        getAttribute(Attributes.MAX_HEALTH).setBaseValue(GensokyouConfig.FLANDRE_MAX_HEALTH.get());
+        getAttribute(Attributes.MAX_HEALTH).setBaseValue(BalanceNumbers.FLANDRE_MAX_HEALTH);
         setHealth(getMaxHealth());
-        getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(GensokyouConfig.FLANDRE_ATTACK_DAMAGE.get());
-        getAttribute(Attributes.ARMOR).setBaseValue(GensokyouConfig.FLANDRE_ARMOR.get());
-        getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(GensokyouConfig.FLANDRE_MOVEMENT_SPEED.get());
-        getAttribute(Attributes.FOLLOW_RANGE).setBaseValue(GensokyouConfig.FLANDRE_FOLLOW_RANGE.get());
+        getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(BalanceNumbers.FLANDRE_ATTACK_DAMAGE);
+        getAttribute(Attributes.ARMOR).setBaseValue(BalanceNumbers.FLANDRE_ARMOR);
+        getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(BalanceNumbers.FLANDRE_MOVEMENT_SPEED);
+        getAttribute(Attributes.FOLLOW_RANGE).setBaseValue(BalanceNumbers.FLANDRE_FOLLOW_RANGE);
     }
 
     @Override
@@ -149,16 +150,16 @@ public class FlandreEntity extends Monster implements TouhouMonster, TouhouBoss 
         super.dropCustomDeathLoot(level, damageSource, recentlyHit);
         spawnAtLocation(new ItemStack(ModItems.SPELLCARD_STAR.get()));
         spawnAtLocation(new ItemStack(ModItems.BROKEN_SPELL_CARD_STAR.get()));
-        int min = Mth.floor(GensokyouConfig.BOSS_YEN_MIN.get());
-        int max = Math.max(min, Mth.floor(GensokyouConfig.BOSS_YEN_MAX.get()));
+        int min = Mth.floor(BalanceNumbers.BOSS_YEN_MIN);
+        int max = Math.max(min, Mth.floor(BalanceNumbers.BOSS_YEN_MAX));
         spawnAtLocation(new ItemStack(ModItems.YEN.get(), min + getRandom().nextInt(max - min + 1)));
-        if (getRandom().nextFloat() < GensokyouConfig.LAEVATEIN_CHANCE.get().floatValue()) {
+        if (getRandom().nextFloat() < BalanceNumbers.LAEVATEIN_CHANCE.floatValue()) {
             spawnAtLocation(new ItemStack(ModItems.LAEVATEIN.get()));
         }
     }
 
     @Override
     protected int getBaseExperienceReward() {
-        return isFake() ? 0 : GensokyouConfig.FLANDRE_EXPERIENCE.get();
+        return isFake() ? 0 : BalanceNumbers.FLANDRE_EXPERIENCE;
     }
 }

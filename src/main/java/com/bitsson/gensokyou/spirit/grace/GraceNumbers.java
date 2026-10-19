@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.spirit.grace;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.spirit.attr.AttributeKey;
 import net.minecraft.util.RandomSource;
 
@@ -46,8 +47,8 @@ public final class GraceNumbers {
      * 目的：规避 NeoForge 不合并列表新默认值的坑（新键在旧配置文件下恒 0）。
      */
     private static List<String> effectiveRows() {
-        List<String> merged = new ArrayList<>(GensokyouConfig.GRACE_TIER_TABLE.get());
-        merged.addAll(GensokyouConfig.graceDefaultRows());
+        List<String> merged = new ArrayList<>(BalanceNumbers.GRACE_TIER_TABLE);
+        merged.addAll(BalanceNumbers.graceDefaultRows());
         return merged;
     }
 
@@ -104,7 +105,7 @@ public final class GraceNumbers {
 
     /** 飞行耗灵费率（config 表；每秒扣最大灵力百分比）；非法阶级返回 0。 */
     public static double flightCostPctPerSecond(int tier) {
-        return flightCostPctPerSecond(GensokyouConfig.GRACE_FLIGHT_COST_PCT.get(), tier);
+        return flightCostPctPerSecond(BalanceNumbers.GRACE_FLIGHT_COST_PCT, tier);
     }
 
     /** 飞行耗灵费率（注入表，可单测）。 */
@@ -117,7 +118,7 @@ public final class GraceNumbers {
 
     /** 每 tick 应扣灵力（池上限 × 费率% / 20）。 */
     public static double flightCostPerTick(int tier, float maxSpirit) {
-        return flightCostPerTick(GensokyouConfig.GRACE_FLIGHT_COST_PCT.get(), tier, maxSpirit);
+        return flightCostPerTick(BalanceNumbers.GRACE_FLIGHT_COST_PCT, tier, maxSpirit);
     }
 
     /** 每 tick 应扣灵力（注入表，可单测）。 */

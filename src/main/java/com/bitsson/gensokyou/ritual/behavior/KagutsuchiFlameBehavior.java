@@ -1,10 +1,11 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -146,7 +147,7 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
     }
 
     private static boolean isBlacklisted(ItemStack stack) {
-        for (String id : GensokyouConfig.KAGUTSUICHI_FUEL_BLACKLIST.get()) {
+        for (String id : GensokyouServerConfig.KAGUTSUICHI_FUEL_BLACKLIST.get()) {
             ResourceLocation rl = ResourceLocation.tryParse(id);
             if (rl == null) {
                 continue;
@@ -164,12 +165,12 @@ public class KagutsuchiFlameBehavior implements RitualBehavior {
      * 与供灵输出上限（{@link #maxOutputRatePerSecond}）语义分道、配置基项独立。
      */
     public static double productionRatePerSecond(int level) {
-        return GensokyouConfig.KAGUTSUICHI_BASE_RATE_PER_SECOND.get() * pow4(level);
+        return GensokyouServerConfig.KAGUTSUICHI_BASE_RATE_PER_SECOND.get() * pow4(level);
     }
 
     /** 供灵输出上限式（每秒，指定等级）：路由（万象共鸣）可抽取的全局上限，独立配置基项，默认数值与产灵相同。 */
     public static double maxOutputRatePerSecond(int level) {
-        return GensokyouConfig.KAGUTSUICHI_BASE_OUT_RATE_PER_SECOND.get() * pow4(level);
+        return GensokyouServerConfig.KAGUTSUICHI_BASE_OUT_RATE_PER_SECOND.get() * pow4(level);
     }
 
     @Override

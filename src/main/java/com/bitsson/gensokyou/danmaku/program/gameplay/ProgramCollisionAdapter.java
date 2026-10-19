@@ -1,12 +1,13 @@
 package com.bitsson.gensokyou.danmaku.program.gameplay;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.danmaku.program.ops.Path;
 import com.bitsson.gensokyou.danmaku.program.ops.Pattern;
 import com.bitsson.gensokyou.danmaku.program.ops.CollisionProfile;
 import com.bitsson.gensokyou.danmaku.program.server.DanmakuWorldRuntime;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModAttributes;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -111,7 +112,7 @@ public final class ProgramCollisionAdapter implements DanmakuWorldRuntime.Collis
             LivingEntity target=nearest.orElseThrow().target();
             double base = attacker instanceof LivingEntity living && living.getAttribute(ModAttributes.DANMAKU_DAMAGE)!=null
                     ? living.getAttributeValue(ModAttributes.DANMAKU_DAMAGE)
-                    : GensokyouConfig.DANMAKU_BASE_DAMAGE.get();
+                    : BalanceNumbers.DANMAKU_BASE_DAMAGE;
             if (!Double.isFinite(base) || base < 0) base = 0;
             base *= style.damageScale();
             ProgramHitContext context = new ProgramHitContext(encounter, id, attacker, target, runtime.tick(),

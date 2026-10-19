@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.item;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.item.equipment.GensokyouAxeItem;
 import com.bitsson.gensokyou.item.equipment.GensokyouHoeItem;
 import com.bitsson.gensokyou.item.equipment.GensokyouPickaxeItem;
@@ -61,7 +62,7 @@ public final class GensokyouTools {
      */
     public static boolean isDurabilityFree(net.minecraft.world.level.block.state.BlockState state,
                                            Item item, boolean customNamed) {
-        if (!GensokyouConfig.SPIRIT_IRON_FREE_DURABILITY.get()) {
+        if (!BalanceNumbers.SPIRIT_IRON_FREE_DURABILITY) {
             return false;
         }
         if (customNamed || state == null) {

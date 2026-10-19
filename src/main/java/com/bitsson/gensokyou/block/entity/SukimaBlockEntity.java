@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.block.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
@@ -208,7 +209,7 @@ public class SukimaBlockEntity extends BlockEntity {
 
     /** 烟环窗口长度（tick）：爆炸之后的散射持续多久。 */
     public int fxBurstTicks() {
-        return Math.max(1, GensokyouConfig.FX_SHATTER_BURST_TICKS.get());
+        return Math.max(1, BalanceNumbers.FX_SHATTER_BURST_TICKS);
     }
 
     /** 演出总长度（tick）= 蓄能 + 烟环；派生值，MUST NOT 硬编码。 */
@@ -305,7 +306,7 @@ public class SukimaBlockEntity extends BlockEntity {
         //     (b) openTicks 永不增长 → 那扇门永远闭着。
         // 这里把锚点定在"整段演出早已过去"，效果是：眼立刻张开、演出不重播。
         if (level != null && !level.isClientSide && fxStartGameTime < 0) {
-            this.fxChargeEnd = Math.max(1, GensokyouConfig.SUKIMA_PORTAL_BURST_TICKS.get());
+            this.fxChargeEnd = Math.max(1, BalanceNumbers.SUKIMA_PORTAL_BURST_TICKS);
             this.fxStartGameTime = (int) level.getGameTime() - this.fxChargeEnd - fxBurstTicks();
             changed = true;
         }

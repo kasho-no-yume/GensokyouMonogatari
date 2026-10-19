@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.spirit;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.spirit.attr.AttributeKey;
 import com.bitsson.gensokyou.spirit.attr.PlayerAttributes;
 import com.bitsson.gensokyou.spirit.grace.GraceNumbers;
@@ -36,7 +37,7 @@ public final class SpellCardScaling {
      * N≤0 返回 0；N&gt;5 不额外扩展（grace 表只有 5 阶）。
      */
     public static double standardSpiritPower(int quality) {
-        return standardSpiritPower(GensokyouConfig.GRACE_TIER_TABLE.get(), quality);
+        return standardSpiritPower(BalanceNumbers.GRACE_TIER_TABLE, quality);
     }
 
     /** 注入行表的 {@link #standardSpiritPower(int)}（可单测，不触 config 加载态）。 */
@@ -71,8 +72,8 @@ public final class SpellCardScaling {
     /** 幂律缩放 + 钳制（config 读取）。 */
     public static double scaled(double base, double alpha, double spiritPower) {
         return scaled(base, alpha, spiritPower,
-                GensokyouConfig.SPELLCARD_SCALE_MIN_FACTOR.get(),
-                GensokyouConfig.SPELLCARD_SCALE_MAX_FACTOR.get());
+                BalanceNumbers.SPELLCARD_SCALE_MIN_FACTOR,
+                BalanceNumbers.SPELLCARD_SCALE_MAX_FACTOR);
     }
 
     /**

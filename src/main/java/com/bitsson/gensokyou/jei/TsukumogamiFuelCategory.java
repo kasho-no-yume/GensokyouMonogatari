@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.jei;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.ritual.TsukumogamiFuelLoader;
 import com.bitsson.gensokyou.ritual.behavior.TsukumogamiBehavior;
 import net.minecraft.client.Minecraft;
@@ -127,7 +128,7 @@ public class TsukumogamiFuelCategory implements IRecipeCategory<TsukumogamiFuelC
 
     private static long multOf(int level) {
         long value = 1L;
-        int m = GensokyouConfig.TSUKUMOGAMI_LEVEL_MULT.get();
+        int m = GensokyouServerConfig.TSUKUMOGAMI_LEVEL_MULT.get();
         for (int i = 0; i < level; i++) {
             value *= m;
         }

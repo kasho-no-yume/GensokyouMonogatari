@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.danmaku.DanmakuEmitter;
 import com.bitsson.gensokyou.danmaku.track.Behaviour;
 import com.bitsson.gensokyou.danmaku.track.BossCards;
@@ -77,12 +78,12 @@ public class YakumoRanEntity extends AbstractTouhouBoss implements GeoEntity {
 
     @Override
     protected double configSeconds() {
-        return GensokyouConfig.RAN_BOSS_SECONDS.get();
+        return BalanceNumbers.RAN_BOSS_SECONDS;
     }
 
     @Override
     protected int configHits() {
-        return GensokyouConfig.RAN_BOSS_HITS.get();
+        return BalanceNumbers.RAN_BOSS_HITS;
     }
 
     /** T2 正主：自身品阶 2（咒符条造型），数值参照阶 2。 */
@@ -149,7 +150,7 @@ public class YakumoRanEntity extends AbstractTouhouBoss implements GeoEntity {
     }
 
     private void tickDefaultAttack() {
-        int interval = Math.max(5, GensokyouConfig.RAN_FOXFIRE_INTERVAL.get());
+        int interval = Math.max(5, BalanceNumbers.RAN_FOXFIRE_INTERVAL);
         if (this.fireCooldown > 0) {
             this.fireCooldown--;
             return;
@@ -166,10 +167,10 @@ public class YakumoRanEntity extends AbstractTouhouBoss implements GeoEntity {
         }
         forward = forward.normalize();
         Shape.Params params = Shape.Params.defaults()
-                .count(GensokyouConfig.RAN_FOXFIRE_COUNT.get())
-                .spread(GensokyouConfig.RAN_FOXFIRE_SPREAD_DEG.get())
-                .speed(GensokyouConfig.RAN_FOXFIRE_SPEED.get())
-                .size(GensokyouConfig.RAN_FOXFIRE_SIZE.get());
+                .count(BalanceNumbers.RAN_FOXFIRE_COUNT)
+                .spread(BalanceNumbers.RAN_FOXFIRE_SPREAD_DEG)
+                .speed(BalanceNumbers.RAN_FOXFIRE_SPEED)
+                .size(BalanceNumbers.RAN_FOXFIRE_SIZE);
         for (Geometry.Shot shot : Geometry.build(Shape.FAN, this.getEyePosition(),
                 forward, anchor, new Vec3(0, 1, 0), params, 0.0D, 0.0D,
                 this.level().getRandom(), 1.0D, 1.0D)) {

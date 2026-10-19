@@ -1,10 +1,12 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.registry.ModItems;
@@ -47,7 +49,7 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
     public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
         if (core.sacrificeFxTicks() <= 0) return null;
         return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SACRIFICE, core.isEnabled(), match.level(),
-                (int) Math.round(com.bitsson.gensokyou.config.GensokyouConfig.FX_PILLAR_HEIGHT.get()), core.sacrificeFxTicks(),
+                (int) Math.round(BalanceNumbers.FX_PILLAR_HEIGHT), core.sacrificeFxTicks(),
                 com.bitsson.gensokyou.ritual.RitualBehaviors.sacrificeColorIndex(match.patternId()), new long[0], 0, 0L);
     }
 
@@ -75,8 +77,8 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
 
     /** 单次产出件数 = 基值 × 倍率^等级。 */
     public static int producedCount(int level) {
-        long value = GensokyouConfig.SACRIFICE_BASE_COUNT.get();
-        long mult = GensokyouConfig.SACRIFICE_COUNT_MULT.get();
+        long value = BalanceNumbers.SACRIFICE_BASE_COUNT;
+        long mult = GensokyouServerConfig.SACRIFICE_COUNT_MULT.get();
         for (int i = 0; i < level; i++) {
             value *= mult;
         }
@@ -85,8 +87,8 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
 
     /** 单次灵力消耗 = 基值 × 倍率^等级。 */
     public static long spiritCost(int level) {
-        long value = GensokyouConfig.SACRIFICE_BASE_SP_COST.get();
-        long mult = GensokyouConfig.SACRIFICE_SP_COST_MULT.get();
+        long value = GensokyouServerConfig.SACRIFICE_BASE_SP_COST.get();
+        long mult = GensokyouServerConfig.SACRIFICE_SP_COST_MULT.get();
         for (int i = 0; i < level; i++) {
             value *= mult;
         }
@@ -193,7 +195,7 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
                                       SpiritPowerAccess core) {
-        return GensokyouConfig.SACRIFICE_SPIRIT_IN_RATE.get().longValue();
+        return GensokyouServerConfig.SACRIFICE_SPIRIT_IN_RATE.get().longValue();
     }
 
     @Override
@@ -239,8 +241,8 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
         Map<Item, Integer> agg = RitualLootTable.rollMany(pool, count, level.random);
         dropAll(level, corePos, agg);
 
-        core.setActionCooldown(GensokyouConfig.SACRIFICE_COOLDOWN_TICKS.get());
-        core.triggerSacrificeFx(GensokyouConfig.FX_PILLAR_TICKS.get());
+        core.setActionCooldown(GensokyouServerConfig.SACRIFICE_COOLDOWN_TICKS.get());
+        core.triggerSacrificeFx(BalanceNumbers.FX_PILLAR_TICKS);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
     }
 
@@ -301,7 +303,7 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
         }
         lines.add(new InfoLine(stateKey, stateArgs, "", color, -1F, null));
         lines.add(new InfoLine(KEY_COOLDOWN,
-                new String[]{String.valueOf(toSeconds(GensokyouConfig.SACRIFICE_COOLDOWN_TICKS.get()))},
+                new String[]{String.valueOf(toSeconds(GensokyouServerConfig.SACRIFICE_COOLDOWN_TICKS.get()))},
                 "", color, -1F, null));
         int pedestals = RitualPedestals.positions(match).size();
         lines.add(new InfoLine(KEY_TOOLS,

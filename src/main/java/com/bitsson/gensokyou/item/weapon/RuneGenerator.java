@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.item.weapon;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModDataComponents;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.ItemStack;
@@ -69,7 +70,7 @@ public final class RuneGenerator {
      * 按 {@code (id,tier)} 去重（同一 id 的不同核阶是不同条目，MUST NOT 相互覆盖）。
      */
     public static List<AffixDef> pool() {
-        return pool(GensokyouConfig.RUNE_AFFIX_POOL.get(), DEFAULT_POOL_ROWS);
+        return pool(BalanceNumbers.RUNE_AFFIX_POOL, DEFAULT_POOL_ROWS);
     }
 
     /** 注入版（纯逻辑单测）。 */

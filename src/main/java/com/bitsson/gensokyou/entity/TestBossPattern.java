@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
@@ -45,7 +46,7 @@ public enum TestBossPattern {
         if (boss.getTarget() == null || !boss.getTarget().isAlive()) {
             return;
         }
-        double base = GensokyouConfig.TEST_BULLET_SPEED.get() * speedMult;
+        double base = BalanceNumbers.TEST_BULLET_SPEED * speedMult;
         float damage = boss.testDanmakuDamage() * damageFactor(ordinal());
         Vec3 origin = boss.getEyePosition();
         switch (this) {
@@ -134,7 +135,7 @@ public enum TestBossPattern {
     }
 
     private static float damageFactor(int ordinal) {
-        var list = GensokyouConfig.TEST_PATTERN_DAMAGE_FACTOR.get();
+        var list = BalanceNumbers.TEST_PATTERN_DAMAGE_FACTOR;
         if (list.isEmpty()) {
             return 1F;
         }

@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.client;
 
+import com.bitsson.gensokyou.config.GensokyouClientConfig;
+
 import com.bitsson.gensokyou.block.entity.SukimaBlockEntity;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -12,7 +14,6 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ComputeFovModifierEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -416,7 +417,7 @@ public final class ShatterScreenFx {
     public static float[] shakeDegrees() {
         advance();
         // 用户手感调节旋钮：改配置即可，不用重编译（一次 12 秒）
-        float tune = GensokyouConfig.FX_SHATTER_SHAKE_SCALE.get().floatValue();
+        float tune = GensokyouClientConfig.CAMERA_SHAKE.get().floatValue();
         return new float[]{shakeRoll * tune, shakePitch * tune};
     }
 

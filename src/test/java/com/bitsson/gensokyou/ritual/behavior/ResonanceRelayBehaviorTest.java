@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualLink;
 import com.bitsson.gensokyou.ritual.RitualRenderState;
@@ -155,7 +156,7 @@ class ResonanceRelayBehaviorTest {
      */
     @Test
     void baseRadiusDefaultsTo40() {
-        assertEquals(40, GensokyouConfig.RESONANCE_BASE_RADIUS.getDefault());
+        assertEquals(40, GensokyouServerConfig.RESONANCE_BASE_RADIUS.getDefault());
     }
 
     /**
@@ -166,7 +167,7 @@ class ResonanceRelayBehaviorTest {
      */
     @Test
     void radiusDoublesPerTierFrom40() {
-        int base = GensokyouConfig.RESONANCE_BASE_RADIUS.getDefault();
+        int base = GensokyouServerConfig.RESONANCE_BASE_RADIUS.getDefault();
         assertEquals(40, base);
         for (int lv = 2; lv <= 5; lv++) {
             final int level = lv;

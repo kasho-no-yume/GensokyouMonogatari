@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.WujinzangState;
 import com.bitsson.gensokyou.ritual.RitualBehaviorState;
 
@@ -7,7 +9,6 @@ import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualMatch;
@@ -127,7 +128,7 @@ public class WujinzangBehavior implements RitualBehavior {
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
                                       SpiritPowerAccess core) {
-        return GensokyouConfig.WUJINZANG_IN_RATE.get();
+        return GensokyouServerConfig.WUJINZANG_IN_RATE.get();
     }
 
     @Override
@@ -168,7 +169,7 @@ public class WujinzangBehavior implements RitualBehavior {
         int segs = com.bitsson.gensokyou.ritual.RitualPedestals.positions(match).size();
         return "stored=" + stored + " cap=" + cap
                 + " drain=" + RitualCoreBlockEntity.wujinzangDrain(match.level())
-                + " inRate=" + GensokyouConfig.WUJINZANG_IN_RATE.get()
+                + " inRate=" + GensokyouServerConfig.WUJINZANG_IN_RATE.get()
                 + " segments=" + segs
                 + " blocked=" + WujinzangStorage.blockedCount(level, match)
                 + " level=" + match.level();

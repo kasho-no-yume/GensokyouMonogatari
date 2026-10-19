@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.item.equipment;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.registry.ModItems;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -28,7 +29,7 @@ public final class StarSilverSetBonus {
 
     /** 全套穿戴返回 {@code 1 + bonus}，否则返回 {@code 1}。 */
     public static float multiplier(ServerPlayer player) {
-        double configured = GensokyouConfig.STAR_SILVER_SET_SPIRIT_DAMAGE_BONUS.get();
+        double configured = BalanceNumbers.STAR_SILVER_SET_SPIRIT_DAMAGE_BONUS;
         if (configured <= 0.0D || !hasFullSet(player)) {
             return 1.0F;
         }

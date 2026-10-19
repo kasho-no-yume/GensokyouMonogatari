@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity.goal;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.DanmakuWhitelists;
 import com.bitsson.gensokyou.entity.FairyEntity;
 import com.bitsson.gensokyou.entity.FairyVariant;
@@ -43,7 +44,7 @@ public class FairyNetGoal extends Goal {
 
     @Override
     public void start() {
-        this.cooldown = GensokyouConfig.FAIRY_NET_INTERVAL.get();
+        this.cooldown = BalanceNumbers.FAIRY_NET_INTERVAL;
     }
 
     @Override
@@ -57,7 +58,7 @@ public class FairyNetGoal extends Goal {
         if (--this.cooldown > 0) {
             return;
         }
-        this.cooldown = GensokyouConfig.FAIRY_NET_INTERVAL.get();
+        this.cooldown = BalanceNumbers.FAIRY_NET_INTERVAL;
         this.fire(target);
     }
 
@@ -72,8 +73,8 @@ public class FairyNetGoal extends Goal {
         }
         Vec3 up = right.cross(forward).normalize();
 
-        double angle = Math.toRadians(GensokyouConfig.FAIRY_NET_ANGLE_DEG.get());
-        float damage = GensokyouConfig.FAIRY_NET_DAMAGE.get().floatValue();
+        double angle = Math.toRadians(BalanceNumbers.FAIRY_NET_ANGLE_DEG);
+        float damage = BalanceNumbers.FAIRY_NET_DAMAGE.floatValue();
         float speed = this.fairy.bulletSpeed();
 
         for (int i = -1; i <= 1; i++) {

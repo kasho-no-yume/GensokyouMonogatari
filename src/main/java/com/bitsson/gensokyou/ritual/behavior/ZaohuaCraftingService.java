@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.CraftSession;
 import com.bitsson.gensokyou.ritual.CraftPhase;
 
@@ -7,7 +9,6 @@ import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.entity.ZaohuaFlightItem;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
@@ -159,7 +160,7 @@ public final class ZaohuaCraftingService {
                                     SpiritPowerAccess core, RitualRecipe recipe,
                                     List<RitualRecipeMatcher.Take> takes,
                                     List<RitualRecipeMatcher.Pool> pools) {
-        int duration = GensokyouConfig.ZAOHUA_CRAFT_DURATION_TICKS.get();
+        int duration = GensokyouServerConfig.ZAOHUA_CRAFT_DURATION_TICKS.get();
         long now = level.getGameTime();
         List<Integer> ids = new ArrayList<>();
         int index = 0;
@@ -184,7 +185,7 @@ public final class ZaohuaCraftingService {
     private static void tickFlight(ServerLevel level, BlockPos corePos,
                                    SpiritPowerAccess core) {
         craft(core).advanceFlight();
-        if (craft(core).ticks() >= GensokyouConfig.ZAOHUA_CRAFT_DURATION_TICKS.get()) {
+        if (craft(core).ticks() >= GensokyouServerConfig.ZAOHUA_CRAFT_DURATION_TICKS.get()) {
             finishFlight(level, corePos, core);
         }
     }

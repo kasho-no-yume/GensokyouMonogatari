@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget.RemovalCause;
 import com.bitsson.gensokyou.danmaku.DanmakuHitScan;
@@ -2115,8 +2116,8 @@ import java.util.Set;
         }
         double tolerance = DanmakuSampleCheck.toleranceBlocks(
                 this.getDeltaMovement().length(),
-                GensokyouConfig.DANMAKU_MAX_LAG_TICKS.get(),
-                GensokyouConfig.DANMAKU_CORRECTION_FLOOR.get());
+                BalanceNumbers.DANMAKU_MAX_LAG_TICKS,
+                BalanceNumbers.DANMAKU_CORRECTION_FLOOR);
         return this.clientRenderState.recordCalibration(serverGameTime, sampleAge, sequence,
                 revision, position, tolerance);
     }

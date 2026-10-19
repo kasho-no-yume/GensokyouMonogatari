@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.ritual;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.item.BuilderBind;
 import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
@@ -50,7 +51,7 @@ public final class BoundSupplySyncServer {
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
-        int interval = GensokyouConfig.BUILDER_BIND_SYNC_INTERVAL_TICKS.get();
+        int interval = BalanceNumbers.BUILDER_BIND_SYNC_INTERVAL_TICKS;
         if (interval <= 0 || ++ticks % interval != 0) {
             return;
         }

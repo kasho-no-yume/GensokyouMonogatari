@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity.spell;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -35,7 +36,7 @@ public class FlowerGardenEntity extends AbstractSpellFieldEntity {
         setRadius(radius);
         this.ticksLeft = durationTicks;
         this.healPerSecond = healPerSecond;
-        this.intervalTicks = GensokyouConfig.HEALING_GARDEN_INTERVAL_TICKS.get();
+        this.intervalTicks = BalanceNumbers.HEALING_GARDEN_INTERVAL_TICKS;
     }
 
     @Override

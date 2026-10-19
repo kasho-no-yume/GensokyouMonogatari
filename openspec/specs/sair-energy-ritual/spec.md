@@ -38,7 +38,7 @@ TBD - created by archiving change add-sair-energy-ritual. Update Purpose after a
 - **THEN** 补满操作不产生任何写入，缓存恒等于上限
 
 ### Requirement: 固定供灵端点
-行为 SHALL 覆写 `spiritOutRatePerSecond` 返回配置基项 `SAIR_ENERGY_OUT_RATE_PER_SECOND`（默认 10 亿/s），该值 MUST 为静态、MUST NOT 随阶级、时刻或结构状态变化（路由端点速率按周期 memo，动态速率会导致源闪断）。行为的 `spiritInRatePerSecond` MUST 保持默认 0，本仪式 MUST NOT 作为受灵汇被连接。
+行为 SHALL 覆写 `spiritOutRatePerSecond` 返回**代码常量** `BalanceNumbers.SAIR_ENERGY_OUT_RATE_PER_SECOND`（默认 10 亿/s），该值 MUST 为静态、MUST NOT 随阶级、时刻或结构状态变化（路由端点速率按周期 memo，动态速率会导致源闪断），MUST NOT 暴露为配置项。行为的 `spiritInRatePerSecond` MUST 保持默认 0，本仪式 MUST NOT 作为受灵汇被连接。
 
 #### Scenario: 取得源资格
 - **WHEN** 成型且缓存 stored > 0
@@ -53,15 +53,15 @@ TBD - created by archiving change add-sair-energy-ritual. Update Purpose after a
 - **THEN** 始终返回 10 亿/s
 
 ### Requirement: 容量分派与配置基项
-`RitualCoreBlockEntity.getCapacity()` SHALL 对 `SAIR_ENERGY` 的 patternId 返回配置基项 `SAIR_ENERGY_BASE_CAPACITY`（默认 100 亿），MUST NOT 落回 `DEFAULT_CORE_CAPACITY` 兜底。端点速率与缓存上限两项数值 MUST 定义于 `GensokyouConfig`（COMMON），MUST NOT 硬编码字面量；缓存上限因超出 int 范围 MUST 使用 `LongValue`。
+`RitualCoreBlockEntity.getCapacity()` SHALL 对 `SAIR_ENERGY` 的 patternId 返回**代码常量** `BalanceNumbers.SAIR_ENERGY_BASE_CAPACITY`（默认 100 亿），MUST NOT 落回 `DEFAULT_CORE_CAPACITY` 兜底。端点速率与缓存上限两项数值 MUST 为代码常量，MUST NOT 定义于任何配置、MUST NOT 硬编码字面量于行为代码；缓存上限因超出 `int` 范围 MUST 为 `long` 常量。
 
 #### Scenario: 容量正确
 - **WHEN** 查询成型赛尔能源核心的 `getCapacity()`
-- **THEN** 返回 100 亿（配置基项值），而非 10000 兜底
+- **THEN** 返回 100 亿（常量值），而非 10000 兜底
 
-#### Scenario: 配置可调
-- **WHEN** 修改 COMMON 配置中的供灵速率或缓存上限
-- **THEN** 行为读取到新值，重启/重载后生效
+#### Scenario: 不可调
+- **WHEN** 检索端点速率与缓存上限的来源
+- **THEN** 唯一来源为代码常量，MUST NOT 存在 `SAIR_ENERGY_*` 形态的配置键
 
 ### Requirement: GUI 信息行与本地化
 行为 SHALL 通过 `uiInfo` 注入一行状态信息（当前缓存 / 上限 / 供灵速率），并附由来诗 lore 行。信息行 MUST 遵循 `ritual-gui-info-lines` 的宽度约束（可见行只放短标签，数值明细置于 tooltip，大数用 `InfoLine.compact`）。相关 lang 键 MUST 在 `zh_cn` 与 `en_us` 中齐备。

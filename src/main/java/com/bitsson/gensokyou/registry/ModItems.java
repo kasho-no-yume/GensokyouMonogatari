@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.registry;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.entity.KnifeDanmaku;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
@@ -436,8 +437,8 @@ public final class ModItems {
                             (level, owner, damage) -> new SphereDanmaku(level, owner, damage, 0, 0.4F, Set.of()),
                             () -> 1,
                             () -> 0D, () -> 0.9D, () -> 0D),
-                    stats(GensokyouConfig.CORE_SPHERE_MULT::get, GensokyouConfig.CORE_SPHERE_SP_COST::get,
-                            GensokyouConfig.CORE_SPHERE_RATE::get, GensokyouConfig.CORE_SPHERE_REQ_TIER::get)));
+                    stats(() -> BalanceNumbers.CORE_SPHERE_MULT, () -> BalanceNumbers.CORE_SPHERE_SP_COST,
+                            () -> BalanceNumbers.CORE_SPHERE_RATE, () -> BalanceNumbers.CORE_SPHERE_REQ_TIER)));
 
     public static final DeferredItem<BulletCoreItem> CORE_SPHERE_SHOTGUN =
             ITEMS.register("core_sphere_shotgun", () -> new BulletCoreItem(
@@ -445,12 +446,12 @@ public final class ModItems {
                     FirePattern.ofBullet(
                              DanmakuKind.SPHERE,
                             (level, owner, damage) -> new SphereDanmaku(level, owner, damage, 0, 0.3F, Set.of()),
-                            GensokyouConfig.CORE_SHOTGUN_COUNT::get,
-                            GensokyouConfig.CORE_SHOTGUN_SPREAD::get,
-                            GensokyouConfig.CORE_SHOTGUN_SPEED::get,
-                            GensokyouConfig.CORE_SHOTGUN_LIFETIME::get),
-                    stats(GensokyouConfig.CORE_SHOTGUN_MULT::get, GensokyouConfig.CORE_SHOTGUN_SP_COST::get,
-                            GensokyouConfig.CORE_SHOTGUN_RATE::get, GensokyouConfig.CORE_SHOTGUN_REQ_TIER::get)));
+                            () -> BalanceNumbers.CORE_SHOTGUN_COUNT,
+                            () -> BalanceNumbers.CORE_SHOTGUN_SPREAD,
+                            () -> BalanceNumbers.CORE_SHOTGUN_SPEED,
+                            () -> BalanceNumbers.CORE_SHOTGUN_LIFETIME),
+                    stats(() -> BalanceNumbers.CORE_SHOTGUN_MULT, () -> BalanceNumbers.CORE_SHOTGUN_SP_COST,
+                            () -> BalanceNumbers.CORE_SHOTGUN_RATE, () -> BalanceNumbers.CORE_SHOTGUN_REQ_TIER)));
 
     public static final DeferredItem<BulletCoreItem> CORE_KNIFE =
             ITEMS.register("core_knife", () -> new BulletCoreItem(
@@ -458,9 +459,9 @@ public final class ModItems {
                     FirePattern.ofBullet(
                              DanmakuKind.KNIFE,
                             (level, owner, damage) -> new KnifeDanmaku(level, owner, damage, Set.of()),
-                            () -> 1, () -> 0D, GensokyouConfig.CORE_KNIFE_SPEED::get, () -> 0D),
-                    stats(GensokyouConfig.CORE_KNIFE_MULT::get, GensokyouConfig.CORE_KNIFE_SP_COST::get,
-                            GensokyouConfig.CORE_KNIFE_RATE::get, GensokyouConfig.CORE_KNIFE_REQ_TIER::get)));
+                            () -> 1, () -> 0D, () -> BalanceNumbers.CORE_KNIFE_SPEED, () -> 0D),
+                    stats(() -> BalanceNumbers.CORE_KNIFE_MULT, () -> BalanceNumbers.CORE_KNIFE_SP_COST,
+                            () -> BalanceNumbers.CORE_KNIFE_RATE, () -> BalanceNumbers.CORE_KNIFE_REQ_TIER)));
 
     public static final DeferredItem<BulletCoreItem> CORE_TALISMAN =
             ITEMS.register("core_talisman", () -> new BulletCoreItem(
@@ -469,28 +470,28 @@ public final class ModItems {
                              DanmakuKind.TALISMAN,
                             (level, owner, damage) -> new TalismanDanmaku(level, owner, damage, 0, null,
                                     0D, Set.of()),
-                            GensokyouConfig.CORE_TALISMAN_SPEED::get,
-                            GensokyouConfig.CORE_TALISMAN_SENSITIVITY::get),
-                    stats(GensokyouConfig.CORE_TALISMAN_MULT::get, GensokyouConfig.CORE_TALISMAN_SP_COST::get,
-                            GensokyouConfig.CORE_TALISMAN_RATE::get, GensokyouConfig.CORE_TALISMAN_REQ_TIER::get)));
+                            () -> BalanceNumbers.CORE_TALISMAN_SPEED,
+                            () -> BalanceNumbers.CORE_TALISMAN_SENSITIVITY),
+                    stats(() -> BalanceNumbers.CORE_TALISMAN_MULT, () -> BalanceNumbers.CORE_TALISMAN_SP_COST,
+                            () -> BalanceNumbers.CORE_TALISMAN_RATE, () -> BalanceNumbers.CORE_TALISMAN_REQ_TIER)));
 
     public static final DeferredItem<BulletCoreItem> CORE_LASER_GUN =
             ITEMS.register("core_laser_gun", () -> new BulletCoreItem(
                     new Item.Properties().stacksTo(1),
-                    FirePattern.ofLaser(DanmakuKind.LASER, UNSUPPORTED_FACTORY, GensokyouConfig.CORE_LASER_GUN_LENGTH::get,
-                            GensokyouConfig.CORE_LASER_GUN_RADIUS::get, GensokyouConfig.CORE_LASER_GUN_DELAY::get,
-                            GensokyouConfig.CORE_LASER_GUN_DURATION::get),
-                    stats(GensokyouConfig.CORE_LASER_GUN_MULT::get, GensokyouConfig.CORE_LASER_GUN_SP_COST::get,
-                            GensokyouConfig.CORE_LASER_GUN_RATE::get, GensokyouConfig.CORE_LASER_GUN_REQ_TIER::get)));
+                    FirePattern.ofLaser(DanmakuKind.LASER, UNSUPPORTED_FACTORY, () -> BalanceNumbers.CORE_LASER_GUN_LENGTH,
+                            () -> BalanceNumbers.CORE_LASER_GUN_RADIUS, () -> BalanceNumbers.CORE_LASER_GUN_DELAY,
+                            () -> BalanceNumbers.CORE_LASER_GUN_DURATION),
+                    stats(() -> BalanceNumbers.CORE_LASER_GUN_MULT, () -> BalanceNumbers.CORE_LASER_GUN_SP_COST,
+                            () -> BalanceNumbers.CORE_LASER_GUN_RATE, () -> BalanceNumbers.CORE_LASER_GUN_REQ_TIER)));
 
     public static final DeferredItem<BulletCoreItem> CORE_LASER_CANNON =
             ITEMS.register("core_laser_cannon", () -> new BulletCoreItem(
                     new Item.Properties().stacksTo(1),
-                    FirePattern.ofLaser(DanmakuKind.LASER, UNSUPPORTED_FACTORY, GensokyouConfig.CORE_LASER_CANNON_LENGTH::get,
-                            GensokyouConfig.CORE_LASER_CANNON_RADIUS::get, GensokyouConfig.CORE_LASER_CANNON_DELAY::get,
-                            GensokyouConfig.CORE_LASER_CANNON_DURATION::get),
-                    stats(GensokyouConfig.CORE_LASER_CANNON_MULT::get, GensokyouConfig.CORE_LASER_CANNON_SP_COST::get,
-                            GensokyouConfig.CORE_LASER_CANNON_RATE::get, GensokyouConfig.CORE_LASER_CANNON_REQ_TIER::get)));
+                    FirePattern.ofLaser(DanmakuKind.LASER, UNSUPPORTED_FACTORY, () -> BalanceNumbers.CORE_LASER_CANNON_LENGTH,
+                            () -> BalanceNumbers.CORE_LASER_CANNON_RADIUS, () -> BalanceNumbers.CORE_LASER_CANNON_DELAY,
+                            () -> BalanceNumbers.CORE_LASER_CANNON_DURATION),
+                    stats(() -> BalanceNumbers.CORE_LASER_CANNON_MULT, () -> BalanceNumbers.CORE_LASER_CANNON_SP_COST,
+                            () -> BalanceNumbers.CORE_LASER_CANNON_RATE, () -> BalanceNumbers.CORE_LASER_CANNON_REQ_TIER)));
 
     public static final DeferredItem<WeaponLevelCoreItem> WEAPON_CORE_LV1 =
             ITEMS.register("weapon_core_lv1", () -> new WeaponLevelCoreItem(

@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.danmaku.track.BossCards;
 import com.bitsson.gensokyou.danmaku.track.SignaturePalette;
 import com.bitsson.gensokyou.danmaku.track.SpellCard;
@@ -52,7 +53,7 @@ public class NomenMaskEntity extends AbstractTouhouBoss {
 
     @Override
     protected double configSeconds() {
-        return GensokyouConfig.BOSS_SECONDS_T2.get();
+        return BalanceNumbers.BOSS_SECONDS_T2;
     }
 
     @Override

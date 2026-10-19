@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity.goal;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.DanmakuWhitelists;
 import com.bitsson.gensokyou.entity.FairyEntity;
 import com.bitsson.gensokyou.entity.FairyVariant;
@@ -48,7 +49,7 @@ public class FairyLaserGoal extends Goal {
 
     @Override
     public void start() {
-        this.cooldown = GensokyouConfig.FAIRY_LASER_INTERVAL.get();
+        this.cooldown = BalanceNumbers.FAIRY_LASER_INTERVAL;
     }
 
     @Override
@@ -62,7 +63,7 @@ public class FairyLaserGoal extends Goal {
         if (--this.cooldown > 0) {
             return;
         }
-        this.cooldown = GensokyouConfig.FAIRY_LASER_INTERVAL.get();
+        this.cooldown = BalanceNumbers.FAIRY_LASER_INTERVAL;
         this.fire(target);
     }
 
@@ -78,7 +79,7 @@ public class FairyLaserGoal extends Goal {
         }
         Vec3 up = right.cross(forward).normalize();
 
-        double ring = GensokyouConfig.FAIRY_LASER_RING_RADIUS.get();
+        double ring = BalanceNumbers.FAIRY_LASER_RING_RADIUS;
         double theta = this.fairy.getRandom().nextDouble() * Math.PI * 2.0D;
         Vec3 start = center
                 .add(right.scale(Math.cos(theta) * ring))
@@ -94,12 +95,12 @@ public class FairyLaserGoal extends Goal {
 
         LaserDanmaku laser = new LaserDanmaku(
                 this.fairy.level(), start, dir,
-                GensokyouConfig.FAIRY_LASER_DAMAGE.get().floatValue(),
+                BalanceNumbers.FAIRY_LASER_DAMAGE.floatValue(),
                 color,
-                GensokyouConfig.FAIRY_LASER_LENGTH.get(),
-                GensokyouConfig.FAIRY_LASER_RADIUS.get(),
-                GensokyouConfig.FAIRY_LASER_DELAY_SECONDS.get(),
-                GensokyouConfig.FAIRY_LASER_DURATION_SECONDS.get(),
+                BalanceNumbers.FAIRY_LASER_LENGTH,
+                BalanceNumbers.FAIRY_LASER_RADIUS,
+                BalanceNumbers.FAIRY_LASER_DELAY_SECONDS,
+                BalanceNumbers.FAIRY_LASER_DURATION_SECONDS,
                 this.fairy,
                 DanmakuWhitelists.FAIRY);
         this.fairy.level().addFreshEntity(laser);

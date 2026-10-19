@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.event;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.entity.TouhouMonster;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import net.minecraft.server.level.ServerPlayer;
@@ -41,7 +42,7 @@ public final class TouhouCombatEvents {
         if (source.is(DamageTypes.GENERIC_KILL) || source.is(DamageTypes.FELL_OUT_OF_WORLD)) {
             return;
         }
-        float resist = GensokyouConfig.TOUHOU_NON_DANMAKU_RESIST.get().floatValue();
+        float resist = BalanceNumbers.TOUHOU_NON_DANMAKU_RESIST.floatValue();
         if (resist > 0.0F) {
             event.setAmount(event.getAmount() * (1.0F - resist));
         }
@@ -62,7 +63,7 @@ public final class TouhouCombatEvents {
         if (shield.isEmpty()) {
             return;
         }
-        int ticks = GensokyouConfig.DANMAKU_SHIELD_DISABLE_TICKS.get();
+        int ticks = BalanceNumbers.DANMAKU_SHIELD_DISABLE_TICKS;
         if (ticks > 0) {
             player.getCooldowns().addCooldown(shield.getItem(), ticks);
         }

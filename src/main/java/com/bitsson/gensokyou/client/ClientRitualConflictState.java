@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.client;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouClientConfig;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 
@@ -24,7 +25,7 @@ public final class ClientRitualConflictState {
         CONFLICTS.clear();
         Minecraft minecraft = Minecraft.getInstance();
         long now = minecraft.level == null ? 0L : minecraft.level.getGameTime();
-        long ttl = GensokyouConfig.RITUAL_BUILDER_OUTLINE_SECONDS.get() * 20L;
+        long ttl = GensokyouClientConfig.BUILDER_OUTLINE_SECONDS.get() * 20L;
         long expire = now + ttl;
         for (BlockPos pos : positions) {
             CONFLICTS.put(pos.immutable(), expire);

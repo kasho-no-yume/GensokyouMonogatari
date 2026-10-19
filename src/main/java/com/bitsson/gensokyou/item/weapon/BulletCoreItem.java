@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.item.weapon;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.AbstractDanmakuProjectile;
 import com.bitsson.gensokyou.registry.TierPalette;
 import net.minecraft.ChatFormatting;
@@ -101,7 +102,7 @@ public class BulletCoreItem extends Item {
         }
         if (p.isTalisman()) {
             out.add(line("tooltip.gensokyou.core_pick_range",
-                    fmt(GensokyouConfig.WEAPON_TALISMAN_PICK_RANGE.get())));
+                    fmt(BalanceNumbers.WEAPON_TALISMAN_PICK_RANGE)));
             out.add(line("tooltip.gensokyou.core_talisman_sensitivity",
                     fmt(p.talismanSensitivity().getAsDouble())));
             out.add(line("tooltip.gensokyou.core_projectile_speed",

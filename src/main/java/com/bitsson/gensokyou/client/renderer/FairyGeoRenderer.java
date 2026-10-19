@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.client.renderer;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.client.model.FairyGeoModel;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.entity.FairyEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -36,7 +37,7 @@ public class FairyGeoRenderer extends GeoEntityRenderer<FairyEntity> {
         double speed = Math.sqrt(dx * dx + dz * dz);
         float t = (float) Mth.clamp(speed / FULL_PITCH_SPEED, 0.0D, 1.0D);
         if (t > 0.0F) {
-            float pitch = (float) GensokyouConfig.FAIRY_FLY_PITCH_DEGREES.get().doubleValue() * t;
+            float pitch = (float) BalanceNumbers.FAIRY_FLY_PITCH_DEGREES.doubleValue() * t;
             // 模型面朝 -Z：绕 X 轴负向旋转 = 机头下压（前倾）。
             poseStack.mulPose(Axis.XP.rotationDegrees(-pitch));
         }

@@ -1,6 +1,8 @@
 package com.bitsson.gensokyou.item.weapon;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.RitualScaling;
 import com.bitsson.gensokyou.spirit.SpiritPowerData;
 import com.bitsson.gensokyou.spirit.attr.AttributeKey;
@@ -73,20 +75,20 @@ public final class SeiiNumbers {
 
     /** 洗练缓存上限（按仪式阶）。 */
     public static long capacity(int ritualLevel) {
-        return capacityOf(GensokyouConfig.SEII_BASE_CAPACITY.get(),
-                GensokyouConfig.SEII_CAPACITY_MULT.get(), ritualLevel);
+        return capacityOf(GensokyouServerConfig.SEII_BASE_CAPACITY.get(),
+                GensokyouServerConfig.SEII_CAPACITY_MULT.get(), ritualLevel);
     }
 
     /** 洗练受灵速率（按仪式阶，每秒）。 */
     public static long inRate(int ritualLevel) {
-        return inRateOf(GensokyouConfig.SEII_BASE_IN_RATE.get(),
-                GensokyouConfig.SEII_IN_RATE_MULT.get(), ritualLevel);
+        return inRateOf(GensokyouServerConfig.SEII_BASE_IN_RATE.get(),
+                GensokyouServerConfig.SEII_IN_RATE_MULT.get(), ritualLevel);
     }
 
     /** 单次洗练灵力花费（按<strong>核阶</strong>，非仪式阶）。 */
     public static long spCost(int coreTier) {
-        return spCostOf(GensokyouConfig.SEII_BASE_SP_COST.get(),
-                GensokyouConfig.SEII_SP_COST_MULT.get(), coreTier);
+        return spCostOf(GensokyouServerConfig.SEII_BASE_SP_COST.get(),
+                GensokyouServerConfig.SEII_SP_COST_MULT.get(), coreTier);
     }
 
     /**
@@ -94,7 +96,7 @@ public final class SeiiNumbers {
      * 缺位/越界由内置默认补齐 —— 因为 NeoForge 不会把新的 list 默认值写进已有配置文件。
      */
     public static int affixCount(int coreTier) {
-        return affixCountOf(coreTier, GensokyouConfig.RUNE_AFFIX_COUNT.get(),
+        return affixCountOf(coreTier, BalanceNumbers.RUNE_AFFIX_COUNT,
                 RuneGenerator.countDefaults());
     }
 
@@ -145,7 +147,7 @@ public final class SeiiNumbers {
 
     /** 软保底进度 t ∈ [0,1]（读 config）。 */
     public static double pityProgress(int rerolls) {
-        return pityProgress(rerolls, GensokyouConfig.RUNE_PITY_CAP.get());
+        return pityProgress(rerolls, BalanceNumbers.RUNE_PITY_CAP);
     }
 
     /**
@@ -172,7 +174,7 @@ public final class SeiiNumbers {
     /** 弹幕护壁词条的目标减伤带（按核阶，index = 核阶-1 的成对 min/max）。 */
     public static double[] wardMitigationBand(int coreTier) {
         return wardMitigationBandOf(defaultWardBand(coreTier), coreTier,
-                GensokyouConfig.RUNE_WARD_BAND.get());
+                BalanceNumbers.RUNE_WARD_BAND);
     }
 
     /** 注入版：config 缺项时回落到 {@code fallback}。 */
@@ -214,7 +216,7 @@ public final class SeiiNumbers {
 
     /** 某玩家属性键在某核阶的采样带（百分比，非标准值）。 */
     public static double[] attrBand(AttributeKey key, int coreTier) {
-        return attrBandOf(key, coreTier, GensokyouConfig.RUNE_ATTR_BAND.get());
+        return attrBandOf(key, coreTier, BalanceNumbers.RUNE_ATTR_BAND);
     }
 
     /** 注入版行表（可单测）：缺项回落缺省带。 */
@@ -308,10 +310,10 @@ public final class SeiiNumbers {
     /** 当前 config 快照。 */
     public static Tunables tunables() {
         return new Tunables(RuneGenerator.pool(),
-                GensokyouConfig.RUNE_ATTR_BAND.get(),
-                GensokyouConfig.RUNE_WARD_BAND.get(),
-                GensokyouConfig.RUNE_ATTR_WEIGHT.get(),
-                GensokyouConfig.RUNE_PITY_CAP.get(),
+                BalanceNumbers.RUNE_ATTR_BAND,
+                BalanceNumbers.RUNE_WARD_BAND,
+                BalanceNumbers.RUNE_ATTR_WEIGHT,
+                BalanceNumbers.RUNE_PITY_CAP,
                 affixCount(1));
     }
 

@@ -1,12 +1,14 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.block.entity.SukimaBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.registry.ModBlocks;
@@ -401,7 +403,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
      * @return 实际重播的门数（0 = 该核心没有已开启的门）
      */
     public static int replayShatter(ServerLevel level, BlockPos corePos, SpiritPowerAccess core) {
-        int burst = GensokyouConfig.SUKIMA_PORTAL_BURST_TICKS.get();
+        int burst = BalanceNumbers.SUKIMA_PORTAL_BURST_TICKS;
         int replayed = 0;
         BlockPos main = core != null && core.portalPos() != null
                 ? core.portalPos() : mainPortalPos(corePos);
@@ -632,8 +634,8 @@ public class BarrierBreakBehavior implements RitualBehavior {
         level.setBlock(pos, ModBlocks.SUKIMA.get().defaultBlockState(), 3);
         if (level.getBlockEntity(pos)
                 instanceof SukimaBlockEntity portal) {
-            portal.requestOpen(GensokyouConfig.BARRIER_PORTAL_SCALE.get().floatValue(),
-                    GensokyouConfig.SUKIMA_PORTAL_BURST_TICKS.get());
+            portal.requestOpen(BalanceNumbers.BARRIER_PORTAL_SCALE.floatValue(),
+                    BalanceNumbers.SUKIMA_PORTAL_BURST_TICKS);
         }
     }
 
@@ -672,7 +674,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
         }
         if (level.getBlockEntity(pos)
                 instanceof SukimaBlockEntity portal) {
-            portal.requestClose(GensokyouConfig.SUKIMA_PORTAL_OPEN_TICKS.get());
+            portal.requestClose(BalanceNumbers.SUKIMA_PORTAL_OPEN_TICKS);
         } else {
             level.removeBlock(pos, false);
         }
@@ -757,7 +759,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
                     0, InfoLine.CONTROL_NONE, InfoLine.LINK_NONE, KEY_DRAIN_TIP,
                     new String[]{String.valueOf(RitualCoreBlockEntity.barrierDrainPerSecond()),
                             String.valueOf(supply.inRate()), String.valueOf(supply.net())}));
-            long hint = GensokyouConfig.BARRIER_SUPPLY_HINT.get();
+            long hint = GensokyouServerConfig.BARRIER_SUPPLY_HINT.get();
             if (hint > 0L) {
                 lines.add(new InfoLine(KEY_HINT, new String[]{InfoLine.compact(hint)},
                         "", COLOR_WARN, -1F, null,

@@ -1,6 +1,5 @@
 package com.bitsson.gensokyou.item;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import java.util.function.Supplier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Tier;

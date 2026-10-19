@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.block.entity;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -113,15 +114,15 @@ public class CrystalBlockEntity extends BlockEntity {
     }
 
     public int maxTypes() {
-        return GensokyouConfig.STORAGE_MAX_TYPES.get();
+        return GensokyouServerConfig.STORAGE_MAX_TYPES.get();
     }
 
     public int totalCapacity() {
-        return GensokyouConfig.STORAGE_TOTAL_CAPACITY.get();
+        return GensokyouServerConfig.STORAGE_TOTAL_CAPACITY.get();
     }
 
     public long perTypeCapacity() {
-        return GensokyouConfig.STORAGE_PER_TYPE_CAP.get();
+        return GensokyouServerConfig.STORAGE_PER_TYPE_CAP.get();
     }
 
     /** 条目数硬上限：类型制=类型上限；总量制=总量上限（每类至少 1 件）。 */
@@ -222,7 +223,7 @@ public class CrystalBlockEntity extends BlockEntity {
                 || stack.is(STORAGE_BLACKLIST) || isConfigBlacklisted(stack)) {
             return "msg.gensokyou.crystal_rejected_container";
         }
-        int limit = GensokyouConfig.STORAGE_ITEM_NBT_LIMIT_BYTES.get();
+        int limit = GensokyouServerConfig.STORAGE_ITEM_NBT_LIMIT_BYTES.get();
         if (limit > 0 && registries != null
                 && stack.copyWithCount(1).save(registries).sizeInBytes() > limit) {
             return "msg.gensokyou.crystal_rejected_too_large";
@@ -236,7 +237,7 @@ public class CrystalBlockEntity extends BlockEntity {
     }
 
     private static boolean isConfigBlacklisted(ItemStack stack) {
-        List<? extends String> list = GensokyouConfig.STORAGE_BLACKLIST.get();
+        List<? extends String> list = GensokyouServerConfig.STORAGE_BLACKLIST.get();
         if (list.isEmpty()) {
             return false;
         }

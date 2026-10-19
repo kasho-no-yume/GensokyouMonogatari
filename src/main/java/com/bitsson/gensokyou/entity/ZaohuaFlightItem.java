@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -105,8 +106,8 @@ public class ZaohuaFlightItem extends ItemEntity {
         double t = Mth.clamp(progress, 0.0D, 1.0D);
         double r0 = Math.max(0.2D, Math.hypot(px - cx, pz - cz));
         double theta0 = Math.atan2(pz - cz, px - cx);
-        double orbitY = cy + GensokyouConfig.ZAOHUA_ORBIT_HEIGHT.get();
-        double convergeY = cy + GensokyouConfig.ZAOHUA_CONVERGE_Y.get();
+        double orbitY = cy + BalanceNumbers.ZAOHUA_ORBIT_HEIGHT;
+        double convergeY = cy + BalanceNumbers.ZAOHUA_CONVERGE_Y;
         double lift = smoothstep(Mth.clamp(t / 0.35D, 0.0D, 1.0D));
         double climb = smoothstep(Mth.clamp((t - 0.5D) / 0.5D, 0.0D, 1.0D));
         double spiral = smoothstep(Mth.clamp((t - 0.15D) / 0.85D, 0.0D, 1.0D));
@@ -130,7 +131,7 @@ public class ZaohuaFlightItem extends ItemEntity {
     /** 汇聚点（会话完成时服务端投放产物处）。 */
     public static Vec3 convergencePoint(BlockPos corePos) {
         return new Vec3(corePos.getX() + 0.5D,
-                corePos.getY() + GensokyouConfig.ZAOHUA_CONVERGE_Y.get(),
+                corePos.getY() + BalanceNumbers.ZAOHUA_CONVERGE_Y,
                 corePos.getZ() + 0.5D);
     }
 

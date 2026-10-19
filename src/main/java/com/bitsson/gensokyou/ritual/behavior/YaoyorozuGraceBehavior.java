@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.GraceSession;
 import com.bitsson.gensokyou.ritual.GracePhase;
 import com.bitsson.gensokyou.ritual.RitualBehaviorState;
@@ -7,7 +9,6 @@ import com.bitsson.gensokyou.ritual.RitualBehaviorState;
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualMatch;
@@ -57,7 +58,7 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
                                       SpiritPowerAccess core) {
-        return GensokyouConfig.GRACE_SPIRIT_IN_RATE.get();
+        return GensokyouServerConfig.GRACE_SPIRIT_IN_RATE.get();
     }
 
     @Override
@@ -170,7 +171,7 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
             case PERFORM -> lines.add(new InfoLine("gui.gensokyou.ritual.grace.perform",
                     new String[0], "", 0xFFCE93D8,
                     Math.min(1F, (float) grace(core).ticks()
-                            / (float) Math.max(1, GensokyouConfig.GRACE_PERFORM_TICKS.get())), null));
+                            / (float) Math.max(1, GensokyouServerConfig.GRACE_PERFORM_TICKS.get())), null));
             case REVIEW -> {
                 if (initiator) {
                     // 决策按钮置顶（见 appendReviewLines 首部）——信息区视口只有 68px≈6 行，

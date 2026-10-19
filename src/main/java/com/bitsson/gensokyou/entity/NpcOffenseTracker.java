@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.bitsson.gensokyou.spirit.NpcOffenseData;
 import net.minecraft.ChatFormatting;
@@ -20,7 +21,7 @@ public final class NpcOffenseTracker {
     /** 仅「将死或真死」且可归因玩家时调用；非致死攻击不进入此处。 */
     public static void recordOffense(ServerPlayer player) {
         NpcOffenseData data = player.getData(ModAttachments.NPC_OFFENSE.get());
-        int threshold = GensokyouConfig.NPC_KICK_THRESHOLD.get();
+        int threshold = BalanceNumbers.NPC_KICK_THRESHOLD;
         int count = data.count() + 1;
         if (count < threshold) {
             player.setData(ModAttachments.NPC_OFFENSE.get(), data.withCount(count));
@@ -47,12 +48,12 @@ public final class NpcOffenseTracker {
         if (overworld == null) {
             return;
         }
-        int min = GensokyouConfig.NPC_KICK_XZ_MIN.get();
-        int max = Math.max(min + 1, GensokyouConfig.NPC_KICK_XZ_MAX.get());
+        int min = BalanceNumbers.NPC_KICK_XZ_MIN;
+        int max = Math.max(min + 1, BalanceNumbers.NPC_KICK_XZ_MAX);
         RandomSource random = RandomSource.create();
         double x = min + random.nextDouble() * (max - min);
         double z = min + random.nextDouble() * (max - min);
-        double y = GensokyouConfig.NPC_KICK_Y.get();
+        double y = BalanceNumbers.NPC_KICK_Y;
         player.teleportTo(overworld, x + 0.5D, y, z + 0.5D, player.getYRot(), player.getXRot());
         player.displayClientMessage(Component
                 .translatable("msg.gensokyou.npc_exiled")

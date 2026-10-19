@@ -1,7 +1,6 @@
 package com.bitsson.gensokyou.spirit;
 
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.SkillSyncPayload;
 import com.bitsson.gensokyou.ritual.RitualPreviewState;
 import net.minecraft.server.level.ServerPlayer;

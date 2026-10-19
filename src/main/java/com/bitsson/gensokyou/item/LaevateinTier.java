@@ -10,7 +10,7 @@ import net.minecraft.world.item.Items;
 public enum LaevateinTier implements Tier {
     INSTANCE;
 
-    // TODO: weapon stats are hardcoded by design decision phase-a D2 exception; move into GensokyouConfig once attribute system supports post-load mutation
+    // TODO: weapon stats are hardcoded by design decision phase-a D2 exception; move into BalanceNumbers once attribute system supports post-load mutation
 
     @Override
     public int getUses() {

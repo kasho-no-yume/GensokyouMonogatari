@@ -1,8 +1,9 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.balance.MonsterStatBudget;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.danmaku.program.content.BossProgramCards;
 import com.bitsson.gensokyou.danmaku.program.gameplay.BossProgramBackend;
 import com.bitsson.gensokyou.danmaku.track.SignaturePalette;
@@ -234,11 +235,11 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
 
     /** 距离带覆写点。 */
     protected double moveMin() {
-        return GensokyouConfig.BOSS_MOVE_MIN.get();
+        return BalanceNumbers.BOSS_MOVE_MIN;
     }
 
     protected double moveMax() {
-        return GensokyouConfig.BOSS_MOVE_MAX.get();
+        return BalanceNumbers.BOSS_MOVE_MAX;
     }
 
     /**
@@ -268,7 +269,7 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
      * <p>子类可覆写以获得单只 BOSS 的独立移速。
      */
     protected double moveSpeed() {
-        return GensokyouConfig.BOSS_MOVE_SPEED.get();
+        return BalanceNumbers.BOSS_MOVE_SPEED;
     }
 
     /**
@@ -463,7 +464,7 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
                 programBackendSelected = programContentId().isPresent() && persistedBackend.programMode();
             } else {
                 programBackendSelected = programContentId().isPresent()
-                        && "program".equalsIgnoreCase(GensokyouConfig.BOSS_DANMAKU_BACKEND.get());
+                        && "program".equalsIgnoreCase(BalanceNumbers.BOSS_DANMAKU_BACKEND);
             }
         }
         return programBackendSelected && !programFallback;
@@ -628,7 +629,7 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
             return;
         }
         lastTargetScanTick = tickCount;
-        int cap = Math.max(1, GensokyouConfig.BOSS_MAX_TARGETS.get());
+        int cap = Math.max(1, BalanceNumbers.BOSS_MAX_TARGETS);
         List<Player> found = new ArrayList<>();
         for (Player player : level().getEntitiesOfClass(Player.class,
                 getBoundingBox().inflate(LOCK_RADIUS))) {
@@ -720,8 +721,8 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
     /** 本 BOSS 的选点参数。子类可覆写以改变压迫感。 */
     protected BossSteering.Policy policy() {
         return BossSteering.Policy.of(moveMin(), moveMax(), hoverFloor(), hoverCeiling(),
-                GensokyouConfig.BOSS_WANDER_AVOID_PLAYER.get(),
-                GensokyouConfig.BOSS_WANDER_AVOID_ANCHOR.get());
+                BalanceNumbers.BOSS_WANDER_AVOID_PLAYER,
+                BalanceNumbers.BOSS_WANDER_AVOID_ANCHOR);
     }
 
     /** 距目标点这么近就提前重选，避免在一点上来回摆。 */
@@ -809,7 +810,7 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
      * <p>有主题归属但信物不在标签内的 BOSS（当前无）不掉；未声明归属者亦不掉。
      */
     protected void dropSignature(ServerLevel level) {
-        int count = Math.max(0, GensokyouConfig.SIGNATURE_DROP_COUNT.get());
+        int count = Math.max(0, BalanceNumbers.SIGNATURE_DROP_COUNT);
         if (count <= 0) {
             return;
         }
@@ -820,7 +821,7 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
 
     /** 低概率直掉主题成品道具卡（config 概率，0 关闭）。 */
     protected void dropThemedCard(ServerLevel level) {
-        double chance = GensokyouConfig.BOSS_CARD_DROP_CHANCE.get();
+        double chance = BalanceNumbers.BOSS_CARD_DROP_CHANCE;
         if (chance <= 0D || this.getRandom().nextDouble() >= chance) {
             return;
         }
@@ -838,8 +839,8 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
 
     /** 单只 BOSS 的碎符卡星掉落量。子类覆写。 */
     protected int starDropCount() {
-        int min = Math.max(0, GensokyouConfig.BOSS_STAR_DROP_MIN.get());
-        int max = Math.max(min, GensokyouConfig.BOSS_STAR_DROP_MAX.get());
+        int min = Math.max(0, BalanceNumbers.BOSS_STAR_DROP_MIN);
+        int max = Math.max(min, BalanceNumbers.BOSS_STAR_DROP_MAX);
         return min + getRandom().nextInt(max - min + 1);
     }
 

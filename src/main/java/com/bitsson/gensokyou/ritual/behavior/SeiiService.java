@@ -1,11 +1,13 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SeiiSession;
 
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.item.weapon.AmpCoreItem;
 import com.bitsson.gensokyou.item.weapon.RuneAffix;
 import com.bitsson.gensokyou.item.weapon.RuneGenerator;
@@ -210,7 +212,7 @@ public final class SeiiService {
             abortSession(level, corePos, core, "msg.gensokyou.seii_initiator_lost");
             return;
         }
-        double radius = GensokyouConfig.GRACE_PRESENCE_RADIUS.get();
+        double radius = BalanceNumbers.GRACE_PRESENCE_RADIUS;
         if (initiator.distanceToSqr(corePos.getX() + 0.5D, corePos.getY() + 0.5D,
                 corePos.getZ() + 0.5D) > radius * radius) {
             return; // 在场约束：离开半径暂停收灵等待回来（不算失败）
@@ -267,7 +269,7 @@ public final class SeiiService {
      */
     private static void tickPerform(ServerLevel level, BlockPos corePos, SpiritPowerAccess core) {
         seii(core).tickPerform();
-        int duration = GensokyouConfig.SEII_PERFORM_TICKS.get();
+        int duration = GensokyouServerConfig.SEII_PERFORM_TICKS.get();
         if (seii(core).ticks() >= duration) {
             finishPerform(level, corePos, core);
         }

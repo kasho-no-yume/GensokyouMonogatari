@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.danmaku.DanmakuEmitter;
 import com.bitsson.gensokyou.danmaku.track.Behaviour;
 import com.bitsson.gensokyou.danmaku.track.BossCards;
@@ -79,12 +80,12 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
 
     @Override
     protected double configSeconds() {
-        return GensokyouConfig.YAMAME_BOSS_SECONDS.get();
+        return BalanceNumbers.YAMAME_BOSS_SECONDS;
     }
 
     @Override
     protected int configHits() {
-        return GensokyouConfig.YAMAME_BOSS_HITS.get();
+        return BalanceNumbers.YAMAME_BOSS_HITS;
     }
 
     /** T1：百鬼夜行 L1 召唤，接在大妖精之后。 */
@@ -172,7 +173,7 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
     }
 
     private void tickDefaultAttack() {
-        int interval = Math.max(5, GensokyouConfig.YAMAME_WEB_INTERVAL.get());
+        int interval = Math.max(5, BalanceNumbers.YAMAME_WEB_INTERVAL);
         if (this.webCooldown > 0) {
             this.webCooldown--;
             return;
@@ -189,10 +190,10 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
         }
         forward = forward.normalize();
         Shape.Params params = Shape.Params.defaults()
-                .count(GensokyouConfig.YAMAME_WEB_COUNT.get())
-                .spread(GensokyouConfig.YAMAME_WEB_SPREAD_DEG.get())
-                .speed(GensokyouConfig.YAMAME_WEB_SPEED.get())
-                .size(GensokyouConfig.YAMAME_WEB_SIZE.get());
+                .count(BalanceNumbers.YAMAME_WEB_COUNT)
+                .spread(BalanceNumbers.YAMAME_WEB_SPREAD_DEG)
+                .speed(BalanceNumbers.YAMAME_WEB_SPEED)
+                .size(BalanceNumbers.YAMAME_WEB_SIZE);
         for (Geometry.Shot shot : Geometry.build(Shape.FAN, this.getEyePosition(),
                 forward, anchor, new Vec3(0, 1, 0), params, 0.0D, 0.0D,
                 this.level().getRandom(), 1.0D, 1.0D)) {

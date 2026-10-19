@@ -218,7 +218,7 @@ MUST NOT 把**形状的缺失当成一个需要绕开的问题**：那等于把�
 - **玩家的输出也有空窗**：死亡重生、绕场跑图、换装调属性、擦弹规避期间都是零输出。
 
 所以秒带是**弹性目标，不是保证**。`/gs_boss spawn <id> [秒数] [挨弹数]` 就是为这个存在的：
-先按秒带出怪 → 实测偏长/偏短 → 把秒数钉到实测值 → 回写 config。
+先按秒带出怪 → 实测偏长/偏短 → 把秒数钉到实测值 → 回写**代码常量**（`*Numbers` 的 bossSeconds）。
 
 **「打完觉得太短/太长」一律先实测再改数字，不要靠加弹数或改 `damageScale` 补时长。**
 那两个旋钮改的是难度和观感，改完会让下一次实测失真。
@@ -364,8 +364,8 @@ A 在 `[0.80, 0.90)` 生效、B 在 `[0.60, 0.80)` 生效。
 |---|---|---|
 | 整只 BOSS | `danmaku_damage` 属性 | `/attribute ... set value N`，运行期即时生效 |
 | 一条轨道 | `Track.damageScale()` | 改 `BossCards` |
-| 单发基准 | `EHP ÷ bossHits` | config（`bigFairyBossHits` 等） |
-| 整场时长 | `参照DPS × bossSeconds` | config（`bigFairyBossSeconds` 等），秒带见第 5 节 |
+| 单发基准 | `EHP ÷ bossHits` | 代码常量（`*Numbers` 的 bossHits） |
+| 整场时长 | `参照DPS × bossSeconds` | 代码常量（`*Numbers` 的 bossSeconds），秒带见第 5 节 |
 
 **为什么单列属性而不复用 `ATTACK_DAMAGE`**：语义不同（弹幕吃护壁指数与擦弹）、
 可调性（独立属性能直接 `/attribute` 改，是调试主旋钮）、可扩展（词条挂载点）。
@@ -530,9 +530,9 @@ emitted=? entityHits=? blockHits=? damageSum=? live=? cap=? rejected=[...]
   □ bosses.json tag
   □ SummonBossEffects 注册 effect id
   □ ritual_recipes 加配方（Σcount ≤ 该阶台数，钥匙与他人互斥）
-  □ config：BOSS_MOVE_* / BOSS_SECONDS_* / 挨弹数
-  □ config：默认攻击的频率与参数（若有，第 6 节）——不进 BossCards
-  □ config：BOSS_WANDER_AVOID_ANCHOR 按场地调（寝宫窄场要调大）
+  □ 常量：BOSS_MOVE_* / bossSeconds / 挨弹数（`*Numbers`）
+  □ 常量：默认攻击的频率与参数（若有，第 6 节）——不进 BossCards
+  □ 常量：BOSS_WANDER_AVOID_ANCHOR 按场地调（寝宫窄场要调大）
 
 实现要点
   □ extends AbstractTouhouBoss（自动：符卡阶段、伤害除数、距离带游走、≤5 目标、咒符条）

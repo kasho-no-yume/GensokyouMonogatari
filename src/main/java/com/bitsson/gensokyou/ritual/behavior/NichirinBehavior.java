@@ -1,9 +1,10 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 
 /**
  * 日轮天台（{@code gensokyou:nichirin_circle}）：白天段线性产能发电机。
@@ -14,7 +15,7 @@ public final class NichirinBehavior extends DayCycleGeneratorBehavior {
     @Override
     public long capacity(int level, SpiritPowerAccess core) {
         return com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity.daycycleCapacity(level,
-                com.bitsson.gensokyou.config.GensokyouConfig.NICHIRIN_BASE_CAPACITY.get());
+                GensokyouServerConfig.NICHIRIN_BASE_CAPACITY.get());
     }
 
     @Override
@@ -24,12 +25,12 @@ public final class NichirinBehavior extends DayCycleGeneratorBehavior {
 
     @Override
     protected double baseRatePerSecond() {
-        return GensokyouConfig.NICHIRIN_BASE_RATE_PER_SECOND.get();
+        return GensokyouServerConfig.NICHIRIN_BASE_RATE_PER_SECOND.get();
     }
 
     @Override
     protected long outRatePerSecond() {
-        return GensokyouConfig.NICHIRIN_OUT_RATE_PER_SECOND.get().longValue();
+        return GensokyouServerConfig.NICHIRIN_OUT_RATE_PER_SECOND.get().longValue();
     }
 
     @Override

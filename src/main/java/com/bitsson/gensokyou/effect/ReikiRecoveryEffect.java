@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.effect;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.bitsson.gensokyou.spirit.SpiritPowerData;
 import net.minecraft.server.level.ServerPlayer;
@@ -57,7 +58,7 @@ public class ReikiRecoveryEffect extends MobEffect {
         if (data.max() <= 0F || data.current() >= data.max()) {
             return;
         }
-        double percent = GensokyouConfig.REIKI_RECOVERY_PERCENT.get();
+        double percent = BalanceNumbers.REIKI_RECOVERY_PERCENT;
         float amount = (float) (data.max() * percent * (amplifier + 1));
         if (amount <= 0F) {
             return;

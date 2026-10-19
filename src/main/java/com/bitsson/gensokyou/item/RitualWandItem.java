@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.item;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.registry.ModDataComponents;
 import com.bitsson.gensokyou.ritual.editor.EditorState;
@@ -122,7 +123,7 @@ public class RitualWandItem extends Item {
 
     /** 配置上限钳制（任务 3.5）。 */
     public static int maxDimension() {
-        return GensokyouConfig.EDITOR_MAX_DIMENSION.get();
+        return GensokyouServerConfig.EDITOR_MAX_DIMENSION.get();
     }
 
     /** 阶级默认工作区（切片 AABB）越界时按配置钳制。 */

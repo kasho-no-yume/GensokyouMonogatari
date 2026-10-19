@@ -1,8 +1,10 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.entity.TouhouBoss;
 import com.bitsson.gensokyou.item.BossResidualCodexItem;
 import com.bitsson.gensokyou.network.InfoLine;
@@ -63,8 +65,8 @@ public class ChinkonHanshouBehavior implements RitualBehavior {
 
     /** 单次灵力成本 = 基值 × 倍率^(BOSS 品阶-1)（品阶起点为 1）。 */
     public static long spiritCost(int bossTier) {
-        long value = GensokyouConfig.CHINKON_BASE_SP_COST.get();
-        long mult = GensokyouConfig.CHINKON_SP_COST_MULT.get();
+        long value = GensokyouServerConfig.CHINKON_BASE_SP_COST.get();
+        long mult = GensokyouServerConfig.CHINKON_SP_COST_MULT.get();
         for (int i = 1; i < bossTier; i++) {
             value *= mult;
         }
@@ -73,8 +75,8 @@ public class ChinkonHanshouBehavior implements RitualBehavior {
 
     /** 缓存容量 = 基值 × 倍率^(等级-1)。 */
     public static long capacity(int level) {
-        long cap = GensokyouConfig.CHINKON_BASE_CAPACITY.get();
-        long mult = GensokyouConfig.CHINKON_CAPACITY_MULT.get();
+        long cap = GensokyouServerConfig.CHINKON_BASE_CAPACITY.get();
+        long mult = GensokyouServerConfig.CHINKON_CAPACITY_MULT.get();
         for (int i = 1; i < level; i++) {
             cap *= mult;
         }
@@ -141,15 +143,15 @@ public class ChinkonHanshouBehavior implements RitualBehavior {
     /** 产出掷骰（0~1 碎星 + 1~2 主题信物）。 */
     public static List<ItemStack> rollOutputs(ServerLevel level, ResourceLocation boss) {
         List<ItemStack> out = new ArrayList<>();
-        int star = rollRange(level, GensokyouConfig.CHINKON_STAR_MIN.get(),
-                GensokyouConfig.CHINKON_STAR_MAX.get());
+        int star = rollRange(level, GensokyouServerConfig.CHINKON_STAR_MIN.get(),
+                GensokyouServerConfig.CHINKON_STAR_MAX.get());
         if (star > 0) {
             out.add(new ItemStack(ModItems.BROKEN_SPELL_CARD_STAR.get(), star));
         }
         Optional<Item> signature = signatureOf(level, boss);
         if (signature.isPresent()) {
-            int count = rollRange(level, GensokyouConfig.CHINKON_SIGNATURE_MIN.get(),
-                    GensokyouConfig.CHINKON_SIGNATURE_MAX.get());
+            int count = rollRange(level, GensokyouServerConfig.CHINKON_SIGNATURE_MIN.get(),
+                    GensokyouServerConfig.CHINKON_SIGNATURE_MAX.get());
             if (count > 0) {
                 out.add(new ItemStack(signature.get(), count));
             }
@@ -168,7 +170,7 @@ public class ChinkonHanshouBehavior implements RitualBehavior {
         return new com.bitsson.gensokyou.ritual.RitualRenderState(
                 com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SACRIFICE, core.isEnabled(),
                 match.level(),
-                (int) Math.round(GensokyouConfig.FX_PILLAR_HEIGHT.get()),
+                (int) Math.round(BalanceNumbers.FX_PILLAR_HEIGHT),
                 core.sacrificeFxTicks(),
                 com.bitsson.gensokyou.ritual.RitualBehaviors.sacrificeColorIndex(match.patternId()),
                 new long[0], 0, 0L);
@@ -193,7 +195,7 @@ public class ChinkonHanshouBehavior implements RitualBehavior {
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
                                       SpiritPowerAccess core) {
-        return GensokyouConfig.CHINKON_SPIRIT_IN_RATE.get().longValue();
+        return GensokyouServerConfig.CHINKON_SPIRIT_IN_RATE.get().longValue();
     }
 
     @Override
@@ -223,7 +225,7 @@ public class ChinkonHanshouBehavior implements RitualBehavior {
         consume(level, offering.pos());
         List<ItemStack> outputs = rollOutputs(level, offering.boss());
         WatatsumiBehavior.dropStacks(level, corePos, outputs);
-        core.triggerSacrificeFx(GensokyouConfig.FX_PILLAR_TICKS.get());
+        core.triggerSacrificeFx(BalanceNumbers.FX_PILLAR_TICKS);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
         return InteractionResult.SUCCESS;
     }
@@ -287,12 +289,12 @@ public class ChinkonHanshouBehavior implements RitualBehavior {
                 + " signature=" + signature
                 + " costTier=" + (offering == null ? "-" : String.valueOf(offering.tier()))
                 + " cost=" + spiritCost(offering == null ? 1 : offering.tier())
-                + " costBase=" + GensokyouConfig.CHINKON_BASE_SP_COST.get()
+                + " costBase=" + GensokyouServerConfig.CHINKON_BASE_SP_COST.get()
                 + " capacity=" + capacity(ritualLevel)
-                + " star=[" + GensokyouConfig.CHINKON_STAR_MIN.get()
-                + "," + GensokyouConfig.CHINKON_STAR_MAX.get() + "]"
-                + " sig=[" + GensokyouConfig.CHINKON_SIGNATURE_MIN.get()
-                + "," + GensokyouConfig.CHINKON_SIGNATURE_MAX.get() + "]";
+                + " star=[" + GensokyouServerConfig.CHINKON_STAR_MIN.get()
+                + "," + GensokyouServerConfig.CHINKON_STAR_MAX.get() + "]"
+                + " sig=[" + GensokyouServerConfig.CHINKON_SIGNATURE_MIN.get()
+                + "," + GensokyouServerConfig.CHINKON_SIGNATURE_MAX.get() + "]";
     }
 
     /** 试掷摘要（探针用；无 world 副作用，仅消耗随机数）。 */

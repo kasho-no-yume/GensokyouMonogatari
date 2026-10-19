@@ -1,7 +1,6 @@
 package com.bitsson.gensokyou.spirit.grace;
 
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.SpiritPowerSyncPayload;
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.bitsson.gensokyou.spirit.SpiritPowerData;

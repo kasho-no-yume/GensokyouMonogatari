@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.effect;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 
@@ -23,6 +24,6 @@ public class SpiritualSightEffect extends MobEffect implements NoAmplifierEffect
 
     /** 显形半径（格）的下限，供扫描器读取；0 或负数表示不额外扩大。 */
     public static double radius() {
-        return Math.max(0.0D, GensokyouConfig.SPIRITUAL_SIGHT_RADIUS.get());
+        return Math.max(0.0D, BalanceNumbers.SPIRITUAL_SIGHT_RADIUS);
     }
 }

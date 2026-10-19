@@ -1,10 +1,11 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualMatch;
@@ -167,7 +168,7 @@ public final class OmoikaneForging {
                 ? forgeGear(level, core, valid, ritualLevel, storedBefore)
                 : forgeBook(level, core, valid, ritualLevel, storedBefore);
         if (out.producedAnything()) {
-            core.triggerSacrificeFx(GensokyouConfig.FX_PILLAR_TICKS.get());
+            core.triggerSacrificeFx(BalanceNumbers.FX_PILLAR_TICKS);
             ModNetworking.sendRitualInfoToViewers(level, corePos);
         }
         return lastOutcome = out;

@@ -1,10 +1,12 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -39,7 +41,7 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
     public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
         if (core.sacrificeFxTicks() <= 0) return null;
         return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SACRIFICE, core.isEnabled(), match.level(),
-                (int) Math.round(com.bitsson.gensokyou.config.GensokyouConfig.FX_PILLAR_HEIGHT.get()), core.sacrificeFxTicks(),
+                (int) Math.round(BalanceNumbers.FX_PILLAR_HEIGHT), core.sacrificeFxTicks(),
                 com.bitsson.gensokyou.ritual.RitualBehaviors.sacrificeColorIndex(match.patternId()), new long[0], 0, 0L);
     }
 
@@ -98,8 +100,8 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
 
     public static long capacity(int level) {
         return capacity(level,
-                GensokyouConfig.HOUJOUNO_TEIHOU_BASE_CAPACITY.get(),
-                GensokyouConfig.HOUJOUNO_TEIHOU_CAPACITY_MULTIPLIER.get());
+                GensokyouServerConfig.HOUJOUNO_TEIHOU_BASE_CAPACITY.get(),
+                GensokyouServerConfig.HOUJOUNO_TEIHOU_CAPACITY_MULTIPLIER.get());
     }
 
     static long capacity(int level, long base, long multiplier) {
@@ -108,8 +110,8 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
 
     public static long inRate(int level) {
         return inRate(level,
-                GensokyouConfig.HOUJOUNO_TEIHOU_BASE_IN_RATE_PER_SECOND.get(),
-                GensokyouConfig.HOUJOUNO_TEIHOU_IN_RATE_MULTIPLIER.get());
+                GensokyouServerConfig.HOUJOUNO_TEIHOU_BASE_IN_RATE_PER_SECOND.get(),
+                GensokyouServerConfig.HOUJOUNO_TEIHOU_IN_RATE_MULTIPLIER.get());
     }
 
     static long inRate(int level, long base, long multiplier) {
@@ -118,8 +120,8 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
 
     public static long costPerPedestal(int level) {
         return costPerPedestal(level,
-                GensokyouConfig.HOUJOUNO_TEIHOU_BASE_COST_PER_PEDESTAL.get(),
-                GensokyouConfig.HOUJOUNO_TEIHOU_COST_MULTIPLIER.get());
+                GensokyouServerConfig.HOUJOUNO_TEIHOU_BASE_COST_PER_PEDESTAL.get(),
+                GensokyouServerConfig.HOUJOUNO_TEIHOU_COST_MULTIPLIER.get());
     }
 
     static long costPerPedestal(int level, long base, long multiplier) {
@@ -128,8 +130,8 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
 
     public static long samplesPerPedestal(int level) {
         return samplesPerPedestal(level,
-                GensokyouConfig.HOUJOUNO_TEIHOU_BASE_SAMPLE_COUNT.get(),
-                GensokyouConfig.HOUJOUNO_TEIHOU_SAMPLE_COUNT_MULTIPLIER.get());
+                BalanceNumbers.HOUJOUNO_TEIHOU_BASE_SAMPLE_COUNT,
+                GensokyouServerConfig.HOUJOUNO_TEIHOU_SAMPLE_COUNT_MULTIPLIER.get());
     }
 
     static long samplesPerPedestal(int level, long base, long multiplier) {
@@ -153,7 +155,7 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
     }
 
     public static int cycleTicks() {
-        return GensokyouConfig.HOUJOUNO_TEIHOU_CYCLE_TICKS.get();
+        return GensokyouServerConfig.HOUJOUNO_TEIHOU_CYCLE_TICKS.get();
     }
 
     public static int toSeconds(int ticks) {
@@ -266,7 +268,7 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
         }
 
         int ritualLevel = match.level();
-        int retryTicks = GensokyouConfig.HOUJOUNO_TEIHOU_FAILURE_RETRY_TICKS.get();
+        int retryTicks = GensokyouServerConfig.HOUJOUNO_TEIHOU_FAILURE_RETRY_TICKS.get();
         boolean retryTick = core.ageTicks() % retryTicks == 0L;
         List<HarvestUnit> candidates = new ArrayList<>();
         int knownFailures = 0;
@@ -319,7 +321,7 @@ public final class HoujounoTeihouBehavior implements RitualBehavior {
         }
         emit(level, corePos, totals);
         core.setActionCooldown(cycleTicks());
-        core.triggerSacrificeFx(GensokyouConfig.FX_PILLAR_TICKS.get());
+        core.triggerSacrificeFx(BalanceNumbers.FX_PILLAR_TICKS);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
     }
 

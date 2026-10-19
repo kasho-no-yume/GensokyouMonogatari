@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.danmaku.program.content;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.danmaku.program.TailPolicy;
 import com.bitsson.gensokyou.danmaku.program.TimeDomain;
 import com.bitsson.gensokyou.danmaku.program.author.CardProgram;
@@ -36,14 +37,6 @@ public final class BigFairyPrograms {
 
     private static String hex(int index) { return BossProgramCards.hex(BossCards.BIG_FAIRY_PALETTE.at(index)); }
 
-    /** 内容在首个 encounter 才构建（config 已加载）；单元测试未加载 config 时退回默认值。 */
-    private static int cfg(ModConfigSpec.IntValue value) {
-        try { return value.get(); } catch (IllegalStateException notLoaded) { return value.getDefault(); }
-    }
-    private static double cfg(ModConfigSpec.DoubleValue value) {
-        try { return value.get(); } catch (IllegalStateException notLoaded) { return value.getDefault(); }
-    }
-
     // ------------------------------------------------------------------
     // 默认攻击：5×5 角度网格弹墙（独立底噪，全程叠加在符卡之下）
     // ------------------------------------------------------------------
@@ -51,14 +44,14 @@ public final class BigFairyPrograms {
         var card = new CardProgram("gensokyou:big_fairy_wall");
         var targets = card.targets("players", 64, 5);
         var gun = card.aimed("wall", targets, 0, new Vec3(0, 1, 3));
-        double step = Math.toRadians(cfg(GensokyouConfig.BIG_FAIRY_WALL_STEP_DEG));
-        double size = cfg(GensokyouConfig.BIG_FAIRY_WALL_SIZE);
+        double step = Math.toRadians(BalanceNumbers.BIG_FAIRY_WALL_STEP_DEG);
+        double size = BalanceNumbers.BIG_FAIRY_WALL_SIZE;
         var pattern = MemberProgram.styled(new Patterns.AngularGrid(5, 5, step, step),
                 "sphere", hex(0), size * 0.5, 1, size, "wall");
         var bullets = MemberProgram.attack("wall", pattern,
-                        new Paths.Linear(Vec3.Z, cfg(GensokyouConfig.BIG_FAIRY_WALL_SPEED)), 1200)
+                        new Paths.Linear(Vec3.Z, BalanceNumbers.BIG_FAIRY_WALL_SPEED), 1200)
                 .templateDirections().build();
-        int interval = Math.max(5, cfg(GensokyouConfig.BIG_FAIRY_WALL_INTERVAL));
+        int interval = Math.max(5, BalanceNumbers.BIG_FAIRY_WALL_INTERVAL);
         card.at(0, c -> c.fire(gun, bullets, 0, 31));
         // 底噪永不结束；循环边界清旧轮顶层计划，新轮重新采样。
         return card.loop(interval, TailPolicy.RETAIN_UNTIL_LIFETIME);

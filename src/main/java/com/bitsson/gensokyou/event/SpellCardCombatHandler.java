@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.event;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.entity.spell.DarknessFieldEntity;
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.bitsson.gensokyou.spirit.SpellBuffData;
@@ -110,11 +111,11 @@ public final class SpellCardCombatHandler {
                 existing++;
             }
         }
-        int count = Math.max(0, GensokyouConfig.PLAGUE_REPAY_DEBUFF_COUNT.get() - existing);
+        int count = Math.max(0, BalanceNumbers.PLAGUE_REPAY_DEBUFF_COUNT - existing);
         if (count == 0) {
             return;
         }
-        int durationTicks = GensokyouConfig.PLAGUE_REPAY_DEBUFF_DURATION_SECONDS.get() * 20;
+        int durationTicks = BalanceNumbers.PLAGUE_REPAY_DEBUFF_DURATION_SECONDS * 20;
         for (int i = 0; i < count; i++) {
             net.minecraft.core.Holder<MobEffect> effect =
                     PLAGUE_POOL.get(player.getRandom().nextInt(PLAGUE_POOL.size()));

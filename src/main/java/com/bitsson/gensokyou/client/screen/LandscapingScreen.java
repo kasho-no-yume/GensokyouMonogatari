@@ -1,6 +1,8 @@
 package com.bitsson.gensokyou.client.screen;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+import com.bitsson.gensokyou.config.GensokyouClientConfig;
+
 import com.bitsson.gensokyou.menu.LandscapingMenu;
 import com.bitsson.gensokyou.network.LandscapingStatePayload;
 import net.minecraft.client.gui.GuiGraphics;
@@ -46,11 +48,11 @@ public class LandscapingScreen extends AbstractContainerScreen<LandscapingMenu> 
     }
 
     private static int maxSize() {
-        return GensokyouConfig.LANDSCAPING_MAX_SIZE.get();
+        return GensokyouServerConfig.LANDSCAPING_MAX_SIZE.get();
     }
 
     private static int maxHeight() {
-        return GensokyouConfig.LANDSCAPING_MAX_HEIGHT.get();
+        return GensokyouServerConfig.LANDSCAPING_MAX_HEIGHT.get();
     }
 
     @Override
@@ -59,8 +61,8 @@ public class LandscapingScreen extends AbstractContainerScreen<LandscapingMenu> 
         int left = this.leftPos + 16;
         int top = this.topPos + 18;
         boolean present = state != null && state.present();
-        int defSize = GensokyouConfig.LANDSCAPING_DEFAULT_SIZE.get();
-        int defHeight = GensokyouConfig.LANDSCAPING_DEFAULT_HEIGHT.get();
+        int defSize = GensokyouServerConfig.LANDSCAPING_DEFAULT_SIZE.get();
+        int defHeight = GensokyouServerConfig.LANDSCAPING_DEFAULT_HEIGHT.get();
 
         this.sizeXSlider = addRenderableWidget(new ParamSlider(left, top, SLIDER_WIDTH, 20,
                 "gui.gensokyou.landscaping.size_x", 1, maxSize(),

@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.core.particles.ParticleTypes;
@@ -115,11 +116,11 @@ public class OrbitYinYangOrb extends Entity {
     }
 
     private int pulseIntervalTicks() {
-        return GensokyouConfig.MUSOU_PULSE_INTERVAL.get();
+        return BalanceNumbers.MUSOU_PULSE_INTERVAL;
     }
 
     private float pulseFactor() {
-        return GensokyouConfig.MUSOU_PULSE_FACTOR.get().floatValue();
+        return BalanceNumbers.MUSOU_PULSE_FACTOR.floatValue();
     }
 
     private void resolveDamage(ServerLevel level, Player host, float factor) {

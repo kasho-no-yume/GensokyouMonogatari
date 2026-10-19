@@ -1,5 +1,8 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.ReiyokuState;
 import com.bitsson.gensokyou.ritual.FixedPointAccumulator;
 import com.bitsson.gensokyou.ritual.RitualBehaviorState;
@@ -7,7 +10,6 @@ import com.bitsson.gensokyou.ritual.RitualBehaviorState;
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -109,13 +111,13 @@ public final class ReiyokuBehavior implements RitualBehavior {
 
     /** 缓存上限（缓存点数）：{@code REIYOKU_BASE_CAPACITY × 12^(L-1)}。 */
     public static long capacity(int level) {
-        return RitualScaling.scale(GensokyouConfig.REIYOKU_BASE_CAPACITY.get(),
+        return RitualScaling.scale(GensokyouServerConfig.REIYOKU_BASE_CAPACITY.get(),
                 PER_LEVEL_FACTOR, Math.max(0, level) - 1);
     }
 
     /** 受灵上限（缓存点数/秒）：{@code REIYOKU_BASE_IN_RATE × 12^(L-1)}。仅随结构等级变化。 */
     public static long inRate(int level) {
-        return RitualScaling.scale(GensokyouConfig.REIYOKU_BASE_IN_RATE.get(),
+        return RitualScaling.scale(GensokyouServerConfig.REIYOKU_BASE_IN_RATE.get(),
                 PER_LEVEL_FACTOR, Math.max(0, level) - 1);
     }
 
@@ -126,7 +128,7 @@ public final class ReiyokuBehavior implements RitualBehavior {
      * 「表内最大 × 10^(越界阶数)」而非 0——否则误配的 6 阶结构会静默变成零产出的设施。
      */
     public static double standardMaxSpirit(int level) {
-        List<? extends Double> table = GensokyouConfig.REIYOKU_TIER_MAX_SPIRIT.get();
+        List<? extends Double> table = BalanceNumbers.REIYOKU_TIER_MAX_SPIRIT;
         int index = Math.max(0, level) - 1;
         double base;
         if (table.isEmpty()) {
@@ -145,7 +147,7 @@ public final class ReiyokuBehavior implements RitualBehavior {
 
     /** 充灵速率（玩家灵力/秒）= {@code 标准池(L) × chargePercent}。 */
     public static double chargePerSecond(int level) {
-        return standardMaxSpirit(level) * GensokyouConfig.REIYOKU_CHARGE_PERCENT.get();
+        return standardMaxSpirit(level) * GensokyouServerConfig.REIYOKU_CHARGE_PERCENT.get();
     }
 
     /** 每 tick 玩家灵力增量 = {@code 速率 ÷ 20}。 */
@@ -155,7 +157,7 @@ public final class ReiyokuBehavior implements RitualBehavior {
 
     /** 缓存兑换比：多少点缓存换 1 点玩家灵力。 */
     public static int cachePerSpirit() {
-        return Math.max(1, GensokyouConfig.REIYOKU_CACHE_PER_SPIRIT.get());
+        return Math.max(1, GensokyouServerConfig.REIYOKU_CACHE_PER_SPIRIT.get());
     }
 
     /** 每秒缓存消耗（点数/秒）= {@code 速率 × 兑换比}。 */
@@ -272,14 +274,14 @@ public final class ReiyokuBehavior implements RitualBehavior {
         if (playerPos == null || corePos == null) {
             return false;
         }
-        double radius = Math.max(0.0D, GensokyouConfig.REIYOKU_BATH_RADIUS.get());
+        double radius = Math.max(0.0D, GensokyouServerConfig.REIYOKU_BATH_RADIUS.get());
         double dx = playerPos.getX() - corePos.getX();
         double dz = playerPos.getZ() - corePos.getZ();
         if (dx * dx + dz * dz > radius * radius) {
             return false;
         }
         int dy = playerPos.getY() - corePos.getY();
-        return dy >= 0 && dy <= GensokyouConfig.REIYOKU_BATH_HEIGHT.get();
+        return dy >= 0 && dy <= GensokyouServerConfig.REIYOKU_BATH_HEIGHT.get();
     }
 
     /** 阶级门控：玩家阶级是否可被该结构等级服务（越阶者不注灵、不吃缓存）。 */
@@ -340,7 +342,7 @@ public final class ReiyokuBehavior implements RitualBehavior {
             //    "按秒补"（实机反馈）。而本 mod 的常规回灵本身就是 1Hz 整点跳
             //    （ModAttachments.tickRegen：tickCount % 20 == 0），两者节奏一致才不突兀。
             //    开销仅限"正在被充灵的人"×cadence，不落在其他灵力写入路径上。
-            int every = Math.max(1, GensokyouConfig.REIYOKU_CHARGE_SYNC_TICKS.get());
+            int every = Math.max(1, GensokyouServerConfig.REIYOKU_CHARGE_SYNC_TICKS.get());
             if (every <= 1 || player.tickCount % every == 0) {
                 ModAttachments.sync(player);
             }

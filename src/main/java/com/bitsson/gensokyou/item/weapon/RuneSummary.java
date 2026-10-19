@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.item.weapon;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.spirit.attr.AttributeKey;
 
 import javax.annotation.Nullable;
@@ -42,7 +44,7 @@ public final class RuneSummary {
 
     /** 武器专有四键的定长视图（读 config 的衰减指数）。 */
     public Weapon weapon() {
-        return weapon(com.bitsson.gensokyou.config.GensokyouConfig.RUNE_RANGE_DECAY_EXP.get());
+        return weapon(BalanceNumbers.RUNE_RANGE_DECAY_EXP);
     }
 
     /** 注入衰减指数的视图（纯核单测用，避免单测加载 config）。 */

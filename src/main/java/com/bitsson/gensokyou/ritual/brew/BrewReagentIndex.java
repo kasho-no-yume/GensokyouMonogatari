@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.ritual.brew;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.potion.PotionTierTransform;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
@@ -231,8 +232,8 @@ public final class BrewReagentIndex {
                 .sourceOf(rule.potion(), rule.longPotion(), rule.strongPotion())
                 .map(source -> new Resolution(rule.potion(), source,
                         new PotionTierTransform.Options(
-                                GensokyouConfig.SUNAKO_LONG_DURATION_MULTIPLIER.get(),
-                                GensokyouConfig.SUNAKO_STRONG_DURATION_MULTIPLIER.get(),
+                                GensokyouServerConfig.SUNAKO_LONG_DURATION_MULTIPLIER.get(),
+                                GensokyouServerConfig.SUNAKO_STRONG_DURATION_MULTIPLIER.get(),
                                 rule.extendWithoutLong(),
                                 rule.amplifyWithoutStrong(),
                                 rule.excludedEffects()),
@@ -242,16 +243,16 @@ public final class BrewReagentIndex {
     /** 反查回落条目没有数据包声明，故两个退化开关均关闭（保持 vanilla 原样口径）。 */
     private static PotionTierTransform.Options fallbackOptions() {
         return new PotionTierTransform.Options(
-                GensokyouConfig.SUNAKO_LONG_DURATION_MULTIPLIER.get(),
-                GensokyouConfig.SUNAKO_STRONG_DURATION_MULTIPLIER.get(),
+                GensokyouServerConfig.SUNAKO_LONG_DURATION_MULTIPLIER.get(),
+                GensokyouServerConfig.SUNAKO_STRONG_DURATION_MULTIPLIER.get(),
                 false, false, Set.of());
     }
 
     /** 无世界上下文的选项装配（纯倍率、黑名单由调用方给），供 GUI / JEI 预览复用。 */
     public static PotionTierTransform.Options optionsOf(RitualBrewRule rule) {
         return new PotionTierTransform.Options(
-                GensokyouConfig.SUNAKO_LONG_DURATION_MULTIPLIER.get(),
-                GensokyouConfig.SUNAKO_STRONG_DURATION_MULTIPLIER.get(),
+                GensokyouServerConfig.SUNAKO_LONG_DURATION_MULTIPLIER.get(),
+                GensokyouServerConfig.SUNAKO_STRONG_DURATION_MULTIPLIER.get(),
                 rule.extendWithoutLong(),
                 rule.amplifyWithoutStrong(),
                 rule.excludedEffects());

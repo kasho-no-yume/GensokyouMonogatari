@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -117,7 +118,7 @@ public class KnifeDanmaku extends AbstractDanmakuProjectile {
 
     @Override
     protected void onHitBlock(BlockHitResult result) {
-        int ticks = GensokyouConfig.KNIFE_STICK_TICKS.get();
+        int ticks = BalanceNumbers.KNIFE_STICK_TICKS;
         if (ticks <= 0) {
             this.discard(DanmakuBudget.RemovalCause.STUCK_EXPIRED);
             return;
@@ -151,7 +152,7 @@ public class KnifeDanmaku extends AbstractDanmakuProjectile {
     @Override
     protected int absoluteLifetimeTicks() {
         return this.isStuck()
-                ? Math.max(1, GensokyouConfig.KNIFE_STICK_TICKS.get())
+                ? Math.max(1, BalanceNumbers.KNIFE_STICK_TICKS)
                 : super.absoluteLifetimeTicks();
     }
 

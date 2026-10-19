@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.danmaku;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.danmaku.track.Behaviour;
 import com.bitsson.gensokyou.danmaku.track.Geometry;
 import com.bitsson.gensokyou.danmaku.track.Projectile;
@@ -162,8 +164,7 @@ public static void emit(LivingEntity boss, Geometry.Shot shot, Behaviour behavio
         }
         if (collapseAge > 0) {
             bullet.configureCollapse(collapseAge,
-                    Math.max(0, com.bitsson.gensokyou.config.GensokyouConfig
-                            .DANMAKU_COLLAPSE_FADE_TICKS.get()));
+                    Math.max(0, BalanceNumbers.DANMAKU_COLLAPSE_FADE_TICKS));
         }
         applySpawnAnchor(bullet, boss, shot, anchor);
         applyMotion(bullet, shot, behaviour.motion(), speed, turnTargetId);

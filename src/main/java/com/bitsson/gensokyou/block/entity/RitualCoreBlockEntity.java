@@ -1,8 +1,10 @@
 package com.bitsson.gensokyou.block.entity;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.block.RitualPedestalBlock;
 import com.bitsson.gensokyou.event.AchievementAwards;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import com.bitsson.gensokyou.registry.ModBlocks;
@@ -412,24 +414,24 @@ public class RitualCoreBlockEntity extends BlockEntity
      * 这是该仪式唯一的硬性开启门槛：缓存充盈 + 祭品齐备即闩锁开门。
      */
     public static long barrierCapacity() {
-        return Math.max(0L, GensokyouConfig.BARRIER_CAPACITY.get());
+        return Math.max(0L, GensokyouServerConfig.BARRIER_CAPACITY.get());
     }
 
     /** 结界破坏仪式每秒自然流失量（充能期与待献祭期的行为差异由行为侧裁决）。 */
     public static long barrierDrainPerSecond() {
-        return Math.max(0L, GensokyouConfig.BARRIER_DRAIN_PER_SECOND.get());
+        return Math.max(0L, GensokyouServerConfig.BARRIER_DRAIN_PER_SECOND.get());
     }
 
     /** 加具土命缓存上限 = 基础值 × 4^等级。 */
     public static long kagutsuchiCapacity(int level) {
         return com.bitsson.gensokyou.ritual.SpiritCapacityScaling.scaled(
-                GensokyouConfig.KAGUTSUICHI_BASE_CAPACITY.get(), 4L, level);
+                GensokyouServerConfig.KAGUTSUICHI_BASE_CAPACITY.get(), 4L, level);
     }
 
     /** 梦渡之座缓存上限 = 基础值 × 4^等级（溢出直注槽内灵力核心，见 YumewatariBehavior）。 */
     public static long yumewatariCapacity(int level) {
         return com.bitsson.gensokyou.ritual.SpiritCapacityScaling.scaled(
-                GensokyouConfig.YUMEWATARI_BASE_CAPACITY.get(), 4L, level);
+                GensokyouServerConfig.YUMEWATARI_BASE_CAPACITY.get(), 4L, level);
     }
 
     /** 昼夜发电机（日轮天台/月影水镜）缓存上限 = 基值 × 4^等级。 */
@@ -440,27 +442,27 @@ public class RitualCoreBlockEntity extends BlockEntity
     /** 众生余录缓存上限 = 基值 × 容量倍率^等级（默认 40000 × 20^L）。 */
     public static long shujouCapacity(int level) {
         return com.bitsson.gensokyou.ritual.SpiritCapacityScaling.scaled(
-                GensokyouConfig.SHUJOU_BASE_CAPACITY.get(), GensokyouConfig.SHUJOU_CAPACITY_MULT.get(), level);
+                GensokyouServerConfig.SHUJOU_BASE_CAPACITY.get(), GensokyouServerConfig.SHUJOU_CAPACITY_MULT.get(), level);
     }
 
     /** 献祭工具仪式缓存上限 = 基值 × 4^等级。 */
     public static long sacrificeCapacity(int level) {
-        return daycycleCapacity(level, GensokyouConfig.SACRIFICE_BASE_CAPACITY.get());
+        return daycycleCapacity(level, GensokyouServerConfig.SACRIFICE_BASE_CAPACITY.get());
     }
 
     /** 无尽藏之仪缓存上限 = 基值 × mult^等级。 */
     public static long wujinzangCapacity(int level) {
-        return scaledWujinzang(GensokyouConfig.WUJINZANG_BASE_CAPACITY.get(), level);
+        return scaledWujinzang(GensokyouServerConfig.WUJINZANG_BASE_CAPACITY.get(), level);
     }
 
     /** 无尽藏之仪每秒耗电 = 基值 × mult^等级（饱和防溢出）。 */
     public static long wujinzangDrain(int level) {
-        return scaledWujinzang(GensokyouConfig.WUJINZANG_BASE_DRAIN.get(), level);
+        return scaledWujinzang(GensokyouServerConfig.WUJINZANG_BASE_DRAIN.get(), level);
     }
 
     private static long scaledWujinzang(long base, int level) {
         return com.bitsson.gensokyou.ritual.SpiritCapacityScaling.scaledSaturating(
-                base, GensokyouConfig.WUJINZANG_MULT.get(), level);
+                base, GensokyouServerConfig.WUJINZANG_MULT.get(), level);
     }
 
     /** 托管型储灵行为（如八方归元）：图案命中且行为实现 SpiritBank 时灵力四件套整体转发。 */
@@ -527,7 +529,7 @@ public class RitualCoreBlockEntity extends BlockEntity
             return 0L;
         }
         long granted = routedOutLedger.grant(serverLevel.getGameTime(), rate,
-                GensokyouConfig.SETTLE_PERIOD_TICKS.get(), maxAmount);
+                BalanceNumbers.SETTLE_PERIOD_TICKS, maxAmount);
         long taken = granted <= 0L ? 0L : extract(granted);
         routedOutTotal += taken;
         return taken;
@@ -548,7 +550,7 @@ public class RitualCoreBlockEntity extends BlockEntity
             return 0L;
         }
         long granted = routedInLedger.grant(serverLevel.getGameTime(), rate,
-                GensokyouConfig.SETTLE_PERIOD_TICKS.get(), maxAmount);
+                BalanceNumbers.SETTLE_PERIOD_TICKS, maxAmount);
         long put = granted <= 0L ? 0L : receive(granted);
         routedInTotal += put;
         return put;
@@ -1660,7 +1662,7 @@ public class RitualCoreBlockEntity extends BlockEntity
     /** 持续型配方循环：成型即可运行（不受 enabled 门控），成功一条即结束本周期。 */
     private static void tickPassiveRecipes(ServerLevel level, BlockPos pos,
                                            RitualCoreBlockEntity core, RitualPattern pattern) {
-        if (core.ageTicks % GensokyouConfig.PASSIVE_CYCLE_TICKS.get() != 0) {
+        if (core.ageTicks % BalanceNumbers.PASSIVE_CYCLE_TICKS != 0) {
             return;
         }
         List<RitualRecipe> passives = RitualRecipeLoader.forPattern(pattern.id()).stream()

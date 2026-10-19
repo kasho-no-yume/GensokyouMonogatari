@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.jei;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.brew.RitualBrewRule;
 import com.bitsson.gensokyou.ritual.potion.PotionTierTransform;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -63,8 +64,8 @@ public record BrewRecipeCardWrapper(ResourceLocation patternId, RitualBrewRule r
 
     private static PotionTierTransform.Options options(RitualBrewRule rule) {
         return new PotionTierTransform.Options(
-                GensokyouConfig.SUNAKO_LONG_DURATION_MULTIPLIER.get(),
-                GensokyouConfig.SUNAKO_STRONG_DURATION_MULTIPLIER.get(),
+                GensokyouServerConfig.SUNAKO_LONG_DURATION_MULTIPLIER.get(),
+                GensokyouServerConfig.SUNAKO_STRONG_DURATION_MULTIPLIER.get(),
                 rule.extendWithoutLong(),
                 rule.amplifyWithoutStrong(),
                 rule.excludedEffects());

@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.ritual.SpiritBank;
 import com.bitsson.gensokyou.ritual.TickRateLedger;
 
@@ -7,7 +9,6 @@ import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualMatch;
@@ -277,7 +278,7 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
         if (moved <= 0L) {
             return;
         }
-        int period = Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get());
+        int period = Math.max(1, BalanceNumbers.SETTLE_PERIOD_TICKS);
         long nowPeriod = Math.floorDiv(level.getGameTime(), period);
         Meter m = METERS.computeIfAbsent(coreKey, k -> new ConcurrentHashMap<>())
                 .computeIfAbsent(pedPos, k -> new Meter());
@@ -303,7 +304,7 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
         if (m == null) {
             return new long[]{0L, 0L};
         }
-        int period = Math.max(1, GensokyouConfig.SETTLE_PERIOD_TICKS.get());
+        int period = Math.max(1, BalanceNumbers.SETTLE_PERIOD_TICKS);
         long nowPeriod = Math.floorDiv(level.getGameTime(), period);
         if (m.period == nowPeriod || m.period == nowPeriod - 1L) {
             return new long[]{m.movedIn * 20L / period, m.movedOut * 20L / period};
@@ -341,7 +342,7 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
         }
         BlockPos key = corePos.immutable();
         long now = level.getGameTime();
-        int period = GensokyouConfig.SETTLE_PERIOD_TICKS.get();
+        int period = BalanceNumbers.SETTLE_PERIOD_TICKS;
         Map<BlockPos, TickRateLedger> ledgers = OUT_LEDGER.computeIfAbsent(
                 key, k -> new ConcurrentHashMap<>());
         long total = 0L;
@@ -370,7 +371,7 @@ public class BafangGuiyuanBehavior implements RitualBehavior, SpiritBank {
         }
         BlockPos key = corePos.immutable();
         long now = level.getGameTime();
-        int period = GensokyouConfig.SETTLE_PERIOD_TICKS.get();
+        int period = BalanceNumbers.SETTLE_PERIOD_TICKS;
         Map<BlockPos, TickRateLedger> ledgers = (deposit ? IN_LEDGER : OUT_LEDGER)
                 .computeIfAbsent(key, k -> new ConcurrentHashMap<>());
         int n = cores.size();

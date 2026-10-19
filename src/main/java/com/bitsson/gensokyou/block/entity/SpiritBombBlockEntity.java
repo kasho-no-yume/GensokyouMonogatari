@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.block.entity;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.bitsson.gensokyou.spirit.SpiritPowerData;
@@ -53,7 +54,7 @@ public class SpiritBombBlockEntity extends BlockEntity {
 
     public SpiritBombBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.SPIRIT_BOMB.get(), pos, state);
-        this.fuseTicks = GensokyouConfig.SPIRIT_BOMB_DEFAULT_FUSE_TICKS.get();
+        this.fuseTicks = GensokyouServerConfig.SPIRIT_BOMB_DEFAULT_FUSE_TICKS.get();
     }
 
     // ------------------------------------------------------------------ 参数访问
@@ -129,7 +130,7 @@ public class SpiritBombBlockEntity extends BlockEntity {
 
     /** 估算灵力消耗：{@code BASE × (强度/4)² × (半径/6)}。 */
     public long estimatedCost() {
-        long base = GensokyouConfig.SPIRIT_BOMB_BASE_COST.get();
+        long base = GensokyouServerConfig.SPIRIT_BOMB_BASE_COST.get();
         double powerFactor = Math.pow(power / 4.0D, 2);
         double radiusFactor = blastRadius / 6.0D;
         return Math.round(base * powerFactor * radiusFactor);
@@ -177,7 +178,7 @@ public class SpiritBombBlockEntity extends BlockEntity {
      * 保命优先于保物资。
      */
     private void capDroppedProducts(ServerLevel server, Vec3 center) {
-        int cap = GensokyouConfig.SPIRIT_BOMB_MAX_PRODUCTS.get();
+        int cap = GensokyouServerConfig.SPIRIT_BOMB_MAX_PRODUCTS.get();
         AABB area = new AABB(center, center).inflate(blastRadius + 4.0D);
         var items = server.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, area);
         if (items.size() <= cap) {
@@ -259,7 +260,7 @@ public class SpiritBombBlockEntity extends BlockEntity {
         super.loadAdditional(tag, registries);
         bombState = tag.getInt(TAG_STATE);
         fuseTicks = tag.contains(TAG_FUSE) ? tag.getInt(TAG_FUSE)
-                : GensokyouConfig.SPIRIT_BOMB_DEFAULT_FUSE_TICKS.get();
+                : GensokyouServerConfig.SPIRIT_BOMB_DEFAULT_FUSE_TICKS.get();
         power = tag.contains(TAG_POWER) ? tag.getFloat(TAG_POWER) : 4.0F;
         blastRadius = tag.contains(TAG_RADIUS) ? tag.getInt(TAG_RADIUS) : 6;
         if (tag.hasUUID(TAG_OWNER)) {

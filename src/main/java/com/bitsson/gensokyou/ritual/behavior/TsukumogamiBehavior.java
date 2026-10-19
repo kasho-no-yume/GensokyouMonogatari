@@ -1,8 +1,9 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.TsukumogamiState;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -49,7 +50,7 @@ public class TsukumogamiBehavior implements RitualBehavior {
 
     /** 缓存上限 = 400000 × 5^level。 */
     public static long capacity(int level) {
-        long value = GensokyouConfig.TSUKUMOGAMI_BASE_CAPACITY.get();
+        long value = GensokyouServerConfig.TSUKUMOGAMI_BASE_CAPACITY.get();
         for (int i = 0; i < Math.max(0, level); i++) {
             value *= levelMult();
         }
@@ -58,12 +59,12 @@ public class TsukumogamiBehavior implements RitualBehavior {
 
     /** levelMult。 */
     public static int levelMult() {
-        return GensokyouConfig.TSUKUMOGAMI_LEVEL_MULT.get();
+        return GensokyouServerConfig.TSUKUMOGAMI_LEVEL_MULT.get();
     }
 
     /** 单槽产灵速率（每秒，等级口径）= 50 × 5^level。 */
     public static long ratePerSlotPerSecond(int level) {
-        long value = (long) Math.floor(GensokyouConfig.TSUKUMOGAMI_BASE_RATE_PER_SECOND.get() * 1.0D);
+        long value = (long) Math.floor(GensokyouServerConfig.TSUKUMOGAMI_BASE_RATE_PER_SECOND.get() * 1.0D);
         for (int i = 0; i < Math.max(0, level); i++) {
             value *= levelMult();
         }
@@ -72,7 +73,7 @@ public class TsukumogamiBehavior implements RitualBehavior {
 
     /** 供灵出率（管道端点口径）= base × 5^level，独立基项。 */
     public static long outRatePerSecond(int level) {
-        long value = (long) Math.floor(GensokyouConfig.TSUKUMOGAMI_BASE_OUT_RATE_PER_SECOND.get() * 1.0D);
+        long value = (long) Math.floor(GensokyouServerConfig.TSUKUMOGAMI_BASE_OUT_RATE_PER_SECOND.get() * 1.0D);
         for (int i = 0; i < Math.max(0, level); i++) {
             value *= levelMult();
         }

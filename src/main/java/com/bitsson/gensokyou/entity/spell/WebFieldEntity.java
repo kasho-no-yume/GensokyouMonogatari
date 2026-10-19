@@ -1,7 +1,6 @@
 package com.bitsson.gensokyou.entity.spell;
 
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.entity.AbstractTouhouBoss;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.core.particles.ParticleTypes;

@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.client;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.network.RitualCraftFxPayload;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -64,7 +65,7 @@ public final class ClientCraftFxState {
         }
         long now = level.getGameTime();
         ACTIVE.removeIf(fx -> now >= fx.untilGameTime);
-        double perTick = GensokyouConfig.ZAOHUA_RISING_PARTICLES_PER_SEC.get() / 20D;
+        double perTick = BalanceNumbers.ZAOHUA_RISING_PARTICLES_PER_SEC / 20D;
         RandomSource random = level.getRandom();
         for (Fx fx : ACTIVE) {
             fx.carry += perTick;

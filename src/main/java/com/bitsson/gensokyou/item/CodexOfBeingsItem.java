@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.item;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.entity.TouhouNpcEntity;
 import com.bitsson.gensokyou.item.codex.CodexData;
 import com.bitsson.gensokyou.registry.ModDataComponents;
@@ -133,7 +134,7 @@ public class CodexOfBeingsItem extends Item {
 
     private static boolean isConfigBlacklisted(EntityType<?> type) {
         ResourceLocation key = EntityType.getKey(type);
-        for (String raw : GensokyouConfig.CAPTURE_BLACKLIST.get()) {
+        for (String raw : BalanceNumbers.CAPTURE_BLACKLIST) {
             ResourceLocation parsed = ResourceLocation.tryParse(raw.trim().toLowerCase(Locale.ROOT));
             if (parsed == null) {
                 Gensokyou.LOGGER.debug("[codex-of-beings] skipping malformed blacklist entry: {}", raw);

@@ -1,7 +1,8 @@
 package com.bitsson.gensokyou.event;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.registry.ModDamageTypes;
 import com.bitsson.gensokyou.registry.ModMobEffects;
 import com.bitsson.gensokyou.spirit.attr.PlayerAttributes;
@@ -31,8 +32,8 @@ public final class DamageEventHandler {
                 event.getEntity().getEffect(ModMobEffects.MU_POWER);
         if (muPower != null) {
             int level = muPower.getAmplifier() + 1;
-            double numerator = GensokyouConfig.MU_POWER_NUMERATOR.get();
-            double denominator = GensokyouConfig.MU_POWER_DENOMINATOR.get();
+            double numerator = BalanceNumbers.MU_POWER_NUMERATOR;
+            double denominator = BalanceNumbers.MU_POWER_DENOMINATOR;
             amount *= (float) ((numerator + level) / denominator);
         }
 
@@ -45,8 +46,8 @@ public final class DamageEventHandler {
             if (level >= 10) {
                 protectFactor = 0F;    // 完全免疫：短路一切减免/封顶计算
             } else {
-                double numerator = GensokyouConfig.PROTECT_REDUCTION_NUMERATOR.get();
-                double denominator = GensokyouConfig.PROTECT_REDUCTION_DENOMINATOR.get();
+                double numerator = BalanceNumbers.PROTECT_REDUCTION_NUMERATOR;
+                double denominator = BalanceNumbers.PROTECT_REDUCTION_DENOMINATOR;
                 protectFactor = (float) ((numerator - level) / denominator);
             }
         }

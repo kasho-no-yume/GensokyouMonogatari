@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity.goal;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.FlandreEntity;
 import com.bitsson.gensokyou.entity.FakeFlandreEntity;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
@@ -24,7 +25,7 @@ public class FourOfAKindGoal extends Goal {
     public boolean canUse() {
         return !boss.isFake()
                 && boss.getTarget() != null
-                && boss.tickCount % GensokyouConfig.FOUR_OF_A_KIND_INTERVAL.get() == 0;
+                && boss.tickCount % BalanceNumbers.FOUR_OF_A_KIND_INTERVAL == 0;
     }
 
     @Override
@@ -34,8 +35,8 @@ public class FourOfAKindGoal extends Goal {
         }
         int alive = level.getEntitiesOfClass(FakeFlandreEntity.class,
                 boss.getBoundingBox().inflate(COUNT_RANGE)).size();
-        int toSpawn = Math.min(GensokyouConfig.FAKE_FLANDRE_COUNT.get(),
-                GensokyouConfig.FAKE_FLANDRE_CAP.get() - alive);
+        int toSpawn = Math.min(BalanceNumbers.FAKE_FLANDRE_COUNT,
+                BalanceNumbers.FAKE_FLANDRE_CAP - alive);
         LivingEntity target = boss.getTarget();
         for (int i = 0; i < toSpawn; i++) {
             double angle = boss.getRandom().nextDouble() * Math.PI * 2D;

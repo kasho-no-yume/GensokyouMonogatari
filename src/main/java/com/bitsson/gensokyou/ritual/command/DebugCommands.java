@@ -1,5 +1,8 @@
 package com.bitsson.gensokyou.ritual.command;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.spirit.ModAttachments;
 import com.bitsson.gensokyou.spirit.SpiritPowerData;
@@ -406,8 +409,8 @@ public final class DebugCommands {
                 ? forcedDayTime
                 : com.bitsson.gensokyou.ritual.behavior.DayCycleGeneratorBehavior.dayTimeOf(serverLevel);
         double base = solar
-                ? com.bitsson.gensokyou.config.GensokyouConfig.NICHIRIN_BASE_RATE_PER_SECOND.get()
-                : com.bitsson.gensokyou.config.GensokyouConfig.TSUKIKAGE_BASE_RATE_PER_SECOND.get();
+                ? GensokyouServerConfig.NICHIRIN_BASE_RATE_PER_SECOND.get()
+                : GensokyouServerConfig.TSUKIKAGE_BASE_RATE_PER_SECOND.get();
         double frac = com.bitsson.gensokyou.ritual.behavior.DayCycleGeneratorBehavior
                 .fraction(dayTime, solar);
         long produced = com.bitsson.gensokyou.ritual.behavior.DayCycleGeneratorBehavior
@@ -906,7 +909,7 @@ public final class DebugCommands {
                     .append(k).append('x').append(v));
             msg = "[GS-AUTO] SHUJOU-ROLL species=" + id + " level=" + level
                     + " looting=" + (level >= 1
-                            ? com.bitsson.gensokyou.config.GensokyouConfig.SHUJOU_LOOTING_LEVEL.get() : 0)
+                            ? GensokyouServerConfig.SHUJOU_LOOTING_LEVEL.get() : 0)
                     + " mult=" + mult
                     + " -> " + (sb.length() == 0 ? "<empty>" : sb.toString());
         }
@@ -1163,8 +1166,8 @@ public final class DebugCommands {
             emitGs(source, "[GS-AUTO] SUMMON IDLE (start a session first)");
             return 1;
         }
-        int burst = com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_BURST_TICKS.get();
-        int hold = com.bitsson.gensokyou.config.GensokyouConfig.FX_SUMMON_PILLAR_HOLD_TICKS.get();
+        int burst = BalanceNumbers.FX_SUMMON_BURST_TICKS;
+        int hold = BalanceNumbers.FX_SUMMON_PILLAR_HOLD_TICKS;
         String want = phase.toLowerCase(java.util.Locale.ROOT);
         int back; // 从"爆散那一刻"回拨的 tick 数
         if ("charging".equals(want)) {
@@ -1210,8 +1213,7 @@ public final class DebugCommands {
                 .replayShatter(serverLevel, pos, core);
         emitGs(source, "[GS-AUTO] BARRIER REPLAY doors=" + replayed
                 + " latched=" + core.isBarrierLatched()
-                + " burstTicks=" + com.bitsson.gensokyou.config.GensokyouConfig
-                        .SUKIMA_PORTAL_BURST_TICKS.get());
+                + " burstTicks=" + BalanceNumbers.SUKIMA_PORTAL_BURST_TICKS);
         return replayed > 0 ? 1 : 0;
     }
 
@@ -1229,8 +1231,7 @@ public final class DebugCommands {
                         .equals(core.activeMatch().patternId())) {
             msg = "[GS-AUTO] SAIR stored=" + core.getStored()
                     + " capacity=" + core.getCapacity()
-                    + " outRate=" + com.bitsson.gensokyou.config.GensokyouConfig
-                            .SAIR_ENERGY_OUT_RATE_PER_SECOND.get()
+                    + " outRate=" + BalanceNumbers.SAIR_ENERGY_OUT_RATE_PER_SECOND
                     + " hit=true";
         } else {
             msg = "[GS-AUTO] SAIR NO-MATCH";

@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.item.weapon;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -28,7 +29,7 @@ public final class DanmakuTargetPicker {
 
     @Nullable
     public static Entity pick(Player player) {
-        double range = GensokyouConfig.WEAPON_TALISMAN_PICK_RANGE.get();
+        double range = BalanceNumbers.WEAPON_TALISMAN_PICK_RANGE;
         Vec3 from = player.getEyePosition();
         Vec3 look = player.getLookAngle();
         AABB searchBox = player.getBoundingBox()

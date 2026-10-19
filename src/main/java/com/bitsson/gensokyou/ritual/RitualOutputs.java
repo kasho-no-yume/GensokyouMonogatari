@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.ritual;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
@@ -31,7 +32,7 @@ public final class RitualOutputs {
             return;
         }
         int cellY = corePos.getY() + 1;
-        double radius = GensokyouConfig.RITUAL_OUTPUT_DROP_RADIUS.get();
+        double radius = GensokyouServerConfig.RITUAL_OUTPUT_DROP_RADIUS.get();
         double x = corePos.getX() + 0.5D;
         double z = corePos.getZ() + 0.5D;
         boolean found = false;

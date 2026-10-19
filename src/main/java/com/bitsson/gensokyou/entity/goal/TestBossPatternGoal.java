@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity.goal;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.entity.BalanceTestBossEntity;
 import com.bitsson.gensokyou.entity.TestBossPattern;
 import net.minecraft.network.chat.Component;
@@ -73,20 +74,20 @@ public class TestBossPatternGoal extends Goal {
     private int phase() {
         float max = Math.max(1F, this.boss.getMaxHealth());
         float fraction = this.boss.getHealth() / max;
-        if (fraction <= GensokyouConfig.TEST_PHASE3_HP.get().floatValue()) {
+        if (fraction <= BalanceNumbers.TEST_PHASE3_HP.floatValue()) {
             return 3;
         }
-        if (fraction <= GensokyouConfig.TEST_PHASE2_HP.get().floatValue()) {
+        if (fraction <= BalanceNumbers.TEST_PHASE2_HP.floatValue()) {
             return 2;
         }
         return 1;
     }
 
     private int intervalTicks(int phase) {
-        double base = GensokyouConfig.TEST_PATTERN_INTERVAL_TICKS.get();
+        double base = BalanceNumbers.TEST_PATTERN_INTERVAL_TICKS;
         double mult = switch (phase) {
-            case 2 -> GensokyouConfig.TEST_PHASE2_INTERVAL_MULT.get();
-            case 3 -> GensokyouConfig.TEST_PHASE3_INTERVAL_MULT.get();
+            case 2 -> BalanceNumbers.TEST_PHASE2_INTERVAL_MULT;
+            case 3 -> BalanceNumbers.TEST_PHASE3_INTERVAL_MULT;
             default -> 1.0D;
         };
         return Math.max(5, (int) Math.round(base * mult));
@@ -94,8 +95,8 @@ public class TestBossPatternGoal extends Goal {
 
     private double speedMult(int phase) {
         return switch (phase) {
-            case 2 -> GensokyouConfig.TEST_PHASE2_SPEED_MULT.get();
-            case 3 -> GensokyouConfig.TEST_PHASE3_SPEED_MULT.get();
+            case 2 -> BalanceNumbers.TEST_PHASE2_SPEED_MULT;
+            case 3 -> BalanceNumbers.TEST_PHASE3_SPEED_MULT;
             default -> 1.0D;
         };
     }

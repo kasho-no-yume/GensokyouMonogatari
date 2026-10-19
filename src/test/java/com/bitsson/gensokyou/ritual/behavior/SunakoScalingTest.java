@@ -1,6 +1,8 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.support.MinecraftTestBootstrap;
 import net.neoforged.neoforge.common.ModConfigSpec;
 import org.junit.jupiter.api.BeforeAll;
@@ -108,31 +110,31 @@ class SunakoScalingTest {
 
     @Test
     void defaultsMatchDesignDoc() {
-        assertEquals(200_000, GensokyouConfig.SUNAKO_BASE_CAPACITY.getDefault());
-        assertEquals(5, GensokyouConfig.SUNAKO_CAPACITY_MULTIPLIER.getDefault());
-        assertEquals(8_000_000, GensokyouConfig.SUNAKO_CAPACITY_OVERRIDE_LEVEL3.getDefault());
-        assertEquals(10_000, GensokyouConfig.SUNAKO_BASE_IN_RATE_PER_SECOND.getDefault());
-        assertEquals(5, GensokyouConfig.SUNAKO_IN_RATE_MULTIPLIER.getDefault());
-        assertEquals(200_000, GensokyouConfig.SUNAKO_IN_RATE_OVERRIDE_LEVEL3.getDefault());
-        assertEquals(40_000, GensokyouConfig.SUNAKO_UNIT_COST_LEVEL1.getDefault());
-        assertEquals(150_000, GensokyouConfig.SUNAKO_UNIT_COST_LEVEL2.getDefault());
-        assertEquals(500_000, GensokyouConfig.SUNAKO_UNIT_COST_LEVEL3.getDefault());
+        assertEquals(200_000, GensokyouServerConfig.SUNAKO_BASE_CAPACITY.getDefault());
+        assertEquals(5, GensokyouServerConfig.SUNAKO_CAPACITY_MULTIPLIER.getDefault());
+        assertEquals(8_000_000, GensokyouServerConfig.SUNAKO_CAPACITY_OVERRIDE_LEVEL3.getDefault());
+        assertEquals(10_000, GensokyouServerConfig.SUNAKO_BASE_IN_RATE_PER_SECOND.getDefault());
+        assertEquals(5, GensokyouServerConfig.SUNAKO_IN_RATE_MULTIPLIER.getDefault());
+        assertEquals(200_000, GensokyouServerConfig.SUNAKO_IN_RATE_OVERRIDE_LEVEL3.getDefault());
+        assertEquals(40_000, GensokyouServerConfig.SUNAKO_UNIT_COST_LEVEL1.getDefault());
+        assertEquals(150_000, GensokyouServerConfig.SUNAKO_UNIT_COST_LEVEL2.getDefault());
+        assertEquals(500_000, GensokyouServerConfig.SUNAKO_UNIT_COST_LEVEL3.getDefault());
     }
 
     @Test
     void durationMultipliersHaveNoZeroDivisor() {
-        assertEquals(8.0D / 3.0D, GensokyouConfig.SUNAKO_LONG_DURATION_MULTIPLIER.getDefault(), 1.0E-9D);
-        assertEquals(1.0D, GensokyouConfig.SUNAKO_STRONG_DURATION_MULTIPLIER.getDefault(), 1.0E-9D);
+        assertEquals(8.0D / 3.0D, GensokyouServerConfig.SUNAKO_LONG_DURATION_MULTIPLIER.getDefault(), 1.0E-9D);
+        assertEquals(1.0D, GensokyouServerConfig.SUNAKO_STRONG_DURATION_MULTIPLIER.getDefault(), 1.0E-9D);
     }
 
     @Test
     void configFieldsAreDeclaredAsTypedValues() throws Exception {
         // 容量/单价为 IntValue、时长倍率为 DoubleValue —— 类型错配会让 defineInRange 静默退化
         assertEquals(ModConfigSpec.IntValue.class,
-                GensokyouConfig.class.getField("SUNAKO_BASE_CAPACITY").getType());
+                GensokyouServerConfig.class.getField("SUNAKO_BASE_CAPACITY").getType());
         assertEquals(ModConfigSpec.IntValue.class,
-                GensokyouConfig.class.getField("SUNAKO_CAPACITY_OVERRIDE_LEVEL3").getType());
+                GensokyouServerConfig.class.getField("SUNAKO_CAPACITY_OVERRIDE_LEVEL3").getType());
         assertEquals(ModConfigSpec.DoubleValue.class,
-                GensokyouConfig.class.getField("SUNAKO_LONG_DURATION_MULTIPLIER").getType());
+                GensokyouServerConfig.class.getField("SUNAKO_LONG_DURATION_MULTIPLIER").getType());
     }
 }

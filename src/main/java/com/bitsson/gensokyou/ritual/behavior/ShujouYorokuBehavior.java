@@ -1,10 +1,12 @@
 package com.bitsson.gensokyou.ritual.behavior;
 
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.config.GensokyouServerConfig;
+
 import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
-import com.bitsson.gensokyou.config.GensokyouConfig;
 import com.bitsson.gensokyou.item.CodexOfBeingsItem;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
@@ -69,7 +71,7 @@ public class ShujouYorokuBehavior implements RitualBehavior {
     public com.bitsson.gensokyou.ritual.RitualRenderState buildRenderState(RitualMatch match, SpiritPowerAccess core) {
         if (core.sacrificeFxTicks() <= 0) return null;
         return new com.bitsson.gensokyou.ritual.RitualRenderState(com.bitsson.gensokyou.ritual.RitualRenderState.KIND_SACRIFICE, core.isEnabled(), match.level(),
-                (int) Math.round(com.bitsson.gensokyou.config.GensokyouConfig.FX_PILLAR_HEIGHT.get()), core.sacrificeFxTicks(),
+                (int) Math.round(BalanceNumbers.FX_PILLAR_HEIGHT), core.sacrificeFxTicks(),
                 com.bitsson.gensokyou.ritual.RitualBehaviors.sacrificeColorIndex(match.patternId()), new long[0], 0, 0L);
     }
 
@@ -89,8 +91,8 @@ public class ShujouYorokuBehavior implements RitualBehavior {
 
     /** 单 species 灵力消耗 = 基值 × 倍率^等级。 */
     public static long speciesCost(int level) {
-        long value = GensokyouConfig.SHUJOU_BASE_SP_COST.get();
-        long mult = GensokyouConfig.SHUJOU_SP_COST_MULT.get();
+        long value = GensokyouServerConfig.SHUJOU_BASE_SP_COST.get();
+        long mult = GensokyouServerConfig.SHUJOU_SP_COST_MULT.get();
         for (int i = 0; i < level; i++) {
             value *= mult;
         }
@@ -111,8 +113,8 @@ public class ShujouYorokuBehavior implements RitualBehavior {
 
     /** 缓存容量 = 基值 × 容量倍率^等级。 */
     public static long capacity(int level) {
-        long cap = GensokyouConfig.SHUJOU_BASE_CAPACITY.get();
-        long mult = GensokyouConfig.SHUJOU_CAPACITY_MULT.get();
+        long cap = GensokyouServerConfig.SHUJOU_BASE_CAPACITY.get();
+        long mult = GensokyouServerConfig.SHUJOU_CAPACITY_MULT.get();
         for (int i = 0; i < level; i++) {
             cap *= mult;
         }
@@ -121,7 +123,7 @@ public class ShujouYorokuBehavior implements RitualBehavior {
 
     /** 2 阶产物倍率；低阶为 1。 */
     public static int l2Multiplier(int level) {
-        return level >= 2 ? GensokyouConfig.SHUJOU_L2_OUTPUT_MULT.get() : 1;
+        return level >= 2 ? GensokyouServerConfig.SHUJOU_L2_OUTPUT_MULT.get() : 1;
     }
 
     /** tick → 秒（向上取整），供 GUI 显示。 */
@@ -176,7 +178,7 @@ public class ShujouYorokuBehavior implements RitualBehavior {
 
     /** 按等级同步凭证主手：1 阶及以上携带抢夺附魔，0 阶空手。 */
     private static void equipToken(ServerLevel level, FakePlayer killer, int ritualLevel) {
-        int looting = ritualLevel >= 1 ? GensokyouConfig.SHUJOU_LOOTING_LEVEL.get() : 0;
+        int looting = ritualLevel >= 1 ? GensokyouServerConfig.SHUJOU_LOOTING_LEVEL.get() : 0;
         if (looting <= 0) {
             killer.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
             return;
@@ -225,7 +227,7 @@ public class ShujouYorokuBehavior implements RitualBehavior {
     @Override
     public long spiritInRatePerSecond(ServerLevel level, BlockPos corePos, RitualMatch match,
                                       SpiritPowerAccess core) {
-        return GensokyouConfig.SHUJOU_SPIRIT_IN_RATE.get().longValue();
+        return GensokyouServerConfig.SHUJOU_SPIRIT_IN_RATE.get().longValue();
     }
 
     @Override
@@ -263,8 +265,8 @@ public class ShujouYorokuBehavior implements RitualBehavior {
         }
         dropAggregated(level, corePos, agg);
 
-        core.setActionCooldown(GensokyouConfig.SHUJOU_CYCLE_TICKS.get());
-        core.triggerSacrificeFx(GensokyouConfig.FX_PILLAR_TICKS.get());
+        core.setActionCooldown(GensokyouServerConfig.SHUJOU_CYCLE_TICKS.get());
+        core.triggerSacrificeFx(BalanceNumbers.FX_PILLAR_TICKS);
         ModNetworking.sendRitualInfoToViewers(level, corePos);
     }
 
@@ -323,7 +325,7 @@ public class ShujouYorokuBehavior implements RitualBehavior {
         }
         lines.add(new InfoLine(stateKey, stateArgs, "", ACCENT, -1F, null));
         lines.add(new InfoLine(KEY_CYCLE,
-                new String[]{String.valueOf(toSeconds(GensokyouConfig.SHUJOU_CYCLE_TICKS.get()))},
+                new String[]{String.valueOf(toSeconds(GensokyouServerConfig.SHUJOU_CYCLE_TICKS.get()))},
                 "", ACCENT, -1F, null));
         lines.add(new InfoLine(KEY_SPECIES,
                 new String[]{String.valueOf(species.size()),

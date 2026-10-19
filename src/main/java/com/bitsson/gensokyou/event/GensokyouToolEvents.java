@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.event;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.registry.ModItems;
 import net.minecraft.world.item.ItemStack;
@@ -43,7 +44,7 @@ public final class GensokyouToolEvents {
         if (state == null || !isGensokyouOre(state)) {
             return;
         }
-        double chance = GensokyouConfig.STAR_SILVER_EXTRA_ORE_CHANCE.get();
+        double chance = BalanceNumbers.STAR_SILVER_EXTRA_ORE_CHANCE;
         if (chance <= 0.0D || event.getPlayer().getRandom().nextDouble() >= chance) {
             return;
         }
@@ -66,6 +67,6 @@ public final class GensokyouToolEvents {
 
     /** 供调试读取：追加掉落当前是否启用及其概率。 */
     public static double extraOreChance() {
-        return GensokyouConfig.STAR_SILVER_EXTRA_ORE_CHANCE.get();
+        return BalanceNumbers.STAR_SILVER_EXTRA_ORE_CHANCE;
     }
 }

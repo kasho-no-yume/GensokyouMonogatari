@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.danmaku.DanmakuEmitter;
 import com.bitsson.gensokyou.danmaku.track.Behaviour;
 import com.bitsson.gensokyou.danmaku.track.BossCards;
@@ -60,8 +61,8 @@ public class BigFairyEntity extends AbstractTouhouBoss implements GeoEntity {
     }
 
     public static AttributeSupplier.Builder createAttributes() {
-        return bossAttributes(GensokyouConfig.BIG_FAIRY_MAX_HEALTH.getDefault(),
-                GensokyouConfig.BIG_FAIRY_DAMAGE.getDefault());
+        return bossAttributes(BalanceNumbers.BIG_FAIRY_MAX_HEALTH,
+                BalanceNumbers.BIG_FAIRY_DAMAGE);
     }
 
     @Override
@@ -82,17 +83,17 @@ public class BigFairyEntity extends AbstractTouhouBoss implements GeoEntity {
 
     @Override
     protected double bossSeconds() {
-        return GensokyouConfig.BIG_FAIRY_BOSS_SECONDS.get();
+        return BalanceNumbers.BIG_FAIRY_BOSS_SECONDS;
     }
 
     @Override
     protected double configSeconds() {
-        return GensokyouConfig.BIG_FAIRY_BOSS_SECONDS.get();
+        return BalanceNumbers.BIG_FAIRY_BOSS_SECONDS;
     }
 
     @Override
     protected int configHits() {
-        return GensokyouConfig.BIG_FAIRY_BOSS_HITS.get();
+        return BalanceNumbers.BIG_FAIRY_BOSS_HITS;
     }
 
     /**
@@ -169,7 +170,7 @@ public class BigFairyEntity extends AbstractTouhouBoss implements GeoEntity {
     }
 
     private void tickDefaultAttack() {
-        int interval = Math.max(5, GensokyouConfig.BIG_FAIRY_WALL_INTERVAL.get());
+        int interval = Math.max(5, BalanceNumbers.BIG_FAIRY_WALL_INTERVAL);
         if (this.wallCooldown > 0) {
             this.wallCooldown--;
             return;
@@ -186,11 +187,11 @@ public class BigFairyEntity extends AbstractTouhouBoss implements GeoEntity {
         }
         forward = forward.normalize();
         Shape.Params params = Shape.Params.defaults()
-                .count(GensokyouConfig.BIG_FAIRY_WALL_COUNT.get())
-                .spread(GensokyouConfig.BIG_FAIRY_WALL_STEP_DEG.get())
-                .offsetForward(GensokyouConfig.BIG_FAIRY_WALL_OFFSET.get())
-                .speed(GensokyouConfig.BIG_FAIRY_WALL_SPEED.get())
-                .size(GensokyouConfig.BIG_FAIRY_WALL_SIZE.get());
+                .count(BalanceNumbers.BIG_FAIRY_WALL_COUNT)
+                .spread(BalanceNumbers.BIG_FAIRY_WALL_STEP_DEG)
+                .offsetForward(BalanceNumbers.BIG_FAIRY_WALL_OFFSET)
+                .speed(BalanceNumbers.BIG_FAIRY_WALL_SPEED)
+                .size(BalanceNumbers.BIG_FAIRY_WALL_SIZE);
         for (Geometry.Shot shot : Geometry.build(Shape.GRID_FACING, this.getEyePosition(),
                 forward, anchor, new Vec3(0, 1, 0), params, 0.0D, 0.0D,
                 this.level().getRandom(), 1.0D, 1.0D)) {

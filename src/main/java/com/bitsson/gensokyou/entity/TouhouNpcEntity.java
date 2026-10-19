@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.entity;
 
-import com.bitsson.gensokyou.config.GensokyouConfig;
+import com.bitsson.gensokyou.balance.BalanceNumbers;
+
 import com.bitsson.gensokyou.dialogue.DialogueGraph;
 import com.bitsson.gensokyou.dialogue.DialogueManager;
 import net.minecraft.core.particles.DustParticleOptions;
@@ -61,7 +62,7 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
 
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
-                .add(Attributes.MAX_HEALTH, GensokyouConfig.NPC_MAX_HEALTH.getDefault())
+                .add(Attributes.MAX_HEALTH, BalanceNumbers.NPC_MAX_HEALTH)
                 .add(Attributes.FOLLOW_RANGE, 16.0D);
     }
 
@@ -236,7 +237,7 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
         if (this.isRemoved() || !(this.level() instanceof ServerLevel level)) {
             return;
         }
-        int total = GensokyouConfig.NPC_DEATH_PARTICLE_COUNT.get();
+        int total = BalanceNumbers.NPC_DEATH_PARTICLE_COUNT;
         double x = this.getX();
         double y = this.getY() + 1.0D;
         double z = this.getZ();
