@@ -26,8 +26,15 @@ public final class ClientSpellCardNames {
     private ClientSpellCardNames() {
     }
 
-    public static void put(int entityId, int cardIndex) {
-        CARD_BY_ENTITY.put(entityId, cardIndex);
+    /**
+     * 记录符卡下标；返回 <b>true</b> 表示这是一次<b>真正的切牌</b>（此前已有记录且下标变了）。
+     *
+     * <p>「此前没有记录」不是切牌 —— 那是「玩家开始观测该 BOSS 时补发当前下标」，
+     * 玩家从未见过那张牌的宣言，不该在晚进场时补播一遍（见 {@code BossPhaseTransition}）。
+     */
+    public static boolean put(int entityId, int cardIndex) {
+        Integer previous = CARD_BY_ENTITY.put(entityId, cardIndex);
+        return previous != null && previous != cardIndex;
     }
 
     public static void remove(int entityId) {

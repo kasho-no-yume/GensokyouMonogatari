@@ -498,8 +498,21 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
         this.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
     }
 
-    /** 程序符卡切换演出，index 从 1 开始。 */
-    protected void onProgramCardChanged(int index) {}
+    /**
+     * 程序符卡切换演出，index 从 1 开始。
+     *
+     * <p>默认实现是一次性的<b>符光爆发</b>（粒子）：保证任何 BOSS 在切牌时都有可辨识的反应，
+     * 有专属动画的 BOSS 覆写它并叠加自己的动画（同时调用 super 保留这次爆发）。
+     *
+     * <p>一次性粒子是单次广播包，不是持续表现 —— 后者才需要客户端本地渲染 + 最小渲染态同步。
+     */
+    protected void onProgramCardChanged(int index) {
+        if (this.level() instanceof ServerLevel server) {
+            server.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD,
+                    this.getX(), this.getY() + this.getBbHeight() * 0.6D, this.getZ(),
+                    24, 0.6D, 0.5D, 0.6D, 0.02D);
+        }
+    }
 
     // ------------------------------------------------------------------
     // 多目标（≤5）

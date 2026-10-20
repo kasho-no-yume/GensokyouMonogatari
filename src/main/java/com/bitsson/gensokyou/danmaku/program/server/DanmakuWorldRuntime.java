@@ -8,6 +8,12 @@ import java.util.*;
 /** Dimension-local authority state. No networking, entity spawning, rendering or real damage. */
 public final class DanmakuWorldRuntime {
     public enum Phase { TERMINATE, CAPTURE, PREPARE, COMMIT, TRAJECTORY, COLLISION, PUBLISH }
+    /**
+     * 切牌时旧符卡弹幕的淡出窗口（tick）。
+     *
+     * <p>30 tick = 1.5 秒：够看清「旧的一波退场、新的接上」，又不至于让旧弹在场上滞留过久。
+     */
+    public static final long CARD_END_FADE_TICKS = 30L;
     public enum Kind { START, TARGETS, TARGET_SAMPLE, FRAME, SURFACE, CORRIDOR, INVALIDATE_TARGET, PREPARE, COMMIT, REJECT, REMOVE, CANCEL, END, SOURCE_SAMPLE, STOP }
     public record Limits(int liveMembers, int birthsPerTick, int groups, int plans, int events) {
         public Limits { if (liveMembers<1 || birthsPerTick<1 || groups<1 || plans<1 || events<1) throw new IllegalArgumentException("positive limits required"); }
@@ -25,7 +31,7 @@ public final class DanmakuWorldRuntime {
     }
     public record MemberSnapshot(MemberId id, EmissionPlan plan, Pattern.Member template, boolean harmful) {}
     public record GroupSnapshot(long id, Encounter encounter, long card, long cycle, Long parent, int targetSlot,
-                                boolean background, boolean retain, boolean emitting, long fadeEnd, Frame frame,
+                                boolean background, boolean retain, boolean emitting, boolean retired, long fadeEnd, long fadeTicks, Frame frame,
                                 List<UUID> targets, Set<Integer> invalidTargets, long nextBatch,
                                 List<MemberSnapshot> members, List<EmissionPlan> plans) {
         public GroupSnapshot { targets=List.copyOf(targets); invalidTargets=Set.copyOf(invalidTargets); members=List.copyOf(members); plans=List.copyOf(plans); }
@@ -82,7 +88,17 @@ public final class DanmakuWorldRuntime {
         final boolean background, retain; final Frame frame; final List<UUID> targets;
         final Set<Integer> invalid=new HashSet<>(); final Map<MemberId,MemberSnapshot> members=new LinkedHashMap<>();
         final Map<Long,EmissionPlan> plans=new LinkedHashMap<>();
-        long nextBatch, fadeEnd=Long.MAX_VALUE; boolean emitting=true;
+        long nextBatch, fadeEnd=Long.MAX_VALUE, fadeTicks; boolean emitting=true;
+        /**
+         * 「程序不会再引用这个组了」。<b>只被回收读</b>。
+         *
+         * <p>它<b>不是</b>取消：退休 MUST NOT 清成员、MUST NOT 清 {@code plans}、
+         * MUST NOT 改动 {@link #emitting}。取消会把已 prepare 未出生的批次拒掉（{@code commit}
+         * 对非 emitting 的组以 "stopped" 拒绝），退休则让这一批照常出生。
+         *
+         * <p>回收判据因此是 {@code (!emitting || retired)}；发射路径一律不读它。
+         */
+        boolean retired;
         Group(long id, Encounter encounter, long card, long cycle, Long parent, int slot, boolean background,
               boolean retain, Frame frame, List<UUID> targets) {
             this.id=id; this.encounter=encounter; this.card=card; this.cycle=cycle; this.parent=parent; this.slot=slot;
@@ -604,7 +620,7 @@ public final class DanmakuWorldRuntime {
         for (Group g:groups.values()) if (descendant(g,root.id)) required=Math.addExact(required,1+(fadeTicks==0?g.members.size():0));
         if (required>limits.events()-output.size()) throw new IllegalStateException("drain event queue before cancellation");
         for (Group g:List.copyOf(groups.values())) if (descendant(g,root.id)) {
-            stopPlans(g.id); movementLocks.remove(g.id); g.fadeEnd=Math.addExact(StrictMath.max(0,tick),fadeTicks);
+            stopPlans(g.id); movementLocks.remove(g.id); g.fadeEnd=Math.addExact(StrictMath.max(0,tick),fadeTicks); g.fadeTicks=fadeTicks;
             stoppedChildren.add(g.id);
             if (fadeTicks==0) for (MemberId m:List.copyOf(g.members.keySet())) remove(m,reason);
             else g.members.replaceAll((key,m)->new MemberSnapshot(key,m.plan(),m.template(),false));
@@ -617,7 +633,9 @@ public final class DanmakuWorldRuntime {
     }
     public void endCard(Encounter encounter,long card) {
         requireEncounter(encounter);
-        for (Group g:List.copyOf(groups.values())) if (g.encounter.equals(encounter) && g.card==card && !g.background) cancel(g.id,0,"card-end");
+        // 旧符卡的弹幕淡出离场，而不是在同一 tick 全部消失：离场期间它们已经无害
+        // （harmful=false），但仍在飞、仍在散，读作「旧的一波退场」而不是「凭空清空」。
+        for (Group g:List.copyOf(groups.values())) if (g.encounter.equals(encounter) && g.card==card && !g.background) cancel(g.id,CARD_END_FADE_TICKS,"card-end");
         collect();
     }
     public void endCycle(Encounter encounter,long card,long cycle) {
@@ -632,11 +650,16 @@ public final class DanmakuWorldRuntime {
      */
     public void endCycle(Encounter encounter,long card,long cycle,boolean clearRetained) {
         requireEncounter(encounter);
-        for (Group g:List.copyOf(groups.values())) if (g.encounter.equals(encounter) && g.card==card && g.cycle==cycle && !g.background) {
-            if (clearRetained || !g.retain) {
+        for (Group g:List.copyOf(groups.values())) if (g.encounter.equals(encounter) && g.card==card && g.cycle==cycle) {
+            if (!g.background && (clearRetained || !g.retain)) {
                 stopPlans(g.id);
                 cancel(g.id,0,"cycle-end");
             }
+            // 退休路径：不取消、不清成员、不动 plans、不动 emitting。
+            // 上一轮的组此后不会再被引用，但它的成员仍按各自寿命活着；
+            // 跨边界的未出生批次（预警期长于拍距）也照常出生。
+            // 底噪组同样退休：底噪是「每轮攒一个组」的大头。
+            else g.retired=true;
         }
         collect();
     }
@@ -654,7 +677,9 @@ public final class DanmakuWorldRuntime {
     public boolean movementLocked(Encounter encounter) { return movementLocks.stream().anyMatch(id->group(id).encounter.equals(encounter)); }
     private void collect() {
         boolean removed;
-        do { removed=groups.values().removeIf(g->!g.emitting && g.members.isEmpty() && g.plans.isEmpty()
+        // `retired` 只在这里被读：退休的组不再接收发射，但成员仍按各自寿命活着，
+        // 成员全部消亡后即可回收。
+        do { removed=groups.values().removeIf(g->(!g.emitting||g.retired) && g.members.isEmpty() && g.plans.isEmpty()
                 && groups.values().stream().noneMatch(child->Objects.equals(child.parent,g.id))); } while (removed);
         movementLocks.retainAll(groups.keySet());
         emitters.removeIf(e->!groups.containsKey(e.group()) || !groups.get(e.group()).emitting);
@@ -706,7 +731,7 @@ public final class DanmakuWorldRuntime {
     public Checkpoint checkpoint() {
         if (!scheduled.isEmpty()) throw new IllegalStateException("opaque scheduled callbacks cannot be checkpointed; drain them first");
         return new Checkpoint(dimension,tick,revision,nextGroup,groups.values().stream().map(g->new GroupSnapshot(g.id,g.encounter,g.card,g.cycle,g.parent,g.slot,
-                g.background,g.retain,g.emitting,g.fadeEnd,g.frame,g.targets,g.invalid,g.nextBatch,List.copyOf(g.members.values()),List.copyOf(g.plans.values()))).toList(),consumed,movementLocks,
+                g.background,g.retain,g.emitting,g.retired,g.fadeEnd,g.fadeTicks,g.frame,g.targets,g.invalid,g.nextBatch,List.copyOf(g.members.values()),List.copyOf(g.plans.values()))).toList(),consumed,movementLocks,
                 List.copyOf(encounters.values()),epochs,emitters.stream().map(e->new EmitterSnapshot(e.group(),e.description(),e.seed(),e.policy(),e.origin(),e.nextShot())).toList(),sourceGroups,following,lastSourcePoses,detached,targetSamples,surfaces,parentSources,groupMotions,attachedMembers,stoppedChildren,admissionLimits,commands,sequence,pendingCommits,ownershipEnds,sourceBatches,clocks,targetRadii,capturedFrames,groupHandles,targetHandles,nozzles,births,evaluations);
     }
     /** In-memory recovery only. Network owns bounded wire decoding; disk persistence is deliberately absent. */
@@ -717,7 +742,7 @@ public final class DanmakuWorldRuntime {
         for (Encounter e:checkpoint.encounters()) r.encounters.put(e.owner(),e);
         for (GroupSnapshot s:checkpoint.groups()) {
             Group g=new Group(s.id(),s.encounter(),s.card(),s.cycle(),s.parent(),s.targetSlot(),s.background(),s.retain(),s.frame(),s.targets());
-            g.invalid.addAll(s.invalidTargets()); g.nextBatch=s.nextBatch(); g.emitting=s.emitting(); g.fadeEnd=s.fadeEnd();
+            g.invalid.addAll(s.invalidTargets()); g.nextBatch=s.nextBatch(); g.emitting=s.emitting(); g.retired=s.retired(); g.fadeEnd=s.fadeEnd(); g.fadeTicks=s.fadeTicks();
             for (MemberSnapshot m:s.members()) g.members.put(m.id(),m);
             for (EmissionPlan p:s.plans()) g.plans.put(p.ordinal(),p);
             r.groups.put(g.id,g);

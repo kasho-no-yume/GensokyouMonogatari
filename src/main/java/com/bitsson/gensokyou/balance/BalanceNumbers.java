@@ -12,7 +12,12 @@ public final class BalanceNumbers {
     private BalanceNumbers() {
     }
 
-    /** 程序弹幕实际碰撞半径倍率；独立于视觉尺寸，普通弹与激光统一应用。 */
+    /**
+     * 程序弹射物型弹幕实际碰撞半径倍率；独立于视觉尺寸。
+     *
+     * <p><b>只作用于弹射物型弹幕</b>。激光型弹幕按其声明的碰撞半径判定，不乘本倍率
+     * —— 否则判定窗口会窄于视觉粗细一半，与旧实体路径「判定半径 == 渲染半径」的口径不符。
+     */
     public static final double PROGRAM_DANMAKU_COLLISION_RADIUS_SCALE = 0.5D;
 
     /** grace 表的出厂默认行（原 GensokyouConfig.GRACE_DEFAULT_ROWS）。 */

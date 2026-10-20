@@ -161,6 +161,7 @@ public final class TouhouBossBarRenderer {
         Entity entity = event.getEntity();
         GHOSTS.remove(entity.getUUID());
         ClientSpellCardNames.remove(entity.getId());
+        BossPhaseTransition.forget(entity.getId());
     }
 
     /**
@@ -182,6 +183,7 @@ public final class TouhouBossBarRenderer {
             net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
         GHOSTS.clear();
         ClientSpellCardNames.clear();
+        BossPhaseTransition.clear();
     }
 
     /**

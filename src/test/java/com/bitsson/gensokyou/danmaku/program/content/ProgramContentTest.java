@@ -700,30 +700,81 @@ class ProgramContentTest {
     }
 
     // ------------------------------------------------------------------
-    // 换卡：循环边界挂起
+    // 换卡：达血量阈值即刻切换
     // ------------------------------------------------------------------
-    @Test void cardSwitchSuspendsUntilLoopBoundary() {
+    @Test void cardSwitchHappensImmediatelyOnThreshold() {
         var deck = BossProgramCards.forOwner("yakumo_ran").orElseThrow();
         var session = session(1);
         var controller = new BossProgramController(session, OWNER);
         var battle = new com.bitsson.gensokyou.danmaku.program.gameplay.BossProgramBattle(controller, deck);
         battle.install(0);
         assertEquals(1, battle.activeCardIndex());
-        for (int tick = 0; tick < 239; tick++) {
+        for (int tick = 0; tick < 100; tick++) {
             session.advance(tick, 4096);
             session.runtime().drainEvents();
-            battle.tick(tick == 0 ? 1.0D : 0.70D, tick); // 开卡后才跨入卡 3 区间；当前轮未走完
-            if (tick > 0) assertEquals(1, battle.activeCardIndex(), "switch is suspended before boundary: " + tick);
+            battle.tick(tick == 0 ? 1.0D : 0.70D, tick); // 开卡后血量跨入卡 3 区间
+            if (tick > 0) assertEquals(3, battle.activeCardIndex(), "threshold switches immediately: " + tick);
         }
-        session.advance(239, 4096);
-        session.runtime().drainEvents();
-        battle.tick(0.70D, 239);
-        assertEquals(1, battle.activeCardIndex(), "still suspended at 239");
-        session.advance(240, 4096);
-        session.runtime().drainEvents();
-        battle.tick(0.70D, 240);
-        assertEquals(3, battle.activeCardIndex(), "boundary 240 installs the reached card");
         battle.close();
+    }
+
+    @Test void cardSwitchLandsOnTheFinalReachedCardWhenSeveralThresholdsAreCrossed() {
+        var deck = BossProgramCards.forOwner("yakumo_ran").orElseThrow();
+        var session = session(1);
+        var controller = new BossProgramController(session, OWNER);
+        var battle = new com.bitsson.gensokyou.danmaku.program.gameplay.BossProgramBattle(controller, deck);
+        battle.install(0);
+        session.advance(0, 4096);
+        session.runtime().drainEvents();
+        battle.tick(1.0D, 0);
+        assertEquals(1, battle.activeCardIndex());
+        battle.tick(0.50D, 1); // 一次跨过卡 2~5 的门槛
+        assertEquals(5, battle.activeCardIndex(), "one switch lands on the final reached card");
+        battle.close();
+    }
+
+    // ------------------------------------------------------------------
+    // 组数随循环收敛（而不是每轮线性增长）
+    // ------------------------------------------------------------------
+    @Test void groupCountConvergesAcrossCardCycles() {
+        var deck = BossProgramCards.forOwner("big_fairy").orElseThrow();
+        var runtime = new DanmakuWorldRuntime("test:convergence",
+                new DanmakuWorldRuntime.Limits(8192, 512, 512, 512, 40000), new SurfaceWorld(1));
+        var session = new ProgramSession(runtime, StandardProgramOperations.execution());
+        var controller = new BossProgramController(session, OWNER);
+        controller.card(deck.card(3).program(), 0);   // 雨符：每轮 22 个组（2 个发信位 + 20 次地表发射）
+        int atSecondCycle = -1, atFifthCycle = -1;
+        for (int tick = 0; tick <= 1001; tick++) {
+            session.advance(tick, 65536);
+            runtime.drainEvents();
+            if (tick == 401) atSecondCycle = session.checkpoint().runtime().groups().size();
+            if (tick == 1001) atFifthCycle = session.checkpoint().runtime().groups().size();
+        }
+        assertTrue(atSecondCycle > 0, "the card must actually produce groups");
+        // 泄漏时每轮多 22 个组 ⇒ 第 2 轮到第 5 轮会多出约 66 个。收敛后增量应接近 0。
+        assertTrue(atFifthCycle <= atSecondCycle + 30,
+                "group count must converge instead of growing per cycle: " + atSecondCycle + " -> " + atFifthCycle);
+        assertTrue(atFifthCycle < 512, "group count must stay far below the runtime limit: " + atFifthCycle);
+        controller.close();
+    }
+
+    // ------------------------------------------------------------------
+    // 同一张符卡的两批弹幕共存（每批各自的生命周期）
+    // ------------------------------------------------------------------
+    @Test void thePreviousCycleBatchSurvivesAlongsideTheNextCycleBatch() {
+        var deck = BossProgramCards.forOwner("big_fairy").orElseThrow();
+        var runtime = new DanmakuWorldRuntime("test:batches",
+                new DanmakuWorldRuntime.Limits(8192, 512, 512, 512, 40000), new SurfaceWorld(1));
+        var session = new ProgramSession(runtime, StandardProgramOperations.execution());
+        var controller = new BossProgramController(session, OWNER);
+        controller.card(deck.card(2).program(), 0);   // 花符：每朵一组，寿命 400，循环 240
+        for (int tick = 0; tick <= 300; tick++) { session.advance(tick, 65536); runtime.drainEvents(); }
+        var groups = session.checkpoint().runtime().groups();
+        long firstCycle = groups.stream().filter(g -> g.cycle() == 0 && !g.members().isEmpty()).count();
+        long secondCycle = groups.stream().filter(g -> g.cycle() == 1 && !g.members().isEmpty()).count();
+        assertTrue(firstCycle > 0, "the first cycle's flowers are still alive");
+        assertTrue(secondCycle > 0, "the second cycle's flowers are alive at the same time");
+        controller.close();
     }
 
     // ------------------------------------------------------------------

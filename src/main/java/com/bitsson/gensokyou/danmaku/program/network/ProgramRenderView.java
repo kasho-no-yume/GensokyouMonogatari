@@ -13,8 +13,15 @@ import java.util.Objects;
 
 /** Immutable client render projection; it has no entity or world dependency. */
 public final class ProgramRenderView {
+    /**
+     * 客户端渲染投影里的一个成员。
+     *
+     * <p><b>刻意不携带碰撞半径</b>：判定半径由服务端按碰撞形态分流（激光不乘倍率），
+     * 渲染一律读 {@link Pattern.Style#visualRadius()}。把半径放进渲染投影只会制造第二份
+     * 可能与服务端口径不一致的副本。
+     */
     public record Member(DanmakuWorldRuntime.MemberId id, Vec3 position, Vec3 direction,
-                         double radius, Pattern.Style style, boolean visible, boolean damaging,
+                         Pattern.Style style, boolean visible, boolean damaging,
                          double alpha, double sizeMultiplier, double brightness,
                           CollisionProfile collisionProfile, double age,double beamLength,long lifetime) {}
     public record Warning(long group, long batch, Vec3 source, Vec3 direction,
@@ -84,7 +91,10 @@ public final class ProgramRenderView {
                 if (profile instanceof CollisionProfile.Laser) direction=ReplicaState.direction(image,descriptions,id,tick);
                 double beamLength=profile instanceof CollisionProfile.Laser laser?laser.maxLength():0;
                 if (image.entries().get("l/"+ReplicaState.motionKey(id)) instanceof ReplicaState.Beam beam) beamLength=beam.length();
-                double fade=group.fadeEnd()==Long.MAX_VALUE?1:Math.max(0,Math.min(1,(group.fadeEnd()-tick)/10));
+                // 淡出按组自己的淡出窗口等比推进（切牌退场 30 tick，内容收束 10 tick）。
+                // 固定除数会把长窗口的前段留成满亮 —— 旧弹与新弹同亮，玩家分不出谁在退场。
+                double fade=group.fadeEnd()==Long.MAX_VALUE?1
+                        :Math.max(0,Math.min(1,(group.fadeEnd()-tick)/(double)Math.max(1,group.fadeTicks())));
                 boolean hidden=program.presentation().visibility()!=null && !program.presentation().visibility().visible(
                         new Presentation.Clocks(tick-clocks.card(),tick-clocks.cycle(),tick-clocks.group(),tick-batch.birth()));
                 double alpha=presentation.alpha(),brightness=presentation.brightness();
@@ -95,7 +105,7 @@ public final class ProgramRenderView {
                     alpha=alpha/Presentation.HIDDEN_ALPHA*dim;
                     if (profile instanceof CollisionProfile.Laser) brightness*=dim;
                 }
-                members.add(new Member(id,state.position(),direction,template.style().effectiveCollisionRadius(),template.style(),
+                members.add(new Member(id,state.position(),direction,template.style(),
                          presentation.visible(),batch.harmful(templatePosition) && presentation.damaging(),
                           alpha*fade,presentation.sizeMultiplier(),brightness,profile,tick-batch.birth(),beamLength,program.lifetimeTicks()));
             }

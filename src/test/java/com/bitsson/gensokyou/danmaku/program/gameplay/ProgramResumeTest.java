@@ -87,8 +87,9 @@ class ProgramResumeTest {
         assertEquals(1, nonBackground.size(), "exactly one live card");
         assertEquals(2, nonBackground.getFirst().card(), "new card got the next id, not a collision with the old");
         assertEquals(1, restored.checkpoint().instances().stream().filter(i -> i.background()).count(), "one background");
-        assertTrue(restored.checkpoint().runtime().groups().stream().noneMatch(g -> !g.background() && g.card() == 1),
-                "the real previous card's groups were ended");
+        assertTrue(restored.checkpoint().runtime().groups().stream().filter(g -> !g.background() && g.card() == 1)
+                        .allMatch(g -> !g.emitting() && g.members().stream().noneMatch(DanmakuWorldRuntime.MemberSnapshot::harmful)),
+                "the real previous card's groups were ended (their danmaku fade out instead of vanishing)");
     }
 
     @Test void restoredOwnersSurviveUntilTheirEntityLoads() {

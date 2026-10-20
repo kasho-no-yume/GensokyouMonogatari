@@ -11,6 +11,15 @@ public interface Pattern {
         public double effectiveCollisionRadius() {
             return collisionRadius * com.bitsson.gensokyou.balance.BalanceNumbers.PROGRAM_DANMAKU_COLLISION_RADIUS_SCALE;
         }
+        /**
+         * 判定半径：<b>碰撞半径倍率只作用于弹射物型弹幕</b>，激光按其声明的碰撞半径判定。
+         *
+         * <p>激光的判定窗口因此与视觉粗细同口径（旧实体路径亦然：判定半径 == 渲染半径）。
+         * 若激光也乘倍率，判定窗口会窄于视觉粗细一半 —— 看起来擦到却没掉血。
+         */
+        public double hitRadius(CollisionProfile profile) {
+            return profile instanceof CollisionProfile.Laser ? collisionRadius : effectiveCollisionRadius();
+        }
         public Style(String projectile,String visual,double collisionRadius,double damageScale) {
             this(projectile,visual,collisionRadius,damageScale,collisionRadius);
         }

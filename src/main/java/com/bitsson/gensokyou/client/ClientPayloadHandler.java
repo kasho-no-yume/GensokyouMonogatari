@@ -216,6 +216,11 @@ public final class ClientPayloadHandler {
 
     public static void handleSpellCardName(
             com.bitsson.gensokyou.network.SpellCardNamePayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> ClientSpellCardNames.put(payload.entityId(), payload.cardIndex()));
+        context.enqueueWork(() -> {
+            // 只有「下标真的变了」才是切牌，才播宣言；状态补发（玩家刚观测到这只 BOSS）不播。
+            if (ClientSpellCardNames.put(payload.entityId(), payload.cardIndex())) {
+                BossPhaseTransition.declare(payload.entityId(), payload.cardIndex());
+            }
+        });
     }
 }

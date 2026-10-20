@@ -60,4 +60,21 @@ class ProgramCollisionGeometryTest {
         assertEquals(ProgramCollisionGeometry.segmentAabb(start, end, target, .2),
                 ProgramCollisionGeometry.rayAabb(start, end, target, .2));
     }
+
+    /**
+     * 碰撞半径倍率只作用于弹射物型弹幕；激光按声明值判定。
+     *
+     * <p>倍率若也套在激光上，判定窗口会窄于视觉粗细一半 —— 看着擦到了却不掉血。
+     */
+    @Test
+    void collisionRadiusScaleAppliesToProjectilesOnly() {
+        var style = new com.bitsson.gensokyou.danmaku.program.ops.Pattern.Style("laser", "blue", .4, 1, .4);
+        var projectile = com.bitsson.gensokyou.danmaku.program.ops.CollisionProfile.projectile();
+        var laser = new com.bitsson.gensokyou.danmaku.program.ops.CollisionProfile.Laser(80, false, 10);
+        assertEquals(.2, style.hitRadius(projectile), 1e-9);
+        assertEquals(.2, style.effectiveCollisionRadius(), 1e-9);
+        assertEquals(.4, style.hitRadius(laser), 1e-9);
+        // 判定半径与视觉半径同口径（渲染读 visualRadius，两者独立声明）。
+        assertEquals(style.visualRadius(), style.hitRadius(laser), 1e-9);
+    }
 }

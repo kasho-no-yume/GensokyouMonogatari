@@ -234,7 +234,9 @@ public final class ServerControlOperations {
                                 && fire.program().collisionProfile() instanceof CollisionProfile.Laser
                                 && fire.warningTicks()>=40)
                             policy=new AuthorityDescriptions.Commit(policy.plan(),policy.minimumClearance(),policy.memberQuota(),policy.onFailure(),false);
-                        r.commitAtBirth(plan,policy,e.ownershipEnd());
+                        // 一次性组：批次出生即封口（seal），此后不再发射；
+                        // 成员按自身寿命消亡后由 collect() 回收。与 server:emission 的既有写法一致。
+                        r.commitAtBirth(plan,policy,e.ownershipEnd(),true);
                     });
                 } else if (value instanceof Emitter emitter) {
                     r.groupHandle(r.resolveHandle(prefix,emitter.group(),false)).ifPresent(id->r.createEmitter(id,emitter.emitter(),emitter.seed(),emitter.policy()));

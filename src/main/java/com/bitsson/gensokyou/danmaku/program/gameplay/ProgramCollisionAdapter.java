@@ -60,8 +60,11 @@ public final class ProgramCollisionAdapter implements DanmakuWorldRuntime.Collis
         CollisionProfile collisionProfile = member.plan().program().collisionProfile();
         boolean laser = collisionProfile instanceof CollisionProfile.Laser;
         CollisionProfile.Laser laserProfile = laser ? (CollisionProfile.Laser) collisionProfile : null;
+        // 碰撞半径倍率只作用于弹射物型弹幕。激光按其声明的碰撞半径判定，
+        // 使判定窗口与视觉粗细同口径（旧实体路径亦然：判定半径 == 渲染半径）。
+        double collisionRadius = style.hitRadius(collisionProfile);
         ProgramCollisionSample sample = new ProgramCollisionSample(encounter, id, runtime.tick(), runtime.tick() + 1,
-                from, until, style.effectiveCollisionRadius(), style.damageScale(), true, true,
+                from, until, collisionRadius, style.damageScale(), true, true,
                 laser ? ProgramCollisionSample.Profile.LASER : ProgramCollisionSample.Profile.PROJECTILE,
                 laser ? laserProfile.maxLength() : 0,
                 laser && laserProfile.piercesBlocks(),

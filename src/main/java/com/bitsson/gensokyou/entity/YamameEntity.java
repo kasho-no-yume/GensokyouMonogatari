@@ -110,6 +110,7 @@ public class YamameEntity extends AbstractTouhouBoss implements GeoEntity {
 
     @Override
     protected void onProgramCardChanged(int index) {
+        super.onProgramCardChanged(index);
         this.triggerCast();
     }
 

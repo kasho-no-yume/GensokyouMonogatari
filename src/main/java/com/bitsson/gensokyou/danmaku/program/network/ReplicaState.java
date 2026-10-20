@@ -10,7 +10,7 @@ import java.util.*;
 public final class ReplicaState {
     private ReplicaState() {}
     public record Group(long id, DanmakuWorldRuntime.Encounter encounter, long card, long cycle,
-                        Long parent, int slot, boolean background, boolean emitting, long fadeEnd,
+                        Long parent, int slot, boolean background, boolean emitting, long fadeEnd, long fadeTicks,
                         Frame frame, List<UUID> targets, Set<Integer> invalid,
                         DanmakuWorldRuntime.Clocks clocks, GroupMotion motion) {
         public Group { targets=List.copyOf(targets); invalid=Set.copyOf(invalid); Objects.requireNonNull(frame); Objects.requireNonNull(clocks); }
@@ -74,7 +74,7 @@ public final class ReplicaState {
             out.put("i/"+i.id(),new Instance(i.id(),i.encounter(),i.card(),i.background(),cursor.definition().hash(),cursor.anchors(),cursor.nextTick()));
         }
         for (var g:c.groups()) {
-            out.put(groupKey(g.id()),new Group(g.id(),g.encounter(),g.card(),g.cycle(),g.parent(),g.targetSlot(),g.background(),g.emitting(),g.fadeEnd(),
+            out.put(groupKey(g.id()),new Group(g.id(),g.encounter(),g.card(),g.cycle(),g.parent(),g.targetSlot(),g.background(),g.emitting(),g.fadeEnd(),g.fadeTicks(),
                     g.frame(),g.targets(),g.invalidTargets(),Objects.requireNonNull(c.clocks().get(g.id())),c.groupMotions().get(g.id())));
              Map<Long,EmissionPlan> plans=new TreeMap<>(); for (var p:g.plans()) plans.put(p.ordinal(),p);
              Map<Long,Set<Integer>> living=new HashMap<>(),damaging=new HashMap<>();

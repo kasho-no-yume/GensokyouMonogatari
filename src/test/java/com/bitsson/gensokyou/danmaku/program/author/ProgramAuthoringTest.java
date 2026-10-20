@@ -189,7 +189,11 @@ class ProgramAuthoringTest {
         end.fire(g,bullet(true),0,1); end.at(5,CardProgram::endCard); end.at(10,c->c.fire(g,bullet(true),0,2));
         var other=session(); var control=new BossProgramController(other,OWNER); control.card(end.once(),0);
         for (int tick=0;tick<=20;tick++) { other.advance(tick,512); other.runtime().drainEvents(); }
-        assertTrue(other.checkpoint().instances().isEmpty()); assertEquals(0,other.runtime().liveMembers());
+        assertTrue(other.checkpoint().instances().isEmpty());
+        // 旧卡弹幕以淡出离场：仍在场，但不再判伤
+        assertEquals(1,other.runtime().liveMembers());
+        assertTrue(other.checkpoint().runtime().groups().stream().flatMap(scope->scope.members().stream())
+                .noneMatch(DanmakuWorldRuntime.MemberSnapshot::harmful));
     }
     @Test void handlesCannotBeUsedBeforeCreationAndLaserMustBeExplicit() {
         var card=new CardProgram("test:time"); var targets=card.targets("players",64,1);

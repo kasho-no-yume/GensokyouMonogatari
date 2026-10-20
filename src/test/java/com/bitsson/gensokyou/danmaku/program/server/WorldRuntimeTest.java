@@ -99,7 +99,12 @@ class WorldRuntimeTest {
             long bg=r.createGroup(encounter,0,0,null,-1,true,true,Frame.IDENTITY,List.of());
             r.advance(i); birth(r,g,1); birth(r,bg,1); r.movementLock(g,true);
             r.endCycle(encounter,1,0); assertEquals(2,r.liveMembers());
-            r.endCard(encounter,1); assertEquals(1,r.liveMembers()); assertFalse(r.movementLocked(encounter));
+            r.endCard(encounter,1); assertFalse(r.movementLocked(encounter));
+            // 旧卡弹幕改为淡出离场：仍在场，但不再发射也不再判伤
+            assertEquals(2,r.liveMembers());
+            assertTrue(r.checkpoint().groups().stream().filter(scope->scope.card()==1)
+                            .flatMap(scope->scope.members().stream()).noneMatch(DanmakuWorldRuntime.MemberSnapshot::harmful),
+                    "the ended card's danmaku stopped damaging");
             r.endEncounter(encounter,"test"); assertEquals(0,r.liveMembers()); assertEquals(0,r.frameReferences());
             assertEquals(i+1,encounter.epoch()); r.drainEvents();
         }
@@ -314,7 +319,11 @@ class WorldRuntimeTest {
         var recovered=ProgramSession.restore(session.checkpoint(),new DanmakuWorldRuntime.Limits(100,1000,100,100,10000),w,execution);
         for (int tick=2;tick<=4;tick++) { session.advance(tick,100); recovered.advance(tick,100); }
         assertEquals(2,r.liveMembers()); assertEquals(1,r.checkpoint().groups().size()); assertEquals(session.checkpoint(),recovered.checkpoint());
-        session.endCard(encounter,1); assertEquals(0,r.liveMembers()); assertTrue(r.checkpoint().targetHandles().isEmpty());
+        session.endCard(encounter,1);
+        // 旧卡弹幕以淡出离场：仍在场，但不再判伤
+        assertEquals(2,r.liveMembers());
+        assertTrue(r.checkpoint().groups().stream().flatMap(scope->scope.members().stream()).noneMatch(DanmakuWorldRuntime.MemberSnapshot::harmful));
+        assertTrue(r.checkpoint().targetHandles().isEmpty());
     }
     @Test void followEmitterRetainsWorldNozzleRotationAndUnlockDeadlineRecovers() {
         World w=new World(); var r=runtime(w,100); var encounter=r.startEncounter(OWNER);

@@ -23,7 +23,8 @@ import java.util.*;
  */
 public final class ProgramSessionCodec {
     private static final int MAGIC = 0x47535031;
-    private static final int VERSION = 2;
+    /** v3 adds the per-group {@code retired} bit (group retirement bookkeeping). */
+    private static final int VERSION = 3;
     private static final int MAX_BYTES = 8 * 1024 * 1024;
     private static final int MAX_ENTRIES = 8192;
     private static final int MAX_MEMBERS = 4096;
@@ -144,7 +145,7 @@ public final class ProgramSessionCodec {
             List<EmissionPlan> plans = new ArrayList<>();
             for (var p : g.plans()) plans.add(shiftPlan(p, delta));
             groups.add(new DanmakuWorldRuntime.GroupSnapshot(g.id(), g.encounter(), g.card(), g.cycle(), g.parent(), g.targetSlot(),
-                    g.background(), g.retain(), g.emitting(), shift(g.fadeEnd(), delta), g.frame(), g.targets(), g.invalidTargets(),
+                    g.background(), g.retain(), g.emitting(), g.retired(), shift(g.fadeEnd(), delta), g.fadeTicks(), g.frame(), g.targets(), g.invalidTargets(),
                     g.nextBatch(), members, plans));
         }
         List<DanmakuWorldRuntime.EmitterSnapshot> emitters = new ArrayList<>();
@@ -388,7 +389,8 @@ public final class ProgramSessionCodec {
         out.writeLong(g.id()); writeUuid(out, g.encounter().owner()); out.writeLong(g.encounter().epoch());
         out.writeLong(g.card()); out.writeLong(g.cycle());
         writeNullableLong(out, g.parent()); out.writeInt(g.targetSlot());
-        out.writeBoolean(g.background()); out.writeBoolean(g.retain()); out.writeBoolean(g.emitting()); out.writeLong(g.fadeEnd());
+        out.writeBoolean(g.background()); out.writeBoolean(g.retain()); out.writeBoolean(g.emitting());
+        out.writeBoolean(g.retired()); out.writeLong(g.fadeEnd()); out.writeLong(g.fadeTicks());
         writeData(out, g.frame());
         out.writeInt(g.targets().size()); for (UUID t : g.targets()) writeUuid(out, t);
         out.writeInt(g.invalidTargets().size()); for (int v : g.invalidTargets()) out.writeInt(v);
@@ -406,7 +408,10 @@ public final class ProgramSessionCodec {
         Long parent = readNullableLong(in);
         int slot = in.readInt();
         boolean background = in.readBoolean(), retain = in.readBoolean(), emitting = in.readBoolean();
+        // v3 introduced the retirement bit; older snapshots have no such byte.
+        boolean retired = ((DiskInput)in).version>=3 ? in.readBoolean() : false;
         long fadeEnd = in.readLong();
+        long fadeTicks = ((DiskInput)in).version>=3 ? in.readLong() : 0;
         Frame frame = data(in, Frame.class);
         int targetCount = count(in, 8);
         List<UUID> targets = new ArrayList<>(targetCount);
@@ -427,7 +432,7 @@ public final class ProgramSessionCodec {
         int plans = count(in, MAX_ENTRIES);
         List<EmissionPlan> planList = new ArrayList<>(plans);
         for (int i = 0; i < plans; i++) planList.add(readPlan(in, limits));
-        return new DanmakuWorldRuntime.GroupSnapshot(id, encounter, card, cycle, parent, slot, background, retain, emitting, fadeEnd,
+        return new DanmakuWorldRuntime.GroupSnapshot(id, encounter, card, cycle, parent, slot, background, retain, emitting, retired, fadeEnd, fadeTicks,
                 frame, targets, invalid, nextBatch, memberList, planList);
     }
 
