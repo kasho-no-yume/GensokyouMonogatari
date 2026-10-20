@@ -118,6 +118,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.RITUAL_BUILDER.get());
                         ModItems.SPIRIT_CORES.forEach(core -> output.accept(core.get()));
                         output.accept(ModItems.DANMAKU_WEAPON.get());
+                        output.accept(ModItems.CORE_QILIN.get());
                         output.accept(ModItems.CORE_SPHERE_SINGLE.get());
                         output.accept(ModItems.CORE_SPHERE_SHOTGUN.get());
                         output.accept(ModItems.CORE_KNIFE.get());

@@ -102,7 +102,7 @@ class EquippedAffixSemanticsTest {
     @Test
     void danmakuKindsAreDistinctAndKeyed() {
         DanmakuKind[] kinds = DanmakuKind.values();
-        assertEquals(4, kinds.length, "球形/刀刃/符卡/激光四类弹幕");
+        assertEquals(5, kinds.length, "球形/刀刃/符卡/激光/锥形五类弹幕");
         var seen = new java.util.HashSet<String>();
         for (DanmakuKind kind : kinds) {
             assertTrue(kind.langKey().startsWith("danmaku.gensokyou."));
@@ -110,6 +110,35 @@ class EquippedAffixSemanticsTest {
         }
         // 球形与刀刃同属 ofBullet，仅靠 isLaser()/isTalisman() 区分不了 → 证明 kind 的必要性
         assertFalse(java.util.Set.of(DanmakuKind.SPHERE, DanmakuKind.KNIFE).isEmpty());
+    }
+
+    /**
+     * 每种弹幕类型的语言键 MUST 在中英文语言文件里都存在。
+     *
+     * <p>新增 {@code CONE} 时容易只补 zh 漏了 en（或反之），而 tooltip 上会直接显示
+     * 原始键名——这类问题在游戏里才看得见，故在此锁死。
+     */
+    @Test
+    void danmakuKindLangKeysExistInBothLanguages() {
+        for (DanmakuKind kind : DanmakuKind.values()) {
+            for (String lang : new String[]{"zh_cn", "en_us"}) {
+                String key = kind.langKey();
+                assertTrue(langFileContains(lang, key),
+                        "语言键 " + key + " 在 " + lang + ".json 里 MUST 存在");
+            }
+        }
+    }
+
+    /** 语言文件里是否有该键（粗略文本匹配即可：键名在文件中以 {@code "key":} 形式出现）。 */
+    private static boolean langFileContains(String lang, String key) {
+        java.nio.file.Path path = java.nio.file.Path.of("src", "main", "resources", "assets",
+                "gensokyou", "lang", lang + ".json");
+        try {
+            String text = java.nio.file.Files.readString(path, java.nio.charset.StandardCharsets.UTF_8);
+            return text.contains("\"" + key + "\"");
+        } catch (java.io.IOException e) {
+            throw new AssertionError("读不到语言文件 " + path, e);
+        }
     }
 
     /**

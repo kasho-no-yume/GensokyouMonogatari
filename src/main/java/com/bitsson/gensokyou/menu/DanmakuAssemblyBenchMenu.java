@@ -44,9 +44,13 @@ public class DanmakuAssemblyBenchMenu extends AbstractContainerMenu {
     /** 武器输入槽坐标（与 Screen 绘制一致）。 */
     public static final int WEAPON_SLOT_X = 8;
     public static final int WEAPON_SLOT_Y = 22;
-    /** 三核槽坐标（嵌在背景大枪的枪托/机匣/枪管上）。 */
-    public static final int[] CORE_SLOT_XS = {34, 62, 90};
-    public static final int CORE_SLOT_Y = 22;
+    /**
+     * 三核槽坐标：**弹核在球心**，等级核在球左，增幅核在球右（球心 88,33 / 半径 20）。
+     *
+     * <p>顺序即槽序：0 = 弹核、1 = 等级核、2 = 增幅核——与 {@code WeaponSlots} 一致。
+     */
+    public static final int[] CORE_SLOT_XS = {80, 46, 114};
+    public static final int CORE_SLOT_Y = 25;
 
     private final Player player;
     private final BlockPos pos;

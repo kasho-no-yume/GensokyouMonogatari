@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.registry;
 import com.bitsson.gensokyou.balance.BalanceNumbers;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.entity.ConeDanmaku;
 import com.bitsson.gensokyou.entity.KnifeDanmaku;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
@@ -28,6 +29,7 @@ import com.bitsson.gensokyou.item.spellcard.MusouFuuinCardItem;
 import com.bitsson.gensokyou.item.weapon.AmpCoreItem;
 import com.bitsson.gensokyou.item.weapon.BulletCoreItem;
 import com.bitsson.gensokyou.item.weapon.CoreStats;
+import com.bitsson.gensokyou.item.weapon.CoreShellProfile;
 import com.bitsson.gensokyou.item.weapon.DanmakuKind;
 import com.bitsson.gensokyou.item.weapon.DanmakuWeaponItem;
 import com.bitsson.gensokyou.item.weapon.FirePattern;
@@ -434,24 +436,48 @@ public final class ModItems {
                     new Item.Properties().stacksTo(1),
                     FirePattern.ofBullet(
                              DanmakuKind.SPHERE,
-                            (level, owner, damage) -> new SphereDanmaku(level, owner, damage, 0, 0.4F, Set.of()),
+                            (level, owner, damage) -> new SphereDanmaku(level, owner, damage, 0,
+                                    BalanceNumbers.CORE_SPHERE_SIZE.floatValue(), Set.of()),
                             () -> 1,
-                            () -> 0D, () -> 0.9D, () -> 0D),
+                            () -> 0D, () -> BalanceNumbers.CORE_SPHERE_SPEED, () -> 0D),
                     stats(() -> BalanceNumbers.CORE_SPHERE_MULT, () -> BalanceNumbers.CORE_SPHERE_SP_COST,
-                            () -> BalanceNumbers.CORE_SPHERE_RATE, () -> BalanceNumbers.CORE_SPHERE_REQ_TIER)));
+                            () -> BalanceNumbers.CORE_SPHERE_RATE, () -> BalanceNumbers.CORE_SPHERE_REQ_TIER),
+                    CoreShellProfile.BALL));
+
+    /**
+     * 麟弹核：阶 1 的<b>最初始弹核</b>——锥形弹幕，10 发/秒的机关枪扫射。
+     *
+     * <p>射程由「运行距离」（40 格）而非存活时间收束：40 格 ÷ 2.0 格/tick
+     * = 20 tick = 1 秒。故 10 发/秒 ⇒ 稳态在飞约 10 颗弹幕实体。
+     */
+    public static final DeferredItem<BulletCoreItem> CORE_QILIN =
+            ITEMS.register("core_qilin", () -> new BulletCoreItem(
+                    new Item.Properties().stacksTo(1),
+                    FirePattern.ofBullet(
+                            DanmakuKind.CONE,
+                            (level, owner, damage) -> new ConeDanmaku(level, owner, damage, Set.of()),
+                            () -> 1,
+                            () -> 0D,
+                            () -> BalanceNumbers.CORE_QILIN_SPEED,
+                            () -> 0D,
+                            () -> BalanceNumbers.CORE_QILIN_TRAVEL),
+                    stats(() -> BalanceNumbers.CORE_QILIN_MULT, () -> BalanceNumbers.CORE_QILIN_SP_COST,
+                            () -> BalanceNumbers.CORE_QILIN_RATE, () -> BalanceNumbers.CORE_QILIN_REQ_TIER)));
 
     public static final DeferredItem<BulletCoreItem> CORE_SPHERE_SHOTGUN =
             ITEMS.register("core_sphere_shotgun", () -> new BulletCoreItem(
                     new Item.Properties().stacksTo(1),
                     FirePattern.ofBullet(
                              DanmakuKind.SPHERE,
-                            (level, owner, damage) -> new SphereDanmaku(level, owner, damage, 0, 0.3F, Set.of()),
+                            (level, owner, damage) -> new SphereDanmaku(level, owner, damage, 0,
+                                    BalanceNumbers.CORE_SHOTGUN_SIZE.floatValue(), Set.of()),
                             () -> BalanceNumbers.CORE_SHOTGUN_COUNT,
                             () -> BalanceNumbers.CORE_SHOTGUN_SPREAD,
                             () -> BalanceNumbers.CORE_SHOTGUN_SPEED,
                             () -> BalanceNumbers.CORE_SHOTGUN_LIFETIME),
                     stats(() -> BalanceNumbers.CORE_SHOTGUN_MULT, () -> BalanceNumbers.CORE_SHOTGUN_SP_COST,
-                            () -> BalanceNumbers.CORE_SHOTGUN_RATE, () -> BalanceNumbers.CORE_SHOTGUN_REQ_TIER)));
+                            () -> BalanceNumbers.CORE_SHOTGUN_RATE, () -> BalanceNumbers.CORE_SHOTGUN_REQ_TIER),
+                    CoreShellProfile.SCATTER));
 
     public static final DeferredItem<BulletCoreItem> CORE_KNIFE =
             ITEMS.register("core_knife", () -> new BulletCoreItem(

@@ -27,14 +27,113 @@ class DanmakuWeaponBalanceTest {
         com.bitsson.gensokyou.support.MinecraftTestBootstrap.ensureStarted();
     }
 
+    /**
+     * 有效 DPS 因子带。
+     *
+     * <p><b>旧带 [1.5, 2.5] 已作废</b>：当时阶 2/3 核（灵符 1.50 / 激光 2.00）被阶 1 的
+     * 单发玉（2.50）全面压制——{@code requiredTier} 只是"装备门槛"，而门槛后面的东西反而更弱，
+     * 等级闸门形同虚设。新带 [3.50, 8.00] 由 rework-danmaku-weapon-orb 重新标定：
+     * 每一级武器都解锁出严格强于上一级最好选择的新核。
+     */
     @Test
     void coreEffectiveDpsFactorsWithinBand() {
-        assertTrue(CoreMath.withinBand(CoreMath.bulletDpsFactor(1.0, 1, 8)));   // 球 2.50
-        assertTrue(CoreMath.withinBand(CoreMath.bulletDpsFactor(1.4, 1, 12)));  // 飞刀 2.33
-        assertTrue(CoreMath.withinBand(CoreMath.bulletDpsFactor(0.45, 5, 24))); // 散弹 1.88
-        assertTrue(CoreMath.withinBand(CoreMath.bulletDpsFactor(1.2, 1, 16)));  // 灵符 1.50
-        assertTrue(CoreMath.withinBand(CoreMath.laserDpsFactor(0.5, 10, 10)));  // 激光枪 2.00
-        assertTrue(CoreMath.withinBand(CoreMath.laserDpsFactor(0.5, 60, 60)));  // 激光炮 2.00
+        assertTrue(CoreMath.withinBand(CoreMath.bulletDpsFactor(0.84, 5, 24)));  // 散弹玉 3.50
+        assertTrue(CoreMath.withinBand(CoreMath.bulletDpsFactor(2.10, 1, 12)));  // 飞刀 3.50
+        assertTrue(CoreMath.withinBand(CoreMath.bulletDpsFactor(0.40, 1, 2)));   // 麟弹核 4.00
+        assertTrue(CoreMath.withinBand(CoreMath.bulletDpsFactor(2.00, 1, 8)));   // 单发玉 5.00
+        assertTrue(CoreMath.withinBand(CoreMath.bulletDpsFactor(4.40, 1, 16)));  // 灵符 5.50
+        assertTrue(CoreMath.withinBand(CoreMath.laserDpsFactor(1.40, 10, 10))); // 激光机枪 5.60
+        assertTrue(CoreMath.withinBand(CoreMath.laserDpsFactor(2.00, 60, 60))); // 激光炮 8.00
+    }
+
+    /**
+     * 同一 requiredTier 内，核之间不得以数值碾压（比值 ≤ 1.5×）。
+     *
+     * <p>绝对带只保证"全部核在同一量级"；本条才保证"同档内没有一颗核把另一些挤掉"。
+     */
+    @Test
+    void sameTierCoresStayWithinRatio() {
+        // 阶 1：单发玉 5.00 / 散弹玉 3.50
+        assertTrue(CoreMath.withinTierRatio(5.00, 3.50));
+        // 阶 2：激光机枪 5.60 / 灵符 5.50
+        assertTrue(CoreMath.withinTierRatio(5.60, 5.50));
+        // 反例：旧表里阶 1 的单发玉 2.50 对散弹 1.88 = 1.33 尚可，但灵符 1.50 与激光 2.00
+        // 若被抬到与阶 1 同档，比值会失控 —— 这里锁定"抬完之后仍然成立"。
+        assertFalse(CoreMath.withinTierRatio(8.00, 3.50));
+    }
+
+    /**
+     * 一阶核的「伤害/灵力效率」带 [0.40, 0.55]。
+     *
+     * <p>麟弹核与单发玉的耗灵/倍率比值同为 2.5，效率完全相同（0.400）——差别在交付方式
+     * （10 发/秒扫射 vs 2.5 发/秒重炮），不是效率碾压。
+     */
+    @Test
+    void tierOneCoreEfficiencyStaysInBand() {
+        double[] efficiency = {
+                0.40 / 1.0,     // 麟弹核 0.40 / 1
+                2.00 / 5.0,     // 单发玉 2.00 / 5
+                2.10 / 5.0,     // 飞刀 2.10 / 5
+                0.84 * 5 / 8.0  // 散弹玉 0.84×5 / 8
+        };
+        for (double e : efficiency) {
+            assertTrue(CoreMath.withinTierOneEfficiency(e), "一阶核效率应落在 [0.40,0.55]，实际 " + e);
+        }
+        // 麟弹核与单发玉效率严格相等（刻意对齐）
+        assertEquals(efficiency[0], efficiency[1], 1e-9);
+    }
+
+    /**
+     * 运行距离与存活时间取先到者；单位是 <b>tick</b>（弹速是格/tick）。
+     */
+    @Test
+    void travelDistanceConvertsToTicksAndTakesTheEarlierLimit() {
+        // 麟弹核：40 格 ÷ 2.0 格/tick = 20 tick（1 秒）—— 先于 1200 tick 的寿命到达
+        assertEquals(20, CoreMath.effectiveLifetimeTicks(1200, 40.0D, 2.0D));
+        // 运行距离不限 ⇒ 只由存活时间决定
+        assertEquals(1200, CoreMath.effectiveLifetimeTicks(1200, 0.0D, 2.0D));
+        // 存活时间先到 ⇒ 取存活时间（散弹玉：0.8s = 16 tick）
+        assertEquals(16, CoreMath.effectiveLifetimeTicks(16, 40.0D, 0.8D));
+        // 弹速为零 ⇒ 运行距离不参与裁决
+        assertEquals(1200, CoreMath.effectiveLifetimeTicks(1200, 40.0D, 0.0D));
+    }
+
+    /**
+     * 有效射程的单位：<b>弹速（格/tick）× 存活 tick 数</b>。
+     *
+     * <p>旧实现算的是「弹速 × 存活秒数」，少乘 20，把射程少报了 20 倍
+     * （散弹玉被显示成 0.64 格，实为 12.8 格）。
+     */
+    @Test
+    void effectiveRangeUsesTicksNotSeconds() {
+        double maxLifetimeTicks = com.bitsson.gensokyou.entity.AbstractDanmakuProjectile.MAX_LIFETIME_TICKS;
+        // 散弹玉：0.8 格/tick × 16 tick = 12.8 格
+        assertEquals(12.8D, 0.8D * 16.0D, 1e-9);
+        // 单发玉：0.9 格/tick × 1200 tick = 1080 格
+        assertEquals(1080.0D, 0.9D * maxLifetimeTicks, 1e-9);
+        // 麟弹核：运行距离 40 格先到 ⇒ 有效射程 40 格
+        double qilinTravel = 40.0D;
+        int qilinTicks = CoreMath.effectiveLifetimeTicks((int) maxLifetimeTicks, qilinTravel, 2.0D);
+        assertEquals(40.0D, 2.0D * qilinTicks, 1e-9);
+    }
+
+    /**
+     * 每一级武器都解锁出严格强于上一级最好选择的新核。
+     *
+     * <p>否则 {@code requiredTier} 只是"装备门槛"，而门槛后面的东西反而更弱——
+     * 等级闸门形同虚设（这正是本次重排要修的问题）。
+     */
+    @Test
+    void eachWeaponLevelUnlocksAStrongerBestCore() {
+        List<Double> weaponLevelMult = List.of(1.0, 2.0, 4.0);
+        // 各阶最强核（mult × 弹数 × 20/间隔）
+        double tier1Best = CoreMath.bulletDpsFactor(2.00, 1, 8);   // 单发玉 5.00
+        double tier2Best = CoreMath.laserDpsFactor(1.40, 10, 10);  // 激光机枪 5.60
+        double tier3Best = CoreMath.laserDpsFactor(2.00, 60, 60);  // 激光炮 8.00
+        assertTrue(tier2Best * weaponLevelMult.get(1) > tier1Best * weaponLevelMult.get(0),
+                "Lv2 最强核应严格强于 Lv1 最强核");
+        assertTrue(tier3Best * weaponLevelMult.get(2) > tier2Best * weaponLevelMult.get(1),
+                "Lv3 最强核应严格强于 Lv2 最强核");
     }
 
     @Test
@@ -94,23 +193,32 @@ class DanmakuWeaponBalanceTest {
     }
 
     /**
-     * 阶 1 伤害锚点：单发约 1，低于石剑（5）与铁剑（6）。
+     * 阶 1 伤害锚点：单发玉约 2.1，仍低于石剑（5）与铁剑（6）。
      *
      * <p>取代旧断言 {@code tierOneSphereDpsLandsBetweenDiamondAndSharpnessFive}——后者把
      * 阶 1 DPS 锁在 11.2~17.6（"钻石剑~锋利5下界剑"），意味着阶 1 单发 6.4 已超过铁剑，
      * 原版武器在该阶直接退伍。这正是 rebalance-tier1-spirit-and-danmaku-cost 否决的目标：
      * 阶 1 应当是"原版武器仍有竞争力"的起点，弹幕主武器不该一阶就碾压。
+     *
+     * <p>rework-danmaku-weapon-orb 把单发玉的倍率由 1.0 抬到 2.0（阶 1 的"重炮"核），
+     * 故单发伤害由约 1 抬到约 2.13——仍远低于石剑，原版武器在阶 1 依旧有竞争力。
      */
     @Test
     void tierOneSphereDamageIsAboutOneAndBelowStoneSword() {
-        // T1：spirit_power 1、coreBaseMult 1.0、暴击率 0.11、暴伤 +0.6
+        // T1：spirit_power 1、coreBaseMult 2.0、暴击率 0.11、暴伤 +0.6
         double spiritPower = 1.0;
         double critAvg = 1.0 + 0.11 * 0.60;
-        double perShot = spiritPower * 1.0 * 1.0 * critAvg;
-        assertEquals(1.07, perShot, 0.01, "T1 球核单发伤害应约 1");
+        double perShot = spiritPower * 2.0 * 1.0 * critAvg;
+        assertEquals(2.13, perShot, 0.01, "T1 单发玉单发伤害应约 2.13");
         assertTrue(perShot < 5.0, "T1 弹幕单发应低于石剑 5, got " + perShot);
         assertTrue(perShot < 6.0, "T1 弹幕单发应低于铁剑 6, got " + perShot);
-        // 参考 DPS 同步下移：旧 16.0 → 新 2.67
+        // 麟弹核（倍率 0.4、耗灵 1、10 发/秒）与单发玉（倍率 2.0、耗灵 5、2.5 发/秒）：
+        // 每点灵力的伤害完全相同（0.4/1 = 2.0/5），差别在交付方式而非效率。
+        double qilinPerShot = spiritPower * 0.40 * 1.0 * critAvg;
+        assertEquals(0.43, qilinPerShot, 0.01);
+        assertEquals(perShot / 5.0, qilinPerShot / 1.0, 1e-9,
+                "麟弹核与单发玉的「每点灵力伤害」应严格相等");
+        // 参考 DPS 不随核变化（BOSS 血量预算锚点）：旧 16.0 → 新 2.67
         assertEquals(2.67, spiritPower * 1.0 * critAvg * 2.5, 0.01);
     }
 
@@ -127,9 +235,10 @@ class DanmakuWeaponBalanceTest {
         double refShotsPerSecond = 2.5;
         // (名称, coreBaseMult, 弹数, 期望击杀发数)
         Object[][] cores = {
-                {"球", 1.0, 1.0, 400.0},
-                {"飞刀", 1.4, 1.0, 400.0 / 1.4},
-                {"散弹", 0.45, 5.0, 400.0 / 2.25},
+                {"麟弹核", 0.40, 1.0, 400.0 / 0.40},
+                {"单发玉", 2.00, 1.0, 400.0 / 2.00},
+                {"飞刀", 2.10, 1.0, 400.0 / 2.10},
+                {"散弹玉", 0.84, 5.0, 400.0 / 4.20},
         };
         for (Object[] c : cores) {
             double perTrigger = (double) c[1] * (double) c[2];
@@ -149,8 +258,8 @@ class DanmakuWeaponBalanceTest {
      * 满池可负担发数 MUST 覆盖击杀所需发数（danmaku-weapon 灵力成本判据）。
      *
      * <p>阶 1：池 1000、bossSeconds 160。上界 = 1000 × coreBaseMult × 弹数 / 400。
-     * 三核全部满足——包括散弹，因其弹数（5）抬高每触发倍率、需求发数正比下降，
-     * <b>不需要射程豁免</b>。
+     * 四枚一阶核全部满足——麟弹核与单发玉<b>恰好贴边</b>（余量 0%），因为两者的
+     * 耗灵/倍率比值同为 2.5，是刻意对齐的：一根满管刚好打完同阶 BOSS。
      */
     @Test
     void fullPoolAffordsTheShotsNeededToKillSameTierBoss() {
@@ -159,9 +268,10 @@ class DanmakuWeaponBalanceTest {
         double refShotsPerSecond = 2.5;
         // (名称, coreBaseMult, 弹数, spiritCost)
         Object[][] cores = {
-                {"球", 1.0, 1.0, 2.0},
-                {"飞刀", 1.4, 1.0, 3.0},
-                {"散弹", 0.45, 5.0, 4.0},
+                {"麟弹核", 0.40, 1.0, 1.0},
+                {"单发玉", 2.00, 1.0, 5.0},
+                {"飞刀", 2.10, 1.0, 5.0},
+                {"散弹玉", 0.84, 5.0, 8.0},
         };
         for (Object[] c : cores) {
             double perTrigger = (double) c[1] * (double) c[2];
@@ -170,34 +280,33 @@ class DanmakuWeaponBalanceTest {
             assertTrue(affordable >= needed,
                     c[0] + "核满池可负担 " + affordable + " 发 < 击杀所需 " + needed + " 发");
         }
-        // 球核具体锚点
-        assertEquals(500.0, pool / 2.0, 1e-9);
-        assertTrue(pool / 2.0 >= 400.0);
+        // 麟弹核与单发玉恰好贴边（满管刚好够）
+        assertEquals(1000.0, pool / 1.0, 1e-9);
+        assertTrue(pool / 1.0 >= 400.0 / 0.40);
+        assertEquals(200.0, pool / 5.0, 1e-9);
+        assertTrue(pool / 5.0 >= 400.0 / 2.00);
     }
 
     /**
-     * 同档核"伤害/灵力"效率仍在同一量级（相对球核偏移 ≤ ±10%）。
+     * 同档核"伤害/灵力"效率仍在同一量级（阶 1 效率带 [0.40, 0.55]）。
      *
-     * <p>不是精确保持：spiritCost 是 IntValue，2/3/4 是凑整而非 10/14/22 的 ÷5
-     * （实际 ÷5 / ÷4.667 / ÷5.5），故飞刀 −6.7%、散弹 +10%。danmaku-weapon 要求的是
-     * "量级一致"而非精确相等。
+     * <p>不再是"相对球核偏移 ≤ ±10%"——那条判据是相对量，重标后基准核换成了麟弹核与
+     * 单发玉（两者效率完全相同），改用绝对带更贴切：效率带即"伤害/灵力"的量级约束。
      */
     @Test
     void tierOneCoreSpiritEfficiencyStaysWithinOneMagnitude() {
-        // (名称, coreBaseMult, 弹数, 变更前成本, 变更后成本)
+        // (名称, coreBaseMult, 弹数, spiritCost)
         Object[][] cores = {
-                {"球", 1.0, 1.0, 10.0, 2.0},
-                {"飞刀", 1.4, 1.0, 14.0, 3.0},
-                {"散弹", 0.45, 5.0, 22.0, 4.0},
+                {"麟弹核", 0.40, 1.0, 1.0},
+                {"单发玉", 2.00, 1.0, 5.0},
+                {"飞刀", 2.10, 1.0, 5.0},
+                {"散弹玉", 0.84, 5.0, 8.0},
         };
-        double sphereBefore = 1.0 * 1.0 / 10.0;
-        double sphereAfter = 1.0 * 1.0 / 2.0;
         for (Object[] c : cores) {
             double perTrigger = (double) c[1] * (double) c[2];
-            double relBefore = perTrigger / (double) c[3] / sphereBefore;
-            double relAfter = perTrigger / (double) c[4] / sphereAfter;
-            assertTrue(Math.abs(relAfter - relBefore) / relBefore <= 0.10 + 1e-9,
-                    c[0] + "核效率偏移应 ≤ ±10%: before x" + relBefore + " after x" + relAfter);
+            double efficiency = perTrigger / (double) c[3];
+            assertTrue(CoreMath.withinTierOneEfficiency(efficiency),
+                    c[0] + "核效率应落在 [0.40,0.55]，实际 " + efficiency);
         }
     }
 

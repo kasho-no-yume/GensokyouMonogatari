@@ -136,7 +136,13 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
             dim *= collapseFade;
             bodyAlpha = (int) Math.round(bodyAlpha * collapseFade);
         }
-        if (DanmakuRenderProbe.effectiveBody()) {
+        // 近相机淡出：武器弹丸生成在眼睛 = 相机位置，第一帧就贴在镜头上；单发玉的
+        // 弹体已加到 0.8 格，在 1 格距离上占屏幕近 1/4。**只改渲染**，判定与轨迹
+        // 不动 ⇒ 对准度零影响。第三人称相机在身后数格，天然不触发。
+        float nearFade = this.nearCameraFade(entity, partialTick);
+        dim *= nearFade;
+        bodyAlpha = (int) Math.round(bodyAlpha * nearFade);
+        if (DanmakuRenderProbe.effectiveBody() && bodyAlpha > 0) {
             DanmakuRenderProbe.countBody();
             VertexConsumer consumer = this.getBuffer(bufferSource, this.bodyRenderType(profile));
             DanmakuRenderProbe.pushBody();

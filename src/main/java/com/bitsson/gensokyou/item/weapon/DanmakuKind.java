@@ -12,7 +12,9 @@ public enum DanmakuKind {
     SPHERE("sphere"),
     KNIFE("knife"),
     TALISMAN("talisman"),
-    LASER("laser");
+    LASER("laser"),
+    /** 锥形：3D 建模的箭矢弹体，尖端恒指速度方向（见 {@code danmaku-cone}）。 */
+    CONE("cone");
 
     private final String id;
 

@@ -11,6 +11,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Locale;
 
@@ -19,11 +20,22 @@ public class BulletCoreItem extends Item {
 
     private final FirePattern pattern;
     private final CoreStats stats;
+    private final CoreShellProfile shell;
 
     public BulletCoreItem(Properties properties, FirePattern pattern, CoreStats stats) {
+        this(properties, pattern, stats, null);
+    }
+
+    /**
+     * @param shell 该核在球形核心中的外壳档案；{@code null} 表示取其弹幕种类的默认档案
+     *              （见 {@link CoreShellProfile#byKind}）。
+     */
+    public BulletCoreItem(Properties properties, FirePattern pattern, CoreStats stats,
+                          @Nullable CoreShellProfile shell) {
         super(properties);
         this.pattern = pattern;
         this.stats = stats;
+        this.shell = shell != null ? shell : CoreShellProfile.byKind(pattern.kind());
     }
 
     public FirePattern pattern() {
@@ -32,6 +44,22 @@ public class BulletCoreItem extends Item {
 
     public CoreStats stats() {
         return this.stats;
+    }
+
+    /** 该核在球形核心中的外壳档案（永不为 null）。 */
+    public CoreShellProfile shell() {
+        return this.shell;
+    }
+
+    /**
+     * 核的<b>短名</b>（如「麟弹」「单发玉」），供 tooltip 用。
+     *
+     * <p>物品的正式名是「弹幕核：麟弹」这种带前缀的全名，直接塞进「弹幕核：%s」那行会
+     * 变成「弹幕核：弹幕核：麟弹」。故单独给每个核一个短名键
+     * （{@code item.gensokyou.<id>.short}），由物品 id 推出，不另建映射表。
+     */
+    public net.minecraft.network.chat.Component shortName() {
+        return net.minecraft.network.chat.Component.translatable(this.getDescriptionId() + ".short");
     }
 
     /** 弹幕核名字按 requiredTier 染品阶色（与贴图定色规则同源，0 级不染）。 */
@@ -117,20 +145,29 @@ public class BulletCoreItem extends Item {
         }
         int pellets = Math.max(1, p.count().getAsInt());
         double speed = p.projectileSpeed().getAsDouble();
-        // lifetimeSeconds <= 0 是"不覆盖"的编码：WeaponFiring 不调 setLifetimeTicks，
-        // 弹丸沿用 AbstractDanmakuProjectile.MAX_LIFETIME_TICKS。此处 MUST 回落到该上限，
-        // 否则会把这些核显示成"存活 0.00s / 有效距离 0.00"（真实是 speed × 60）。
+        // lifetimeSeconds <= 0 是"不覆盖"的编码：WeaponFiring 沿用弹幕实体的全局兜底寿命
+        // （MAX_LIFETIME_TICKS = 1200 tick = 60 秒）。此处 MUST 回落到该上限，
+        // 否则会把这些核显示成"存活 0.00s / 有效距离 0.00"。
         double lifetime = p.lifetimeSeconds().getAsDouble();
         if (lifetime <= 0D) {
             lifetime = AbstractDanmakuProjectile.MAX_LIFETIME_TICKS / 20D;
         }
+        double travel = p.travelDistance().getAsDouble();
         out.add(line("tooltip.gensokyou.core_pellets", String.valueOf(pellets)));
         if (pellets > 1) {
             out.add(line("tooltip.gensokyou.core_spread", fmt(p.spreadAngleDeg().getAsDouble())));
         }
         out.add(line("tooltip.gensokyou.core_projectile_speed", fmt(speed)));
         out.add(line("tooltip.gensokyou.core_lifetime", fmt(lifetime)));
-        out.add(line("tooltip.gensokyou.core_effective_range", fmt(speed * lifetime)));
+        if (travel > 0D) {
+            out.add(line("tooltip.gensokyou.core_travel_distance", fmt(travel)));
+        }
+        // 有效射程 = min(弹速 × 存活 tick 数, 运行距离)。
+        // 弹速单位是「格 / tick」，故须乘存活 tick 数（= 存活秒数 × 20）；
+        // 少乘那 20 会把射程少报 20 倍（散弹玉会显示成 0.64 格，实为 12.8 格）。
+        double range = Math.min(speed * lifetime * 20D,
+                travel > 0D ? travel : Double.MAX_VALUE);
+        out.add(line("tooltip.gensokyou.core_effective_range", fmt(range)));
         if (!compact) {
             out.add(sep());
         }

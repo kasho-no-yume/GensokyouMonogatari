@@ -48,13 +48,13 @@ public class DanmakuAssemblyBenchScreen extends AbstractContainerScreen<DanmakuA
         // 武器输入槽标注（槽下方）
         graphics.drawString(this.font, Component.translatable("gui.gensokyou.assembly.weapon"),
                 DanmakuAssemblyBenchMenu.WEAPON_SLOT_X, 42, 0xFF6B4A24, false);
-        // 三核槽槽位标注（嵌槽下方）
+        // 三核槽槽位标注（球下方一行：弹核在球心，等级核在球左，增幅核在球右）
         graphics.drawString(this.font, Component.translatable("gui.gensokyou.weapon.slot_bullet"),
-                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[0], 54, 0xFF6B4A24, false);
+                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[0], 55, 0xFF6B4A24, false);
         graphics.drawString(this.font, Component.translatable("gui.gensokyou.weapon.slot_level"),
-                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[1], 54, 0xFF6B4A24, false);
+                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[1], 55, 0xFF6B4A24, false);
         graphics.drawString(this.font, Component.translatable("gui.gensokyou.weapon.slot_amp"),
-                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[2], 54, 0xFF6B4A24, false);
+                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[2], 55, 0xFF6B4A24, false);
     }
 
     /** 不可装入的核叠加半透明灰色遮罩（原版槽位渲染后、悬停物之前执行）。 */

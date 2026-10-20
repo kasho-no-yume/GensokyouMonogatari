@@ -35,13 +35,15 @@
 | textures/item/laevatein.png | TODO | 三叉戟 |
 | textures/item/icicle_fall.png | 已移除（改共享 spellcard_frame/emblem 双层染色） | 海洋之心 |
 | textures/item/ritual_wand.png | TODO | 海洋之心 |
-| textures/item/danmaku_weapon.png | DONE(gen_tex 新绘「灵装发射器·雏」) | 三叉戟 |
+| textures/item/danmaku_weapon.png | DONE(gen_tex 鏂扮粯路鐞冨舰鏍稿績鍥炬爣锛涚墿鍝佹湰浣撹蛋鍔ㄦ€佹覆鏌撳櫒锛屾鍥句粎浣?particle 涓庨潤鎬佸厹搴? | 涓夊弶鎴?|
 | textures/item/core_sphere_single.png | DONE(gen_tex 新绘·绿/单点图标) | 海洋之心 |
 | textures/item/core_sphere_shotgun.png | DONE(gen_tex 新绘·绿/三点图标) | 海洋之心 |
 | textures/item/core_knife.png | DONE(gen_tex 新绘·绿/刀形图标) | 海洋之心 |
 | textures/item/core_talisman.png | DONE(gen_tex 新绘·蓝/符形图标) | 海洋之心 |
 | textures/item/core_laser_gun.png | DONE(gen_tex 新绘·蓝/短管图标) | 海洋之心 |
 | textures/item/core_laser_cannon.png | DONE(gen_tex 新绘·金/十字图标) | 海洋之心 |
+| textures/item/core_qilin.png | TODO | 娴锋磱涔嬪績 |
+| textures/item/core_orb_shell.png | DONE(gen_tex 鏂扮粯路涓€х伆绾靛悜娓愬彉锛屼緵鐞冨３鎸夊搧闃惰壊鏌撹壊) | 娴锋磱涔嬪績 |
 | textures/item/weapon_core_lv1.png | DONE(gen_tex 新绘·六角棱镜绿·1刻痕) | 海洋之心 |
 | textures/item/weapon_core_lv2.png | DONE(gen_tex 新绘·六角棱镜蓝·2刻痕) | 海洋之心 |
 | textures/item/weapon_core_lv3.png | DONE(gen_tex 新绘·六角棱镜金·3刻痕) | 海洋之心 |
@@ -111,6 +113,7 @@
 | textures/entity/laser_cap.png | DONE(gen_tex 新绘·径向渐变圆斑) | 占位纯色块 | 激光弹幕端盖 |
 | textures/entity/talisman_danmaku.png | DONE(gen_tex 新绘·符纸灰度可染色) | 占位纯色块 | 灵符弹幕 |
 | textures/entity/knife_danmaku.png | DONE(gen_tex 新绘·竖刀刀尖朝下) | 占位纯色块 | 飞刀弹幕 |
+| textures/entity/cone_danmaku.png | DONE(gen_tex 鏂扮粯路鐏板害鍥鹃泦锛屽洓鍒楀搴旈敟浣撳洓涓晶闈紝V 鍚戜负灏栫浜啋灏剧鏆? | 鍗犱綅鑹茬悆 | 閿ュ舰寮瑰箷 |
 | textures/entity/sukima.png | DONE(gen_tex 新绘·16×32 眼睑轮廓) | （新资产） | 隙间传送门 BER |
 
 ## 模型占位说明

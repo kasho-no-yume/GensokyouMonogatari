@@ -51,11 +51,25 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
 
     /**
      * 外发光透明度。实际值由档案的 {@code glowAlpha} 给出，见 {@link #LEGACY_GLOW_ALPHA}。
-     *
-     * @deprecated 保留仅为文档参照，勿用于渲染。
      */
     @Deprecated
     protected static final int GLOW_ALPHA = LEGACY_GLOW_ALPHA;
+
+    /**
+     * 近相机淡出：距离小于此值时弹体<b>完全不可见</b>（格）。
+     *
+     * <p>武器弹丸生成在<b>眼睛</b>位置 = 相机位置，故第一帧它就贴在镜头上。
+     * 一发锥形弹幕的视觉宽 0.2 格，在 1 格距离上占屏幕约 1/6；再叠一层加法外发光，
+     * 就是一次整屏白闪——而麟弹是 10 发/秒，等于 <b>10 Hz 频闪</b>。
+     */
+    protected static final float NEAR_FADE_START = 1.0F;
+
+    /**
+     * 近相机淡出：距离大于此值时弹体完全可见（格）。
+     *
+     * <p>2.6 格处 0.2 格的弹约占屏幕 1/12，已经是一条"箭"而不是"糊脸"。
+     */
+    protected static final float NEAR_FADE_END = 2.6F;
 
     protected final ResourceLocation texture;
 
@@ -145,6 +159,31 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
                 Mth.lerp(partialTicks, entity.yOld, entity.getY()),
                 Mth.lerp(partialTicks, entity.zOld, entity.getZ()))
                 .add(entity.renderOffset(partialTicks));
+    }
+
+    /**
+     * 近相机淡出系数：弹体离相机太近时（刚出膛）逐步淡出。
+     *
+     * <p>武器弹丸生成在<b>眼睛</b>位置 = 相机位置，第一帧就在镜头上；一发锥形弹幕
+     * 叠上 1.7 倍的加法外发光就是一次整屏白闪，10 发/秒即 10 Hz 频闪。
+     *
+     * <p>本方法<b>只影响渲染</b>：判定、轨迹、生成点一个都不动，故对玩法与准度零影响。
+     * 第三人称相机在身后数格，天然不触发。
+     *
+     * @return 0（完全不可见）~ 1（完全可见）
+     */
+    protected float nearCameraFade(T entity, float partialTick) {
+        Vec3 camera = net.minecraft.client.Minecraft.getInstance()
+                .gameRenderer.getMainCamera().getPosition();
+        double distSq = camera.distanceToSqr(this.renderPosition(entity, partialTick));
+        if (distSq >= NEAR_FADE_END * NEAR_FADE_END) {
+            return 1.0F;
+        }
+        if (distSq <= NEAR_FADE_START * NEAR_FADE_START) {
+            return 0.0F;
+        }
+        float t = (float) ((Math.sqrt(distSq) - NEAR_FADE_START) / (NEAR_FADE_END - NEAR_FADE_START));
+        return t * t * (3.0F - 2.0F * t);
     }
 
     /**

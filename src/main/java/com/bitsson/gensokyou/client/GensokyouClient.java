@@ -13,6 +13,7 @@ import com.bitsson.gensokyou.client.renderer.RitualPedestalRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualCoreRenderer;
 import com.bitsson.gensokyou.client.renderer.SphereDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.KnifeDanmakuRenderer;
+import com.bitsson.gensokyou.client.renderer.ConeDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.TalismanDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.LaserDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.SukimaPortalRenderer;
@@ -55,14 +56,28 @@ public final class GensokyouClient {
                 net.minecraft.client.renderer.RenderType.cutout()));
     }
 
+    /**
+     * 千机核心的动态物品渲染器。
+     *
+     * <p>走 {@link RegisterClientExtensionsEvent} 而不是覆写 {@code Item#initializeClient}
+     * ——后者在 1.21 起已标记为待移除（{@code @Deprecated(forRemoval = true)}）。
+     */
     @SubscribeEvent
-    public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
-        event.registerEntityRenderer(ModEntityTypes.DANMAKU.get(),
+    public static void onRegisterClientExtensions(
+            net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent event) {
+        event.registerItem(com.bitsson.gensokyou.client.renderer.CoreOrbItemExtensions.INSTANCE,
+                com.bitsson.gensokyou.registry.ModItems.DANMAKU_WEAPON.get());
+    }
+
+    @SubscribeEvent
+    public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {        event.registerEntityRenderer(ModEntityTypes.DANMAKU.get(),
                 context -> new BillboardRenderer<>(context, 0.4F, GensokyouTextures.DANMAKU));
         event.registerEntityRenderer(ModEntityTypes.SPHERE_DANMAKU.get(),
                 SphereDanmakuRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.KNIFE_DANMAKU.get(),
                 KnifeDanmakuRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.CONE_DANMAKU.get(),
+                ConeDanmakuRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.TALISMAN_DANMAKU.get(),
                 TalismanDanmakuRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.LASER_DANMAKU.get(),

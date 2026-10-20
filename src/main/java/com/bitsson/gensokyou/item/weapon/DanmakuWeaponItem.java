@@ -63,12 +63,18 @@ public class DanmakuWeaponItem extends Item {
      * 否则两处会各自漂移。紧凑模式省略分隔线 —— 打开武器 GUI 手续繁琐，这里是唯一能
      * 快速确认装配结果的地方，MUST NOT 因为"字段太多"就只挑几项显示。
      */
+    /**
+     * 弹幕核：报<b>核名</b>（麟弹 / 单发玉 / 飞刀 / …）。
+     *
+     * <p>此前这里报的是弹幕种类（球形 / 刀刃 / 锥形 …）——那是内部分类，玩家看不懂
+     * "锥形"是哪颗核。核名才是玩家认得的东西。
+     */
     private static void appendBulletCoreLine(List<Component> tooltip, ItemStack core) {
         if (core.isEmpty() || !(core.getItem() instanceof BulletCoreItem bullet)) {
             return;
         }
         tooltip.add(Component.translatable("tooltip.gensokyou.weapon_danmaku_kind",
-                        Component.translatable(bullet.pattern().kind().langKey()))
+                        bullet.shortName())
                 .withStyle(ChatFormatting.GRAY));
         int tier = bullet.stats().requiredTier().getAsInt();
         if (tier > 0) {

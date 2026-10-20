@@ -110,9 +110,16 @@ public final class WeaponFiring {
         int count = Math.max(1, pattern.count().getAsInt());
         double spread = pattern.spreadAngleDeg().getAsDouble();
         double speed = pattern.projectileSpeed().getAsDouble();
-        // range_pct 的语义是"弹道有效距离"：对投射物即存活时间（射程 = 弹速 × 存活时间）
+        // range_pct 的语义是"弹道有效距离"：对投射物即存活时间与运行距离（射程 = 弹速 × 存活 tick 数）。
+        // 两个上限都乘同一个指数衰减倍率，保证"有效射程"这一可见数值的两个上限同步缩放。
         double lifetimeSeconds = pattern.lifetimeSeconds().getAsDouble() * rangeMultiplier;
-        int lifetime = lifetimeSeconds > 0D ? (int) Math.round(lifetimeSeconds * 20.0D) : 0;
+        double travelDistance = pattern.travelDistance().getAsDouble() * rangeMultiplier;
+        // 存活上限：未设寿命时沿用弹幕实体的全局兜底寿命（MAX_LIFETIME_TICKS = 1200 tick = 60 秒）。
+        int lifetimeTicks = lifetimeSeconds > 0D
+                ? (int) Math.round(lifetimeSeconds * 20.0D)
+                : AbstractDanmakuProjectile.MAX_LIFETIME_TICKS;
+        // 运行距离与存活时间取先到者。单位：弹速是「格 / tick」，故换算得 tick。
+        int effectiveTicks = CoreMath.effectiveLifetimeTicks(lifetimeTicks, travelDistance, speed);
         for (int i = 0; i < count; i++) {
             double offset = count <= 1 ? 0D
                     : Math.toRadians(spread * (i - (count - 1) / 2.0D) / (count - 1));
@@ -121,9 +128,7 @@ public final class WeaponFiring {
             projectile.setCritMult(critMult);
             projectile.setFromWeapon(true);
             aimFromEye(projectile, player);
-            if (lifetime > 0) {
-                projectile.setLifetimeTicks(lifetime);
-            }
+            projectile.setLifetimeTicks(effectiveTicks);
             projectile.shoot(direction.x, direction.y, direction.z, (float) speed, 0F);
             level.addFreshEntity(projectile);
         }

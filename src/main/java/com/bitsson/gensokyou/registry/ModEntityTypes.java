@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.registry;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.entity.BigFairyEntity;
 import com.bitsson.gensokyou.entity.CirnoEntity;
+import com.bitsson.gensokyou.entity.ConeDanmaku;
 import com.bitsson.gensokyou.entity.DanmakuProjectile;
 import com.bitsson.gensokyou.entity.FairyEntity;
 import com.bitsson.gensokyou.entity.FakeFlandreEntity;
@@ -75,6 +76,23 @@ public final class ModEntityTypes {
                     .updateInterval(DANMAKU_UPDATE_INTERVAL)
                     .fireImmune()
                     .build("knife_danmaku"));
+
+    /**
+     * 锥形弹幕：3D 建模的箭矢弹体，尖端恒指速度方向。
+     *
+     * <p><b>判定箱尺寸 0.32 而视觉总宽只有 0.2</b>——这两个是<b>各自独立的参数</b>，
+     * 不是同一个值。共用同一个值会让细长弹体在 BOSS 面前"看着擦过却没伤害"
+     * （0.2 宽的判定箱基本打不中移动目标）。视觉宽度见
+     * {@code ConeDanmakuRenderer} 的几何常量。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<ConeDanmaku>> CONE_DANMAKU =
+            ENTITY_TYPES.register("cone_danmaku", () -> EntityType.Builder
+                    .<ConeDanmaku>of(ConeDanmaku::new, MobCategory.MISC)
+                    .sized(0.32F, 0.32F)
+                    .clientTrackingRange(DANMAKU_TRACKING_RANGE)
+                    .updateInterval(DANMAKU_UPDATE_INTERVAL)
+                    .fireImmune()
+                    .build("cone_danmaku"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<TalismanDanmaku>> TALISMAN_DANMAKU =
             ENTITY_TYPES.register("talisman_danmaku", () -> EntityType.Builder

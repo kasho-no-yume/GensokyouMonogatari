@@ -134,9 +134,29 @@ TEXES = {
         ".i..............",
         "................",
     ],
+    # 麟弹核：锥形（箭矢）——尖端朝右，与锥形弹幕同形象
+    "item/core_qilin": [
+        "................",
+        "..........hhh...",
+        ".........hWWWm..",
+        "........hWWWmm..",
+        ".......hWWWmmm..",
+        "......hWWWmmmm..",
+        ".....hWWWmmmmm..",
+        "....hWWWmmmmmm..",
+        "...hWWWmmmmmmm..",
+        "..hWWWmmmmmmd...",
+        "..hWWmmmmmdd....",
+        "..hWWmmmd.......",
+        "i..hWWmd........",
+        "ii.hWWmd........",
+        "i..hWd..........",
+        "................",
+    ],
 }
 
 for _name in list(TEXES):
     _tier = {"sphere_single": 1, "sphere_shotgun": 1, "knife": 1,
-             "talisman": 2, "laser_gun": 2, "laser_cannon": 3}[_name.split("core_")[1]]
+             "talisman": 2, "laser_gun": 2, "laser_cannon": 3,
+             "qilin": 1}[_name.split("core_")[1]]
     globals()["PAL_" + _name.replace("/", "_")] = _pal(_tier)

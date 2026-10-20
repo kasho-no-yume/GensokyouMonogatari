@@ -743,17 +743,46 @@ public final class BalanceNumbers {
     /** 由原 COMMON 配置迁移（键名 FX_SEII_PILLAR_HEIGHT）。 */
     public static final Integer FX_SEII_PILLAR_HEIGHT = 6;
     /** 由原 COMMON 配置迁移（键名 CORE_SPHERE_MULT）。 */
-    public static final Double CORE_SPHERE_MULT = 1.0D;
+    public static final Double CORE_SPHERE_MULT = 2.0D;
     /** 由原 COMMON 配置迁移（键名 CORE_SPHERE_SP_COST）。 */
-    public static final Integer CORE_SPHERE_SP_COST = 2;
+    public static final Integer CORE_SPHERE_SP_COST = 5;
     /** 由原 COMMON 配置迁移（键名 CORE_SPHERE_RATE）。 */
     public static final Integer CORE_SPHERE_RATE = 8;
     /** 由原 COMMON 配置迁移（键名 CORE_SPHERE_REQ_TIER）。 */
     public static final Integer CORE_SPHERE_REQ_TIER = 1;
+
+    /** 球核弹速（格 / tick）。球核的弹速是"格 / tick"，不是"格 / 秒"。 */
+    public static final Double CORE_SPHERE_SPEED = 0.9D;
+
+    /** 单发玉弹体直径（格）——球核基准 0.4 的 2 倍。 */
+    public static final Double CORE_SPHERE_SIZE = 0.8D;
+
+    // ---- 麟弹核（锥形弹幕，阶 1 最初始核）----
+    //
+    // 麟弹是"扫射"形态：10 发/秒、每发 1 灵力、弹速 40 格/秒。
+    // 它的射程由「运行距离」而非存活时间收束——40 格 ÷ 2.0 格/tick
+    // = 20 tick = 1 秒，故满池 1000 灵力正好打满 1000 发（与同阶击杀需求一致）。
+
+    public static final Double CORE_QILIN_MULT = 0.40D;
+
+    public static final Integer CORE_QILIN_SP_COST = 1;
+
+    public static final Integer CORE_QILIN_RATE = 2;
+
+    public static final Integer CORE_QILIN_REQ_TIER = 1;
+
+    /** 麟弹弹速（格 / tick）= 40 格 / 秒。 */
+    public static final Double CORE_QILIN_SPEED = 2.0D;
+
+    /** 麟弹运行距离上限（格）。与存活时间取先到者。 */
+    public static final Double CORE_QILIN_TRAVEL = 40.0D;
+
+    /** 麟弹视觉总宽（格）。判定箱另按 0.32 格注册（与视觉解耦）。 */
+    public static final Double CORE_QILIN_SIZE = 0.2D;
     /** 由原 COMMON 配置迁移（键名 CORE_SHOTGUN_MULT）。 */
-    public static final Double CORE_SHOTGUN_MULT = 0.45D;
+    public static final Double CORE_SHOTGUN_MULT = 0.84D;
     /** 由原 COMMON 配置迁移（键名 CORE_SHOTGUN_SP_COST）。 */
-    public static final Integer CORE_SHOTGUN_SP_COST = 4;
+    public static final Integer CORE_SHOTGUN_SP_COST = 8;
     /** 由原 COMMON 配置迁移（键名 CORE_SHOTGUN_RATE）。 */
     public static final Integer CORE_SHOTGUN_RATE = 24;
     /** 由原 COMMON 配置迁移（键名 CORE_SHOTGUN_REQ_TIER）。 */
@@ -766,10 +795,13 @@ public final class BalanceNumbers {
     public static final Double CORE_SHOTGUN_SPEED = 0.8D;
     /** 由原 COMMON 配置迁移（键名 CORE_SHOTGUN_LIFETIME）。 */
     public static final Double CORE_SHOTGUN_LIFETIME = 0.8D;
+
+    /** 散弹玉弹体直径（格）。 */
+    public static final Double CORE_SHOTGUN_SIZE = 0.3D;
     /** 由原 COMMON 配置迁移（键名 CORE_KNIFE_MULT）。 */
-    public static final Double CORE_KNIFE_MULT = 1.4D;
+    public static final Double CORE_KNIFE_MULT = 2.10D;
     /** 由原 COMMON 配置迁移（键名 CORE_KNIFE_SP_COST）。 */
-    public static final Integer CORE_KNIFE_SP_COST = 3;
+    public static final Integer CORE_KNIFE_SP_COST = 5;
     /** 由原 COMMON 配置迁移（键名 CORE_KNIFE_RATE）。 */
     public static final Integer CORE_KNIFE_RATE = 12;
     /** 由原 COMMON 配置迁移（键名 CORE_KNIFE_REQ_TIER）。 */
@@ -779,9 +811,9 @@ public final class BalanceNumbers {
     /** 由原 COMMON 配置迁移（键名 KNIFE_STICK_TICKS）。 */
     public static final Integer KNIFE_STICK_TICKS = 100;
     /** 由原 COMMON 配置迁移（键名 CORE_TALISMAN_MULT）。 */
-    public static final Double CORE_TALISMAN_MULT = 1.2D;
+    public static final Double CORE_TALISMAN_MULT = 4.40D;
     /** 由原 COMMON 配置迁移（键名 CORE_TALISMAN_SP_COST）。 */
-    public static final Integer CORE_TALISMAN_SP_COST = 120;
+    public static final Integer CORE_TALISMAN_SP_COST = 440;
     /** 由原 COMMON 配置迁移（键名 CORE_TALISMAN_RATE）。 */
     public static final Integer CORE_TALISMAN_RATE = 16;
     /** 由原 COMMON 配置迁移（键名 CORE_TALISMAN_REQ_TIER）。 */
@@ -791,9 +823,9 @@ public final class BalanceNumbers {
     /** 由原 COMMON 配置迁移（键名 CORE_TALISMAN_SENSITIVITY）。 */
     public static final Double CORE_TALISMAN_SENSITIVITY = 90D;
     /** 由原 COMMON 配置迁移（键名 CORE_LASER_GUN_MULT）。 */
-    public static final Double CORE_LASER_GUN_MULT = 0.5D;
+    public static final Double CORE_LASER_GUN_MULT = 1.40D;
     /** 由原 COMMON 配置迁移（键名 CORE_LASER_GUN_SP_COST）。 */
-    public static final Integer CORE_LASER_GUN_SP_COST = 50;
+    public static final Integer CORE_LASER_GUN_SP_COST = 140;
     /** 由原 COMMON 配置迁移（键名 CORE_LASER_GUN_RATE）。 */
     public static final Integer CORE_LASER_GUN_RATE = 10;
     /** 由原 COMMON 配置迁移（键名 CORE_LASER_GUN_REQ_TIER）。 */
@@ -807,9 +839,9 @@ public final class BalanceNumbers {
     /** 由原 COMMON 配置迁移（键名 CORE_LASER_GUN_DURATION）。 */
     public static final Double CORE_LASER_GUN_DURATION = 0.5D;
     /** 由原 COMMON 配置迁移（键名 CORE_LASER_CANNON_MULT）。 */
-    public static final Double CORE_LASER_CANNON_MULT = 0.5D;
+    public static final Double CORE_LASER_CANNON_MULT = 2.00D;
     /** 由原 COMMON 配置迁移（键名 CORE_LASER_CANNON_SP_COST）。 */
-    public static final Integer CORE_LASER_CANNON_SP_COST = 2500;
+    public static final Integer CORE_LASER_CANNON_SP_COST = 10000;
     /** 由原 COMMON 配置迁移（键名 CORE_LASER_CANNON_RATE）。 */
     public static final Integer CORE_LASER_CANNON_RATE = 60;
     /** 由原 COMMON 配置迁移（键名 CORE_LASER_CANNON_REQ_TIER）。 */

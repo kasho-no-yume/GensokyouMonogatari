@@ -107,7 +107,7 @@
       "result": { "item": "gensokyou:danmaku_weapon", "count": 1 }
     },
     {
-      "name": "zaohua_core_sphere_single",
+      "name": "zaohua_core_qilin",
       "mode": "activation",
       "match": "max",
       "minTier": 1,
@@ -117,6 +117,21 @@
         { "item": "minecraft:quartz", "count": 2 },
         { "item": "minecraft:amethyst_shard", "count": 2 },
         { "item": "gensokyou:ppoint", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:core_qilin", "count": 1 }
+    },
+    {
+      "name": "zaohua_core_sphere_single",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 1,
+      "spCost": 20000,
+      "ingredients": [
+        { "item": "gensokyou:refined_cinnabar", "count": 4 },
+        { "item": "minecraft:amethyst_shard", "count": 4 },
+        { "item": "minecraft:quartz", "count": 4 },
+        { "item": "gensokyou:ppoint", "count": 2 },
+        { "item": "gensokyou:spirit_iron", "count": 1 }
       ],
       "result": { "item": "gensokyou:core_sphere_single", "count": 1 }
     },
