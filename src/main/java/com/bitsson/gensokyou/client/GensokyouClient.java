@@ -12,6 +12,7 @@ import com.bitsson.gensokyou.client.renderer.SkinMobRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualPedestalRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualCoreRenderer;
 import com.bitsson.gensokyou.client.renderer.SphereDanmakuRenderer;
+import com.bitsson.gensokyou.client.renderer.DanmakuBulletTextures;
 import com.bitsson.gensokyou.client.renderer.KnifeDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.ConeDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.TalismanDanmakuRenderer;
@@ -170,6 +171,43 @@ public final class GensokyouClient {
     public static void onLoggingOut(
             net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
         ClientBoundSupplyState.clear();
+    }
+
+    /**
+     * 客户端命令：{@code /gs_bullet texture lod|glow}——热切换球弹贴图变体。
+     *
+     * <p><b>为什么是客户端命令</b>：贴图变体是纯客户端表现状态，服务端不知道也不该知道。
+     * 走 {@link net.neoforged.neoforge.client.event.RegisterClientCommandsEvent} 才能在
+     * 多人下正确地只改本地。
+     *
+     * <p><b>为什么要有这个命令</b>：新旧观感的对照压测必须在<b>同一构建、同一二进制</b>内进行
+     * ——换构建会把「贴图差异」与「代码差异」混在一起，热切换则两臂只有贴图不同。
+     *
+     * <p>用独立根 {@code gs_bullet} 而不是 {@code danmaku}：{@code /danmaku} 是服务端命令树，
+     * 客户端再注册一棵同名树会遮蔽服务端子命令（单人游戏里服务端树也在本地可用）。
+     */
+    @SubscribeEvent
+    public static void onRegisterClientCommands(
+            net.neoforged.neoforge.client.event.RegisterClientCommandsEvent event) {
+        event.getDispatcher().register(
+                net.minecraft.commands.Commands.literal("gs_bullet")
+                        .then(net.minecraft.commands.Commands.literal("texture")
+                                .then(net.minecraft.commands.Commands.literal("lod")
+                                        .executes(ctx -> setBulletTexture(ctx.getSource(),
+                                                DanmakuBulletTextures.Variant.LOD)))
+                                .then(net.minecraft.commands.Commands.literal("glow")
+                                        .executes(ctx -> setBulletTexture(ctx.getSource(),
+                                                DanmakuBulletTextures.Variant.GLOW)))));
+    }
+
+    /** 切换球弹贴图变体并回报当前选择。 */
+    private static int setBulletTexture(net.minecraft.commands.CommandSourceStack source,
+                                        DanmakuBulletTextures.Variant variant) {
+        DanmakuBulletTextures.setCurrent(variant);
+        source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
+                "§7球弹贴图变体 = §f" + variant.name()
+                        + "§7（实体路径与程序路径同时生效）"), false);
+        return 1;
     }
 
     @SubscribeEvent

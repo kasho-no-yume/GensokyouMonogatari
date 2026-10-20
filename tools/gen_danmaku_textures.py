@@ -44,6 +44,77 @@ def make_sphere(size=64):
             px[x, y] = (v, v, v, alpha)
     return img
 
+
+def make_sphere_glow(size=128):
+    """128×128 去色径向图：**实心核 + 分离环 + 收窄外晕**，单张贴图承载全部观感。
+
+    这是「本体与外辉光由同一张贴图承载、单 pass 渲染」的资产。半径 `d` 以
+    **半宽**为 1（故核的直径 = 0.50 × quad 宽度）。
+
+    alpha 剖面（分段，边界处连续）：
+
+        d ≤ 0.50            255          实心核
+        0.50 ~ 0.56         255 → 0      核的柔边
+        0.56 ~ 0.58         0            窄缝（让环与核分开）
+        0.58 ~ 0.66         0 → 215      环的内缘
+        0.66 ~ 0.72         215 → 0      环的外缘
+        0.72 ~ 0.80         0 → 48       外晕内缘
+        0.80 ~ 0.86         48 → 0       外晕外缘
+
+    **为什么是「核 + 环」而不是一坨渐变**：顶点色只能乘不能加（见 design.md D5），
+    贴图里做不出比本体更亮的环；而**分离的环**是唯一能在单层里做出
+    「球旁边有一圈」的办法。核给足 50% 宽 ⇒ 读作"一颗有环的球"，
+    而不是旧 LOD 贴图那种"小核 + 硬边粗环"的甜甜圈。
+
+    **不透明面积只占 ~36%**：核 20% + 环 57% + 晕 17%（占 quad 面积）——
+    窄缝让大片片元被原版着色器的 `discard` 丢掉，帧缓冲读改写次数因此**低于**
+    整张实心的版本。
+
+    RGB 恒白：全部色相由顶点色给出，资源包替换不得带色。
+    """
+    core_end = 0.50           # 实心核半径占比
+    core_soft = 0.56          # 核的柔边终点
+    ring_in = 0.58            # 环的内缘
+    ring_peak = 0.66          # 环的峰值半径
+    ring_end = 0.72           # 环的外缘
+    glow_peak_a = 48          # 外晕峰值 alpha
+    glow_peak_r = 0.80        # 外晕峰值半径
+    glow_end = 0.86           # 外晕外缘
+    rim_darken = 26           # 核边缘亮度衰减量（给球体一点层次）
+    img = Image.new("RGBA", (size, size))
+    px = img.load()
+    c = size / 2.0
+
+    def smooth(t):
+        t = max(0.0, min(1.0, t))
+        return t * t * (3.0 - 2.0 * t)
+
+    for y in range(size):
+        for x in range(size):
+            d = math.hypot(x + 0.5 - c, y + 0.5 - c) / c
+            if d >= 1.0:
+                px[x, y] = (255, 255, 255, 0)
+                continue
+            if d <= core_end:
+                alpha = 255.0
+            elif d <= core_soft:
+                alpha = 255.0 * (1.0 - smooth((d - core_end) / (core_soft - core_end)))
+            elif d < ring_in:
+                alpha = 0.0
+            elif d <= ring_peak:
+                alpha = 215.0 * smooth((d - ring_in) / (ring_peak - ring_in))
+            elif d <= ring_end:
+                alpha = 215.0 * (1.0 - smooth((d - ring_peak) / (ring_end - ring_peak)))
+            elif d <= glow_peak_r:
+                alpha = glow_peak_a * smooth((d - ring_end) / (glow_peak_r - ring_end))
+            elif d <= glow_end:
+                alpha = glow_peak_a * (1.0 - smooth((d - glow_peak_r) / (glow_end - glow_peak_r)))
+            else:
+                alpha = 0.0
+            v = round(255 - rim_darken * min(d / core_end, 1.0))
+            px[x, y] = (v, v, v, int(round(alpha)))
+    return img
+
 # ---------------------------------------------------------------- 符纸
 
 def make_talisman(size=64, ss=4):
@@ -133,6 +204,7 @@ def main():
     write_assets = "--write-assets" in sys.argv
     images = {
         "sphere_danmaku.png": make_sphere(),
+        "sphere_danmaku_glow.png": make_sphere_glow(),
         "talisman_danmaku.png": make_talisman(),
         "laser_magic_circle.png": make_magic_circle(),
     }

@@ -65,8 +65,11 @@ public final class DanmakuTestCommands {
                                         IntegerArgumentType.getInteger(context, "color")))))
 
                 // /danmaku wall <数量> [周期tick] [占空比] - 相位隐藏弹幕墙
+                //
+                // 数量上限 6000：本夹具走 addFreshEntity 直连、**不经** DanmakuEmitter，
+                // 故不受服务端弹幕实体上限（DANMAKU_ENTITY_CAP）节流——上限是命令参数本身的。
                 .then(Commands.literal("wall")
-                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 2000))
+                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 6000))
                                 .executes(context -> spawnWall(
                                         context.getSource().getPlayerOrException(),
                                         IntegerArgumentType.getInteger(context, "count"), 40, 0.5D))
@@ -148,6 +151,29 @@ public final class DanmakuTestCommands {
                                 .executes(context -> setLayer(context.getSource(), "core")))
                         .then(Commands.literal("all")
                                 .executes(context -> setLayer(context.getSource(), "all"))))
+
+                // /danmaku screen <数量> [距离] [间距] - 静止的「正对相机」弹墙（填充率压测夹具）
+                //
+                // 与 /danmaku wall 的分工：wall 是**瞬态**的（弹以固定速度推进、撞到玩家即销毁、
+                // 寿命仅 40 s），既撑不住 180 s 采样窗口，弹数与**屏上弹数**也不是线性关系
+                // （网格铺在眼睛高度的水平面上，越远越稀）。screen 把弹摆在**垂直于视线**的
+                // 竖直平面上 ⇒ 视锥内弹数可由「距离 / 间距 / 视锥尺寸」直接算出。
+                .then(Commands.literal("screen")
+                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 6000))
+                                .executes(context -> spawnScreen(
+                                        context.getSource().getPlayerOrException(),
+                                        IntegerArgumentType.getInteger(context, "count"), 8.0D, 0.8D))
+                                .then(Commands.argument("distance", DoubleArgumentType.doubleArg(1.0D, 32.0D))
+                                        .executes(context -> spawnScreen(
+                                                context.getSource().getPlayerOrException(),
+                                                IntegerArgumentType.getInteger(context, "count"),
+                                                DoubleArgumentType.getDouble(context, "distance"), 0.8D))
+                                        .then(Commands.argument("spacing", DoubleArgumentType.doubleArg(0.1D, 4.0D))
+                                                .executes(context -> spawnScreen(
+                                                        context.getSource().getPlayerOrException(),
+                                                        IntegerArgumentType.getInteger(context, "count"),
+                                                        DoubleArgumentType.getDouble(context, "distance"),
+                                                        DoubleArgumentType.getDouble(context, "spacing")))))))
 
                 // /danmaku ring [数量] - 环形弹幕测试
                 .then(Commands.literal("ring")
@@ -671,6 +697,60 @@ public final class DanmakuTestCommands {
         source.sendSuccess(() -> Component.literal(
                 "§b[GS-DANMAKU] 剖针层: " + DanmakuRenderProbe.summary()), false);
         return 1;
+    }
+
+    /**
+     * 静止的「正对相机」弹墙：<b>填充率压测夹具</b>。
+     *
+     * <p>与 {@code spawnWall} 的分工：
+     * <ul>
+     *   <li>wall 是<b>瞬态</b>的：弹以固定速度推进、撞到玩家即销毁、寿命仅 40 s，
+     *       既撑不住 30 s 暖机 + 180 s 采样窗口，弹数与<b>屏上弹数</b>也不是线性关系
+     *       （网格铺在眼睛高度的水平面上，越远越稀）。</li>
+     *   <li>screen 把弹摆在<b>垂直于视线</b>的竖直平面上 ⇒ 视锥内弹数可由
+     *       「数量 / 距离 / 间距 / 视锥尺寸」<b>直接算出</b>，是可控变量。</li>
+     * </ul>
+     *
+     * <p>弹为<b>静止、无害</b>（伤害 0）、不受重力、寿命 6000 tick（5 min，
+     * 覆盖 210 s 采样窗口）。距离控制单弹屏幕尺寸（填充率主因），
+     * 间距控制重叠度（间距 &lt; 弹径 ⇒ 大量重叠 ⇒ 最坏填充）。
+     *
+     * <p>球弹直径固定 0.35 格——与 wall 一致，便于两夹具互校。
+     */
+    private static int spawnScreen(ServerPlayer player, int count, double distance, double spacing) {
+        Vec3 origin = player.getEyePosition();
+        Vec3 look = player.getLookAngle();
+        // 水平右向：look 与世界上方向的叉积（网格对称，符号不影响结果）
+        Vec3 right = new Vec3(-look.z, 0.0D, look.x);
+        if (right.lengthSqr() < 1.0E-9D) {
+            right = new Vec3(1.0D, 0.0D, 0.0D);
+        }
+        right = right.normalize();
+        Vec3 up = new Vec3(0.0D, 1.0D, 0.0D);
+        Vec3 center = origin.add(look.scale(distance));
+        int side = (int) Math.ceil(Math.sqrt(count));
+        for (int i = 0; i < count; i++) {
+            int gx = i % side;
+            int gy = i / side;
+            Vec3 at = center
+                    .add(right.scale((gx - (side - 1) / 2.0) * spacing))
+                    .add(up.scale((gy - (side - 1) / 2.0) * spacing));
+            SphereDanmaku bullet = new SphereDanmaku(
+                    player.level(), null, 0.0F, 0, 0.35F, new HashSet<>());
+            bullet.moveTo(at.x, at.y, at.z, 0.0F, 0.0F);
+            // 静止：不给方向、速度清零、无重力 ⇒ 每 tick 位移恒为 0
+            bullet.setNoGravity(true);
+            bullet.setDeltaMovement(Vec3.ZERO);
+            bullet.setLifetimeTicks(6000);
+            player.level().addFreshEntity(bullet);
+        }
+        DanmakuBudget.recordEmit();
+        player.sendSystemMessage(Component.literal(String.format(
+                "§c静止弹墙 §7%d 发（%d×%d 网格，距离 %.1f 格，间距 %.2f 格，静止无害）",
+                count, side, side, distance, spacing)));
+        player.sendSystemMessage(Component.literal(
+                "§7视锥内弹数可由「距离 / 间距 / 视锥尺寸」算出；用于新旧贴图的填充率对照压测"));
+        return count;
     }
 
     /**

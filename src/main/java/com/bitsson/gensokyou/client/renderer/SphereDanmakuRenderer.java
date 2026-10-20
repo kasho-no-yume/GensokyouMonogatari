@@ -1,6 +1,5 @@
 package com.bitsson.gensokyou.client.renderer;
 
-import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.danmaku.render.DanmakuRenderProbe;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuColorMode;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuGeometry;
@@ -12,29 +11,29 @@ import com.mojang.math.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.resources.ResourceLocation;
 
 /**
  * 球型弹幕渲染器。
  *
- * <p>三层结构与改前完全相同，<b>但每一层的参数都改为由视觉档案给出</b>：
- * 核心缩放 / 核心 alpha / 发光倍率 / 发光 alpha 此前是本类与
- * {@code AbstractDanmakuRenderer} 里的 {@code static final}，全模组唯一，
- * 既不可按档案区分、也不可在运行期调整。
+ * <p><b>四边形几何：恒为单次绘制</b>（单 quad / 单 pass / 单 draw call）。
+ * 本体与外辉光由<b>同一张贴图</b>承载（见 {@link DanmakuBulletTextures}），
+ * 不再渲染独立的外发光层与亮核层。
  *
- * <p>三层由远及近严格排序，且分属三个不同 {@code RenderType}：
- * <ol>
- *   <li><b>本体</b>——{@code translucentDepth}（alpha 混合 + 写深度）</li>
- *   <li><b>外发光</b>——{@code additiveSolid}（加法混合 + 写深度，1.35× 默认）</li>
- *   <li><b>亮核</b>——{@code decorativeRenderType()}（加法混合 + <b>不写深度</b>，0.55× 默认）</li>
- * </ol>
+ * <p><b>为什么</b>：三层结构（本体 / 外发光 1.35× / 亮核 0.55×）的成本是
+ * <b>填率随层数线性增长</b>，不是 draw call 数量问题。历史实测结论是
+ * "Double additive 未排序后单体负载仍不可控，只能靠减遍数"，
+ * 且 "不做 GPU instancing：fragment/过绘的主因仍在"。
+ * 于是旧路径把「本体」与「辉光」一起换成了"halo 烧进贴图"的单层——
+ * 而那张贴图把球换成了一个<b>环</b>（实心核只有 43.75% 宽，核外是透明环缝 +
+ * 三档硬边台阶）。本渲染器把球与光<b>一起</b>拿回来，且仍然只有一层。
  *
- * <p>亮核 MUST 用不写深度的类型，原因见上两条链接处的注释（写深度的加法混合会进入
- * 同一批 MeshData 并被 {@code sortQuads} 按质心距离重排，靠后那层会被整片拒掉）。
+ * <p><b>模型类几何</b>（五角星柱 {@code STAR_PRISM}）不在单通约束内：
+ * 它沿用既有的分层实现（外发光 / 亮核），其发光半径由档案给出。
  *
- * <p>隐藏态时本体层与发光层 MUST 一并切到不写深度的类型——只降 alpha 是不够的：
- * 写深度的半透明弹即使半透明也会把身后的弹挖出方洞，密集弹幕墙隐藏时呈现为黑方块。
- * 亮核层本就不写深度，无需切换。
+ * <p><b>深度</b>：本体层用写深度的常规 alpha 混合（渐变贴图的柔边必须真混合才能表现，
+ * cutout 会把抗锯齿边缘切成锯齿；写深度则保证后画的半透明地形（水）与云层
+ * 被本体正确遮挡）。外辉光与本体在同一张贴图里 ⇒ <b>一并写深度</b>，
+ * 被弹挖掉的是<b>软圆轮廓</b>（alpha ≥ 0.1 的等值线），不是方块。
  */
 public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku> {
 
@@ -44,15 +43,13 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
      */
     private static final float LEGACY_CORE_SCALE = 0.55F;
 
-    /** 密集模式 LOD texture：halo + core 烧入单张，只走 body。 */
-    private static final ResourceLocation LOD_TEXTURE = ResourceLocation.fromNamespaceAndPath(
-            Gensokyou.MODID, "textures/entity/sphere_danmaku_lod.png");
-
     /**
      * 亮核层沿 billboard 局部 +Z 的推离量（格）。
      *
      * <p>取 {@link #GLOW_OFFSET} 的两倍，使亮核与外发光也<b>不共面</b>（共面会重现
      * 中心/高光处的间歇性暗条）。外发光在外、本体居中、亮核最内，三层严格由远及近。
+     *
+     * <p><b>仅模型类几何用到</b>；四边形几何的辉光在贴图里，MUST NOT 走这三层。
      */
     private static final float CORE_OFFSET = AbstractDanmakuRenderer.GLOW_OFFSET * 2.0F;
 
@@ -76,10 +73,20 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         return DanmakuRenderTypes.translucentDepth(this.texture);
     }
 
-    /** 密集模式优先烧好 LOD 贴图，避免额外 glow/core 层开销；只有 DEFAULT(=QUAD) 使用。 */
+    /**
+     * 本体层的渲染类型。
+     *
+     * <ul>
+     *   <li><b>四边形几何</b>：走<b>当前球弹贴图变体</b>（{@link DanmakuBulletTextures}），
+     *       并使用<b>线性过滤 + mipmap</b> 的渲染类型——软渐变在最近邻 + 无 mipmap 下
+     *       会碎成方块并持续闪烁。</li>
+     *   <li><b>模型类几何</b>：走档案自己的贴图与常规档（其形体是 3D 柱体，
+     *       不适用球弹的径向贴图）。</li>
+     * </ul>
+     */
     private RenderType bodyRenderType(DanmakuVisualProfile.Profile profile) {
-        if (DanmakuRenderProbe.dense && profile.geometry() == DanmakuGeometry.QUAD) {
-            return DanmakuRenderTypes.translucentDepth(LOD_TEXTURE);
+        if (profile.geometry() == DanmakuGeometry.QUAD) {
+            return DanmakuRenderTypes.translucentDepthFiltered(DanmakuBulletTextures.currentLocation());
         }
         return this.baseRenderType();
     }
@@ -159,7 +166,13 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
 
         // 外发光（默认 1.35×，实体色，加法）沿局部 +Z 推离，与本体不共面。
         // 加法层：alpha 与 RGB 同时压暗，贡献按 dim² 下降。
-        this.renderGlow(entity, poseStack, profile, color, dim, bufferSource);
+        //
+        // **四边形几何 MUST NOT 画这一层**：它的辉光已经在贴图里。再叠一层加法辉光
+        // 等于把填率翻倍（历史实测：双加法未排序后单体负载仍不可控，只能靠减遍数）。
+        // 模型类几何（五角星柱）不在单通约束内，继续走分层实现。
+        if (profile.geometry() != DanmakuGeometry.QUAD) {
+            this.renderGlow(entity, poseStack, profile, color, dim, bufferSource);
+        }
 
         // 亮核（默认 0.55×，纯白，加法）。**必须用不写深度的 decorativeRenderType**：
         // ① 与外发光分属不同 RenderType → getBuffer 换类型即结算上一批，两层不再同批，
@@ -169,7 +182,10 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         //
         // 隐藏态 MUST 一并压暗，且与辉光同理 MUST 同时压暗 RGB：该层是纯白加法片，
         // 是三层里视觉最强的一层。曾只压暗 alpha，结果隐藏态【比常态更亮】。
-        if (profile.hasCore() && DanmakuRenderProbe.effectiveCore()) {
+        //
+        // **四边形几何同辉光层：MUST NOT 画**（辉光与本体都在贴图里）。
+        if (profile.geometry() != DanmakuGeometry.QUAD
+                && profile.hasCore() && DanmakuRenderProbe.effectiveCore()) {
             DanmakuRenderProbe.countCore();
             poseStack.pushPose();
             poseStack.translate(0.0D, 0.0D, CORE_OFFSET);

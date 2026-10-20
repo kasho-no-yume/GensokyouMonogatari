@@ -25,6 +25,7 @@ public final class DanmakuRenderTypes extends RenderStateShard {
     private static final Map<ResourceLocation, RenderType> SOLID_CACHE = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, RenderType> TRANSLUCENT_CACHE = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, RenderType> TRANSLUCENT_DEPTH_CACHE = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, RenderType> TRANSLUCENT_DEPTH_FILTERED_CACHE = new ConcurrentHashMap<>();
 
     private DanmakuRenderTypes() {
         super("gensokyou_shard_stub", () -> { }, () -> { });
@@ -126,6 +127,40 @@ public final class DanmakuRenderTypes extends RenderStateShard {
                 RenderType.CompositeState.builder()
                         .setShaderState(RENDERTYPE_ENTITY_TRANSLUCENT_SHADER)
                         .setTextureState(new TextureStateShard(loc, false, false))
+                        .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
+                        .setWriteMaskState(COLOR_DEPTH_WRITE)
+                        .setCullState(NO_CULL)
+                        .setLightmapState(LIGHTMAP)
+                        .setOverlayState(NO_OVERLAY)
+                        .createCompositeState(false)
+        ));
+    }
+
+    /**
+     * 同 {@link #translucentDepth}（混合 / 写深度 / 排序 / 剔除全部一致），
+     * <b>唯一差异是贴图以线性过滤 + mipmap 采样</b>。
+     *
+     * <p><b>为什么需要这一档</b>：{@link TextureStateShard} 的构造 lambda 会调用
+     * {@code AbstractTexture#setFilter(blur, mipmap)}，而本类其余各档一律传
+     * {@code (false, false)} ⇒ <b>最近邻 + 无 mipmap</b>。这对硬边贴图（像素画）是对的，
+     * 但对<b>连续渐变</b>是灾难：球弹在 10 格外时 quad 仅约 27 px 而贴图 128 px
+     * ⇒ 约 4.7 倍缩小，最近邻会把软晕切成方块并持续闪烁（mipmap 缺失则再叠加走样）。
+     *
+     * <p>本档与 {@link #translucentDepth} 是<b>不同的 RenderType</b>（分属不同批次），
+     * 故同一张贴图若同时被两档引用，MUST NOT 共用——否则 {@code setFilter} 只在
+     * 贴图加载时执行一次，后建者覆盖前者。当前球弹专用图只被本档引用。
+     */
+    public static RenderType translucentDepthFiltered(ResourceLocation texture) {
+        return TRANSLUCENT_DEPTH_FILTERED_CACHE.computeIfAbsent(texture, loc -> RenderType.create(
+                "gensokyou_danmaku_translucent_depth_filtered",
+                DefaultVertexFormat.NEW_ENTITY,
+                VertexFormat.Mode.QUADS,
+                1024,
+                false,  // affectsCrumbling
+                true,   // sortOnUpload：写深度的半透明需按距离远→近排序
+                RenderType.CompositeState.builder()
+                        .setShaderState(RENDERTYPE_ENTITY_TRANSLUCENT_SHADER)
+                        .setTextureState(new TextureStateShard(loc, true, true))
                         .setTransparencyState(TRANSLUCENT_TRANSPARENCY)
                         .setWriteMaskState(COLOR_DEPTH_WRITE)
                         .setCullState(NO_CULL)

@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.client;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.renderer.DanmakuRenderTypes;
 import com.bitsson.gensokyou.client.renderer.DanmakuMeshes;
+import com.bitsson.gensokyou.client.renderer.DanmakuBulletTextures;
 import com.bitsson.gensokyou.client.renderer.LaserDanmakuRenderer;
 import com.bitsson.gensokyou.danmaku.program.gameplay.ProgramVisuals;
 import com.bitsson.gensokyou.danmaku.visual.DanmakuGeometry;
@@ -28,8 +29,7 @@ import java.util.List;
 /** Entity-free client renderer for the program replica projection. */
 @EventBusSubscriber(modid=Gensokyou.MODID,value=Dist.CLIENT)
 public final class ProgramDanmakuRenderer {
-    private static final ResourceLocation SPHERE=ResourceLocation.fromNamespaceAndPath(
-            Gensokyou.MODID,"textures/entity/sphere_danmaku_lod.png");
+    /** 球弹贴图：与实体路径<b>共用</b> {@link DanmakuBulletTextures}，MUST NOT 各自 hardcode。 */
     private static final ResourceLocation LASER=ResourceLocation.fromNamespaceAndPath(
             Gensokyou.MODID,"textures/entity/laser_danmaku.png");
     private static final int LIGHT=0xF000F0;
@@ -56,7 +56,9 @@ public final class ProgramDanmakuRenderer {
         PoseStack pose=event.getPoseStack();
         net.minecraft.world.phys.Vec3 camera=event.getCamera().getPosition();
         MultiBufferSource.BufferSource buffers=minecraft.renderBuffers().bufferSource();
-        RenderType bodyType=DanmakuRenderTypes.translucentDepth(SPHERE);
+        // 球弹本体：与实体路径共用同一贴图变体 + 同一渲染类型（线性过滤 + mipmap，
+        // 写深度）。软渐变在最近邻 + 无 mipmap 下会碎成方块并持续闪烁。
+        RenderType bodyType=DanmakuRenderTypes.translucentDepthFiltered(DanmakuBulletTextures.currentLocation());
         RenderType laserType=DanmakuRenderTypes.additiveSolid(LASER);
         java.util.Set<RenderType> usedTypes=new java.util.HashSet<>();
         pose.pushPose(); pose.translate(-camera.x,-camera.y,-camera.z);
@@ -108,7 +110,7 @@ public final class ProgramDanmakuRenderer {
                     pose.mulPose(minecraft.gameRenderer.getMainCamera().rotation());
                     pose.mulPose(Axis.YP.rotationDegrees(180));
                     float half=(float)(member.style().visualRadius()*profile.visualScale()*member.sizeMultiplier());
-                    // Existing dense sphere texture contains the core and halo in one alpha layer.
+                    // 球弹贴图把本体与外辉光烧在同一张 alpha 层里。
                     // Keep a saturated body color; a second additive copy washes it out.
                     int tint=ProgramVisuals.tint(member.style());
                     int r=channel(tint,16,member.brightness()),g=channel(tint,8,member.brightness()),b=channel(tint,0,member.brightness());
@@ -124,7 +126,8 @@ public final class ProgramDanmakuRenderer {
                 pose.pushPose(); pose.translate(start.x(),start.y(),start.z());
                 align(pose,direction);
                 RenderType warningType=DanmakuRenderTypes.additiveSolid(
-                        plan.collisionProfile() instanceof CollisionProfile.Laser ? LASER : SPHERE);
+                        plan.collisionProfile() instanceof CollisionProfile.Laser ? LASER
+                                : DanmakuBulletTextures.Variant.LOD.location());
                 usedTypes.add(warningType);
                 VertexConsumer warning=buffers.getBuffer(warningType);
                 if (plan.collisionProfile() instanceof CollisionProfile.Laser laser) {
@@ -144,7 +147,6 @@ public final class ProgramDanmakuRenderer {
         buffers.endBatch(bodyType);
         for (RenderType type:usedTypes) if (type!=bodyType) buffers.endBatch(type);
         buffers.endBatch(laserType);
-        buffers.endBatch(DanmakuRenderTypes.additiveGlow(SPHERE));
         buffers.endBatch(DanmakuRenderTypes.additiveGlow(LASER));
         long renderNanos=System.nanoTime()-started;
         RENDER_TIMING.record(renderNanos);
