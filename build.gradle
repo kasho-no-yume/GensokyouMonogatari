@@ -35,6 +35,13 @@ sourceSets.main.resources {
     exclude("data/gensokyou/structure/min_test.nbt") // 零引用设计样例
 }
 
+// 归档边界：游戏内验收测试台（testkit）是 dev-only 设施，SHALL NOT 随 mod jar 分发。
+// jar.exclude 只影响归档，不影响 moddev 挂进运行时 classpath 的 sourceSets.main.output，
+// 故 dev 运行（专用服/客户端）仍能拿到这些类。
+tasks.named('jar', Jar).configure {
+    exclude 'com/bitsson/gensokyou/testkit/**'
+}
+
 repositories {
     maven { url = uri('https://maven.blamejared.com/') }
     // GeckoLib (animation engine) — Cloudsmith.
@@ -251,7 +258,9 @@ tasks.register('verifyNoTestContent') {
     inputs.file(jarProvider)
     doLast {
         def jarPath = jarProvider.get().asFile
-        def forbiddenPrefixes = ['data/gs_test/', 'data/gs_autotest/', 'data/gs_yume/']
+        def forbiddenPrefixes = ['data/gs_test/', 'data/gs_autotest/', 'data/gs_yume/',
+                                 // 游戏内验收测试台（dev-only，src/main/java 但不进 jar）
+                                 'com/bitsson/gensokyou/testkit/']
         def forbiddenExact = [
                 'data/gensokyou/structure/haiden.nbt',
                 'data/gensokyou/structure/min_test.nbt',

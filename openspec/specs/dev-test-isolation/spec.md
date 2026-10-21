@@ -5,17 +5,19 @@ TBD - created by archiving change isolate-ritual-test-harness. Update Purpose af
 ## Requirements
 ### Requirement: 测试产物不得随 mod jar 分发
 mod jar SHALL NOT 包含任何开发测试产物：`data/gs_test/**`、`data/gs_autotest/**`、
-`data/minecraft/tags/function/load.json`（测试包自触发标签），以及**未被登记为可达内容的
+`data/minecraft/tags/function/load.json`（测试包自触发标签），**游戏内验收测试台的 class**
+（`com/bitsson/gensokyou/testkit/**`），以及**未被登记为可达内容的
 原始设计管线结构模板**（如 `data/gensokyou/structure/haiden.nbt`、`min_test.nbt`）。
-`processResources` SHALL 排除这些路径。
+`processResources` SHALL 排除这些路径；测试台 class 另由 jar 归档排除项剔除
+（它位于 `src/main/java`，不经 `processResources`）。
 
 #### Scenario: 打包后 jar 内无测试产物
 - **WHEN** 构建 mod jar 后检视其条目
 - **THEN** 不存在 `gs_test`/`gs_autotest` 命名空间、自触发 `load.json`、`haiden.nbt`、`min_test.nbt`
 
-#### Scenario: 干净世界加载 jar 无副作用
-- **WHEN** 把一个全新世界交给仅含该 jar 的服务器加载
-- **THEN** 聊天栏无 `[GS-TEST]`/`[GS-AUTO]`，世界中不出现自动建造的测试结构
+#### Scenario: 打包后 jar 内无验收测试台 class
+- **WHEN** 构建 mod jar 后检视其条目
+- **THEN** 不存在 `com/bitsson/gensokyou/testkit/` 下的任何条目
 
 ### Requirement: 只有可达内容随 jar 分发
 设计管线结构 SHALL 默认产出到开发目录；结构 SHALL 仅当其被登记为「可达内容」
@@ -56,11 +58,16 @@ mod jar SHALL NOT 包含任何开发测试产物：`data/gs_test/**`、`data/gs_
 
 ### Requirement: 打包期强制守卫
 构建 SHALL 提供校验任务，扫描最终 jar；若出现被禁止的测试产物条目，构建 MUST 失败。
+被禁止条目 SHALL 包括既有资源路径与验收测试台 class 路径。
 
 #### Scenario: 测试产物混入时构建失败
 - **WHEN** 通过任何途径使 jar 内出现 `data/gs_test/**`、`data/gs_autotest/**`、
-  `minecraft/tags/function/load.json`、`structure/haiden.nbt` 或 `structure/min_test.nbt`
+  `minecraft:tags/function/load.json`、`structure/haiden.nbt` 或 `structure/min_test.nbt`
 - **THEN** `check`/打包校验任务以非零结果失败并指出违规条目
+
+#### Scenario: 验收测试台 class 混入时构建失败
+- **WHEN** 通过任何途径使 jar 内出现 `com/bitsson/gensokyou/testkit/` 下的条目
+- **THEN** 打包守卫任务以非零结果失败并指出违规条目
 
 #### Scenario: 正常构建通过
 - **WHEN** jar 不含被禁止条目
@@ -78,4 +85,18 @@ mod jar SHALL NOT 包含任何开发测试产物：`data/gs_test/**`、`data/gs_
 #### Scenario: 显式入口可用
 - **WHEN** 显式执行某测试包的入口函数
 - **THEN** 该测试链正常运行至终态（如 `ALL_DONE`/`YUME-DONE`）
+
+### Requirement: 隔离测试世界承载自动化验收
+自动化验收的场景定义与结论报告 SHALL 仅存于隔离测试游戏目录（如 `run-test/`），
+MUST NOT 写入主世界、生产世界或单人存档。
+隔离测试世界 SHALL 启用 RCON 作为自动化验收的编排通道；该开关 SHALL 由编排层在启动前
+幂等设置（重复设置 MUST NOT 破坏既有配置）。
+
+#### Scenario: 场景与报告不落主世界
+- **WHEN** 在隔离测试世界跑完一轮自动化验收
+- **THEN** 场景文件与报告只出现在隔离测试游戏目录，主世界与单人存档中不出现它们
+
+#### Scenario: 编排前 RCON 已就绪
+- **WHEN** 编排层准备启动隔离测试服
+- **THEN** 该世界的 `enable-rcon` 为启用且 RCON 端口可连接
 

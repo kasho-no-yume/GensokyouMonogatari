@@ -4,7 +4,10 @@ param(
     [switch]$Smoke
 )
 $ErrorActionPreference = 'Continue'
-Set-Location 'D:\code\Gensokyou'
+# Repo root is derived from this script's own location -- a hardcoded absolute path
+# breaks the moment the checkout moves (it used to point at D:\code\Gensokyou).
+$projectDir = Split-Path -Parent $PSScriptRoot
+Set-Location $projectDir
 
 # Manual dev harness: launches the ISOLATED test server (run-test/), sends the
 # test-pack entry function over RCON, polls for [GS-TEST]/[GS-AUTO], then stops.
@@ -18,7 +21,7 @@ Set-Location 'D:\code\Gensokyou'
 #
 # Trigger channel: RCON (see tools/rcon_cmd.py). `gradlew runServerTest < stdin.txt`
 # does not work: the Gradle daemon does not forward stdin to the JavaExec run task.
-$projectDir = 'D:\code\Gensokyou'
+$projectDir = Split-Path -Parent $PSScriptRoot
 $gradlew = Join-Path $projectDir 'gradlew.bat'
 $mods = Join-Path $projectDir 'run\mods'
 $stash = Join-Path $projectDir 'tools\_mod_stash'

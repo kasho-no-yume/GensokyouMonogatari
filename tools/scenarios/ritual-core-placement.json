@@ -1,0 +1,106 @@
+{
+  "name": "ritual-core-placement",
+  "timeout_ticks": 600,
+  "steps": [
+    {
+      "op": "log",
+      "tag": "core",
+      "message": "place a ritual core at the world spawn and verify the region read-out sees exactly one of it"
+    },
+    {
+      "op": "cmd",
+      "cmd": "setblock -432 65 320 gensokyou:ritual_core"
+    },
+    {
+      "op": "wait",
+      "ticks": 5
+    },
+    {
+      "op": "probe",
+      "id": "ritual",
+      "args": {
+        "pos": "-432,65,320"
+      },
+      "as": "core"
+    },
+    {
+      "op": "assert",
+      "base": "core",
+      "path": "is_core",
+      "cmp": "eq",
+      "value": true
+    },
+    {
+      "op": "assert",
+      "base": "core",
+      "path": "pattern",
+      "cmp": "exists"
+    },
+    {
+      "op": "assert",
+      "base": "core",
+      "path": "no_such_field",
+      "cmp": "absent"
+    },
+    {
+      "op": "assert",
+      "base": "core",
+      "path": "capacity",
+      "cmp": "eq",
+      "value": 10000
+    },
+    {
+      "op": "probe",
+      "id": "blocks",
+      "args": {
+        "center": "-432,65,320",
+        "radius": 2
+      },
+      "as": "b"
+    },
+    {
+      "op": "assert",
+      "base": "b",
+      "path": "volume",
+      "cmp": "eq",
+      "value": 125
+    },
+    {
+      "op": "assert",
+      "base": "b",
+      "path": "counts.gensokyou:ritual_core",
+      "cmp": "eq",
+      "value": 1
+    },
+    {
+      "op": "assert",
+      "base": "b",
+      "path": "counts",
+      "cmp": "contains",
+      "value": "gensokyou:ritual_core"
+    },
+    {
+      "op": "assert",
+      "base": "b",
+      "path": "skipped_chunks",
+      "cmp": "eq",
+      "value": 0
+    },
+    {
+      "op": "assert",
+      "base": "b",
+      "path": "truncated",
+      "cmp": "eq",
+      "value": false
+    },
+    {
+      "op": "cmd",
+      "cmd": "setblock -432 65 320 minecraft:grass_block"
+    },
+    {
+      "op": "log",
+      "tag": "core",
+      "message": "done: exactly one ritual core observed in the region"
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "name": "selftest-tick-clock",
+  "timeout_ticks": 600,
+  "steps": [
+    {
+      "op": "log",
+      "tag": "selftest",
+      "message": "start: verifying probe read-out, tick clock and assertion semantics"
+    },
+    {
+      "op": "probe",
+      "id": "world",
+      "as": "t0"
+    },
+    {
+      "op": "wait",
+      "ticks": 20
+    },
+    {
+      "op": "probe",
+      "id": "world",
+      "as": "t1"
+    },
+    {
+      "op": "assert",
+      "base": "t1",
+      "path": "dimension",
+      "cmp": "ne",
+      "value": ""
+    },
+    {
+      "op": "assert",
+      "base": "t1",
+      "path": "player_count",
+      "cmp": "ge",
+      "value": 0
+    },
+    {
+      "op": "assert_delta",
+      "base": "t0",
+      "now": "t1",
+      "path": "game_time",
+      "cmp": "eq",
+      "value": 20,
+      "message": "wait 20 must consume exactly 20 server ticks"
+    },
+    {
+      "op": "cmd",
+      "cmd": "gs_scenario status",
+      "expect_code": 1
+    },
+    {
+      "op": "probe",
+      "id": "blocks",
+      "args": {
+        "center": "0,-60,0",
+        "radius": 4
+      },
+      "as": "b"
+    },
+    {
+      "op": "assert",
+      "base": "b",
+      "path": "volume",
+      "cmp": "eq",
+      "value": 729
+    },
+    {
+      "op": "assert",
+      "base": "b",
+      "path": "truncated",
+      "cmp": "eq",
+      "value": false
+    },
+    {
+      "op": "probe",
+      "id": "entities",
+      "args": {
+        "center": "0,-60,0",
+        "radius": 64
+      },
+      "as": "e"
+    },
+    {
+      "op": "assert",
+      "base": "e",
+      "path": "count",
+      "cmp": "ge",
+      "value": 0
+    },
+    {
+      "op": "log",
+      "tag": "selftest",
+      "message": "done: all assertions passed"
+    }
+  ]
+}
