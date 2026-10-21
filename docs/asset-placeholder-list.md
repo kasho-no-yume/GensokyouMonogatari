@@ -3,6 +3,7 @@
 依据 `openspec/project.md` §5 资产规范维护。替换一项销一项（把状态改为 DONE 并注明来源）；
 清单清零即占位期结束。重新提取占位可运行 `tools/extract_placeholder_assets.ps1`。
 贴图再生成：数据文件在 `tools/textures/*.py`，`python tools/gen_tex.py --write-assets`。
+AI 扩散生图（64×64 新绘物品）：`python tools/comfy_pixel_gen.py --spec tools/textures/ai_items.py`，见 gen-textures skill 的「AI 扩散生图管线」一节。
 
 ## 占位来源
 
@@ -18,37 +19,46 @@
 
 ## 物品贴图（目标：正式物品图标）
 
+> 2026-10-21 起，「新绘物品」统一升到 **64×64**（gen-textures skill 的扩散生图甜区）。
+> 来源标注 `comfy_pixel_gen` = AI 扩散生图（Z-Image Turbo + 像素 LoRA → 收口 64×64）；
+> `gen_tex` = ASCII 数据文件手绘。**抄原版形状的物品（灵铁/星银 18 件工具盔甲）不参与
+> AI 管线**，保持 16×16 与原版剪影对齐（见 gen-textures skill 与
+> openspec/specs/gensokyou-equipment-tiers/spec.md 的「外形 MUST 与原版工具/盔甲可辨」）。
+
 | 路径 | 状态 | 占位来源 |
 |---|---|---|
 | textures/item/guide_book.png | TODO | 海洋之心 |
-| textures/item/spellcard_frame.png | DONE(gen_tex 新绘·白纸卡框，不染层，全符卡共享) | 旗帜图案 |
-| textures/item/spellcard_emblem.png | DONE(gen_tex 新绘·灰度法阵染层，按卡主题色 tint，全符卡共享) | 旗帜图案 |
-| textures/item/musou_fuuin.png | 已移除（改共享 spellcard_frame/emblem 双层染色） | 旗帜图案 |
-| textures/item/light_reflect.png | 已移除（改共享 spellcard_frame/emblem 双层染色） | 旗帜图案 |
+| textures/item/spellcard_frame.png | DONE(gen_tex 新绘·白纸卡框，不染层，全符卡共享)·**已无模型引用**（9 张符卡改用各自的卡纸+纹章） | 旗帜图案 |
+| textures/item/spellcard_emblem.png | DONE(gen_tex 新绘·灰度法阵染层，按卡主题色 tint，全符卡共享)·**已无模型引用** | 旗帜图案 |
+| textures/item/spellcard_<卡id>.png ×9 | DONE(gen_tex 新绘·**竖长方形**符卡卡纸：64×64 画布内嵌 48×64 卡纸（左右各留 8px 透明），ASCII 模板 + 每卡调色板·数据文件 tools/textures/spellcard_cards.py） | 旗帜图案 |
+| textures/item/spellcard_<卡id>_emblem.png ×9 | DONE(comfy_pixel_gen AI 重绘·64×64 灰度法阵纹章，缩到 32 居中坐在卡面正中，染层，被 tint 成卡主题色) | 旗帜图案 |
 | textures/item/ppoint.png | DONE(旧仓库复制 point/ppoint.png) | 海洋之心 |
 | textures/item/bpoint.png | DONE(旧仓库复制 point/bpoint.png) | 海洋之心 |
 | textures/item/spellcard_star.png | DONE(旧仓库复制 spellcard/spellcardstar.png) | 海洋之心 |
 | textures/item/broken_spell_card_star.png | DONE(旧仓库复制 spellcard/brokenspellcardstar.png) | 海洋之心 |
 | textures/item/boss_residual_codex.png | TODO（占位期间拷贝同目录 codex_of_beings.png，待正式美术） | 海洋之心 |
-| textures/item/yen.png | TODO | 海洋之心 |
-| textures/item/memory_fragment.png | DONE(gen_tex 新绘·破损书页+符文) | 海洋之心 |
-| textures/item/laevatein.png | TODO | 三叉戟 |
-| textures/item/icicle_fall.png | 已移除（改共享 spellcard_frame/emblem 双层染色） | 海洋之心 |
-| textures/item/ritual_wand.png | TODO | 海洋之心 |
-| textures/item/danmaku_weapon.png | DONE(gen_tex 鏂扮粯路鐞冨舰鏍稿績鍥炬爣锛涚墿鍝佹湰浣撹蛋鍔ㄦ€佹覆鏌撳櫒锛屾鍥句粎浣?particle 涓庨潤鎬佸厹搴? | 涓夊弶鎴?|
-| textures/item/core_sphere_single.png | DONE(gen_tex 新绘·绿/单点图标) | 海洋之心 |
-| textures/item/core_sphere_shotgun.png | DONE(gen_tex 新绘·绿/三点图标) | 海洋之心 |
-| textures/item/core_knife.png | DONE(gen_tex 新绘·绿/刀形图标) | 海洋之心 |
-| textures/item/core_talisman.png | DONE(gen_tex 新绘·蓝/符形图标) | 海洋之心 |
-| textures/item/core_laser_gun.png | DONE(gen_tex 新绘·蓝/短管图标) | 海洋之心 |
-| textures/item/core_laser_cannon.png | DONE(gen_tex 新绘·金/十字图标) | 海洋之心 |
-| textures/item/core_qilin.png | TODO | 娴锋磱涔嬪績 |
-| textures/item/core_orb_shell.png | DONE(gen_tex 鏂扮粯路涓€х伆绾靛悜娓愬彉锛屼緵鐞冨３鎸夊搧闃惰壊鏌撹壊) | 娴锋磱涔嬪績 |
-| textures/item/weapon_core_lv1.png | DONE(gen_tex 新绘·六角棱镜绿·1刻痕) | 海洋之心 |
-| textures/item/weapon_core_lv2.png | DONE(gen_tex 新绘·六角棱镜蓝·2刻痕) | 海洋之心 |
-| textures/item/weapon_core_lv3.png | DONE(gen_tex 新绘·六角棱镜金·3刻痕) | 海洋之心 |
-| textures/item/amp_core.png | DONE(gen_tex 新绘·金属托座不染层) | 海洋之心 |
-| textures/item/amp_core_dye.png | DONE(gen_tex 新绘·灰度晶石染层，运行期按品阶 tint) | 海洋之心 |
+| textures/item/yen.png | DONE(comfy_pixel_gen AI 重绘·64×64 方孔金币) | 海洋之心 |
+| textures/item/memory_fragment.png | DONE(comfy_pixel_gen AI 重绘·64×64 破损符纸+符文) | 海洋之心 |
+| textures/item/laevatein.png | DONE(comfy_pixel_gen AI 重绘·64×64 红金斜剑·item/handheld 展示) | 三叉戟 |
+| textures/item/ritual_wand.png | DONE(comfy_pixel_gen AI 重绘·64×64 紫檀仪式杖) | 海洋之心 |
+| textures/item/danmaku_weapon.png | DONE(gen_tex 千机核心形状图标；物品本体走独立渲染器，此图仅作 particle 与静态兜底)·**不进 AI 管线** | 三叉戟 |
+| textures/item/core_sphere_single.png | DONE(comfy_pixel_gen AI 重绘·64×64 绿·单发球) | 海洋之心 |
+| textures/item/core_sphere_shotgun.png | DONE(comfy_pixel_gen AI 重绘·64×64 绿·散射) | 海洋之心 |
+| textures/item/core_knife.png | DONE(comfy_pixel_gen AI 重绘·64×64 绿·刀形) | 海洋之心 |
+| textures/item/core_talisman.png | DONE(comfy_pixel_gen AI 重绘·64×64 蓝·御札) | 海洋之心 |
+| textures/item/core_laser_gun.png | DONE(comfy_pixel_gen AI 重绘·64×64 蓝·短管) | 海洋之心 |
+| textures/item/core_laser_cannon.png | DONE(comfy_pixel_gen AI 重绘·64×64 金·重炮) | 海洋之心 |
+| textures/item/core_qilin.png | DONE(comfy_pixel_gen AI 重绘·64×64 绿·锥形) | 弹幕核心 |
+| textures/item/core_orb_shell.png | DONE(gen_tex 千机核心中性灰纵向渐变，供理球按品阶色染色) | 弹幕核心 |
+| textures/item/spirit_core_0..5.png | DONE(comfy_pixel_gen AI 重绘·64×64 六阶灵力核心：**悬浮灵晶，无底座无环**；阶位靠「体积 / 晶体形态 / 伴飞碎晶数 / 蓝色闪电弧」递进，0 阶粗糙暗灰无光 → 5 阶巨大紫晶 + 5 碎晶 + 强闪电；晶内带青绿能量脉络。0 阶为灰度（无彩）) | 海洋之心 |
+| textures/item/weapon_core_lv1.png | DONE(comfy_pixel_gen AI 重绘·64×64 六角棱镜·绿) | 海洋之心 |
+| textures/item/weapon_core_lv2.png | DONE(comfy_pixel_gen AI 重绘·64×64 六角棱镜·蓝) | 海洋之心 |
+| textures/item/weapon_core_lv3.png | DONE(comfy_pixel_gen AI 重绘·64×64 六角棱镜·金) | 海洋之心 |
+| textures/item/sacred_sapling.png | DONE(comfy_pixel_gen AI 重绘·64×64 神圣之木树苗图标；**方块贴图 block/sacred_sapling.png 保持 16×16 不动**，物品模型改指 item/sacred_sapling) | — |
+| textures/item/magic_sapling.png | DONE(comfy_pixel_gen AI 重绘·64×64 魔法之木树苗图标；方块贴图保持 16×16) | — |
+| textures/item/eternal_sapling.png | DONE(comfy_pixel_gen AI 重绘·64×64 永远之木树苗图标；方块贴图保持 16×16) | — |
+| textures/item/amp_core.png | DONE(comfy_pixel_gen AI 重绘·64×64 灰度八角托座，**程序化挖八角孔**露出染层·tint=品阶色) | 海洋之心 |
+| textures/item/amp_core_dye.png | DONE(comfy_pixel_gen AI 重绘·64×64 灰度晶石，定尺寸居中坐进托座的孔·染层，tint=实例随机色) | 海洋之心 |
 | textures/item/amp_core_t1/2/3.png | 已移除（t1..t3 共享 amp_core+amp_core_dye 双层染色） | 海洋之心 |
 
 ## 幻想乡素材（add-gensokyo-material-ladder，gen_tex 新绘·数据文件 tools/textures/gensokyo_materials.py）
@@ -56,9 +66,10 @@
 | 路径 | 状态 | 占位来源 |
 |---|---|---|
 | textures/item/cinnabar.png | DONE(gen_tex 新绘·红晶矿) | 海洋之心 |
-| textures/item/spirit_iron.png | DONE(gen_tex 新绘·青灰金属·成品) | 海洋之心 |
+| textures/item/refined_cinnabar.png | DONE(comfy_pixel_gen AI 重绘·64×64 抛光朱砂矿石结块：圆润水滴形 + 缎面蜡质光泽 + 天然纹理与暗边，**刻意不做成金属锭**（辰砂是硫化汞矿物，与灵铁/星银的铸条形制刻意区分）) | — |
+| textures/item/spirit_iron.png | DONE(comfy_pixel_gen AI 重绘·64×64 精炼青灰金属锭（梯形倒角+铸印）) | 海洋之心 |
 | textures/item/spirit_iron_ore.png | DONE(gen_tex 新绘·矿石) | 海洋之心 |
-| textures/item/star_silver.png | DONE(gen_tex 新绘·银白金属·成品) | 海洋之心 |
+| textures/item/star_silver.png | DONE(comfy_pixel_gen AI 重绘·64×64 精炼银白金属锭（梯形倒角+铸印）) | 海洋之心 |
 | textures/item/star_silver_ore.png | DONE(gen_tex 新绘·矿石) | 海洋之心 |
 | textures/item/oni_stone.png | DONE(gen_tex 新绘·紫灰岩) | 海洋之心 |
 | textures/item/spirit_soil.png | DONE(gen_tex 新绘·土堆) | 海洋之心 |
@@ -68,18 +79,18 @@
 | textures/item/sacred_wood.png | DONE(gen_tex 新绘·原木) | 海洋之心 |
 | textures/item/magic_wood.png | DONE(gen_tex 新绘·紫调原木) | 海洋之心 |
 | textures/item/eternal_wood.png | DONE(gen_tex 新绘·青调原木) | 海洋之心 |
-| textures/item/sanzu_flask.png | DONE(gen_tex 新绘·冥河瓶) | 海洋之心 |
-| textures/item/spirit_fish.png | DONE(gen_tex 新绘·发光灵鱼) | 海洋之心 |
-| textures/item/mermaid_scale.png | DONE(gen_tex 新绘·珍珠鳞) | 海洋之心 |
-| textures/item/dragon_scale.png | DONE(gen_tex 新绘·青绿鳞) | 海洋之心 |
-| textures/item/tide_crystal.png | DONE(gen_tex 新绘·潮汐晶) | 海洋之心 |
-| textures/item/spirit_herb.png | DONE(gen_tex 新绘·灵草) | 海洋之心 |
-| textures/item/gentian.png | DONE(gen_tex 新绘·龙胆) | 海洋之心 |
-| textures/item/higanbana.png | DONE(gen_tex 新绘·彼岸花) | 海洋之心 |
-| textures/item/magic_mushroom.png | DONE(gen_tex 新绘·魔法菇) | 海洋之心 |
-| textures/item/spirit_charcoal.png | DONE(gen_tex 新绘·灵炭) | 海洋之心 |
-| textures/item/talisman_paper.png | DONE(gen_tex 新绘·符纸) | 海洋之心 |
-| textures/item/sukima_fragment.png | DONE(gen_tex 新绘·隙间碎片) | 海洋之心 |
+| textures/item/sanzu_flask.png | DONE(comfy_pixel_gen AI 重绘·64×64 冥河瓶) | 海洋之心 |
+| textures/item/spirit_fish.png | DONE(comfy_pixel_gen AI 重绘·64×64 发光灵鱼) | 海洋之心 |
+| textures/item/mermaid_scale.png | DONE(comfy_pixel_gen AI 重绘·64×64 珍珠鳞) | 海洋之心 |
+| textures/item/dragon_scale.png | DONE(comfy_pixel_gen AI 重绘·64×64 青绿鳞) | 海洋之心 |
+| textures/item/tide_crystal.png | DONE(comfy_pixel_gen AI 重绘·64×64 潮汐晶) | 海洋之心 |
+| textures/item/spirit_herb.png | DONE(comfy_pixel_gen AI 重绘·64×64 灵草) | 海洋之心 |
+| textures/item/gentian.png | DONE(comfy_pixel_gen AI 重绘·64×64 龙胆) | 海洋之心 |
+| textures/item/higanbana.png | DONE(comfy_pixel_gen AI 重绘·64×64 彼岸花) | 海洋之心 |
+| textures/item/magic_mushroom.png | DONE(comfy_pixel_gen AI 重绘·64×64 魔法菇) | 海洋之心 |
+| textures/item/spirit_charcoal.png | DONE(comfy_pixel_gen AI 重绘·64×64 黑炭带绿焰) | 海洋之心 |
+| textures/item/talisman_paper.png | DONE(comfy_pixel_gen AI 重绘·64×64 符纸卷) | 海洋之心 |
+| textures/item/sukima_fragment.png | DONE(comfy_pixel_gen AI 重绘·64×64 隙间碎片) | 海洋之心 |
 
 ## 方块贴图（目标：正式方块材质）
 

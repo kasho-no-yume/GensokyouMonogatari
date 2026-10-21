@@ -46,6 +46,8 @@ gradle-app.setting
 
 # gen_tex.py previews
 tools/textures/_preview/
+# comfy_pixel_gen.py previews (AI-generated candidates, not source assets)
+tools/textures/_ai/
 __pycache__/
 .cocoindex_code/
 .codex

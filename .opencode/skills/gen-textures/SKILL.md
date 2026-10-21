@@ -44,6 +44,70 @@ metadata:
 - **任何情况都不得**引入逐像素坐标循环 / 数学画图脚本（本项目已废弃该方式）。
   收口工具属后处理（量化/光照/无缝），不得用它替代 ASCII 数据直接画图。
 
+## AI 扩散生图管线（tools/comfy_pixel_gen.py）
+
+上面第 2 条「AI 扩散生图 + 收口」的**接口已落地**，不再是「预留」。
+
+**为什么要有它**：ASCII 画不出「御札上挥毫的朱砂笔触」这类有机内容；
+而 16×16 又是扩散模型的死区（256 像素缩完只剩噪点）。二者交集就是
+**「先扩散出 1024px 像素画，再收口到 64×64 栅格」**。
+
+**管线**（与本机 ComfyUI 里已有的 "zimage minecraft item" 工作流同源）：
+
+```
+Z-Image Turbo(int8 convrot) + 像素 LoRA(adapter_model)  → 1024px 像素画
+    ↓ BiRefNet 抠图
+透明底 RGBA → 裁到 alpha 包围盒 → 预乘 alpha 的 LANCZOS 缩放 → 64×64
+    → alpha 二值化 → 调色板量化(MEDIANCUT) → 成品
+```
+
+**关键取舍（都是踩过的坑）**：
+
+| 坑 | 结论 |
+|---|---|
+| 直接 resize RGBA 会在边缘混进透明区的黑色 | 必须先转 Pillow 的 `"RGBa"`（预乘 alpha）再缩放 |
+| 16×16 目标：1024px 生成会糊成一团 | 生成分辨率要跟着目标走：**gen = size × 16**（16→256、64→1024） |
+| 纯色底抠图会啃掉物体边缘 | 用 BiRefNet，别用色键 |
+| 量化要在 alpha 二值化**之后** | 否则羽化边会变成脏边 |
+| 染色层（tint 乘法底）带色相会把主题色染脏 | 染色层必须走 `grayscale: True` |
+| 满画幅的 AI 图没有留白，贴角标会削掉主体 | `overlays` 默认**不清**背景，只叠图标 |
+
+**工具用法**：
+
+```powershell
+python tools/comfy_pixel_gen.py --spec tools/textures/ai_items.py            # 预览（写 tools/textures/_ai/）
+python tools/comfy_pixel_gen.py --spec tools/textures/ai_items.py --variants 3  # 每项 3 个种子变体供挑选
+python tools/comfy_pixel_gen.py --spec tools/textures/ai_items.py --apply   # 把已审定的预览拷进 assets
+python tools/comfy_pixel_gen.py --spec tools/textures/ai_items.py --montage # 额外出拼图对照图
+```
+
+规格文件 `tools/textures/ai_items.py` 的每项：
+
+```python
+"item/core_talisman": {
+    "prompt": "a single Japanese ofuda paper talisman, ...",  # 正文（尾部自动补风格/构图）
+    "seed": 20251021,      # 省略则按名字哈希（可复现）
+    "size": 64,            # 目标像素栅格
+    "colors": 24,          # 量化色数
+    "grayscale": False,    # 染色层置 True
+    "fit": None,           # 主体缩到 fit 见方后居中（叠加层用）
+    "overlays": [...],     # 从原图抠块贴回（如弹幕核的类型微图标）
+},
+```
+
+**红线**：
+
+- AI 只负责「画」，**不负责「接线」**：模型 JSON、Java、渲染契约一律不动。
+- **抄原版形状的物品不进本管线**：工具/盔甲等「原版剪影 + 本 mod 配色」的约定
+  （见 `tools/textures/gensokyou_equipment.py` 的 "vanilla-derived shape, mod palette"，
+  以及 `openspec/specs/gensokyou-equipment-tiers/spec.md` 的「外形 MUST 与原版工具/盔甲可辨」）
+  一律保持 16×16 ASCII。AI 画的刀剑剪影跟原版对不上，反而丢掉「可辨」这条硬要求。
+- **数据图禁止 AI 重绘**：灰度染色层 / 顶点色遮罩 / 覆盖率遮罩（`amp_core`、`core_orb_shell` 等）。
+- **有系统的一族慎用**：品阶配色、类型微图标、刻痕数这类精确小特征 AI 画不出，
+  要么写进 prompt 描述，要么用 `overlays` 从原图抠回来贴上。
+- GUI 面板是**功能皮肤**（槽框坐标与颜色被 Java 硬编码），不走 AI 管线。
+- 生成结果**必须人眼过一遍拼图**再 `--apply`；不合格的改 prompt 重跑，不要将就。
+
 ## 工作流（固定顺序）
 
 1. 在 `tools/textures/` 下写数据文件（`.py`），格式见下节。
@@ -52,6 +116,16 @@ metadata:
 4. 不满意 → 直接改 ASCII 图里对应的字符再跑（只贴改动的行即可，不必重贴整张）。
 5. 满意后 `python tools/gen_tex.py --write-assets` 写入
    `src/main/resources/assets/gensokyou/textures/<NAME>.png`。
+
+### 走 AI 管线时（替代上面 1~5 步）
+
+1. 在 `tools/textures/ai_items.py` 里写 prompt 规格。
+2. `python tools/comfy_pixel_gen.py --spec tools/textures/ai_items.py --montage` 出图 + 拼图。
+3. 用 Read 工具看 `tools/textures/_ai/_montage.png` 自查，逐张放大挑出不合格的。
+4. 不合格的改 prompt（换描述 / 换种子 / 换 `variants`），只重跑那几项：
+   `--only item/xxx`（可多次）。
+5. 满意后 `python tools/comfy_pixel_gen.py --spec tools/textures/ai_items.py --apply` 写入 assets。
+6. 跑 `python tools/validate_item_textures.py` 校验引用与尺寸。
 
 ## 数据文件格式
 
