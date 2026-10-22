@@ -1,105 +1,225 @@
-# boss_bar.py - 咒符条血条贴图（占位，后续整体替换）
+# boss_bar.py - 咒符条血条边框贴图（樱符版，5 阶装饰度递进）
 #
-# 结构（见 openspec/changes/boss-bar-tier-and-spellcard-name design D4/D5）：
-#   frame_1..5.png  28x14  定色朱红。**三段切法**：左端头 12px / 中段 4px / 右端头 12px。
-#                   九宫格拉伸到实际宽度（config 120~400），中段是纯色横边，拉伸不失真。
-#                   端头宽度刻意只做 12px：182 宽的整条贴图里那 166px 中段在拉伸后
-#                   会被整段替换，等于白画 166px。
-#   segment.png     16x4   灰度，运行时 tint ← TierPalette.rgb(bossTier)。
-#                   只做「被染色的那一层」的斜面质感；暗轨底与掉血残影是<b>结构色</b>
-#                   （暗/米白），不是阶色，继续用 fill() + config 色，不进这张图。
+# 几何（与 TouhouBossBarRenderer 的常量一一对应，改一处 MUST 改两处）：
+#   frame_1..5.png  64x24  三段切：左端头 30px / 中段 4px / 右端头 30px。
+#                   九宫格拉伸到实际宽度（config 120~400）：端头 1:1 原样，
+#                   只有中段横向拉伸 —— 中段是横向均质的纯色行，横向复制不失真。
+#   segment.png     16x4   灰度，运行时 tint = TierPalette.rgb(bossTier)。
+#                   只做被染色那一层的斜面质感；暗轨底与掉血残影是结构色。
 #
-# 为什么边框逐阶不同要改 tier-color-palette 的「不得逐阶烘焙」条款：
-# 那条约束针对的是<b>色相</b>差异（同一形状换个颜色），而这里承载的是<b>形状</b>差异
-# （符首厚度、侧边粗细、阶徽点数）。故条款加了一条范围写窄的 HUD 装饰层例外。
+# 为什么从 28x14 改成 64x24（旧版的问题）：
+#   旧版端头本来就是 1:1 画的（九宫格只拉伸中段），所以问题不是被拉伸糊了，
+#   而是贴图太矮：符首只有 2 行、符尾 4 行，放不下任何装饰 —— 于是五阶只能靠
+#   多一个 1px 点区分，装饰度天然上不去（实测：五阶看上去几乎一样）。
+#   24 行 = 符首 8 + 窗口 8 + 符尾 8，才放得下真正的纹样。
+#
+# 纵向分区（24 行）：
+#   行 0..1    透明（留白）
+#   行 2..7    符首装饰板（实心，末行与顶边线接合）
+#   行 7       顶边线（朱红通长，与中段接合）
+#   行 8..15   窗口 = 血条条身区（5 阶共用同一行范围，见下）
+#   行 16      底边线（朱红通长）
+#   行 16..21  符尾装饰板（首行与底边线接合）
+#   行 22..23  透明（留白）
+#
+# 窗口的行范围（8..15）5 阶 MUST 完全一致：条身高度若随阶变化，就成了阶的函数，
+# 于是多血条堆叠预算、screenHeight/3 截断判定、撕边齿高全要跟着分叉。
+# 逐阶差异只能放在窗口之外的边距里。
+#
+# 五阶装饰度递进（形状差异，不是色相差异 —— 色相归 TierPalette）：
+#   阶  符首装饰板           符尾装饰板        侧边  阶徽
+#   1   8 宽素印              5 宽内收缺口       1     1 点
+#   2   10 宽印 + 1 花瓣      7 宽台阶 + 花瓣    1     2 点
+#   3   12 宽印 + 2 花瓣      9 宽 + 金点        1     3 点
+#   4   14 宽印 + 双瓣        11 宽 + 落款印     1     4 点
+#   5   16 宽印 + 三瓣        13 宽 + 缎带双印   2     5 点
+# 递进方向沿用仪式石族（tools/textures/ritual_blocks.py）的「越阶纹样越满」。
+#
+# 为什么边框逐阶不同不违反 tier-color-palette 的「不得逐阶烘焙」：
+# 那条约束针对色相差异（同一形状换个颜色），而这里承载的是形状差异。
 # 条身层仍严格是单张灰度 + 运行期 tint。
-#
-# 5 阶递进沿用 tools/textures/ritual_blocks.py 的封印纹样语言
-# （彩环→瞳→刻度→星点→环光），搬到横向构图上表达为「符首/符尾厚度 + 侧边粗细 + 阶徽点数」：
-#   阶  符首  符尾  侧边  阶徽(点)
-#   1    1     1     1      1
-#   2    2     1     1      2
-#   3    2     2     1      3
-#   4    3     2     1      4
-#   5    3     2     2      5
-# 递进方向是「越阶越厚重」，与 ritual_blocks 的「越阶纹样越满」同向。
 
-# ---- 定色朱红（= GensokyouConfig.TALISMAN_BAR_COLOR_FRAME 的 0xE03A2F 及其暗调） ----
+# ---- 调色板 ----
+# F = 定色朱红（边框的识别色）。边框 MUST NOT 参与染色：
+#     被染成阶色会丢掉朱红符的识别度。
+# D = 同一朱红的暗调（厚度第二层 / 下沿阴影）。
+# S = 符纸米白（印文 / 阶徽点）。G = 樱符金（高阶饰线）。P = 樱粉（花瓣）。
 PAL = {
     ".": None,               # 透明（= 窗口，血条填充区）
-    "F": (0xE0, 0x3A, 0x2F),  # 符首/符尾主色（朱红）
-    "D": (0x8E, 0x24, 0x1D),  # 同一朱红的暗调（描边下沿 / 厚度第二层）
-    "S": (0xF5, 0xEF, 0xE0),  # 阶徽点（米白，与符纸同色）
+    "F": (0xE0, 0x3A, 0x2F),  # 符纸主色（朱红）
+    "D": (0x8E, 0x24, 0x1D),  # 朱红暗调
+    "S": (0xF5, 0xEF, 0xE0),  # 符纸米白
+    "G": (0xD8, 0xBA, 0x84),  # 樱符金
+    "P": (0xCB, 0x7A, 0x92),  # 樱粉（花瓣）
 }
 
 # segment 单独调色板：灰度白，等 tint 相乘。
-# ⚠️ multiply tint 只能压暗、不能提亮，所以这张图只做「上沿亮 / 下沿暗」的斜面，
-# 高光靠不了它——真要高光得另加一层加法混合，那超出占位需求。
+# multiply tint 只能压暗、不能提亮，所以这张图只做上沿亮 / 下沿暗的斜面。
 PAL_segment = {
     "L": (0xFF, 0xFF, 0xFF),  # 上沿
     "M": (0xD8, 0xD8, 0xD8),  # 主体
     "D": (0x96, 0x96, 0x96),  # 下沿
 }
 
-W, H = 28, 14
-# 透明窗口（= 血条条身区）**5 阶共用同一行范围**。⚠️ 这不是省事，是硬约束：
-# Java 侧 TouhouBossBarRenderer 按固定行区间画条身，窗口一阶一档，条身高度就成了阶的
-# 函数，于是堆叠预算、screenHeight/3 截断判定、撕边齿高全要跟着分叉。
-# 逐阶差异只能放在窗口<b>之外</b>的边距里。
-WIN_TOP, WIN_BOTTOM = 2, 9
-HEAD_ROWS, TAIL_ROWS = WIN_TOP, H - 1 - WIN_BOTTOM   # 2 / 4
+W, H = 64, 24
+CAP = 30
+MID = W - 2 * CAP              # 4
+WIN_TOP, WIN_BOTTOM = 8, 15   # 窗口行范围（5 阶共用）
 
 
-def _band(pat, n):
-    """n 像素的横带，内容按 pat 循环。"""
-    return "".join(pat[i % len(pat)] for i in range(n))
+def _frame(head, tail, side, pips):
+    """拼一张 64x24 边框。
 
+    head/tail  装饰板（每行一个字符串，与边线接合的那一行 MUST 全是 F）
+    side       窗口两侧竖边占几列宽
+    pips       阶徽点数（1~5），画在左端头窗口内
 
-def _frame(head_rows, tail_rows, side, pips):
-    """拼一张 28x14 边框。
-
-    head_rows/tail_rows  边距逐行的字符（每个元素一行）。**只能用 F/D，不许用 '.'**——
-                    边距出现透明像素就等于边框破了个洞（顶边变虚线），那是 bug 不是设计。
-    side          窗口两侧竖边占几列宽
-    pips          阶徽点数（1~5），画在左端头窗口内
+    装饰板在左右两端头各画一份，右端是左端的镜像 —— 血条是左右对称的版式，
+    只在一端装饰会看成半成品。
     """
-    rows = [c * W for c in head_rows]
-    base = ["."] * W
-    for c in range(side):
-        base[c] = "F"
-        base[W - 1 - c] = "F"
-    # 阶徽在窗口内竖直居中，1px 点 + 1px 间隔
-    pip_row = WIN_TOP + (WIN_BOTTOM - WIN_TOP) // 2
-    for r in range(WIN_TOP, WIN_BOTTOM + 1):
-        row = list(base)
-        if r == pip_row:
-            for i in range(pips):
+    assert len(head) == 6, "符首装饰板 MUST 6 行（行 2..7）"
+    assert len(tail) == 6, "符尾装饰板 MUST 6 行（行 16..21）"
+    for r in list(head) + list(tail):
+        assert len(r) <= CAP, "装饰板 MUST NOT 超过端头宽度 %d" % CAP
+
+    head_r = [r[::-1] for r in head]
+    tail_r = [r[::-1] for r in tail]
+
+    rows = ["." * W, "." * W]                      # 行 0..1 留白
+    for i in range(6):                             # 行 2..7 符首装饰板
+        row = ["."] * W
+        row[:len(head[i])] = head[i]
+        row[W - len(head_r[i]):] = head_r[i]
+        rows.append("".join(row))
+    rows[7] = "F" * W                             # 行 7 = 顶边线
+    for r in range(WIN_TOP, WIN_BOTTOM + 1):        # 行 8..15 窗口
+        row = ["."] * W
+        for c in range(side):
+            row[c] = "F"
+            row[W - 1 - c] = "F"
+        if r == WIN_TOP + (WIN_BOTTOM - WIN_TOP) // 2:
+            for i in range(pips):                 # 阶徽点：竖直居中，1px 点 + 1px 间隔
                 col = 2 + i * 2
                 if col < W - side:
                     row[col] = "S"
         rows.append("".join(row))
-    rows += [c * W for c in tail_rows]
+    for i in range(6):                             # 行 16..21 符尾装饰板
+        row = ["."] * W
+        row[:len(tail[i])] = tail[i]
+        row[W - len(tail_r[i]):] = tail_r[i]
+        rows.append("".join(row))
+    rows[16] = "F" * W                             # 行 16 = 底边线
+    rows += ["." * W, "." * W]                      # 行 22..23 留白
+
     assert len(rows) == H, len(rows)
     for r in rows:
         assert len(r) == W, len(r)
-        assert r[0] != ".", "边距出现透明像素 = 边框破洞"
+    # 边线 MUST 连续：顶边线与底边线不得有洞（破了就是虚线边框）
+    assert "." not in rows[7], "顶边线出现透明像素 = 边框破洞"
+    assert "." not in rows[16], "底边线出现透明像素 = 边框破洞"
+    for r in range(WIN_TOP, WIN_BOTTOM + 1):
+        assert rows[r][0] != ".", "窗口左竖边出现透明像素 = 边框破洞"
+        assert rows[r][W - 1] != ".", "窗口右竖边出现透明像素 = 边框破洞"
     return rows
 
 
-# 5 阶递进沿用 tools/textures/ritual_blocks.py 的封印纹样语言（越阶越厚重）：
-#   阶  符首(2行)  符尾(4行)      侧边列  阶徽点
-#   1    FD        DDDD           1       1
-#   2    FD        FDDD           1       2
-#   3    FF        FFDD           1       3
-#   4    FF        FFFD           1       4
-#   5    FF        FFFF           2       5
-# 符首只有 2 行，故厚度递进主要落在符尾（4 行）、侧边（1→2 列）与阶徽点数（1→5）上。
+# ---------------------------------------------------------------- 五阶装饰板
+#
+# 装饰板用**印章拼装**而不是手画整块：阶差靠「印更多、花瓣更多、金饰更满」表达，
+# 改一处递进参数即可整体调档，不会像手画那样改一格就要重排全图。
+
+# 符纸上的印：米白环 + 朱红十字（6x6）
+SEAL = [
+    "FFFFFF",
+    "FSSSSF",
+    "FSFFSF",
+    "FSSSSF",
+    "FSFFSF",
+    "FFFFFF",
+]
+
+# 樱花瓣（3x2）
+PETAL = [
+    ".P.",
+    "PPP",
+]
+
+
+def _stamp(grid, stamp, x, y):
+    """把一个小印章盖到网格上（越界部分丢弃）。"""
+    for j, row in enumerate(stamp):
+        for i, ch in enumerate(row):
+            if ch != "." and 0 <= x + i < len(grid[0]) and 0 <= y + j < len(grid):
+                grid[y + j][x + i] = ch
+
+
+def _head(seals, petals, golds, width):
+    """符首装饰板：6 行。末行全 F（与顶边线接合）。"""
+    grid = [["." for _ in range(width)] for _ in range(6)]
+    for i in range(seals):
+        _stamp(grid, SEAL, i * 7, 0)
+    for (x, y) in petals:
+        _stamp(grid, PETAL, x, y)
+    for (y, x0, x1) in golds:
+        for x in range(x0, min(x1, width)):
+            grid[y][x] = "G"
+    grid[5] = ["F"] * width
+    return ["".join(r) for r in grid]
+
+
+def _tail(taper, seals, petals, golds, width):
+    """符尾装饰板：6 行。首行全 F（与底边线接合）。"""
+    grid = [["." for _ in range(width)] for _ in range(6)]
+    _stamp(grid, taper, 0, 0)
+    for i in range(seals):
+        _stamp(grid, SEAL, 7 + i * 7, 0)
+    for (x, y) in petals:
+        _stamp(grid, PETAL, x, y)
+    for (y, x0, x1) in golds:
+        for x in range(x0, min(x1, width)):
+            grid[y][x] = "G"
+    grid[0] = ["F"] * width
+    return ["".join(r) for r in grid]
+
+
+# 符尾的基础收尾：斜切内收（符纸下缘的毛边感）
+TAPER = [
+    "FFFFFF",
+    "F.D...",
+    "F.D...",
+    "..D...",
+    ".....",
+    ".....",
+]
+
+# 五阶递进：
+#   阶  符首（印数/花瓣/金饰/宽）        符尾（印数/花瓣/金饰/宽）
+#   1   1 印            / 0 花 / 无金 /  8 宽   0 印 / 0 花 / 无金 /  6 宽
+#   2   1 印 + 2 花     / 无金 / 12 宽   0 印 / 1 花 / 无金 /  9 宽
+#   3   1 印 + 3 花     / 1 金点 / 16 宽 0 印 / 2 花 / 1 金点 / 12 宽
+#   4   2 印 + 4 花     / 金线 / 20 宽   1 印 / 2 花 / 金线 / 15 宽
+#   5   2 印 + 6 花     / 金双线 / 24 宽 2 印 / 3 花 / 金双线 / 18 宽
+HEAD_1 = _head(seals=1, petals=[], golds=[], width=8)
+HEAD_2 = _head(seals=1, petals=[(7, 1), (8, 3)], golds=[], width=12)
+HEAD_3 = _head(seals=1, petals=[(7, 1), (8, 3), (10, 1)], golds=[(4, 12, 14)], width=16)
+HEAD_4 = _head(seals=2, petals=[(7, 1), (8, 3), (12, 1), (14, 3)],
+                golds=[(4, 15, 19)], width=20)
+HEAD_5 = _head(seals=2, petals=[(7, 1), (8, 3), (12, 1), (14, 3), (16, 1), (18, 3)],
+                golds=[(4, 17, 21), (3, 19, 22)], width=24)
+
+TAIL_1 = _tail(TAPER, seals=0, petals=[], golds=[], width=6)
+TAIL_2 = _tail(TAPER, seals=0, petals=[(3, 1)], golds=[], width=9)
+TAIL_3 = _tail(TAPER, seals=0, petals=[(3, 1), (5, 3)], golds=[(2, 9, 11)], width=12)
+TAIL_4 = _tail(TAPER, seals=1, petals=[(3, 1), (5, 3)], golds=[(2, 12, 15)], width=15)
+TAIL_5 = _tail(TAPER, seals=2, petals=[(3, 1), (5, 3), (9, 1)], golds=[(2, 15, 18)],
+               width=18)
+
 TEXES = {
-    "gui/boss_bar/frame_1": _frame(["F", "D"], ["D", "D", "D", "D"], side=1, pips=1),
-    "gui/boss_bar/frame_2": _frame(["F", "D"], ["F", "D", "D", "D"], side=1, pips=2),
-    "gui/boss_bar/frame_3": _frame(["F", "F"], ["F", "F", "D", "D"], side=1, pips=3),
-    "gui/boss_bar/frame_4": _frame(["F", "F"], ["F", "F", "F", "D"], side=1, pips=4),
-    "gui/boss_bar/frame_5": _frame(["F", "F"], ["F", "F", "F", "F"], side=2, pips=5),
+    "gui/boss_bar/frame_1": _frame(HEAD_1, TAIL_1, side=1, pips=1),
+    "gui/boss_bar/frame_2": _frame(HEAD_2, TAIL_2, side=1, pips=2),
+    "gui/boss_bar/frame_3": _frame(HEAD_3, TAIL_3, side=1, pips=3),
+    "gui/boss_bar/frame_4": _frame(HEAD_4, TAIL_4, side=1, pips=4),
+    "gui/boss_bar/frame_5": _frame(HEAD_5, TAIL_5, side=2, pips=5),
     "gui/boss_bar/segment": [
         "L" * 16,
         "M" * 16,

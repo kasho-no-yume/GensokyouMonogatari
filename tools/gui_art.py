@@ -45,6 +45,7 @@ ASSET_PATH = {
     "ritual_editor": "gui/ritual_editor",
     "crystal_storage": "gui/crystal_storage",
     "wujinzang_terminal": "gui/wujinzang_terminal",
+    "dialog": "gui/dialog",
 }
 
 

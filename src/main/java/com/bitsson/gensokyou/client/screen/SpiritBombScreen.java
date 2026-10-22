@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client.screen;
 
+import com.bitsson.gensokyou.client.SakuraPalette;
 import com.bitsson.gensokyou.client.widget.SakuraButton;
 import com.bitsson.gensokyou.client.widget.SakuraSlider;
 import com.bitsson.gensokyou.config.GensokyouServerConfig;
@@ -27,12 +28,16 @@ import net.minecraft.world.entity.player.Inventory;
 public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
 
     private static final int SLIDER_WIDTH = 140;
+    /** 滑块控件高度（文字带 + 轨槽带，见 {@link SakuraSlider#MIN_HEIGHT}）。 */
+    private static final int SLIDER_HEIGHT = SakuraSlider.MIN_HEIGHT;
+    /** 滑块行距：控件高 24 + 4px 行缝。 */
+    private static final int SLIDER_PITCH = SLIDER_HEIGHT + 4;
     /** 覆盖窗底色：深紫粉半透明（0xC0 = 75% 不透明，方块仍隐约可见）。 */
     private static final int OVERLAY_BG = 0xC03A2630;
     /** 覆盖窗金边。 */
-    private static final int OVERLAY_EDGE = 0xFFD8BA84;
+    private static final int OVERLAY_EDGE = SakuraPalette.GOLD;
     /** 覆盖窗上的文字色（米白）。 */
-    private static final int OVERLAY_TEXT = 0xFFF0DCE2;
+    private static final int OVERLAY_TEXT = SakuraPalette.CREAM;
     /** 覆盖窗内的凹槽（提示区）底色：深樱红半透明。 */
     private static final int OVERLAY_WELL = 0x80301828;
 
@@ -54,7 +59,6 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
         this.imageWidth = 176;
         this.imageHeight = 152;
         this.titleLabelY = 6;
-        this.inventoryLabelY = this.imageHeight + 4;
         this.state = menu.state();
     }
 
@@ -65,20 +69,20 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
         int top = this.topPos + 18;
 
         boolean present = state != null && state.present();
-        this.fuseSlider = addRenderableWidget(new ParamSlider(left, top, SLIDER_WIDTH, 20,
+        this.fuseSlider = addRenderableWidget(new ParamSlider(left, top, SLIDER_WIDTH, SLIDER_HEIGHT,
                 "gui.gensokyou.spirit_bomb.fuse", 0.1D, 600.0D,
                 present ? state.fuseTicks() / 20.0D : defaultFuseSeconds(), 0.1D));
-        this.powerSlider = addRenderableWidget(new ParamSlider(left, top + 26, SLIDER_WIDTH, 20,
+        this.powerSlider = addRenderableWidget(new ParamSlider(left, top + SLIDER_PITCH, SLIDER_WIDTH, SLIDER_HEIGHT,
                 "gui.gensokyou.spirit_bomb.power", 1.0D, 12.0D,
                 present ? state.power() : 4.0D, 0.1D));
-        this.radiusSlider = addRenderableWidget(new ParamSlider(left, top + 52, SLIDER_WIDTH, 20,
+        this.radiusSlider = addRenderableWidget(new ParamSlider(left, top + SLIDER_PITCH * 2, SLIDER_WIDTH, SLIDER_HEIGHT,
                 "gui.gensokyou.spirit_bomb.radius", 1.0D, 24.0D,
                 present ? state.radius() : 6.0D, 1.0D));
 
         this.armButton = addRenderableWidget(SakuraButton.of(
                         Component.translatable("gui.gensokyou.spirit_bomb.arm"),
                         button -> menu.submit(true, fuseTicks(), powerValue(), radiusValue()),
-                left, top + 82, SLIDER_WIDTH, 20));
+                left, top + SLIDER_PITCH * 2 + SLIDER_HEIGHT + 4, SLIDER_WIDTH, 20));
 
         // 界面已存在，此时请求一次状态（一次性，不 tick）
         menu.requestState();
@@ -186,6 +190,20 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
         // 底部提示凹槽
         graphics.fill(this.leftPos + 8, this.topPos + this.imageHeight - 26,
                 this.leftPos + this.imageWidth - 8, this.topPos + this.imageHeight - 8, OVERLAY_WELL);
+    }
+
+    /**
+     * 抬头：<b>刻意不调 super</b>。
+     *
+     * <p>原版 {@code AbstractContainerScreen.renderLabels} 用 {@code 4210752 = 0x404040}
+     * 画标题——深灰压在深紫粉覆盖窗（0xC03A2630）上对比度只有 1.35，<b>等于看不见</b>（实机反馈）。
+     * 同一方法还会把「物品栏」标签画到面板外的世界上，同样是深灰。
+     *
+     * <p>故标题改用米白（{@link #OVERLAY_TEXT}，对比度 10.7）自绘。
+     */
+    @Override
+    protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
+        graphics.drawString(this.font, this.title, this.titleLabelX, this.titleLabelY, OVERLAY_TEXT, false);
     }
 
     @Override

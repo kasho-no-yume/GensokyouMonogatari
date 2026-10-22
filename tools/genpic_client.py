@@ -17,12 +17,21 @@
 
 用法（仓库根目录执行）：
     # 只看请求体长什么样，不发出去（默认）
-    python tools/genpic_client.py --layout ritual_core --draft draft.png --material material.png
+    python tools/genpic_client.py --prompt "..." --draft build/draft.png --material tools/textures/sakura/material.png --width 1200 --height 800
     # 真发（需要环境变量 RUNPOD_API_KEY）
     $env:RUNPOD_API_KEY = "<key>"
-    python tools/genpic_client.py --layout ritual_core --draft draft.png --material material.png --send
+    python tools/genpic_client.py --prompt "..." --draft build/draft.png --material tools/textures/sakura/material.png --width 1200 --height 800 --send
 
-    --endpoint-id 缺省用环境变量 GENPIC_ENDPOINT_ID。
+    --endpoint-id 缺省用环境变量 GENPIC_ENDPOINT_ID（再缺省用 DEFAULT_ENDPOINT）。
+    ⚠️ **key MUST 只经环境变量传入**，MUST NOT 写进仓库文件（`build/` 已 gitignore，
+       可以临时落在 `build/` 下）。
+
+典型三步（面板烘焙）：
+    1) python tools/gui_draft.py --layout <面板名> --k 4 --out build/draft_k4.png
+    2) python tools/genpic_client.py --prompt "<prompt>" --draft build/draft_k4.png \
+         --material tools/textures/sakura/material.png --width 1200 --height 800 \
+         --out build/raw.png --send
+    3) python tools/gui_art.py --layout <面板名> --ai build/raw.png --write-assets
 """
 import argparse
 import base64

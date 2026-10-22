@@ -235,4 +235,25 @@ LAYOUTS = {
         "title_y": 8,
         "label_rows": [],
     },
+    "dialog": {
+        # 对话界面 300x200：**结构极简** —— 只有外框。
+        # 正文/标题/按钮全是运行期绘制（文字归 Java，按钮由 SakuraButton 画），
+        # 选项按钮数量随对话节点变化（1..N），故**不**登记 buttons 区域：
+        # 登记了会把「按钮该在的地方」抹成一块死色，而按钮数变了位置也对不上。
+        # 按钮本体不透明，正好盖住 AI 在那儿的画，不会有穿帮。
+        "size": (300, 200),
+        "frame": 2,
+        "cards": [],
+        "dividers": [],
+        "cells": [],
+        "grids": [],
+        "hotbars": [],
+        "wells": [],
+        "buttons": [],
+        "rings": [],
+        "vlines": [],
+        "hlines": [],
+        "title_y": 8,
+        "label_rows": [],
+    },
 }

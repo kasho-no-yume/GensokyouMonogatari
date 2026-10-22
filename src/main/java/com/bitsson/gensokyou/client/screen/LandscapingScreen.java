@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client.screen;
 
+import com.bitsson.gensokyou.client.SakuraPalette;
 import com.bitsson.gensokyou.client.widget.SakuraButton;
 import com.bitsson.gensokyou.client.widget.SakuraSlider;
 import com.bitsson.gensokyou.config.GensokyouServerConfig;
@@ -27,12 +28,16 @@ import net.minecraft.world.entity.player.Inventory;
 public class LandscapingScreen extends AbstractContainerScreen<LandscapingMenu> {
 
     private static final int SLIDER_WIDTH = 140;
+    /** 滑块控件高度（文字带 + 轨槽带，见 {@link SakuraSlider#MIN_HEIGHT}）。 */
+    private static final int SLIDER_HEIGHT = SakuraSlider.MIN_HEIGHT;
+    /** 滑块行距：控件高 24 + 4px 行缝。 */
+    private static final int SLIDER_PITCH = SLIDER_HEIGHT + 4;
     /** 覆盖窗底色：深紫粉半透明（0xC0 = 75% 不透明，方块仍隐约可见）。 */
     private static final int OVERLAY_BG = 0xC03A2630;
     /** 覆盖窗金边。 */
-    private static final int OVERLAY_EDGE = 0xFFD8BA84;
+    private static final int OVERLAY_EDGE = SakuraPalette.GOLD;
     /** 覆盖窗上的文字色（米白）。 */
-    private static final int OVERLAY_TEXT = 0xFFF0DCE2;
+    private static final int OVERLAY_TEXT = SakuraPalette.CREAM;
 
     private ParamSlider sizeXSlider;
     private ParamSlider sizeZSlider;
@@ -52,7 +57,6 @@ public class LandscapingScreen extends AbstractContainerScreen<LandscapingMenu> 
         this.imageWidth = 176;
         this.imageHeight = 150;
         this.titleLabelY = 6;
-        this.inventoryLabelY = this.imageHeight + 4;
         this.state = menu.state();
     }
 
@@ -73,13 +77,13 @@ public class LandscapingScreen extends AbstractContainerScreen<LandscapingMenu> 
         int defSize = GensokyouServerConfig.LANDSCAPING_DEFAULT_SIZE.get();
         int defHeight = GensokyouServerConfig.LANDSCAPING_DEFAULT_HEIGHT.get();
 
-        this.sizeXSlider = addRenderableWidget(new ParamSlider(left, top, SLIDER_WIDTH, 20,
+        this.sizeXSlider = addRenderableWidget(new ParamSlider(left, top, SLIDER_WIDTH, SLIDER_HEIGHT,
                 "gui.gensokyou.landscaping.size_x", 1, maxSize(),
                 present ? state.sizeX() : defSize));
-        this.sizeZSlider = addRenderableWidget(new ParamSlider(left, top + 26, SLIDER_WIDTH, 20,
+        this.sizeZSlider = addRenderableWidget(new ParamSlider(left, top + SLIDER_PITCH, SLIDER_WIDTH, SLIDER_HEIGHT,
                 "gui.gensokyou.landscaping.size_z", 1, maxSize(),
                 present ? state.sizeZ() : defSize));
-        this.heightSlider = addRenderableWidget(new ParamSlider(left, top + 52, SLIDER_WIDTH, 20,
+        this.heightSlider = addRenderableWidget(new ParamSlider(left, top + SLIDER_PITCH * 2, SLIDER_WIDTH, SLIDER_HEIGHT,
                 "gui.gensokyou.landscaping.size_y", 1, maxHeight(),
                 present ? state.height() : defHeight));
 
@@ -186,6 +190,20 @@ public class LandscapingScreen extends AbstractContainerScreen<LandscapingMenu> 
                 this.topPos + this.imageHeight, OVERLAY_EDGE);
         graphics.fill(this.leftPos + this.imageWidth - 1, this.topPos,
                 this.leftPos + this.imageWidth, this.topPos + this.imageHeight, OVERLAY_EDGE);
+    }
+
+    /**
+     * 抬头：<b>刻意不调 super</b>。
+     *
+     * <p>原版 {@code AbstractContainerScreen.renderLabels} 用 {@code 4210752 = 0x404040}
+     * 画标题——深灰压在深紫粉覆盖窗（0xC03A2630）上对比度只有 1.35，<b>等于看不见</b>（实机反馈）。
+     * 同一方法还会把「物品栏」标签画到面板外的世界上，同样是深灰。
+     *
+     * <p>故标题改用米白（{@link #OVERLAY_TEXT}，对比度 10.7）自绘。
+     */
+    @Override
+    protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
+        graphics.drawString(this.font, this.title, this.titleLabelX, this.titleLabelY, OVERLAY_TEXT, false);
     }
 
     @Override

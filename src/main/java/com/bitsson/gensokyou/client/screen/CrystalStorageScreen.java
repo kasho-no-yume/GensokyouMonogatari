@@ -2,6 +2,7 @@ package com.bitsson.gensokyou.client.screen;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.ClientCrystalStorageState;
+import com.bitsson.gensokyou.client.SakuraPalette;
 import com.bitsson.gensokyou.menu.CrystalStorageMenu;
 import com.bitsson.gensokyou.network.CrystalStorageClickPayload;
 import com.bitsson.gensokyou.network.CrystalStorageNavPayload;
@@ -9,9 +10,9 @@ import com.bitsson.gensokyou.network.CrystalStoragePagePayload;
 import com.bitsson.gensokyou.network.InfoLine;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import com.bitsson.gensokyou.client.widget.SakuraButton;
+import com.bitsson.gensokyou.client.widget.SakuraSearchField;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
@@ -30,14 +31,11 @@ public class CrystalStorageScreen extends AbstractContainerScreen<CrystalStorage
 
     private static final int PANEL_WIDTH = 184;
     private static final int PANEL_HEIGHT = 250;
-    private static final int COLOR_PANEL = 0xFFC6C6C6;
-    private static final int COLOR_SLOT = 0xFF8B8B8B;
-    private static final int COLOR_EDGE = 0xFF373737;
     private static final int COLOR_TEXT = 0xFF404040;
     /** 格内计数色：**深紫红**（旧的纯白在浅粉格底上完全看不见）。 */
     private static final int COLOR_COUNT = 0xFF4A1A2C;
-    private static final int COLOR_BAR_TRACK = 0xFFD8B4C2;
-    private static final int COLOR_BAR_THUMB = 0xFFB0738C;
+    private static final int COLOR_BAR_TRACK = SakuraPalette.SCROLL_TRACK;
+    private static final int COLOR_BAR_THUMB = SakuraPalette.SCROLL_THUMB;
     /**
      * 樱符面板底图（184×250，1:1 逻辑像素）。
      * 格阵 / 物品栏 / 热栏的格框全部烘焙在贴图里。
@@ -58,7 +56,7 @@ public class CrystalStorageScreen extends AbstractContainerScreen<CrystalStorage
     private static final int SCROLLBAR_X = 174;
     private static final int SCROLLBAR_W = 5;
 
-    private EditBox search;
+    private SakuraSearchField search;
     @Nullable
     private Button sortButton;
     @Nullable
@@ -75,10 +73,11 @@ public class CrystalStorageScreen extends AbstractContainerScreen<CrystalStorage
     @Override
     protected void init() {
         super.init();
-        this.search = new EditBox(this.font, leftPos + SEARCH_X, topPos + ROW_Y,
-                SEARCH_W, SEARCH_H, Component.translatable("gui.gensokyou.crystal_storage.search"));
+        this.search = SakuraSearchField.of(this.font, leftPos + SEARCH_X, topPos + ROW_Y,
+                SEARCH_W, SEARCH_H,
+                Component.translatable("gui.gensokyou.crystal_storage.search"),
+                Component.translatable("gui.gensokyou.crystal_storage.search_hint"));
         this.search.setMaxLength(64);
-        this.search.setHint(Component.translatable("gui.gensokyou.crystal_storage.search_hint"));
         this.search.setResponder(value -> sendNav(0, -1));
         addRenderableWidget(this.search);
 

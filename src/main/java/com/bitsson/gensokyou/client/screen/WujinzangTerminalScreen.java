@@ -12,8 +12,9 @@ import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.RitualInfoPayload;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import com.bitsson.gensokyou.client.SakuraPalette;
+import com.bitsson.gensokyou.client.widget.SakuraSearchField;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
@@ -38,9 +39,6 @@ import java.util.List;
  */
 public class WujinzangTerminalScreen extends AbstractContainerScreen<WujinzangTerminalMenu> {
 
-    private static final int COLOR_PANEL = 0xFFC6C6C6;
-    private static final int COLOR_SLOT = 0xFF8B8B8B;
-    private static final int COLOR_EDGE = 0xFF373737;
     /**
      * 樱符面板底图（306×264，1:1 逻辑像素）。
      * 所有格框都烘焙在贴图里；仅「显隐受控」的电池槽由运行期绘制。
@@ -48,16 +46,21 @@ public class WujinzangTerminalScreen extends AbstractContainerScreen<WujinzangTe
     private static final ResourceLocation BACKGROUND =
             Gensokyou.id("textures/gui/wujinzang_terminal.png");
     /** 电池槽框描边（金）—— 与贴图里其它格框同源，见 tools/textures/gui_sakura.py。 */
-    private static final int COLOR_CELL_EDGE = 0xFFD8BA84;
+    private static final int COLOR_CELL_EDGE = SakuraPalette.GOLD;
     /** 电池槽内底（樱粉凹底）—— 与贴图里其它格框同源。 */
-    private static final int COLOR_CELL_BG = 0xFFF3D8DF;
+    private static final int COLOR_CELL_BG = SakuraPalette.RECESS;
     private static final int COLOR_TEXT = 0xFF404040;
     private static final int COLOR_OK = 0xFF2E8B57;
     private static final int COLOR_BAD = 0xFFB22222;
-    private static final int COLOR_COUNT = 0xFFFFFFFF;
-    private static final int COLOR_BAR_TRACK = 0xFF5A5A5A;
-    private static final int COLOR_BAR_THUMB = 0xFFB0B0B0;
-    private static final int COLOR_DIVIDER = 0xFF8B8B8B;
+    /**
+     * 格内计数色：深紫红。
+     *
+     * <p>此前是纯白 {@code 0xFFFFFFFF} —— 樱符面板的格底是浅粉（凹底 0xF3D8DF），
+     * 白字在浅粉上几乎看不见（无尽藏晶面板已改过，无尽藏这边漏了）。
+     */
+    private static final int COLOR_COUNT = SakuraPalette.INK;
+    private static final int COLOR_BAR_TRACK = SakuraPalette.SCROLL_TRACK;
+    private static final int COLOR_BAR_THUMB = SakuraPalette.SCROLL_THUMB;
 
     private static final int LEFT_W = WujinzangTerminalMenu.LEFT_WIDTH;
 
@@ -74,7 +77,7 @@ public class WujinzangTerminalScreen extends AbstractContainerScreen<WujinzangTe
     private static final int SCROLLBAR_X = WujinzangTerminalMenu.GRID_X + 9 * 18 + 2;
     private static final int SCROLLBAR_W = 6;
 
-    private EditBox search;
+    private SakuraSearchField search;
     @Nullable
     private Button sortButton;
     @Nullable
@@ -101,10 +104,11 @@ public class WujinzangTerminalScreen extends AbstractContainerScreen<WujinzangTe
     @Override
     protected void init() {
         super.init();
-        this.search = new EditBox(this.font, leftPos + SEARCH_X, topPos + ROW_Y,
-                SEARCH_W, SEARCH_H, Component.translatable("gui.gensokyou.crystal_storage.search"));
+        this.search = SakuraSearchField.of(this.font, leftPos + SEARCH_X, topPos + ROW_Y,
+                SEARCH_W, SEARCH_H,
+                Component.translatable("gui.gensokyou.crystal_storage.search"),
+                Component.translatable("gui.gensokyou.crystal_storage.search_hint"));
         this.search.setMaxLength(64);
-        this.search.setHint(Component.translatable("gui.gensokyou.crystal_storage.search_hint"));
         this.search.setResponder(value -> sendNav(0, -1));
         addRenderableWidget(this.search);
 

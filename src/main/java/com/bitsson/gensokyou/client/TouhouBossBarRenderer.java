@@ -59,8 +59,10 @@ import java.util.UUID;
  * <h2>造型按阶级选</h2>
  * {@code frame_1..5} 五套边框，由 {@link TouhouBoss#bossTier()} 索引；<b>同一阶共用一套</b>，
  * 不逐 BOSS 个体定制。条身取该阶品阶色（{@link TierPalette}，全模组单一色源）。
- * 贴图全部是<b>占位</b>，后续整体替换（见
- * {@code openspec/changes/boss-bar-tier-and-spellcard-name} design D5）。
+ *
+ * <p><b>五阶差异是「装饰度」而非「色相」</b>：阶越高，符首符尾的印越多、花瓣越多、
+ * 金饰越满，窗口两侧的竖边也越粗（1→2 列）。边框本身仍是定色朱红（识别色），
+ * MUST NOT 参与染色。
  *
  * <h2>符卡名在血条下方</h2>
  * 血条本体高度<b>不因符卡行而变</b>；符卡行是独立的第二行，只把高度计入
@@ -69,8 +71,9 @@ import java.util.UUID;
  * 重算全部 y 等于把原版的 {@code screenHeight/3} 截断逻辑整个复制一遍）。
  *
  * <h2>贴图与画法</h2>
- * 边框走<b>九宫格</b>：端头 {@value #FRAME_CAP}px 原样、中段拉伸。config 宽度可调
- * 120~400，纯平铺在 400 宽时会看出重复节律。绘制序 <b>条身先、边框后</b>——燕尾撕边与
+ * 边框走<b>九宫格</b>：端头 {@value #FRAME_CAP}px <b>1:1 原样</b>、只有中段横向拉伸
+ * （中段是横向均质的纯色行，横向复制不失真）。config 宽度可调 120~400，
+ * 纯平铺在 400 宽时会看出重复节律。绘制序 <b>条身先、边框后</b>——燕尾撕边与
  * 右下朱印都悬在条身<b>外面</b>，压在上面才不会被填充盖掉。
  *
  * <p>残影的平滑由 {@code LerpingBossEvent.getProgress()} 自带的 100ms 插值 + 本类额外加的
@@ -83,9 +86,9 @@ public final class TouhouBossBarRenderer {
     // 与 tools/textures/boss_bar.py 一一对应，改一处 MUST 改另一处。
 
     /** 边框贴图尺寸。三段切：端头 {@link #FRAME_CAP}px / 中段 {@link #FRAME_MID}px / 端头。 */
-    private static final int FRAME_TEX_W = 28;
-    private static final int FRAME_TEX_H = 14;
-    private static final int FRAME_CAP = 12;
+    private static final int FRAME_TEX_W = 64;
+    private static final int FRAME_TEX_H = 24;
+    private static final int FRAME_CAP = 30;
     private static final int FRAME_MID = FRAME_TEX_W - 2 * FRAME_CAP;
 
     /**
@@ -95,12 +98,18 @@ public final class TouhouBossBarRenderer {
      * 阶的函数，于是 config 的 bodyHeight、多血条堆叠预算、`screenHeight/3` 截断判定
      * 全都要跟着分叉。逐阶差异只放在窗口之外的边距装饰里。
      */
-    private static final int WIN_ROW_TOP = 2;
-    private static final int WIN_ROW_BOTTOM = 9;
+    private static final int WIN_ROW_TOP = 8;
+    private static final int WIN_ROW_BOTTOM = 15;
     /** 窗口高（像素）。文本路径的条身高度恒等于此值。 */
     private static final int BODY_H = WIN_ROW_BOTTOM - WIN_ROW_TOP + 1;
-    /** 窗口两侧的竖边占几列。 */
-    private static final int WIN_SIDE = 1;
+
+    /**
+     * 窗口两侧的竖边占几列，<b>逐阶不同</b>（下标 = 阶级-1）。
+     *
+     * <p>这是窗口<b>列</b>方向的自由度：竖边变粗不影响窗口的<b>行</b>范围，
+     * 故不违反「5 阶共用同一行范围」那条硬约束。
+     */
+    private static final int[] WIN_SIDES = {1, 1, 1, 1, 2};
 
     /** 条身贴图尺寸（灰度，被 tint）。 */
     private static final int SEG_TEX_W = 16;
@@ -283,7 +292,8 @@ public final class TouhouBossBarRenderer {
                 frameColor(), false);
 
         int bodyY = y + WIN_ROW_TOP;
-        int bodyW = Math.max(0, width - 2 * WIN_SIDE);
+        int winSide = WIN_SIDES[tier - 1];
+        int bodyW = Math.max(0, width - 2 * winSide);
         float health = advanceGhost(bar);
         float progress = Mth.clamp(bar.getProgress(), 0.0F, 1.0F);
 
@@ -296,14 +306,14 @@ public final class TouhouBossBarRenderer {
             underY = bodyY + legacyH + 2;
         } else {
             // 条身：暗轨底（结构色）→ 残影（结构色）→ 当前血量（阶色，走贴图 tint）
-            fill(g, x + WIN_SIDE, bodyY, bodyW, BODY_H, trackColor());
+            fill(g, x + winSide, bodyY, bodyW, BODY_H, trackColor());
             int ghostW = Mth.floor(bodyW * Mth.clamp(health, 0.0F, 1.0F));
             if (ghostW > 0) {
-                fill(g, x + WIN_SIDE, bodyY, ghostW, BODY_H, ghostColor());
+                fill(g, x + winSide, bodyY, ghostW, BODY_H, ghostColor());
             }
             int fillW = Mth.floor(bodyW * progress);
             if (fillW > 0) {
-                tintedBlit(g, SEGMENT, x + WIN_SIDE, bodyY, fillW, BODY_H,
+                tintedBlit(g, SEGMENT, x + winSide, bodyY, fillW, BODY_H,
                         0, 0, SEG_TEX_W, SEG_TEX_H, SEG_TEX_W, SEG_TEX_H,
                         TierPalette.rgb(tier));
             }

@@ -16,6 +16,14 @@ Usage (run from repo root):
     python tools/gen_tex.py --write-assets   # also overwrite textures in src/main/resources
 Previews (x8 nearest) always go to tools/textures/_preview/. Assets are only
 touched with --write-assets.
+
+⚠️ --write-assets 有一条**护栏**：若目标资源已存在且**尺寸与 ASCII 数据渲染出的尺寸
+不符**，则**跳过并报警**，不覆盖。
+原因：仓库里不少 ASCII 数据文件是**旧占位图**的来源，后来那张贴图已被手绘/AI 正式美术
+替换（如 64×64 的物品贴图 vs 16×16 的 ASCII 旧稿）。跑一次全量 --write-assets
+就会把它们**覆盖回旧占位图** —— 实测踩过：一跑就把 50+ 张 64×64 物品贴图刷成了 16×16。
+真正的修法是把过期数据文件移进 tools/textures/_legacy/（gen_tex 不扫子目录），
+本护栏只是防呆兜底。
 """
 import importlib.util
 import sys
@@ -101,6 +109,17 @@ def main(argv):
                 img.resize((img.width * scale, img.height * scale), Image.NEAREST).save(PREVIEW / (name.replace("/", "_") + "_x%d.png" % scale))
                 if write_assets:
                     out = ASSETS / (name + ".png")
+                    # 护栏：目标已存在且尺寸不符 -> 这张 ASCII 是过期占位稿，
+                    # 资源已被手绘/AI 正式美术替换，MUST NOT 覆盖。
+                    if out.exists():
+                        with Image.open(out) as cur:
+                            if cur.size != img.size:
+                                print(f"[SKIP] {name}.png  尺寸不符"
+                                      f"（资源 {cur.size[0]}x{cur.size[1]} vs ASCII "
+                                      f"{img.width}x{img.height}）-> 该 ASCII 是过期占位稿，"
+                                      f"已跳过。真正的修法：把数据文件移进 tools/textures/_legacy/")
+                                count += 1
+                                continue
                     out.parent.mkdir(parents=True, exist_ok=True)
                     img.save(out)
                     print(f"[ok] {name}.png  ({img.width}x{img.height}) -> assets")
