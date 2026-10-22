@@ -1,7 +1,9 @@
 package com.bitsson.gensokyou.client.screen;
 
+import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.ClientCrystalStorageState;
 import com.bitsson.gensokyou.client.ClientRitualState;
+import com.bitsson.gensokyou.client.widget.SakuraButton;
 import com.bitsson.gensokyou.menu.WujinzangTerminalMenu;
 import com.bitsson.gensokyou.network.CrystalStorageClickPayload;
 import com.bitsson.gensokyou.network.CrystalStorageNavPayload;
@@ -39,6 +41,16 @@ public class WujinzangTerminalScreen extends AbstractContainerScreen<WujinzangTe
     private static final int COLOR_PANEL = 0xFFC6C6C6;
     private static final int COLOR_SLOT = 0xFF8B8B8B;
     private static final int COLOR_EDGE = 0xFF373737;
+    /**
+     * 樱符面板底图（306×264，1:1 逻辑像素）。
+     * 所有格框都烘焙在贴图里；仅「显隐受控」的电池槽由运行期绘制。
+     */
+    private static final ResourceLocation BACKGROUND =
+            Gensokyou.id("textures/gui/wujinzang_terminal.png");
+    /** 电池槽框描边（金）—— 与贴图里其它格框同源，见 tools/textures/gui_sakura.py。 */
+    private static final int COLOR_CELL_EDGE = 0xFFD8BA84;
+    /** 电池槽内底（樱粉凹底）—— 与贴图里其它格框同源。 */
+    private static final int COLOR_CELL_BG = 0xFFF3D8DF;
     private static final int COLOR_TEXT = 0xFF404040;
     private static final int COLOR_OK = 0xFF2E8B57;
     private static final int COLOR_BAD = 0xFFB22222;
@@ -96,29 +108,29 @@ public class WujinzangTerminalScreen extends AbstractContainerScreen<WujinzangTe
         this.search.setResponder(value -> sendNav(0, -1));
         addRenderableWidget(this.search);
 
-        this.sortButton = addRenderableWidget(Button.builder(sortLabel(),
-                        b -> sendNav(0, (currentSort() + 1) % WujinzangTerminalMenu.SORT_MODE_COUNT))
-                .bounds(leftPos + SORT_X, topPos + ROW_Y - 1, SORT_W, NAV_H).build());
-        this.prevButton = addRenderableWidget(Button.builder(Component.literal("\u25B2"),
-                        b -> sendNav(-WujinzangTerminalMenu.PAGE_SIZE, -1))
-                .bounds(leftPos + PREV_X, topPos + ROW_Y - 1, NAV_W, NAV_H).build());
-        this.nextButton = addRenderableWidget(Button.builder(Component.literal("\u25BC"),
-                        b -> sendNav(WujinzangTerminalMenu.PAGE_SIZE, -1))
-                .bounds(leftPos + NEXT_X, topPos + ROW_Y - 1, NAV_W, NAV_H).build());
+        this.sortButton = addRenderableWidget(SakuraButton.of(sortLabel(),
+                        b -> sendNav(0, (currentSort() + 1) % WujinzangTerminalMenu.SORT_MODE_COUNT),
+                leftPos + SORT_X, topPos + ROW_Y - 1, SORT_W, NAV_H));
+        this.prevButton = addRenderableWidget(SakuraButton.of(Component.literal("\u25B2"),
+                        b -> sendNav(-WujinzangTerminalMenu.PAGE_SIZE, -1),
+                leftPos + PREV_X, topPos + ROW_Y - 1, NAV_W, NAV_H));
+        this.nextButton = addRenderableWidget(SakuraButton.of(Component.literal("\u25BC"),
+                        b -> sendNav(WujinzangTerminalMenu.PAGE_SIZE, -1),
+                leftPos + NEXT_X, topPos + ROW_Y - 1, NAV_W, NAV_H));
 
-        this.startButton = addRenderableWidget(Button.builder(
-                        Component.translatable("gui.gensokyou.ritual.start"), b -> sendButton(0))
-                .bounds(leftPos + 6, topPos + 80, 108, 18).build());
-        this.stopButton = addRenderableWidget(Button.builder(
-                        Component.translatable("gui.gensokyou.ritual.stop"), b -> sendButton(1))
-                .bounds(leftPos + 6, topPos + 100, 108, 18).build());
+        this.startButton = addRenderableWidget(SakuraButton.of(
+                        Component.translatable("gui.gensokyou.ritual.start"), b -> sendButton(0),
+                leftPos + 6, topPos + 80, 108, 18));
+        this.stopButton = addRenderableWidget(SakuraButton.of(
+                        Component.translatable("gui.gensokyou.ritual.stop"), b -> sendButton(1),
+                leftPos + 6, topPos + 100, 108, 18));
         this.startButton.visible = false;
         this.stopButton.visible = false;
 
         // 产物格左上角叉叉：把合成格内材料返回仓储
-        this.returnCraftButton = addRenderableWidget(Button.builder(Component.literal("\u2715"),
-                        b -> sendButton(WujinzangTerminalMenu.BUTTON_RETURN_CRAFT))
-                .bounds(leftPos + RETURN_X, topPos + RETURN_Y, RETURN_W, RETURN_W).build());
+        this.returnCraftButton = addRenderableWidget(SakuraButton.of(Component.literal("\u2715"),
+                        b -> sendButton(WujinzangTerminalMenu.BUTTON_RETURN_CRAFT),
+                leftPos + RETURN_X, topPos + RETURN_Y, RETURN_W, RETURN_W));
         this.returnCraftButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
                 Component.translatable("gui.gensokyou.wujinzang.return_craft")));
     }
@@ -185,33 +197,14 @@ public class WujinzangTerminalScreen extends AbstractContainerScreen<WujinzangTe
 
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
-        graphics.fill(leftPos, topPos, leftPos + imageWidth, topPos + imageHeight, COLOR_PANEL);
-        graphics.fill(leftPos + LEFT_W, topPos, leftPos + LEFT_W + 2, topPos + imageHeight,
-                COLOR_DIVIDER);
+        // 底图：樱符面板贴图（306x264，1:1 逻辑像素）。
+        // 所有格框（主网格 9x5 / 合成 3x3 / 结果格 / 玩家物品栏 / 热栏）都烘焙在贴图里，
+        // 这里只补「显隐受控」的电池槽与运行期图层。
+        graphics.blit(BACKGROUND, leftPos, topPos, 0, 0, imageWidth, imageHeight,
+                imageWidth, imageHeight);
         if (menu.coreSocketShown()) {
             drawCellFrame(graphics, leftPos + WujinzangTerminalMenu.BATTERY_SLOT_X,
                     topPos + WujinzangTerminalMenu.BATTERY_SLOT_Y);
-        }
-        for (int i = 0; i < WujinzangTerminalMenu.PAGE_SIZE; i++) {
-            drawCellFrame(graphics, cellX(i), cellY(i));
-        }
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 3; col++) {
-                drawCellFrame(graphics, leftPos + WujinzangTerminalMenu.CRAFT_X + col * 18,
-                        topPos + WujinzangTerminalMenu.CRAFT_Y + row * 18);
-            }
-        }
-        drawCellFrame(graphics, leftPos + WujinzangTerminalMenu.RESULT_X,
-                topPos + WujinzangTerminalMenu.RESULT_Y);
-        for (int row = 0; row < 3; row++) {
-            for (int col = 0; col < 9; col++) {
-                drawCellFrame(graphics, leftPos + WujinzangTerminalMenu.PLAYER_INV_X + col * 18,
-                        topPos + WujinzangTerminalMenu.PLAYER_INV_Y + row * 18);
-            }
-        }
-        for (int col = 0; col < 9; col++) {
-            drawCellFrame(graphics, leftPos + WujinzangTerminalMenu.PLAYER_INV_X + col * 18,
-                    topPos + WujinzangTerminalMenu.HOTBAR_Y);
         }
         if (storageOpen()) {
             renderGridIcons(graphics);
@@ -239,9 +232,13 @@ public class WujinzangTerminalScreen extends AbstractContainerScreen<WujinzangTe
                 0xFFE0E0E0, false);
     }
 
+    /**
+     * 电池槽框：显隐受 {@code coreSocketShown} 控制，故**不烘焙进贴图**，运行期绘制。
+     * 配色与贴图里其它格框同源（见 {@code tools/textures/gui_sakura.py} 的 core_socket）。
+     */
     private void drawCellFrame(GuiGraphics graphics, int x, int y) {
-        graphics.fill(x - 1, y - 1, x + 17, y + 17, COLOR_EDGE);
-        graphics.fill(x, y, x + 16, y + 16, COLOR_SLOT);
+        graphics.fill(x - 1, y - 1, x + 17, y + 17, COLOR_CELL_EDGE);
+        graphics.fill(x, y, x + 16, y + 16, COLOR_CELL_BG);
     }
 
     private int cellX(int i) {

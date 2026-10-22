@@ -1,11 +1,14 @@
 package com.bitsson.gensokyou.client.screen;
 
+import com.bitsson.gensokyou.client.widget.SakuraButton;
+import com.bitsson.gensokyou.client.widget.SakuraSlider;
 import com.bitsson.gensokyou.config.GensokyouServerConfig;
 
 import com.bitsson.gensokyou.config.GensokyouClientConfig;
 
 import com.bitsson.gensokyou.menu.SpiritBombMenu;
 import com.bitsson.gensokyou.network.SpiritBombStatePayload;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
@@ -24,6 +27,14 @@ import net.minecraft.world.entity.player.Inventory;
 public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
 
     private static final int SLIDER_WIDTH = 140;
+    /** 覆盖窗底色：深紫粉半透明（0xC0 = 75% 不透明，方块仍隐约可见）。 */
+    private static final int OVERLAY_BG = 0xC03A2630;
+    /** 覆盖窗金边。 */
+    private static final int OVERLAY_EDGE = 0xFFD8BA84;
+    /** 覆盖窗上的文字色（米白）。 */
+    private static final int OVERLAY_TEXT = 0xFFF0DCE2;
+    /** 覆盖窗内的凹槽（提示区）底色：深樱红半透明。 */
+    private static final int OVERLAY_WELL = 0x80301828;
 
     private ParamSlider fuseSlider;
     private ParamSlider powerSlider;
@@ -64,11 +75,10 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
                 "gui.gensokyou.spirit_bomb.radius", 1.0D, 24.0D,
                 present ? state.radius() : 6.0D, 1.0D));
 
-        this.armButton = addRenderableWidget(Button.builder(
+        this.armButton = addRenderableWidget(SakuraButton.of(
                         Component.translatable("gui.gensokyou.spirit_bomb.arm"),
-                        button -> menu.submit(true, fuseTicks(), powerValue(), radiusValue()))
-                .bounds(left, top + 82, SLIDER_WIDTH, 20)
-                .build());
+                        button -> menu.submit(true, fuseTicks(), powerValue(), radiusValue()),
+                left, top + 82, SLIDER_WIDTH, 20));
 
         // 界面已存在，此时请求一次状态（一次性，不 tick）
         menu.requestState();
@@ -161,10 +171,21 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
 
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+        // 覆盖窗（叠在方块界面上）：保留半透明语义，但换成樱符的深紫粉 + 金边。
+        // 刻意**不**做成不透光的和纸面板 —— 那会挡住玩家正在配置的方块。
         graphics.fill(this.leftPos, this.topPos, this.leftPos + this.imageWidth,
-                this.topPos + this.imageHeight, 0xC0101010);
+                this.topPos + this.imageHeight, OVERLAY_BG);
+        graphics.fill(this.leftPos, this.topPos, this.leftPos + this.imageWidth,
+                this.topPos + 1, OVERLAY_EDGE);
+        graphics.fill(this.leftPos, this.topPos + this.imageHeight - 1,
+                this.leftPos + this.imageWidth, this.topPos + this.imageHeight, OVERLAY_EDGE);
+        graphics.fill(this.leftPos, this.topPos, this.leftPos + 1,
+                this.topPos + this.imageHeight, OVERLAY_EDGE);
+        graphics.fill(this.leftPos + this.imageWidth - 1, this.topPos,
+                this.leftPos + this.imageWidth, this.topPos + this.imageHeight, OVERLAY_EDGE);
+        // 底部提示凹槽
         graphics.fill(this.leftPos + 8, this.topPos + this.imageHeight - 26,
-                this.leftPos + this.imageWidth - 8, this.topPos + this.imageHeight - 8, 0x80000000);
+                this.leftPos + this.imageWidth - 8, this.topPos + this.imageHeight - 8, OVERLAY_WELL);
     }
 
     @Override
@@ -218,6 +239,13 @@ public class SpiritBombScreen extends AbstractContainerScreen<SpiritBombMenu> {
         /** 拖动过程中被原版调用。刻意什么都不做：改参数是松手才提交的服务端权威动作。 */
         @Override
         protected void applyValue() {
+        }
+
+        @Override
+        public void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+            // 原版是两张灰调贴图（widget/slider + widget/slider_handle），在樱符面板上脱节 -> 自绘
+            SakuraSlider.render(g, Minecraft.getInstance().font, getX(), getY(), getWidth(), getHeight(),
+                    this.value, getMessage(), OVERLAY_TEXT);
         }
 
         @Override

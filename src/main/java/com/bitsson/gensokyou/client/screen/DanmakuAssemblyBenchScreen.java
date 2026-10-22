@@ -44,17 +44,32 @@ public class DanmakuAssemblyBenchScreen extends AbstractContainerScreen<DanmakuA
 
     @Override
     protected void renderLabels(GuiGraphics graphics, int mouseX, int mouseY) {
-        graphics.drawString(this.font, this.title, 8, 4, 0xFF404040, false);
-        // 武器输入槽标注（槽下方）
-        graphics.drawString(this.font, Component.translatable("gui.gensokyou.assembly.weapon"),
-                DanmakuAssemblyBenchMenu.WEAPON_SLOT_X, 42, 0xFF6B4A24, false);
-        // 三核槽槽位标注（球下方一行：弹核在球心，等级核在球左，增幅核在球右）
-        graphics.drawString(this.font, Component.translatable("gui.gensokyou.weapon.slot_bullet"),
-                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[0], 55, 0xFF6B4A24, false);
-        graphics.drawString(this.font, Component.translatable("gui.gensokyou.weapon.slot_level"),
-                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[1], 55, 0xFF6B4A24, false);
-        graphics.drawString(this.font, Component.translatable("gui.gensokyou.weapon.slot_amp"),
-                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[2], 55, 0xFF6B4A24, false);
+        // 标题 y=8：面板顶部由贴图绘制，y=2..5 是贴图的外框实色带，y=4 会把标题压在边框上
+        // （与仪式核心界面同一处理，见 RitualCoreScreen#renderLabels）。
+        graphics.drawString(this.font, this.title, 8, 8, 0xFF404040, false);
+        // 槽位标注：**统一一行 y=60**（此前武器标注 y=42、三核标注 y=55，两行错开看着歪），
+        // 且各自**水平居中于自己的槽**。
+        drawSlotLabel(graphics, Component.translatable("gui.gensokyou.assembly.weapon"),
+                DanmakuAssemblyBenchMenu.WEAPON_SLOT_X);
+        // 三核槽标注（弹核在球心，等级核在球左，增幅核在球右）
+        drawSlotLabel(graphics, Component.translatable("gui.gensokyou.weapon.slot_bullet"),
+                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[0]);
+        drawSlotLabel(graphics, Component.translatable("gui.gensokyou.weapon.slot_level"),
+                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[1]);
+        drawSlotLabel(graphics, Component.translatable("gui.gensokyou.weapon.slot_amp"),
+                DanmakuAssemblyBenchMenu.CORE_SLOT_XS[2]);
+    }
+
+    /**
+     * 槽位标注：统一 y=60；x 让文字在 18px 槽上水平居中。
+     *
+     * <p>此前标注以槽的<b>左边</b>为起点左对齐 —— 2 字标注（18px）看着居中，
+     * 3 字标注（27px）就左偏 4.5px，同一行里三段标注参差不齐。
+     *
+     * <p>槽框画在槽坐标 −1 处，故框心 = 槽坐标 + 7.5；整数取 +8。
+     */
+    private void drawSlotLabel(GuiGraphics graphics, Component text, int slotX) {
+        graphics.drawString(this.font, text, slotX + 8 - this.font.width(text) / 2, 60, 0xFF7A4A5E, false);
     }
 
     /** 不可装入的核叠加半透明灰色遮罩（原版槽位渲染后、悬停物之前执行）。 */

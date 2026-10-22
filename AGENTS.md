@@ -107,6 +107,21 @@ Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
 多字节字符被破坏后会直接把解析器带偏，出现莫名其妙的 `MissingExpressionAfterToken` 解析错误。
 需要中文注释时，请存为 **UTF-8 with BOM**。
 
+## 改源码文件：不要用 PowerShell 读写
+
+**任何** `.java` / `.py` / `.md` 源文件都**不要**用
+`Get-Content -Raw` + `Set-Content -Encoding UTF8` 做原地替换。
+
+原因同上一节但更隐蔽：PowerShell 5.1 的 `Get-Content` 默认按 **ANSI（GBK）** 读无 BOM 的 UTF-8，
+读进来就是乱码，`Set-Content -Encoding UTF8` 再把乱码写回去 —— **中文注释被毁，且会顺带吃掉
+标识符/参数**（实测：一次往返把 `renderLabels(GuiGraphics, int, int, float)` 的
+`float partialTick` 整个吃掉了）。而且它还会**加 BOM**，javac 直接报
+`illegal character: '\ufeff'`。
+
+正确做法：
+- 用编辑工具（Edit / Write）改文件
+- 必须脚本化改文件时，用 **Python**（显式 `encoding='utf-8'`），或先 `python tools/strip_java_bom.py` 兜底
+
 ## 其他
 
 - 本地 JDK 21 在 `F:/application/jdk-21`（见 `gradle.properties` 的 `org.gradle.java.home`）

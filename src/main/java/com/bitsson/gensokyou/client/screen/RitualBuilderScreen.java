@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client.screen;
 
+import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.ClientBoundSupplyState;
 import com.bitsson.gensokyou.client.MaterialIcons;
 import com.bitsson.gensokyou.item.BuilderBind;
@@ -59,6 +60,12 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
     private static final int COLOR_TEXT = 0xFF404040;
     private static final int COLOR_OK = 0xFF2E8B57;
     private static final int COLOR_BAD = 0xFFB22222;
+    /**
+     * 樱符面板底图（264×196，1:1 逻辑像素）。
+     * 静态结构（外框 / 列表行分隔线 / 左右分栏）都烘焙在贴图里。
+     */
+    private static final ResourceLocation BACKGROUND =
+            Gensokyou.id("textures/gui/ritual_builder.png");
 
     private int scroll;
     /** 右列材料需求区滚动偏移（与左列 scroll 同款机制）。 */
@@ -134,11 +141,11 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
 
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
-        graphics.fill(leftPos, topPos, leftPos + PANEL_WIDTH, topPos + PANEL_HEIGHT, 0xFFF0F0F0);
-        graphics.fill(leftPos, topPos, leftPos + PANEL_WIDTH, topPos + 1, 0xFFC6C6C6);
-        graphics.fill(leftPos, topPos + PANEL_HEIGHT - 1, leftPos + PANEL_WIDTH, topPos + PANEL_HEIGHT, 0xFF555555);
-        graphics.fill(leftPos, topPos, leftPos + 1, topPos + PANEL_HEIGHT, 0xFFC6C6C6);
-        graphics.fill(leftPos + PANEL_WIDTH - 1, topPos, leftPos + PANEL_WIDTH, topPos + PANEL_HEIGHT, 0xFF555555);
+        // 底图：樱符面板贴图（264x196，1:1 逻辑像素）。
+        // 静态结构（外框 / 列表行分隔线 / 左右分栏）都烘焙在贴图里；
+        // 动态的列表高亮、品阶图标、材料行、放置信息仍是运行期绘制。
+        graphics.blit(BACKGROUND, leftPos, topPos, 0, 0, PANEL_WIDTH, PANEL_HEIGHT,
+                PANEL_WIDTH, PANEL_HEIGHT);
     }
 
     @Override
@@ -162,9 +169,10 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
             boolean hover = mouseX >= leftPos + LIST_X && mouseX < leftPos + LIST_X + LIST_W
                     && mouseY >= topPos + y && mouseY < topPos + y + ROW_H;
             if (selected) {
-                graphics.fill(LIST_X - 2, y - 2, LIST_X + LIST_W, y + ROW_H - 2, 0xFFB0C4DE);
+                // 选中/悬停底色改樱色系（旧的是淡蓝 0xFFB0C4DE / 淡灰 0xFFD8D8D8，与樱粉面板不搭）
+                graphics.fill(LIST_X - 2, y - 2, LIST_X + LIST_W, y + ROW_H - 2, 0xFFE3A8BC);
             } else if (hover) {
-                graphics.fill(LIST_X - 2, y - 2, LIST_X + LIST_W, y + ROW_H - 2, 0xFFD8D8D8);
+                graphics.fill(LIST_X - 2, y - 2, LIST_X + LIST_W, y + ROW_H - 2, 0xFFF5E2E8);
             }
             ItemStack icon = patternIcon(pattern);
             if (!icon.isEmpty()) {
@@ -386,10 +394,10 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
         if (maxScroll <= 0) {
             return;
         }
-        graphics.fill(x, top, x + 4, top + h, 0xFFC0C0C0);
+        graphics.fill(x, top, x + 4, top + h, 0xFFD8B4C2);
         int thumbH = Math.max(12, h * visible / total);
         int thumbY = top + (int) ((h - thumbH) * (scroll / (float) maxScroll));
-        graphics.fill(x, thumbY, x + 4, thumbY + thumbH, 0xFF707070);
+        graphics.fill(x, thumbY, x + 4, thumbY + thumbH, 0xFFB0738C);
     }
 
     private static Component patternName(RitualPattern pattern) {

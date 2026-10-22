@@ -1,10 +1,13 @@
 package com.bitsson.gensokyou.client.screen;
 
+import com.bitsson.gensokyou.client.widget.SakuraButton;
+import com.bitsson.gensokyou.client.widget.SakuraSlider;
 import com.bitsson.gensokyou.config.GensokyouServerConfig;
 import com.bitsson.gensokyou.config.GensokyouClientConfig;
 
 import com.bitsson.gensokyou.menu.LandscapingMenu;
 import com.bitsson.gensokyou.network.LandscapingStatePayload;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
@@ -24,6 +27,12 @@ import net.minecraft.world.entity.player.Inventory;
 public class LandscapingScreen extends AbstractContainerScreen<LandscapingMenu> {
 
     private static final int SLIDER_WIDTH = 140;
+    /** 覆盖窗底色：深紫粉半透明（0xC0 = 75% 不透明，方块仍隐约可见）。 */
+    private static final int OVERLAY_BG = 0xC03A2630;
+    /** 覆盖窗金边。 */
+    private static final int OVERLAY_EDGE = 0xFFD8BA84;
+    /** 覆盖窗上的文字色（米白）。 */
+    private static final int OVERLAY_TEXT = 0xFFF0DCE2;
 
     private ParamSlider sizeXSlider;
     private ParamSlider sizeZSlider;
@@ -74,11 +83,10 @@ public class LandscapingScreen extends AbstractContainerScreen<LandscapingMenu> 
                 "gui.gensokyou.landscaping.size_y", 1, maxHeight(),
                 present ? state.height() : defHeight));
 
-        this.activateButton = addRenderableWidget(Button.builder(
+        this.activateButton = addRenderableWidget(SakuraButton.of(
                         Component.translatable("gui.gensokyou.landscaping.activate"),
-                        button -> menu.submit(true, sizeX(), sizeZ(), height()))
-                .bounds(left, top + 84, SLIDER_WIDTH, 20)
-                .build());
+                        button -> menu.submit(true, sizeX(), sizeZ(), height()),
+                left, top + 84, SLIDER_WIDTH, 20));
 
         // 界面已存在，此时请求一次状态（一次性，不 tick）
         menu.requestState();
@@ -166,8 +174,18 @@ public class LandscapingScreen extends AbstractContainerScreen<LandscapingMenu> 
 
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+        // 覆盖窗（叠在方块界面上）：保留半透明语义，但换成樱符的深紫粉 + 金边。
+        // 刻意**不**做成不透光的和纸面板 —— 那会挡住玩家正在配置的方块。
         graphics.fill(this.leftPos, this.topPos, this.leftPos + this.imageWidth,
-                this.topPos + this.imageHeight, 0xC0101010);
+                this.topPos + this.imageHeight, OVERLAY_BG);
+        graphics.fill(this.leftPos, this.topPos, this.leftPos + this.imageWidth,
+                this.topPos + 1, OVERLAY_EDGE);
+        graphics.fill(this.leftPos, this.topPos + this.imageHeight - 1,
+                this.leftPos + this.imageWidth, this.topPos + this.imageHeight, OVERLAY_EDGE);
+        graphics.fill(this.leftPos, this.topPos, this.leftPos + 1,
+                this.topPos + this.imageHeight, OVERLAY_EDGE);
+        graphics.fill(this.leftPos + this.imageWidth - 1, this.topPos,
+                this.leftPos + this.imageWidth, this.topPos + this.imageHeight, OVERLAY_EDGE);
     }
 
     @Override
@@ -177,7 +195,7 @@ public class LandscapingScreen extends AbstractContainerScreen<LandscapingMenu> 
         graphics.drawString(this.font,
                 Component.translatable("gui.gensokyou.landscaping.cost",
                         String.format("%,d", estimatedCost())),
-                this.leftPos + 14, this.topPos + this.imageHeight - 18, 0xE0E0E0, false);
+                this.leftPos + 14, this.topPos + this.imageHeight - 18, OVERLAY_TEXT, false);
         this.renderTooltip(graphics, mouseX, mouseY);
     }
 
@@ -212,6 +230,13 @@ public class LandscapingScreen extends AbstractContainerScreen<LandscapingMenu> 
 
         @Override
         protected void applyValue() {
+        }
+
+        @Override
+        public void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+            // 原版是两张灰调贴图（widget/slider + widget/slider_handle），在樱符面板上脱节 -> 自绘
+            SakuraSlider.render(g, Minecraft.getInstance().font, getX(), getY(), getWidth(), getHeight(),
+                    this.value, getMessage(), OVERLAY_TEXT);
         }
 
         @Override

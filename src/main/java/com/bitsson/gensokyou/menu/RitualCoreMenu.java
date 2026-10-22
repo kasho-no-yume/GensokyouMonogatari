@@ -28,7 +28,8 @@ public class RitualCoreMenu extends AbstractContainerMenu {
 
     /** 灵力核心输出槽在面板中的位置（面板 176 宽，槽位在信息区头排）。 */
     public static final int BATTERY_SLOT_X = 30;
-    public static final int BATTERY_SLOT_Y = 40;
+    /** v2 布局：槽落在左信息卡内，卡内壁 y40..149，槽原点 (30,44)、框在 (29,43)。 */
+    public static final int BATTERY_SLOT_Y = 44;
     /** BatterySlot 恒为槽表 index 0，背包槽在其后追加。 */
     private static final int BATTERY_SLOT_INDEX = 0;
 

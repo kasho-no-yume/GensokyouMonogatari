@@ -9,31 +9,33 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * 核心 GUI 槽位几何回归。
  *
- * <p>本 GUI 的槽坐标约定（从贴图里电池槽实测得出：框在 {@code (29,39)}、槽在
- * {@code (30,40)}）：<b>物品与命中框的原点在槽坐标，18px 槽框画在槽坐标 −1 处</b>，
+ * <p>本 GUI 的槽坐标约定（从贴图里电池槽实测得出：框在 {@code (29,43)}、槽在
+ * {@code (30,44)}）：<b>物品与命中框的原点在槽坐标，18px 槽框画在槽坐标 −1 处</b>，
  * 物品因此天然内缩 1px 居中。代码绘制的槽框（增幅核目标槽、信息区只读物品格）
  * 必须遵守同一约定，否则会出现"逻辑位置与视觉位置错位 1px"。
  *
- * <p>另需保证槽框不越出信息框内壁（x=7 是贴图里的竖向分隔线），且不侵入信息正文区。
+ * <p>v2 布局（樱符面板，176×234）：左信息卡 x4..110、右按钮卡 x114..172，
+ * <b>两卡上下严格等高</b>（y40..149）；卡内分隔线 y=64；信息正文首行 y=68。
+ * 额外槽排成一行，槽框顶沿对齐信息正文首行。
  */
 class RitualCoreSlotGeometryTest {
 
     private static final int FRAME = 18;
 
-    /** 贴图实测：电池槽框左上角 (29,39)，电池槽槽坐标 (30,40)。 */
+    /** 贴图实测：电池槽框左上角 (29,43)，电池槽槽坐标 (30,44)。 */
     private static final int BATT_FRAME_X = 29;
-    private static final int BATT_FRAME_Y = 39;
+    private static final int BATT_FRAME_Y = 43;
 
-    /** 信息框竖向分隔线所在列；框不得越过它。 */
-    private static final int INFO_BOX_WALL_X = 7;
+    /** 左信息卡竖向边框所在列；框不得越过它。 */
+    private static final int INFO_BOX_WALL_X = 4;
     /** 信息正文左边界，与 {@code RitualCoreScreen.INFO_X} 一致。 */
     private static final int INFO_CONTENT_X = 8;
     /** 信息正文首行 y，与 {@code RitualCoreScreen.INFO_Y_START} 一致。 */
-    private static final int INFO_FIRST_ROW_Y = 60;
+    private static final int INFO_FIRST_ROW_Y = 68;
     /** 目标槽占用的首行高度，与 {@code RitualCoreScreen.INFO_TARGET_ROW_H} 一致。 */
     private static final int INFO_TARGET_ROW_H = 20;
-    /** 信息盒右钳界，与 {@code RitualCoreScreen.INFO_BOX_RIGHT} 一致（按钮列从 x=120 起）。 */
-    private static final int INFO_BOX_RIGHT = 112;
+    /** 信息盒右钳界，与 {@code RitualCoreScreen.INFO_BOX_RIGHT} 一致（按钮卡从 x=114 起）。 */
+    private static final int INFO_BOX_RIGHT = 106;
 
     @Test
     void batterySlotConfirmsFrameIsDrawnAtSlotMinusOne() {
@@ -73,7 +75,7 @@ class RitualCoreSlotGeometryTest {
         assertTrue(lastFrameRight + FRAME <= INFO_BOX_RIGHT,
                 "第 " + last + " 格槽框右沿 " + lastFrameRight
                         + " 越过了信息盒右钳界 " + INFO_BOX_RIGHT
-                        + "（面板 176 宽，按钮列从 x=120 起）");
+                        + "（面板 176 宽，按钮卡从 x=114 起）");
         for (int i = 0; i <= last; i++) {
             assertEquals(INFO_FIRST_ROW_Y, RitualCoreMenu.extraSlotY(i) - 1,
                     "缺省布局把所有额外槽放在信息区首行");

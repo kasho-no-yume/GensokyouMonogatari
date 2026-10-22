@@ -2,6 +2,7 @@ package com.bitsson.gensokyou.client.screen;
 
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.ClientRitualState;
+import com.bitsson.gensokyou.client.widget.SakuraButton;
 import com.bitsson.gensokyou.menu.RitualCoreMenu;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.RitualInfoPayload;
@@ -43,17 +44,32 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
 
     /** 信息行布局：图标行占 18px，纯文本行占 11px。 */
     private static final int INFO_X = 8;
-    private static final int INFO_Y_START = 60;
+    /**
+     * 信息正文区起始 y。
+     *
+     * <p>v2 布局（樱符面板）：左信息卡 x4..110、右按钮卡 x114..172，**两卡上下严格等高**
+     * （都是 y40..149）。卡内分隔线在 y=64，正文从分隔线下方 68 起笔。
+     */
+    private static final int INFO_Y_START = 68;
     /**
      * 目标物品槽（星移之仪的增幅核）占据信息区首行时的高度。
-     * 槽在 (8,60)、18px 见方，标注画在其右侧，故整条占 {@code INFO_TARGET_ROW_H}。
+     * 槽在 (9,68)、18px 见方，标注画在其右侧，故整条占 {@code INFO_TARGET_ROW_H}。
      */
     private static final int INFO_TARGET_ROW_H = 20;
-    private static final int INFO_MAX_Y = INFO_HEIGHT - 22;
-    /** 信息盒右钳界：背景贴图分隔线 x=116 留 4px 余量，进度条/高亮/命中区不得越入按钮列。 */
-    private static final int INFO_BOX_RIGHT = 112;
-    /** 启停按钮（头排右列）。 */
-    private static final int TOGGLE_BUTTON_X = 120;
+    /**
+     * 信息正文区下缘。
+     *
+     * <p>取 {@code INFO_HEIGHT - 13} = 137：下方 3px 留给一次性状态消息
+     * （画在 {@code INFO_HEIGHT - 12} = 138），二者不重叠。
+     */
+    private static final int INFO_MAX_Y = INFO_HEIGHT - 13;
+    /**
+     * 信息盒右钳界：v2 布局左信息卡右沿在 x=110，留 4px 余量 → 106。
+     * 进度条/高亮/命中区/裁剪区一律不得越入右侧按钮卡（x≥114）。
+     */
+    private static final int INFO_BOX_RIGHT = 106;
+    /** 启停按钮（右侧按钮卡内，卡内壁 x114..172 → 按钮 118..167，左右各留 4/5px）。 */
+    private static final int TOGGLE_BUTTON_X = 118;
     private static final int TOGGLE_BUTTON_W = 50;
     /**
      * 三态标记（✓/✗）右对齐锚点 = 信息盒内壁。
@@ -99,22 +115,24 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     protected void init() {
         super.init();
         userScrolled = false; // 每次开界面重置"玩家已手动滚动"，恢复自动对齐
-        // 启停按钮：头排右列（电池槽右侧）
-        startButton = addRenderableWidget(Button.builder(
-                        Component.translatable("gui.gensokyou.ritual.start"), b -> send(0))
-                .bounds(leftPos + TOGGLE_BUTTON_X, topPos + 40, TOGGLE_BUTTON_W, 20).build());
-        stopButton = addRenderableWidget(Button.builder(
-                        Component.translatable("gui.gensokyou.ritual.stop"), b -> send(1))
-                .bounds(leftPos + TOGGLE_BUTTON_X, topPos + 62, TOGGLE_BUTTON_W, 20).build());
+        // 启停按钮：右侧按钮卡（x118..167），卡片内壁 y43..146
+        startButton = addRenderableWidget(SakuraButton.of(
+                Component.translatable("gui.gensokyou.ritual.start"), b -> send(0),
+                leftPos + TOGGLE_BUTTON_X, topPos + 43, TOGGLE_BUTTON_W, 20));
+        stopButton = addRenderableWidget(SakuraButton.of(
+                Component.translatable("gui.gensokyou.ritual.stop"), b -> send(1),
+                leftPos + TOGGLE_BUTTON_X, topPos + 64, TOGGLE_BUTTON_W, 20));
         // 首帧即隐藏，显隐唯一由 containerTick 按服务端 payload 收敛（防非 toggleable 仪式按钮闪现）
         startButton.visible = false;
         stopButton.visible = false;
-        // 行为注入操作按钮：启停下方竖排
+        // 行为注入操作按钮：启停下方竖排。
+        // ⚠️ pitch 必须是 21 且起点 85：5 个 20px 按钮（含启停）要全部落在按钮卡内壁
+        //    （y43..146）。旧版 pitch=22、起点 88 时第三个动作按钮底到 151，**画出卡外**。
         for (int i = 0; i < actionButtons.length; i++) {
             final int index = i;
-            actionButtons[i] = addRenderableWidget(Button.builder(Component.literal("?"),
-                            b -> send(RitualCoreMenu.BUTTON_ACTION_BASE + index))
-                    .bounds(leftPos + TOGGLE_BUTTON_X, topPos + 88 + i * 22, TOGGLE_BUTTON_W, 20).build());
+            actionButtons[i] = addRenderableWidget(SakuraButton.of(
+                    Component.literal("?"), b -> send(RitualCoreMenu.BUTTON_ACTION_BASE + index),
+                    leftPos + TOGGLE_BUTTON_X, topPos + 85 + i * 21, TOGGLE_BUTTON_W, 20));
             actionButtons[i].visible = false;
         }
     }
@@ -303,9 +321,15 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         }
         // —— 固定头：名称 / 状态 / 阶级 / 灵力 ——
         ResourceLocation id = ResourceLocation.parse(info.patternId());
+        // 抬头三行整体下移（名称/状态 y=8、阶级 y=19、灵力 y=30）：面板顶部由贴图绘制，
+        // y=2..5 是贴图的外框实色带，原先 y=4 会把标题压在边框上。
+        // ⚠️ 一律 **不开投影**：MC 的 dropShadow 用 (color & 0xFCFCFC) >> 2 算阴影色，
+        //    0xFF404040 → 0xFF101010（近黑），再硬偏移 1 逻辑像素；在 guiScale=4 下
+        //    那就是 4 物理像素的近黑鬼影，CJK 小字直接糊成双份（实机反馈）。
+        //    贴图上的樱枝/樱印是浅粉底，深灰字本身对比就够，不需要阴影。
         graphics.drawString(font,
                 Component.translatableWithFallback("jei." + id.getNamespace() + ".ritual." + id.getPath(),
-                        id.getPath().replace('_', ' ')), INFO_X, 4, COLOR_TEXT, false);
+                        id.getPath().replace('_', ' ')), INFO_X, 8, COLOR_TEXT, false);
         // 启停状态标签只对 toggleable 仪式有意义；被动产能仪式（梦渡等）显示中性"已成型"，
         // 不得渲染"已停止"误导为可启动而未启动
         boolean passive = !info.toggleable();
@@ -313,17 +337,17 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
                 ? Component.translatable("gui.gensokyou.ritual.formed")
                 : Component.translatable(info.enabled()
                         ? "gui.gensokyou.ritual.running" : "gui.gensokyou.ritual.idle");
-        graphics.drawString(font, state, PANEL_WIDTH - 8 - font.width(state), 4,
+        graphics.drawString(font, state, PANEL_WIDTH - 8 - font.width(state), 8,
                 passive || info.enabled() ? COLOR_OK : COLOR_BAD, false);
         graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.tier", info.tier()),
-                INFO_X, 15, COLOR_TEXT, false);
+                INFO_X, 19, COLOR_TEXT, false);
         // 零缓存核心（共鸣塔）不显示"灵力 0/0"行，概要数据由行为信息行替代；
         // 数值 MUST 紧凑化——托管池满配可达 12 位数，raw long 会画穿 176px 面板
         if (info.capacity() > 0) {
             graphics.drawString(font, Component.translatable("gui.gensokyou.ritual.sp",
                     com.bitsson.gensokyou.network.InfoLine.compact(info.stored()),
                     com.bitsson.gensokyou.network.InfoLine.compact(info.capacity())),
-                    INFO_X, 26, COLOR_TEXT, false);
+                    INFO_X, 30, COLOR_TEXT, false);
         }
         // 灵力核心槽标注（槽体由菜单协议渲染）：随菜单最终可见性绘制
         if (menu.coreSocketShown()) {
@@ -365,10 +389,10 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
     /** 纯文本行高 / 带图标行高（图标 16px + 上下留白）。 */
     private static final int ROW_H_TEXT = 11;
     private static final int ROW_H_ICON = 18;
-    /** 槽框描边色：取自贴图里电池槽框的实际像素 #AC98D6。 */
-    private static final int SLOT_FRAME_BORDER = 0xFFAC98D6;
-    /** 空槽凹底：额外槽所在处贴图没有烘焙槽底，空槽时 MUST 自绘一层暗底才读得出"这是个槽"。 */
-    private static final int SLOT_RECESS = 0xFF23232B;
+    /** 槽框描边色：樱粉主线，与 v2 面板贴图同色源（贴图里电池槽框的同款）。 */
+    private static final int SLOT_FRAME_BORDER = 0xFFC87A92;
+    /** 空槽凹底：额外槽所在处贴图没有烘焙槽底，空槽时 MUST 自绘一层凹底才读得出"这是个槽"。 */
+    private static final int SLOT_RECESS = 0xFFE9CBD5;
     /** 进度条相对 textX 的固定起点偏移（barX = textX + BAR_OFFSET）。 */
     private static final int BAR_OFFSET = 52;
 
@@ -485,7 +509,7 @@ public class RitualCoreScreen extends AbstractContainerScreen<RitualCoreMenu> {
         interactiveRowHits.clear();
         tipRowHits.clear();
         graphics.enableScissor(leftPos + INFO_X - 4, topPos + infoTop - 2,
-                leftPos + PANEL_WIDTH - 4, topPos + INFO_MAX_Y + 2);
+                leftPos + INFO_BOX_RIGHT, topPos + INFO_MAX_Y + 2);
         int y = infoTop - infoScroll;
         for (InfoRow row : rows) {
             int rowH = row.height();

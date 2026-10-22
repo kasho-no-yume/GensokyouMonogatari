@@ -1,26 +1,26 @@
-[2110月2026 00:33:33.408] [Test worker/DEBUG] [io.netty.util.internal.logging.InternalLoggerFactory/]: Using SLF4J as the default logging framework
-[2110月2026 00:33:33.419] [Test worker/DEBUG] [io.netty.util.ResourceLeakDetector/]: -Dio.netty.leakDetection.level: simple
-[2110月2026 00:33:33.419] [Test worker/DEBUG] [io.netty.util.ResourceLeakDetector/]: -Dio.netty.leakDetection.targetRecords: 4
-[2110月2026 00:33:35.830] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: -Dio.netty.noUnsafe: false
-[2110月2026 00:33:35.830] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: Java version: 21
-[2110月2026 00:33:35.831] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.theUnsafe: available
-[2110月2026 00:33:35.832] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.copyMemory: available
-[2110月2026 00:33:35.833] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.storeFence: available
-[2110月2026 00:33:35.833] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.Buffer.address: available
-[2110月2026 00:33:35.835] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.Bits.unaligned: available, true
-[2110月2026 00:33:35.838] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.DirectByteBuffer.<init>(long, {int,long}): unavailable
-[2110月2026 00:33:35.838] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: sun.misc.Unsafe: available
-[2110月2026 00:33:35.839] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: maxDirectMemory: 536870912 bytes (maybe)
-[2110月2026 00:33:35.840] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.tmpdir: C:\Users\etsuraku\AppData\Local\Temp (java.io.tmpdir)
-[2110月2026 00:33:35.840] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.bitMode: 64 (sun.arch.data.model)
-[2110月2026 00:33:35.840] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: Platform: Windows
-[2110月2026 00:33:35.841] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.maxDirectMemory: -1 bytes
-[2110月2026 00:33:35.842] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.uninitializedArrayAllocationThreshold: -1
-[2110月2026 00:33:35.842] [Test worker/DEBUG] [io.netty.util.internal.CleanerJava9/]: java.nio.ByteBuffer.cleaner(): available
-[2110月2026 00:33:35.843] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.noPreferDirect: false
-[2110月2026 00:34:46.056] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[2110月2026 00:34:46.057] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[2110月2026 00:34:46.057] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[2110月2026 00:34:46.062] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[2110月2026 00:34:46.062] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[2110月2026 00:34:46.063] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[2210月2026 17:30:55.042] [Test worker/DEBUG] [io.netty.util.internal.logging.InternalLoggerFactory/]: Using SLF4J as the default logging framework
+[2210月2026 17:30:55.049] [Test worker/DEBUG] [io.netty.util.ResourceLeakDetector/]: -Dio.netty.leakDetection.level: simple
+[2210月2026 17:30:55.049] [Test worker/DEBUG] [io.netty.util.ResourceLeakDetector/]: -Dio.netty.leakDetection.targetRecords: 4
+[2210月2026 17:30:56.720] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: -Dio.netty.noUnsafe: false
+[2210月2026 17:30:56.720] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: Java version: 21
+[2210月2026 17:30:56.721] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.theUnsafe: available
+[2210月2026 17:30:56.721] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.copyMemory: available
+[2210月2026 17:30:56.721] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.storeFence: available
+[2210月2026 17:30:56.721] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.Buffer.address: available
+[2210月2026 17:30:56.722] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.Bits.unaligned: available, true
+[2210月2026 17:30:56.724] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.DirectByteBuffer.<init>(long, {int,long}): unavailable
+[2210月2026 17:30:56.724] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: sun.misc.Unsafe: available
+[2210月2026 17:30:56.724] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: maxDirectMemory: 536870912 bytes (maybe)
+[2210月2026 17:30:56.724] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.tmpdir: C:\Users\SPDIMD~1\AppData\Local\Temp (java.io.tmpdir)
+[2210月2026 17:30:56.724] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.bitMode: 64 (sun.arch.data.model)
+[2210月2026 17:30:56.725] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: Platform: Windows
+[2210月2026 17:30:56.725] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.maxDirectMemory: -1 bytes
+[2210月2026 17:30:56.725] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.uninitializedArrayAllocationThreshold: -1
+[2210月2026 17:30:56.727] [Test worker/DEBUG] [io.netty.util.internal.CleanerJava9/]: java.nio.ByteBuffer.cleaner(): available
+[2210月2026 17:30:56.727] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.noPreferDirect: false
+[2210月2026 17:31:53.338] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[2210月2026 17:31:53.339] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[2210月2026 17:31:53.339] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[2210月2026 17:31:53.339] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[2210月2026 17:31:53.339] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[2210月2026 17:31:53.340] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config

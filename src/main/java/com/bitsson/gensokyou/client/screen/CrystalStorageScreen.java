@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client.screen;
 
+import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.ClientCrystalStorageState;
 import com.bitsson.gensokyou.menu.CrystalStorageMenu;
 import com.bitsson.gensokyou.network.CrystalStorageClickPayload;
@@ -10,7 +11,9 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import com.bitsson.gensokyou.client.widget.SakuraButton;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
@@ -31,9 +34,16 @@ public class CrystalStorageScreen extends AbstractContainerScreen<CrystalStorage
     private static final int COLOR_SLOT = 0xFF8B8B8B;
     private static final int COLOR_EDGE = 0xFF373737;
     private static final int COLOR_TEXT = 0xFF404040;
-    private static final int COLOR_COUNT = 0xFFFFFFFF;
-    private static final int COLOR_BAR_TRACK = 0xFF5A5A5A;
-    private static final int COLOR_BAR_THUMB = 0xFFB0B0B0;
+    /** 格内计数色：**深紫红**（旧的纯白在浅粉格底上完全看不见）。 */
+    private static final int COLOR_COUNT = 0xFF4A1A2C;
+    private static final int COLOR_BAR_TRACK = 0xFFD8B4C2;
+    private static final int COLOR_BAR_THUMB = 0xFFB0738C;
+    /**
+     * 樱符面板底图（184×250，1:1 逻辑像素）。
+     * 格阵 / 物品栏 / 热栏的格框全部烘焙在贴图里。
+     */
+    private static final ResourceLocation BACKGROUND =
+            Gensokyou.id("textures/gui/crystal_storage.png");
 
     private static final int SEARCH_X = 8;
     private static final int ROW_Y = 19;
@@ -72,19 +82,19 @@ public class CrystalStorageScreen extends AbstractContainerScreen<CrystalStorage
         this.search.setResponder(value -> sendNav(0, -1));
         addRenderableWidget(this.search);
 
-        this.sortButton = addRenderableWidget(Button.builder(sortLabel(),
-                        b -> sendNav(0, (currentSort() + 1) % CrystalStorageMenu.SORT_MODE_COUNT))
-                .bounds(leftPos + SORT_X, topPos + ROW_Y - 1, SORT_W, NAV_H).build());
+        this.sortButton = addRenderableWidget(SakuraButton.of(sortLabel(),
+                        b -> sendNav(0, (currentSort() + 1) % CrystalStorageMenu.SORT_MODE_COUNT),
+                leftPos + SORT_X, topPos + ROW_Y - 1, SORT_W, NAV_H));
         this.sortButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
                 Component.translatable("gui.gensokyou.crystal_storage.sort.tip")));
-        this.prevButton = addRenderableWidget(Button.builder(Component.literal("\u25B2"),
-                        b -> sendNav(-CrystalStorageMenu.PAGE_SIZE, -1))
-                .bounds(leftPos + PREV_X, topPos + ROW_Y - 1, NAV_W, NAV_H).build());
+        this.prevButton = addRenderableWidget(SakuraButton.of(Component.literal("\u25B2"),
+                        b -> sendNav(-CrystalStorageMenu.PAGE_SIZE, -1),
+                leftPos + PREV_X, topPos + ROW_Y - 1, NAV_W, NAV_H));
         this.prevButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
                 Component.translatable("gui.gensokyou.crystal_storage.page_up")));
-        this.nextButton = addRenderableWidget(Button.builder(Component.literal("\u25BC"),
-                        b -> sendNav(CrystalStorageMenu.PAGE_SIZE, -1))
-                .bounds(leftPos + NEXT_X, topPos + ROW_Y - 1, NAV_W, NAV_H).build());
+        this.nextButton = addRenderableWidget(SakuraButton.of(Component.literal("\u25BC"),
+                        b -> sendNav(CrystalStorageMenu.PAGE_SIZE, -1),
+                leftPos + NEXT_X, topPos + ROW_Y - 1, NAV_W, NAV_H));
         this.nextButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
                 Component.translatable("gui.gensokyou.crystal_storage.page_down")));
     }
@@ -135,21 +145,13 @@ public class CrystalStorageScreen extends AbstractContainerScreen<CrystalStorage
 
     @Override
     protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
-        graphics.fill(leftPos, topPos, leftPos + imageWidth, topPos + imageHeight, COLOR_PANEL);
-        for (int i = 0; i < CrystalStorageMenu.PAGE_SIZE; i++) {
-            drawCellFrame(graphics, cellX(i), cellY(i));
-        }
-        for (var slot : this.menu.slots) {
-            drawCellFrame(graphics, leftPos + slot.x, topPos + slot.y);
-        }
+        // 底图：樱符面板贴图（184x250，1:1 逻辑像素）。
+        // 仓储格阵（9x6）、玩家物品栏、热栏的格框全部烘焙在贴图里，这里只画图标与计数。
+        graphics.blit(BACKGROUND, leftPos, topPos, 0, 0, imageWidth, imageHeight,
+                imageWidth, imageHeight);
         // 图标与计数必须在 renderBg 阶段落笔：此刻尚未分配文本批（在 super.render 的 labels 才分配），
         // 物品批先于文本批 → 文本绘制在上层，避免图标盖住数字。
         renderGridIcons(graphics);
-    }
-
-    private void drawCellFrame(GuiGraphics graphics, int x, int y) {
-        graphics.fill(x - 1, y - 1, x + 17, y + 17, COLOR_EDGE);
-        graphics.fill(x, y, x + 16, y + 16, COLOR_SLOT);
     }
 
     private int cellX(int i) {

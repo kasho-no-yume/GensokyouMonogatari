@@ -43,14 +43,19 @@ public class DanmakuAssemblyBenchMenu extends AbstractContainerMenu {
 
     /** 武器输入槽坐标（与 Screen 绘制一致）。 */
     public static final int WEAPON_SLOT_X = 8;
-    public static final int WEAPON_SLOT_Y = 22;
+    public static final int WEAPON_SLOT_Y = 30;
     /**
-     * 三核槽坐标：**弹核在球心**，等级核在球左，增幅核在球右（球心 88,33 / 半径 20）。
+     * 三核槽坐标：**弹核在球心**，等级核在球左，增幅核在球右。
      *
      * <p>顺序即槽序：0 = 弹核、1 = 等级核、2 = 增幅核——与 {@code WeaponSlots} 一致。
+     *
+     * <p>v2 布局：四个输入槽（武器 + 三核）**统一在同一行 y=30**，三核之间等距 33px；
+     * 武器槽与等级核之间留 39px 间隙（此前只有 21px，四槽挤在一起看着歪）。
+     * 球心取弹核槽的<b>像素中心</b> (105.5, 38.5) —— 18px 槽的中心恒为半像素，
+     * 球心若取整数就会与槽差半像素，1080p/guiScale=4 下是 2 物理像素的错位。
      */
-    public static final int[] CORE_SLOT_XS = {80, 46, 114};
-    public static final int CORE_SLOT_Y = 25;
+    public static final int[] CORE_SLOT_XS = {97, 64, 130};
+    public static final int CORE_SLOT_Y = 30;
 
     private final Player player;
     private final BlockPos pos;
@@ -111,11 +116,11 @@ public class DanmakuAssemblyBenchMenu extends AbstractContainerMenu {
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                this.addSlot(new Slot(inventory, 9 + row * 9 + col, 8 + col * 18, 66 + row * 18));
+                this.addSlot(new Slot(inventory, 9 + row * 9 + col, 8 + col * 18, 88 + row * 18));
             }
         }
         for (int col = 0; col < 9; col++) {
-            this.addSlot(new Slot(inventory, col, 8 + col * 18, 124));
+            this.addSlot(new Slot(inventory, col, 8 + col * 18, 146));
         }
     }
 

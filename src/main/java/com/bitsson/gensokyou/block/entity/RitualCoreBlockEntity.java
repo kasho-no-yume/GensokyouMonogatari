@@ -936,7 +936,13 @@ public class RitualCoreBlockEntity extends BlockEntity
     public static final int MAX_EXTRA_SLOTS = 4;
     /** 额外槽物品原点坐标（与既有目标槽同位，迁移后星移的核位置不变）。 */
     public static final int EXTRA_SLOT_X = 9;
-    public static final int EXTRA_SLOT_Y = 61;
+    /**
+     * v2 布局：额外槽排在左信息卡内分隔线（y=64）下方。
+     *
+     * <p>不变量（见 {@code RitualCoreSlotGeometryTest}）：槽框顶沿 = 信息正文首行
+     * = {@code RitualCoreScreen.INFO_Y_START} = 68，故槽原点 = 69（框 = 槽坐标 −1）。
+     */
+    public static final int EXTRA_SLOT_Y = 69;
     public static final int EXTRA_SLOT_SPACING = 20;
 
     private final ItemStack[] extraSlotStacks = createEmptyExtraSlots();

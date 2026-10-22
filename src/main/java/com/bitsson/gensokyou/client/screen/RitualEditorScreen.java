@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client.screen;
 
+import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.menu.RitualEditorMenu;
 import com.bitsson.gensokyou.network.EditorCommandPayload;
@@ -13,6 +14,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -35,6 +37,12 @@ public class RitualEditorScreen extends AbstractContainerScreen<RitualEditorMenu
     private static final int RIGHT_X = 126;
     private static final int INK = 0xFF404040;
     private static final int LABEL = 0xFF808080;
+    /**
+     * 樱符面板底图（268×208，1:1 逻辑像素）。
+     * 静态结构（外框 / 左右分栏）烘焙在贴图里。
+     */
+    private static final ResourceLocation BACKGROUND =
+            Gensokyou.id("textures/gui/ritual_editor.png");
 
     private int scroll;
     /** 乐观选择态（零槽菜单不同步手持 stack，点击即更新，服务端为权威）。 */
@@ -70,7 +78,9 @@ public class RitualEditorScreen extends AbstractContainerScreen<RitualEditorMenu
 
     @Override
     protected void renderBg(GuiGraphics g, float partialTick, int mouseX, int mouseY) {
-        g.fill(leftPos, topPos, leftPos + W, topPos + H, 0xFFF0F0F0);
+        // 底图：樱符面板贴图（268x208，1:1 逻辑像素）。
+        // 静态结构（外框 / 左右分栏）烘焙在贴图里；列表高亮、等级框、± 控件仍是运行期绘制。
+        g.blit(BACKGROUND, leftPos, topPos, 0, 0, W, H, W, H);
     }
 
     @Override
@@ -94,9 +104,10 @@ public class RitualEditorScreen extends AbstractContainerScreen<RitualEditorMenu
             boolean selected = selection != null && selection.patternId().equals(pattern.id());
             boolean hover = inRect(mouseX, mouseY, LIST_X - 2, y - 1, LIST_W + 2, ROW_H);
             if (selected) {
-                g.fill(LIST_X - 2, y - 1, LIST_X + LIST_W, y + ROW_H - 1, 0xFFB0C4DE);
+                // 选中/悬停底色改樱色系（旧的是淡蓝 0xFFB0C4DE / 淡灰 0xFFD8D8D8）
+                g.fill(LIST_X - 2, y - 1, LIST_X + LIST_W, y + ROW_H - 1, 0xFFE3A8BC);
             } else if (hover) {
-                g.fill(LIST_X - 2, y - 1, LIST_X + LIST_W, y + ROW_H - 1, 0xFFD8D8D8);
+                g.fill(LIST_X - 2, y - 1, LIST_X + LIST_W, y + ROW_H - 1, 0xFFF5E2E8);
             }
             g.drawString(font, patternName(pattern), LIST_X + 2, y + 4, INK, false);
         }
@@ -120,8 +131,10 @@ public class RitualEditorScreen extends AbstractContainerScreen<RitualEditorMenu
             int lv = levels.get(idx);
             int x = RIGHT_X + idx * 20;
             boolean active = lv == selection.tier();
-            g.fill(x, 34, x + 18, 34 + 16, active ? 0xFF333333 : 0xFFAAAAAA);
-            g.drawString(font, Component.literal(String.valueOf(lv)), x + 6, 38, 0xFFFFFFFF, true);
+            // 阶级按钮：激活 = 深樱红底 + 米白字，未激活 = 浅粉底 + 深字
+            g.fill(x, 34, x + 18, 34 + 16, active ? 0xFF8E3A52 : 0xFFE8C0CC);
+            g.drawString(font, Component.literal(String.valueOf(lv)), x + 6, 38,
+                    active ? 0xFFF6E6E2 : 0xFF6E2840, true);
         }
 
         // 工作区 4 轴 ± 控件（当前阶级）
