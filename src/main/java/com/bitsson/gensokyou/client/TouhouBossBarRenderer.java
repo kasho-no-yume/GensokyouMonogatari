@@ -60,21 +60,27 @@ import java.util.UUID;
  * {@code frame_1..5} 五套边框，由 {@link TouhouBoss#bossTier()} 索引；<b>同一阶共用一套</b>，
  * 不逐 BOSS 个体定制。条身取该阶品阶色（{@link TierPalette}，全模组单一色源）。
  *
- * <p><b>五阶差异是「装饰度」而非「色相」</b>：阶越高，符首符尾的印越多、花瓣越多、
- * 金饰越满，窗口两侧的竖边也越粗（1→2 列）。边框本身仍是定色朱红（识别色），
- * MUST NOT 参与染色。
+ * <p><b>五阶差异是「装饰度」而非「色相」</b>：阶越高，两端符柱上的印越多、花瓣越多、
+ * 金线越满。边框本身仍是定色朱红（识别色），MUST NOT 参与染色。
  *
  * <h2>符卡名在血条下方</h2>
  * 血条本体高度<b>不因符卡行而变</b>；符卡行是独立的第二行，只把高度计入
  * {@code setIncrement()}——不计入的话下一根血条会直接画在它上面，而
- * {@code setIncrement()} 是 NeoForge 给的唯���正规扩展点（去 {@code RenderGuiEvent.Post}
+ * {@code setIncrement()} 是 NeoForge 给的唯一正规扩展点（去 {@code RenderGuiEvent.Post}
  * 重算全部 y 等于把原版的 {@code screenHeight/3} 截断逻辑整个复制一遍）。
  *
- * <h2>贴图与画法</h2>
- * 边框走<b>九宫格</b>：端头 {@value #FRAME_CAP}px <b>1:1 原样</b>、只有中段横向拉伸
- * （中段是横向均质的纯色行，横向复制不失真）。config 宽度可调 120~400，
- * 纯平铺在 400 宽时会看出重复节律。绘制序 <b>条身先、边框后</b>——燕尾撕边与
- * 右下朱印都悬在条身<b>外面</b>，压在上面才不会被填充盖掉。
+ * <h2>贴图与画法（全分辨率）</h2>
+ * 边框贴图是 <b>{@value #FRAME_TEX_W}x{@value #FRAME_TEX_H}</b>，与默认 config 宽度<b>同尺寸</b>：
+ * 182 宽时九宫格中段源宽度恰好等于目标宽度（{@code 182 - 2*60 == 62}），
+ * <b>全图 1:1 落屏，没有任何放大</b>。上一版是 64x24 拉成 182 —— 端头虽然也是 1:1，
+ * 但整张图的设计信息量只有 182 宽的 35%，中间 4px 的纯色带被拉长 45 倍，屏上读作「中间发空」。
+ *
+ * <p>美术由本地 Qwen-Image 扩散模型绘制，结构由 {@code tools/boss_bar_art.py} 收口时钉死：
+ * 血槽行范围、血槽左右内缩（{@link #TRACK_INSET}）、内框边线的通长连续、中段横向均质
+ * （九宫格只拉伸中段，中段有花纹就会被拉糊）。
+ *
+ * <p>绘制序 <b>条身先、边框后</b>——两端符柱的纸边与朱印都悬在条身<b>外面</b>，
+ * 压在上面才不会被填充盖掉。
  *
  * <p>残影的平滑由 {@code LerpingBossEvent.getProgress()} 自带的 100ms 插值 + 本类额外加的
  * "残影滞留"叠加提供，无额外状态。
@@ -83,20 +89,28 @@ import java.util.UUID;
 public final class TouhouBossBarRenderer {
 
     // ---------------------------------------------------------------- 贴图规格
-    // 与 tools/textures/boss_bar.py 一一对应，改一处 MUST 改另一处。
+    // 与 tools/boss_bar_art.py 一一对应，改一处 MUST 改另一处。
 
-    /** 边框贴图尺寸。三段切：端头 {@link #FRAME_CAP}px / 中段 {@link #FRAME_MID}px / 端头。 */
-    private static final int FRAME_TEX_W = 64;
+    /**
+     * 边框贴图尺寸 = <b>默认 config 宽度 x 高度，全分辨率 1:1</b>。
+     *
+     * <p>不再是「64 宽的小图拉成 182」：182 宽时九宫格的中段与源尺寸<b>完全重合</b>
+     * （{@code 182 - 2*60 == 62}），屏幕上每一列都是贴图原样，没有任何横向放大。
+     * 只有玩家把 config 宽度改成非 182 时才拉伸中段（中段是横向均质的纯色带）。
+     *
+     * <p>三段切：端头 {@link #FRAME_CAP}px / 中段 {@link #FRAME_MID}px / 端头。
+     */
+    private static final int FRAME_TEX_W = 182;
     private static final int FRAME_TEX_H = 24;
-    private static final int FRAME_CAP = 30;
+    private static final int FRAME_CAP = 60;
     private static final int FRAME_MID = FRAME_TEX_W - 2 * FRAME_CAP;
 
     /**
-     * 边框贴图里<b>透明窗口</b>（= 血条条身区）的行范围，闭区间。
+     * 边框贴图里<b>透明血槽</b>（= 血条条身区）的行范围，闭区间。
      *
      * <p><b>5 阶共用同一个窗口</b>，这是刻意的：窗口位置若随阶变化，条身高度就会变成
      * 阶的函数，于是 config 的 bodyHeight、多血条堆叠预算、`screenHeight/3` 截断判定
-     * 全都要跟着分叉。逐阶差异只放在窗口之外的边距装饰里。
+     * 全都要跟着分叉。逐阶差异只放在窗口之外的端头装饰里。
      */
     private static final int WIN_ROW_TOP = 8;
     private static final int WIN_ROW_BOTTOM = 15;
@@ -104,16 +118,18 @@ public final class TouhouBossBarRenderer {
     private static final int BODY_H = WIN_ROW_BOTTOM - WIN_ROW_TOP + 1;
 
     /**
-     * 窗口两侧的竖边占几列，<b>逐阶不同</b>（下标 = 阶级-1）。
+     * 血槽左右各内缩几列，<b>5 阶 MUST 同一值</b>。
      *
-     * <p>这是窗口<b>列</b>方向的自由度：竖边变粗不影响窗口的<b>行</b>范围，
-     * 故不违反「5 阶共用同一行范围」那条硬约束。
+     * <p>两端的装饰柱（符首 / 符尾）占 {@code 0..21} 与 {@code 160..181}，
+     * 条身只画中间 {@code 22..159}。内缩若随阶变，<b>填充长度就成了阶的函数</b>
+     * （同一血量在高阶显得更短），那是读数错误而不是装饰。
      */
-    private static final int[] WIN_SIDES = {1, 1, 1, 1, 2};
+    private static final int TRACK_INSET = 22;
 
-    /** 条身贴图尺寸（灰度，被 tint）。 */
+
+    /** 条身贴图尺寸（灰度，被 tint）。8 行 = 条身 8 行，纵向 1:1；横向每行同色，拉伸无损。 */
     private static final int SEG_TEX_W = 16;
-    private static final int SEG_TEX_H = 4;
+    private static final int SEG_TEX_H = 8;
 
     private static final ResourceLocation SEGMENT =
             Gensokyou.id("textures/gui/boss_bar/segment.png");
@@ -226,32 +242,44 @@ public final class TouhouBossBarRenderer {
     }
 
     /**
-     * 某阶的边框贴图是否在位（懒查 + 缓存）。
+     * 某阶的边框贴图是否可用（懒查 + 缓存）。
      *
      * <p><b>为什么探 classpath 而不是问 {@code TextureManager}</b>：贴图管理器在文件缺失时
      * 会造一个 {@code SimpleTexture} 占位、加载失败后显示缺失纹理，从外面看它与
      * 「已加载」的那个对象<b>类型一样</b>，没法区分。直接问 classpath 反而是句实话：
      * 「这个文件在不在」。
      *
-     * <p>存在性判定的目的：正式美术逐张替换时，缺的那一阶回落成 {@link #drawLegacy}
-     * 老画法，<b>不崩也不空</b>。于是替换可以一张一张来，不必等 5 张齐了才生效。
+     * <p><b>为什么还要读尺寸</b>：贴图尺寸是渲染契约的一部分（{@link #FRAME_TEX_W}x
+     * {@link #FRAME_TEX_H} 内的列/行位置全部被坐标写死）。仓库里留过一版 64x24 的旧图，
+     * 只更新一部分 assets 时「文件在但尺寸不对」不会报错、只会画成一团 ——
+     * 故尺寸不符 MUST 视同缺失，回落 {@link #drawLegacy}，并打日志。
+     *
+     * <p>存在性判定的目的：正式美术逐张替换时，缺的那一阶回落成老画法，<b>不崩也不空</b>。
      */
     private static boolean framePresent(int tier) {
         Boolean cached = FRAME_PRESENT[tier - 1];
         if (cached != null) {
             return cached;
         }
-        boolean present;
-        try (java.io.InputStream in = TouhouBossBarRenderer.class.getResourceAsStream(
-                "/assets/gensokyou/textures/gui/boss_bar/frame_" + tier + ".png")) {
-            present = in != null;
+        String path = "/assets/gensokyou/textures/gui/boss_bar/frame_" + tier + ".png";
+        boolean present = false;
+        String why = "missing";
+        try (java.io.InputStream in =
+                     TouhouBossBarRenderer.class.getResourceAsStream(path)) {
+            if (in != null) {
+                java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(in);
+                present = img != null
+                        && img.getWidth() == FRAME_TEX_W && img.getHeight() == FRAME_TEX_H;
+                why = img == null ? "unreadable"
+                        : (present ? "ok" : "wrong size " + img.getWidth() + "x" + img.getHeight());
+            }
         } catch (java.io.IOException e) {
-            present = false;
+            why = "io error: " + e.getMessage();
         }
         FRAME_PRESENT[tier - 1] = present;
-        Gensokyou.LOGGER.info("[boss-bar] frame_{}.png {} (probe={})", tier,
-                present ? "found" : "MISSING -> falling back to fill() draw",
-                "/assets/gensokyou/textures/gui/boss_bar/frame_" + tier + ".png");
+        Gensokyou.LOGGER.info("[boss-bar] frame_{}.png {} ({}) -> {}", tier,
+                present ? "found" : "UNUSABLE", why,
+                present ? "texture path" : "fallback fill()");
         return present;
     }
 
@@ -292,40 +320,43 @@ public final class TouhouBossBarRenderer {
                 frameColor(), false);
 
         int bodyY = y + WIN_ROW_TOP;
-        int winSide = WIN_SIDES[tier - 1];
-        int bodyW = Math.max(0, width - 2 * winSide);
+        int bodyW = Math.max(0, width - 2 * TRACK_INSET);
         float health = advanceGhost(bar);
         float progress = Mth.clamp(bar.getProgress(), 0.0F, 1.0F);
 
-        // 贴图路径与降级路径的条身高度不同，故「边框下沿」也随之为之——否则降级时
-        // 燕尾撕边会与条身之间留一道 3px 缝。
+        // 贴图路径与降级路径的条身高度不同，故「边框下沿」也随之为之。
+        boolean textured = framePresent(tier);
         int underY;
-        if (!framePresent(tier)) {
+        if (!textured) {
             int legacyH = BalanceNumbers.TALISMAN_BAR_BODY_HEIGHT;
             drawLegacy(g, x, bodyY, width, legacyH, health, progress);
             underY = bodyY + legacyH + 2;
         } else {
             // 条身：暗轨底（结构色）→ 残影（结构色）→ 当前血量（阶色，走贴图 tint）
-            fill(g, x + winSide, bodyY, bodyW, BODY_H, trackColor());
+            fill(g, x + TRACK_INSET, bodyY, bodyW, BODY_H, trackColor());
             int ghostW = Mth.floor(bodyW * Mth.clamp(health, 0.0F, 1.0F));
             if (ghostW > 0) {
-                fill(g, x + winSide, bodyY, ghostW, BODY_H, ghostColor());
+                fill(g, x + TRACK_INSET, bodyY, ghostW, BODY_H, ghostColor());
             }
             int fillW = Mth.floor(bodyW * progress);
             if (fillW > 0) {
-                tintedBlit(g, SEGMENT, x + winSide, bodyY, fillW, BODY_H,
+                tintedBlit(g, SEGMENT, x + TRACK_INSET, bodyY, fillW, BODY_H,
                         0, 0, SEG_TEX_W, SEG_TEX_H, SEG_TEX_W, SEG_TEX_H,
                         TierPalette.rgb(tier));
             }
-            // 边框最后画：燕尾撕边与朱印悬在条身外面，压在上面才不被填充盖掉
+            // 边框最后画：端头的纸边/朱印悬在条身外面，压在上面才不被填充盖掉
             nineSlice(g, FRAMES[tier - 1], x, y, width, FRAME_TEX_W, FRAME_TEX_H, FRAME_CAP);
             underY = y + FRAME_TEX_H;
         }
 
-        drawTornEdge(g, x, underY, width, bodyH());
-        int seal = Mth.ceil(BalanceNumbers.TALISMAN_BAR_SEAL_SIZE);
-        if (seal > 0) {
-            fill(g, x + width - seal, underY, seal, seal, frameColor());
+        int seal = 0;
+        if (!textured) {
+            // 降级画法仍用老版式：燕尾撕边 + 右下朱印方块（没有贴图就没有纸边）
+            drawTornEdge(g, x, underY, width, bodyH());
+            seal = Mth.ceil(BalanceNumbers.TALISMAN_BAR_SEAL_SIZE);
+            if (seal > 0) {
+                fill(g, x + width - seal, underY, seal, seal, frameColor());
+            }
         }
 
         if (cardName != null) {
@@ -375,8 +406,8 @@ public final class TouhouBossBarRenderer {
      * 条身颜色退回 config 的朱砂（不含阶色）：没有贴图就没有 tint 通道，
      * 而「假装有阶色」只会让占位色与真阶色两套值并存，比老实退回更糟。
      *
-     * <p>条身横跨满宽（无 1px 竖边），与贴图路径差那 1px——降级路径不追求像素一致，
-     * 追求的是「有图没图都不崩、不空、不重叠」。
+     * <p>条身横跨<b>满宽</b>（没有端头符柱），与贴图路径的差别是整块端头装饰而不是那几像素——
+     * 降级路径不追求像素一致，追求的是「有图没图都不崩、不空、不重叠」。
      */
     private static void drawLegacy(GuiGraphics g, int x, int bodyY, int width, int legacyH,
                                    float health, float progress) {
@@ -392,8 +423,9 @@ public final class TouhouBossBarRenderer {
     /**
      * 无符卡行时一行需要的高度。
      *
-     * <p>只算<b>贴图路径</b>（14 边框 + 撕边 + 余量 = 20），因为它比降级路径
-     * （2 + 7 + 2 + 撕边 = 17）更高，取大者即可覆盖两者。
+     * <p>贴图路径只画到 {@code y + FRAME_TEX_H}，但仍留出 {@code TALISMAN_BAR_TORN_EDGE/2 = 4}
+     * 的呼吸带：符卡行要落在条外的空隙里，多血条堆叠时两根之间也不至于贴脸。
+     * 降级路径（2 + 7 + 2 + 撕边 = 17）比它矮，取大者即可覆盖两者。
      */
     private static int rowHeightNoCard() {
         int torn = BalanceNumbers.TALISMAN_BAR_TORN_EDGE > 0
@@ -402,11 +434,9 @@ public final class TouhouBossBarRenderer {
     }
 
     /**
-     * 条身高度（撕边齿高的一半 = 齿高）。
-     *
-     * <p>文本路径下它等于边框贴图的透明窗口高（{@link #BODY_H}），而不是 config 的
-     * {@code TALISMAN_BAR_BODY_HEIGHT}——config 控制的是<b>降级画法</b>的条身高度。
-     * 让 config 也能改贴图路径的条身高，就得让窗口高度随 config 变，而窗口位置一阶一档
+     * 条身高度 = 边框贴图的透明血槽高（{@link #BODY_H}），<b>不是</b> config 的
+     * {@code TALISMAN_BAR_BODY_HEIGHT}——后者控制的是<b>降级画法</b>的条身高度。
+     * 让 config 也能改贴图路径的条身高，就得让血槽高度随 config 变，而血槽位置一阶一档
      * 就会把堆叠预算和截断判定全拖下水（见 {@link #WIN_ROW_TOP} 的说明）。
      */
     private static int bodyH() {
@@ -422,8 +452,10 @@ public final class TouhouBossBarRenderer {
     /**
      * 九宫格拉伸：端头原样、中段横向拉伸。
      *
-     * <p>中段之所以敢拉伸，是因为 {@code boss_bar.py} 把窗口之外的边距做成了纯色横边
-     * （拉伸不失真）；窗口本身在中段里是<b>透明</b>的，横向复制透明像素没有可见后果。
+     * <p>默认宽度 182 时 {@code midTarget == FRAME_MID}，等于<b>原样 1:1</b>，不产生任何拉伸；
+     * 只有玩家改 config 宽度时才拉伸中段。中段之所以敢拉伸，是因为
+     * {@code tools/boss_bar_art.py} 收口时把中段 62 列做成了<b>横向均质</b>
+     * （每行同色），横向复制不失真；血槽在中段里是透明的，复制透明像素没有可见后果。
      */
     private static void nineSlice(GuiGraphics g, ResourceLocation tex,
                                   int x, int y, int targetW, int texW, int texH, int cap) {
