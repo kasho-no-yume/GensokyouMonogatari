@@ -1,5 +1,11 @@
 """boss_bar_art.py - 咒符条血条边框的**物理像素全分辨率**美术产线（草稿 -> AI -> 收口）。
 
+已有透明 PNG 的导入（保留 alpha、整图等比缩放，不走白底 AI 收口）：
+    python tools/boss_bar_art.py --transparent
+    python tools/preview_boss_bar.py --candidate
+    python tools/boss_bar_art.py --transparent --write-assets
+输入为 build/bossbar/1..5.png 与 windows_auto.json；输出 tracks.json 供渲染器定位血槽。
+
 ## 设计（v4：细符纸边框 + 悬空血槽窗，按品阶色分主题）
 
 v3 的「一整张奶油纸卡片」被否决：即使程序把槽挖透明，四周仍是实心纸面，读起来像
@@ -110,7 +116,7 @@ import argparse
 import pathlib
 import sys
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TEX_DIR = ROOT / "tools" / "textures"
@@ -612,6 +618,41 @@ def _resize_alpha(im, size):
     return im.convert("RGBa").resize(size, Image.Resampling.LANCZOS).convert("RGBA")
 
 
+def compose_transparent(path, window):
+    """Fit existing RGBA artwork without keying highlights or warping ornaments.
+
+    Return logical track bounds alongside the fixed-size frame. The track is
+    deliberately allowed to differ by tier: artwork is no longer deformed to
+    fit the old paper-frame template.
+    """
+    source = Image.open(path).convert("RGBA")
+    if source.getchannel("A").getextrema()[0] == 255:
+        raise ValueError("Transparent import requires an image with alpha")
+    x0, y0, x1, y1 = window
+    if not (0 <= x0 < x1 <= source.width and 0 <= y0 < y1 <= source.height):
+        raise ValueError("Window must be inside the source image")
+    center_y = (y0 + y1) / 2
+    target_center = (WIN_TOP_TEX + WIN_BOT_TEX + 1) / 2
+    scale = min(TW / source.width, target_center / center_y,
+                (TH - target_center) / (source.height - center_y))
+    size = (max(1, round(source.width * scale)), max(1, round(source.height * scale)))
+    sx, sy = size[0] / source.width, size[1] / source.height
+    left = (TW - size[0]) // 2
+    top = max(0, min(TH - size[1], round(target_center - center_y * sy)))
+    resized = _resize_alpha(source, size)
+    # Sharpen colour only; keep the antialiased coverage from premultiplied
+    # resampling so fine transparent edges do not grow dark/bright fringes.
+    alpha = resized.getchannel("A")
+    resized = resized.convert("RGB").filter(ImageFilter.UnsharpMask(
+        radius=0.65, percent=65, threshold=3)).convert("RGBA")
+    resized.putalpha(alpha)
+    frame = Image.new("RGBA", (TW, TH))
+    frame.alpha_composite(resized, (left, top))
+    track = [round((left + x0 * sx) / SS), round((top + y0 * sy) / SS),
+             round((left + x1 * sx) / SS), round((top + y1 * sy) / SS)]
+    return frame, track
+
+
 def _align_inner_rim(im):
     """Seat the painted rim against all four sides of the runtime window.
 
@@ -777,6 +818,8 @@ def main(argv):
     ap = argparse.ArgumentParser(description="咒符条血条边框：草稿 / 收口 / 条身")
     ap.add_argument("--draft", action="store_true", help="生成 AI 用线稿草稿")
     ap.add_argument("--compose", action="store_true", help="把 AI 原图收口成 728x144")
+    ap.add_argument("--transparent", action="store_true",
+                    help="Import build/bossbar/1..5.png with original alpha and proportions")
     ap.add_argument("--tier", type=int, default=0, help="1..5；0 = 配合 --all")
     ap.add_argument("--all", action="store_true", help="五阶全做")
     ap.add_argument("--k", type=int, default=K, help="草稿放大倍数（默认 8 = 最终 texel 的 2 倍）")
@@ -792,6 +835,28 @@ def main(argv):
     ap.add_argument("--debug-window", action="store_true",
                     help="输出 debug_windows.png（红=窗口，蓝=纸框）")
     args = ap.parse_args(argv)
+
+    if args.transparent:
+        import json
+
+        windows = load_windows(args.windows_file or BUILD / "windows_auto.json")
+        tracks = {}
+        PREVIEW.mkdir(parents=True, exist_ok=True)
+        for tier in BATCH_ORDER:
+            frame, track = compose_transparent(BUILD / (str(tier) + ".png"),
+                                               windows[tier]["window"])
+            frame.save(PREVIEW / ("boss_bar_art_tier%d.png" % tier))
+            tracks[str(tier)] = track
+            if args.write_assets:
+                dest = ASSETS / "gui/boss_bar" / ("frame_%d.png" % tier)
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                frame.save(dest)
+        metadata = json.dumps(tracks, indent=2) + "\n"
+        (PREVIEW / "boss_bar_tracks.json").write_text(metadata, encoding="utf-8")
+        if args.write_assets:
+            (ASSETS / "gui/boss_bar/tracks.json").write_text(metadata, encoding="utf-8")
+        print("[ok] transparent frames and track bounds -> %s" % PREVIEW)
+        return 0
 
     if args.segment:
         seg = build_segment()

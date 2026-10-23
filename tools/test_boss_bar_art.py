@@ -1,10 +1,37 @@
 """Regression checks for matte removal and runtime window geometry."""
 import unittest
+import tempfile
+from pathlib import Path
 
 from PIL import Image, ImageChops
 
 import boss_bar_art as art
 import preview_boss_bar as preview
+
+
+class TransparentImportTest(unittest.TestCase):
+    def test_preserves_white_art_and_transparent_background(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Image.new('RGBA', (art.TW, art.TH), (255, 0, 255, 0))
+            source.paste((255, 255, 255, 255), (100, 70, 120, 78))
+            path = Path(directory) / 'frame.png'
+            source.save(path)
+            result, track = art.compose_transparent(path, (88, 80, 640, 112))
+            self.assertEqual(result.getpixel((110, 74)), (255, 255, 255, 255))
+            self.assertEqual(result.getpixel((0, 0))[3], 0)
+            self.assertEqual(track, [22, 20, 160, 28])
+
+    def test_current_art_tracks_fit_canvas_and_keep_aspect(self):
+        windows = art.load_windows(art.BUILD / 'windows_auto.json')
+        for tier in range(1, 6):
+            with self.subTest(tier=tier):
+                frame, track = art.compose_transparent(
+                    art.BUILD / ('%d.png' % tier), windows[tier]['window'])
+                self.assertEqual(frame.size, (art.TW, art.TH))
+                x0, y0, x1, y1 = track
+                self.assertTrue(0 <= x0 < x1 <= art.W)
+                self.assertTrue(0 <= y0 < y1 <= art.H)
+                self.assertEqual(frame.getpixel((0, 0))[3], 0)
 
 
 class BossBarArtTest(unittest.TestCase):

@@ -20,6 +20,7 @@
 """
 import argparse
 import pathlib
+import json
 
 from PIL import Image, ImageChops
 
@@ -36,6 +37,7 @@ WIN_TOP = (12 + 8) * SS       # 80（上方 12 行花丛 + 符纸 8 行）
 BODY_H = 8 * SS               # 32
 BAR_W = 182 * SS              # 728
 FRAME_H = (24 + 12) * SS      # 144
+ART_TRACKS = {}
 
 # 与 TierPalette 逐值一致：下标 = 品阶（0..5）。BOSS 阶是 1..5，
 # ⚠️ MUST 用 TIER_RGB[tier] 而不是 TIER_RGB[tier-1] —— 后者会把整排阶色错位一档。
@@ -82,20 +84,35 @@ def draw_bar(img, frame, segment, edge, tier, x, y, width=BAR_W, ratio=0.62, gho
     """画一根血条：凹轨 → 残影 → 阶色灵力 → 前缘月牙 → 边框最后压上。"""
     body_y = y + WIN_TOP
     body_w = width - 2 * TRACK_INSET
-    img.alpha_composite(_tint(segment, body_w, BODY_H, track_for(tier)),
-                        (x + TRACK_INSET, body_y))
+    body_x = x + TRACK_INSET
+    body_h = BODY_H
+    if str(tier) in ART_TRACKS:
+        x0, y0, x1, y1 = ART_TRACKS[str(tier)]
+        def mapped(px):
+            px *= SS
+            if px <= CAP:
+                return px
+            if px >= BAR_W - CAP:
+                return width - (BAR_W - px)
+            return CAP + round((px - CAP) * max(0, width - 2 * CAP) / MID)
+        body_x = x + mapped(x0)
+        body_y = y + y0 * SS
+        body_w = max(0, mapped(x1) - mapped(x0))
+        body_h = (y1 - y0) * SS
+    img.alpha_composite(_tint(segment, body_w, body_h, track_for(tier)),
+                        (body_x, body_y))
     gw = int(body_w * ghost)
     if gw > 0:
-        img.alpha_composite(_tint(segment, gw, BODY_H, GHOST, alpha=153),
-                            (x + TRACK_INSET, body_y))
+        img.alpha_composite(_tint(segment, gw, body_h, GHOST, alpha=153),
+                            (body_x, body_y))
     fw = int(body_w * ratio)
     if fw > 0:
-        img.alpha_composite(_tint(segment, fw, BODY_H, TIER_RGB[tier]),
-                            (x + TRACK_INSET, body_y))
+        img.alpha_composite(_tint(segment, fw, body_h, TIER_RGB[tier]),
+                            (body_x, body_y))
         ew = min(edge.width, fw)
         crop = edge.crop((edge.width - ew, 0, edge.width, edge.height))
-        img.alpha_composite(_tint_edge(crop, ew, BODY_H, _lighten(TIER_RGB[tier])),
-                            (x + TRACK_INSET + fw - ew, body_y))
+        img.alpha_composite(_tint_edge(crop, ew, body_h, _lighten(TIER_RGB[tier])),
+                            (body_x + fw - ew, body_y))
     img.alpha_composite(nine_slice(frame, width), (x, y))
 
 
@@ -132,10 +149,13 @@ def _lighten(rgb, f=1.25):
 
 
 def main():
+    global ART_TRACKS
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--candidate", action="store_true",
                     help="Preview composed frames before copying them to assets")
     args = ap.parse_args()
+    track_path = (PREVIEW / "boss_bar_tracks.json" if args.candidate else ASSETS / "tracks.json")
+    ART_TRACKS = json.loads(track_path.read_text(encoding="utf-8")) if track_path.exists() else {}
     frames = ([Image.open(PREVIEW / ("boss_bar_art_tier%d.png" % t)).convert("RGBA")
                for t in range(1, 6)] if args.candidate else
               [load("frame_%d.png" % t) for t in range(1, 6)])

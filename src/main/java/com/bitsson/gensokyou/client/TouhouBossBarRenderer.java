@@ -11,7 +11,6 @@ import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.bitsson.gensokyou.registry.TierPalette;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -133,7 +132,8 @@ public final class TouhouBossBarRenderer {
      * <p>纵向分区（逻辑 36 行）：0..13 花丛带 / 14..17 符纸上边距 / 18..19 顶边 /
      * 20..27 血槽 / 28..29 底边 / 30..33 下边距 / 34..35 透明。
      *
-     * <p><b>5 阶共用同一个窗口</b>，这是刻意的：窗口位置若随阶变化，条身高度就会变成
+     * <p>以下是旧版符纸贴图的默认窗口；透明原画导入时由 tracks.json 提供逐阶窗口。
+     * <b>旧版 5 阶共用同一个窗口</b>：窗口位置若随阶变化，条身高度就会变成
      * 阶的函数，于是 config 的 bodyHeight、多血条堆叠预算、`screenHeight/3` 截断判定
      * 全都要跟着分叉。逐阶差异只放在窗口之外的装饰里。
      */
@@ -323,6 +323,40 @@ public final class TouhouBossBarRenderer {
 
     private static final Boolean[] FRAME_PRESENT = new Boolean[FRAMES.length];
 
+    /** Optional artwork-specific track bounds, in logical coordinates. */
+    private static final int[][] ART_TRACKS = loadArtTracks();
+
+    private static int[][] loadArtTracks() {
+        int[][] tracks = new int[FRAMES.length][];
+        try (var in = TouhouBossBarRenderer.class.getResourceAsStream(
+                "/assets/gensokyou/textures/gui/boss_bar/tracks.json")) {
+            if (in != null) {
+                var json = com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(
+                        in, java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+                for (int tier = 1; tier <= tracks.length; tier++) {
+                    var entry = json.getAsJsonArray(Integer.toString(tier));
+                    if (entry == null || entry.size() != 4) continue;
+                    int[] rect = new int[4];
+                    for (int i = 0; i < rect.length; i++) rect[i] = entry.get(i).getAsInt();
+                    if (rect[0] >= 0 && rect[0] < rect[2] && rect[2] <= 182
+                            && rect[1] >= 0 && rect[1] < rect[3] && rect[3] <= FRAME_LOGICAL_H) {
+                        tracks[tier - 1] = rect;
+                    }
+                }
+            }
+        } catch (java.io.IOException | RuntimeException e) {
+            Gensokyou.LOGGER.warn("[boss-bar] Cannot read artwork track bounds", e);
+        }
+        return tracks;
+    }
+
+    private static int frameX(int sourceX, int width) {
+        if (sourceX <= FRAME_CAP) return sourceX;
+        if (sourceX >= 182 - FRAME_CAP) return width - (182 - sourceX);
+        return FRAME_CAP + Math.round((sourceX - FRAME_CAP)
+                * Math.max(0, width - 2 * FRAME_CAP) / 62.0F);
+    }
+
     @SubscribeEvent
     public static void onBossBar(CustomizeGuiOverlayEvent.BossEventProgress event) {
         LerpingBossEvent bar = event.getBossEvent();
@@ -364,6 +398,15 @@ public final class TouhouBossBarRenderer {
 
         int bodyY = frameY + WIN_ROW_TOP_TEX / TEXEL_SCALE;
         int bodyW = Math.max(0, width - 2 * TRACK_INSET);
+        int bodyX = x + TRACK_INSET;
+        int bodyHeight = BODY_H;
+        int[] artTrack = ART_TRACKS[tier - 1];
+        if (artTrack != null) {
+            bodyX = x + frameX(artTrack[0], width);
+            bodyW = Math.max(0, frameX(artTrack[2], width) - frameX(artTrack[0], width));
+            bodyY = frameY + artTrack[1];
+            bodyHeight = artTrack[3] - artTrack[1];
+        }
         float health = advanceGhost(bar);
         float progress = Mth.clamp(bar.getProgress(), 0.0F, 1.0F);
 
@@ -377,25 +420,25 @@ public final class TouhouBossBarRenderer {
         } else {
             // 条身三层：凹轨底（暗、带内阴影）→ 残影（半透明）→ 当前灵力（阶色）
             // 三层都用同一张 64x32 的纵向剖面：槽读作「凹进去的轨」，而不是一条色带。
-            tintedBlit(g, SEGMENT, x + TRACK_INSET, bodyY, bodyW, BODY_H,
+            tintedBlit(g, SEGMENT, bodyX, bodyY, bodyW, bodyHeight,
                     0, 0, SEG_TEX_W, SEG_TEX_H, SEG_TEX_W, SEG_TEX_H,
                     opaque(trackColor(tier)));
             int ghostW = Mth.floor(bodyW * Mth.clamp(health, 0.0F, 1.0F));
             if (ghostW > 0) {
-                tintedBlit(g, SEGMENT, x + TRACK_INSET, bodyY, ghostW, BODY_H,
+                tintedBlit(g, SEGMENT, bodyX, bodyY, ghostW, bodyHeight,
                         0, 0, SEG_TEX_W, SEG_TEX_H, SEG_TEX_W, SEG_TEX_H,
                         0x99000000 | (ghostColor() & 0xFFFFFF));
             }
             int fillW = Mth.floor(bodyW * progress);
             if (fillW > 0) {
-                tintedBlit(g, SEGMENT, x + TRACK_INSET, bodyY, fillW, BODY_H,
+                tintedBlit(g, SEGMENT, bodyX, bodyY, fillW, bodyHeight,
                         0, 0, SEG_TEX_W, SEG_TEX_H, SEG_TEX_W, SEG_TEX_H,
                         tierColor);
                 // 液面前缘：贴着填充右端的一枚提亮月牙，血量越低也至少占 1px
                 int ew = Math.min(EDGE_TEX_W, fillW);
                 int eu = EDGE_TEX_W - ew;
                 tintedBlit(g, SEGMENT_EDGE,
-                        x + TRACK_INSET + fillW - ew, bodyY, ew, BODY_H,
+                        bodyX + fillW - ew, bodyY, ew, bodyHeight,
                         eu, 0, ew, EDGE_TEX_H, EDGE_TEX_W, EDGE_TEX_H,
                         lighten(tierColor));
             }
@@ -512,7 +555,8 @@ public final class TouhouBossBarRenderer {
      * {@link #FRAME_MID_TEX} 相等：在 guiScale=4 下<b>原样 1:1</b>，不产生任何拉伸；
      * 只有玩家改 config 宽度时才拉伸中段。中段之所以敢拉伸，是因为
      * {@code tools/boss_bar_art.py} 收口时把中段 248 列做成了<b>横向均质</b>
-     * （每行同色），横向复制不失真；血槽在中段里是透明的，复制透明像素没有可见后果。
+     * （每行同色），横向复制不失真。透明原画保留中段装饰，改宽时其装饰也会拉伸；
+     * 默认 182 宽仍是原样映射。
      *
      * <p>⚠️ 目标宽度/高度用**逻辑像素**，源区域用**texel**——两者差 {@link #TEXEL_SCALE} 倍，
      * 混用会画成裁切错位（不报错，只是画错）。
@@ -522,15 +566,24 @@ public final class TouhouBossBarRenderer {
         if (targetW <= 0) {
             return;
         }
-        int midTarget = targetW - 2 * FRAME_CAP;
-        if (midTarget > 0) {
-            blitRegion(g, tex, x + FRAME_CAP, y, midTarget, FRAME_LOGICAL_H,
-                    FRAME_CAP_TEX, 0, FRAME_MID_TEX, FRAME_TEX_H);
+        // Plain GuiGraphics.blit does not enable blending. tintedBlit above
+        // explicitly disables it, so without this even almost-transparent
+        // texels expose their hidden RGB as opaque coloured noise.
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        try {
+            int midTarget = targetW - 2 * FRAME_CAP;
+            if (midTarget > 0) {
+                blitRegion(g, tex, x + FRAME_CAP, y, midTarget, FRAME_LOGICAL_H,
+                        FRAME_CAP_TEX, 0, FRAME_MID_TEX, FRAME_TEX_H);
+            }
+            blitRegion(g, tex, x, y, FRAME_CAP, FRAME_LOGICAL_H,
+                    0, 0, FRAME_CAP_TEX, FRAME_TEX_H);
+            blitRegion(g, tex, x + targetW - FRAME_CAP, y, FRAME_CAP, FRAME_LOGICAL_H,
+                    FRAME_TEX_W - FRAME_CAP_TEX, 0, FRAME_CAP_TEX, FRAME_TEX_H);
+        } finally {
+            RenderSystem.disableBlend();
         }
-        blitRegion(g, tex, x, y, FRAME_CAP, FRAME_LOGICAL_H,
-                0, 0, FRAME_CAP_TEX, FRAME_TEX_H);
-        blitRegion(g, tex, x + targetW - FRAME_CAP, y, FRAME_CAP, FRAME_LOGICAL_H,
-                FRAME_TEX_W - FRAME_CAP_TEX, 0, FRAME_CAP_TEX, FRAME_TEX_H);
     }
 
     /** 原版 {@code GuiGraphics.blit} 的独立纹理子区域版本（不染色）。 */
@@ -574,6 +627,7 @@ public final class TouhouBossBarRenderer {
         RenderSystem.setShaderTexture(0, tex);
         RenderSystem.setShader(GameRenderer::getPositionTexColorShader);
         RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
         Matrix4f pose = g.pose().last().pose();
         var buffer = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
         buffer.addVertex(pose, (float) x, (float) y, 0.0F).setUv(minU, minV).setColor(r, gr, b, a);
