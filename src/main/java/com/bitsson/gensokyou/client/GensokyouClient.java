@@ -107,6 +107,11 @@ public final class GensokyouClient {
                 context -> new SkinMobRenderer<>(context, 0.5F, 1.0F, GensokyouTextures.RINNOSUKE));
         event.registerEntityRenderer(ModEntityTypes.BALANCE_TEST_BOSS.get(),
                 com.bitsson.gensokyou.client.renderer.TestBossGeoRenderer::new);
+        // 咒符条外观试作（临时）：只验证 frame_3/4 边框，复用妖精皮肤，无专属美术。
+        event.registerEntityRenderer(ModEntityTypes.BLOOD_BAR_PROBE_T3.get(),
+                context -> new SkinMobRenderer<>(context, 0.6F, 1.15F, GensokyouTextures.FAIRY));
+        event.registerEntityRenderer(ModEntityTypes.BLOOD_BAR_PROBE_T4.get(),
+                context -> new SkinMobRenderer<>(context, 0.6F, 1.15F, GensokyouTextures.FAIRY));
         // 玩家符卡宿主：范围场画贴地光盘，狐火/丝弹画发光billboard
         event.registerEntityRenderer(ModEntityTypes.FLOWER_GARDEN.get(),
                 com.bitsson.gensokyou.client.renderer.FlowerGardenRenderer::new);

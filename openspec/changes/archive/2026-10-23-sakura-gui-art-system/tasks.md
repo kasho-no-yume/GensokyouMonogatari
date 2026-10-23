@@ -192,11 +192,20 @@
         （内缩 4px/3px，尺寸 (宽−8, 8)），8 = 字形实占高度。
       · ⚠️ 控件本体只有 8px 高 → 覆写 `clicked` / `isMouseOver` 让**整条凹槽**可点。
       · 提示语自绘（原版 hint 用的也是 `textColor`，无法与正文分两色）。
+      · ⚠️ **投影糊字**（实机反馈「字和字阴影各自以黑色渲染、非常糊」）：
+        原版 `EditBox#renderWidget` 的 5 参 `drawString` 默认 `dropShadow = true`，
+        投影色 `(color & 0xFCFCFC) >> 2` 把墨色 `#4A1A2C` 压成近黑 `#12060B`，
+        浅粉凹底上每个字右下角多一块实心鬼影（guiScale=4 → 4×4 物理像素）。
+        改法：整段接管绘制（正文 / 光标 / 选区自绘，一律 `dropShadow = false`），
+        镜像父类 `displayPos` / `highlightPos`（二者只经 public 的
+        `setCursorPosition` / `setHighlightPos` 写入）保持滚动与选区一致；
+        追加态光标改墨色（原版浅灰 `0xFFD0D0D0` 在浅底上看不见）。
 - [x] 5.8 清理两个屏幕里已失效的常量（`COLOR_PANEL` / `COLOR_SLOT` / `COLOR_EDGE`）
       · 顺带发现并修：无尽藏的**格内计数仍是纯白** `0xFFFFFFFF` ——
         樱符面板格底是浅粉，白字看不见（无尽藏晶那边早就改过深紫红，这边漏了）→ 改 `SakuraPalette.INK`。
       · 顺带统一：无尽藏的滚动条仍是灰调 → 改樱粉（与无尽藏晶同款）。
-- [ ] 5.5 造景（176×150）/ 灵弹（176×152）/ 对话 —— MAY 走 4b 的零调用路线
+- [x] 5.5 造景（176×150）/ 灵弹（176×152）/ 对话 —— 未采用 4b 的零调用路线：
+      造景/灵弹做成深紫粉覆盖窗（见上面 5.5），对话走和纸面板（见上面 5.6）
 - [ ] 5.6 每个面板 MUST 实机 1080p（guiScale=4）确认文字可读、无糊字、无越框
 - [ ] 5.7 每个面板 MUST 与仪式核心 A 版并排目检，确认无风格落差
 
@@ -291,8 +300,8 @@
 - [x] 6.28 **手动扣槽**：`--compose` 自动写 `build/bossbar/windows_auto.json`
       （`window` / `frame` 原图绝对像素）；`--windows-file` 复用改后的 JSON，
       `--window` 单阶直接给；`--debug-window` 输出红=窗口/蓝=纸框标注图
-- [ ] 6.29 用户视觉验收（修复后的 v4 候选图），按反馈继续迭代
-- [ ] 6.30 通过后实机 1080p/guiScale=4 确认血槽对齐、液面前缘与名字可读
+- [x] 6.29 用户视觉验收（修复后的 v4 候选图），按反馈继续迭代 —— 已确认
+- [x] 6.30 通过后实机 1080p/guiScale=4 确认血槽对齐、液面前缘与名字可读 —— 单人档实机确认
 
 ### 6d. v4 后处理修复（取代 6.26/6.27 的矩形补底与硬阈值）
 
@@ -302,7 +311,7 @@
       `tools/textures/boss_bar_windows_v4.json`，重生图时必须重新审定，不能复用旧图坐标
 - [x] `preview_boss_bar.py --candidate` 支持在写 assets 前预览；修正残影 alpha 的 0..255 单位
 - [x] `tools/test_boss_bar_art.py` 检查去白与六档宽度下五阶槽口透明，校验不再强迫自然边缘全不透明
-- [ ] 用户确认本轮候选观感，实机确认文字与血槽位置（未调用生图 API）
+- [x] 用户确认本轮候选观感，实机确认文字与血槽位置（未调用生图 API）—— 已确认
 - [x] 可见内框与血槽四边贴齐：从原画框线取色补齐内唇，避免只挖透明窗口却留下第二圈空隙；
       五阶 × 六档宽度回归同时检查窗口透明与四边连续不透明
 - [x] 提供 `tools/boss_bar_window_editor.py` 离线原图框选页面，支持逐阶拖选、数字微调、撤销与 JSON 导入导出。
@@ -359,8 +368,9 @@
       ⚠️ key MUST 只经环境变量 `RUNPOD_API_KEY` 传入，MUST NOT 写进仓库
       （本次落在 `build/runpod_key.txt`，`build/` 已 gitignore）。
 - [ ] 8.2 `tools/gui_art.py` 的 `--quantize` 分支未实测（实测结论是默认关闭）
-- [ ] 8.3 `gen-textures` skill 的「GUI 面板可 2× 超采样」措辞要收紧为
+- [x] 8.3 `gen-textures` skill 的「GUI 面板可 2× 超采样」措辞要收紧为
       「**草稿可 2×，落盘必须 1:1**」（2× 落盘 + 1:1 blit 是最近邻降采样，不是超采样）
+      —— 已改：SKILL.md 尺寸表的「GUI 面板」行与 §2 都写明「草稿可放大 k 倍、成品必须 1:1」
 - [x] 8.4 `tools/genpic_client.py` / `gui_art.py` 的 CLI 缺 `--help` 之外的文档
       （`genpic_client.py` 的用法示例里有个**不存在的 `--layout` 参数**，照抄会报错 → 已改成完整三步流程）
 - [x] 8.5 **`gen_tex.py --write-assets` 的地雷排掉**（实测踩到）
@@ -379,22 +389,27 @@
 
 ## 9. 规格 / 文档
 
-- [ ] 9.1 **归档本变更**：`openspec validate --changes` 通过后，把 spec delta 并入
+- [x] 9.1 **归档本变更**：`openspec validate --changes` 通过后，把 spec delta 并入
       `openspec/specs/gui-art-system/`，并在 `openspec/project.md` 建索引
-- [ ] 9.2 `openspec/project.md` §5.5 是**咒符条**规格，尚未按新结论（182×24）重写
-- [ ] 9.3 清理两个屏幕里已失效的常量（`COLOR_PANEL` / `COLOR_SLOT` / `COLOR_EDGE`）
+      —— 已归档为 `openspec/changes/archive/2026-10-23-sakura-gui-art-system/`，
+      §5.6 索引已指向 capability spec 与归档路径
+- [x] 9.2 `openspec/project.md` §5.5 是**咒符条**规格，已按 v4 结论重写
+      （728×144 / 36 逻辑行 / 3×3 映射 / 手动槽位坐标）
+- [x] 9.3 清理两个屏幕里已失效的常量（`COLOR_PANEL` / `COLOR_SLOT` / `COLOR_EDGE`）
+      —— 与 5.8 同一件事，已确认全仓无残留
 
 ## 10. 已知待决 / 可调项
 
-- [ ] 10.1 ~~造景/灵弹的滑块**标签位置**与原版不同~~ —— **已定**（5.5b）：
+- [x] 10.1 ~~造景/灵弹的滑块**标签位置**与原版不同~~ —— **已定**（5.5b）：
       标签改为**独占一行**（文字带），左对齐 x+2（原版 `TEXT_MARGIN`），
       不再压在轨槽/滑钮上（原版是居中压在槽上，但原版槽在文字**下方**，故居中不抖）。
       本项用左对齐而非居中：标签含数值，宽度随值变化，居中会左右抖。
-- [ ] 10.2 造景/灵弹是深紫粉覆盖窗，其余 6 个是和纸面板 —— **风格不统一是有意的**
+- [x] 10.2 造景/灵弹是深紫粉覆盖窗，其余 6 个是和纸面板 —— **风格不统一是有意的**
       （保留覆盖窗的半透明语义），但需用户确认是否接受
-- [ ] 10.3 九宫格按钮的「成片斑驳纹理」密度与颜色仍可调
+- [x] 10.3 九宫格按钮的「成片斑驳纹理」密度与颜色仍可调
 - [ ] 10.4 每个面板的 AI 产出目前只抽了 1 张，可能有更优 seed
-- [ ] 10.5 搜索框（2 个 `EditBox`）若要统一，需自绘输入框
+- [x] 10.5 搜索框（2 个 `EditBox`）若要统一，需自绘输入框
+      —— 已由 5.7 `SakuraSearchField` 落地，无尽藏 / 无尽藏晶两屏均已接入
 
 ### 10b. 本地生图（不依赖 Runpod）
 
@@ -407,7 +422,7 @@
       ⇒ 后续面板烘焙可**完全离线**，零 API 费用。
       ⚠️ 本轮（对话面板）**显存让给别的程序**，走的是 Runpod 远程端点；
       本地接线**暂缓**，等显存空出来再做。
-- [ ] 10b.2 ~~`tools/genpic_client.py` 加「本地 ComfyUI 端点」模式~~ —— **已落地（见 6.9）**：
+- [x] 10b.2 ~~`tools/genpic_client.py` 加「本地 ComfyUI 端点」模式~~ —— **已落地（见 6.9）**：
       `--local` / `--local-url`，GGUF UNET 换成 `UnetLoaderGGUF`，上传 + `/prompt` + `/history` + `/view`。
       首次实跑：咒符条五阶边框（1456×192，Q4_K_M，25 步，约 230s/张，RTX 4060 Laptop 8G）。
 

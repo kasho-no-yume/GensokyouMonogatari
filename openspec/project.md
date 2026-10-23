@@ -393,8 +393,9 @@ AI 出图后按**行投影**切成 5 条（白间隔是天然切缝）。
 
 ### 5.6 樱符 GUI 美术系统（`gui-art-system`）
 
-**GUI 美术的唯一规格在 capability `gui-art-system`**，变更提案见
-`openspec/changes/sakura-gui-art-system/`。本节只列与本仓库全局约定直接相关的三条。
+**GUI 美术的唯一规格在 capability `gui-art-system`**（`openspec/specs/gui-art-system/spec.md`；
+变更提案已归档于 `openspec/changes/archive/2026-10-23-sakura-gui-art-system/`）。
+本节只列与本仓库全局约定直接相关的三条。
 
 #### 分辨率宪法
 

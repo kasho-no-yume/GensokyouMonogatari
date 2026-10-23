@@ -20,7 +20,7 @@ metadata:
 | 特殊渲染贴图（顶点色驱动 / 灰度乘法遮罩 / 覆盖率遮罩） | **保持既有尺寸不变** | 它们是**数据图**不是美术图，改尺寸会破坏渲染契约 |
 | 实体立绘 `textures/entity/` | 64~256 | 非像素路线：矢量+渐变+抗锯齿，见 `tools/gen_danmaku_textures.py` |
 | GUI 面板 | 逻辑像素 **1:1 落盘**（176×234 → 176×234） | **草稿**可放大 k 倍给 AI 读，**成品必须 1:1** —— 2× 落盘再 1:1 blit 是最近邻降采样，会掉一半像素、糊边缘 |
-| BOSS 血条 | **182×24**（= 默认 config 宽度 × 高度，1:1 落屏） | 旧的 64×24 靠九宫格拉成 182，端头 1:1 但整图信息量只有 182 宽的 35%。产线见 `tools/boss_bar_art.py`（本地 Qwen 出图 + 程序收口），**不是** ASCII 小图放大 |
+| BOSS 血条 | **728×144**（= 逻辑 182×(24+12) × guiScale 4；1080p 下 1 texel = 1 物理像素） | 不是 1 texel = 1 逻辑像素：182×24 只有 4368 texel，端头 22×20 画不出细节。默认宽度下中段 248 texel 与目标 1:1；产线见 `tools/boss_bar_art.py`（本地 Qwen 出图 + 3×3 收口），**不是** ASCII 小图放大 |
 | 粒子 / 遮罩类 | 既有尺寸 | — |
 
 **新绘物品为什么定 64×64：**
@@ -115,7 +115,8 @@ python tools/comfy_pixel_gen.py --spec tools/textures/ai_items.py --montage # �
   ⚠️ 服务要用 `ComfyUI\.venv` 的 python 起（`standalone-env` 里没有 torch）；
   ⚠️ Q4 GGUF 偶发 **NaN → 全白图**（日志 `invalid value encountered in cast`），换 seed 重跑。
 - **BOSS 血条走专用产线** `tools/boss_bar_art.py`（草稿 → 本地 Qwen → 收口），
-  尺寸 182×24 与默认 config 宽度 1:1；**MUST NOT** 再用 64 宽的 ASCII 图去放大。
+  尺寸 **728×144**（逻辑 182×36 ×4；1080p/guiScale=4 下 1 texel = 1 物理像素，零缩放）；
+  **MUST NOT** 再用 64 宽的 ASCII 图去放大。
 - 生成结果**必须人眼过一遍拼图**再 `--apply`；不合格的改 prompt 重跑，不要将就。
 
 ## 工作流（固定顺序）

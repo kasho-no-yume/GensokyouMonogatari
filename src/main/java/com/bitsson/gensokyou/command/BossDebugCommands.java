@@ -78,7 +78,9 @@ public final class BossDebugCommands {
     private static int list(CommandSourceStack source) {
         source.sendSuccess(() -> Component.literal("[GS-BOSS] 召唤型 BOSS："), false);
         for (EntityType<?> type : List.of(ModEntityTypes.BIG_FAIRY.get(),
-                ModEntityTypes.YAMAME.get())) {
+                ModEntityTypes.YAMAME.get(),
+                ModEntityTypes.BLOOD_BAR_PROBE_T3.get(),
+                ModEntityTypes.BLOOD_BAR_PROBE_T4.get())) {
             source.sendSuccess(() -> Component.literal("[GS-BOSS] "
                     + typeId(type) + "  ->  /gs_boss spawn "
                     + typeId(type)), false);

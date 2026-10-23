@@ -256,6 +256,28 @@ public final class ModEntityTypes {
                     .clientTrackingRange(12)
                     .build("balance_test_boss"));
 
+    /**
+     * 咒符条外观试作 BOSS（三阶 / 四阶）：只为让 {@code frame_3/4.png} 能在实机出现。
+     *
+     * <p>临时注册项，正式三阶/四阶 BOSS 到位后连同 {@link com.bitsson.gensokyou.entity.BloodBarProbeBoss}
+     * 一起删除；不进 bosses 标签、不进召唤配方。
+     */
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.BloodBarProbeBoss.Tier3>> BLOOD_BAR_PROBE_T3 =
+            ENTITY_TYPES.register("blood_bar_probe_t3", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.BloodBarProbeBoss.Tier3>of(
+                            com.bitsson.gensokyou.entity.BloodBarProbeBoss.Tier3::new, MobCategory.MONSTER)
+                    .sized(0.9F, 1.8F)
+                    .clientTrackingRange(12)
+                    .build("blood_bar_probe_t3"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.BloodBarProbeBoss.Tier4>> BLOOD_BAR_PROBE_T4 =
+            ENTITY_TYPES.register("blood_bar_probe_t4", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.BloodBarProbeBoss.Tier4>of(
+                            com.bitsson.gensokyou.entity.BloodBarProbeBoss.Tier4::new, MobCategory.MONSTER)
+                    .sized(0.9F, 1.8F)
+                    .clientTrackingRange(12)
+                    .build("blood_bar_probe_t4"));
+
     // ---- 玩家符卡持续型宿主（add-player-spellcards）----
 
     public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.spell.FlowerGardenEntity>> FLOWER_GARDEN =

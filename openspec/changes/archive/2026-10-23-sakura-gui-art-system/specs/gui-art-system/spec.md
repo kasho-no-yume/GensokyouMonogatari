@@ -96,6 +96,16 @@ Python 侧 `tools/textures/gui_sakura.py` 的 `PAL` 是烘焙侧的色源，Java
    （凹槽内缩 4px / 3px，尺寸 (宽−8, 8)），8 = 字形实占高度。
 3. **命中区 MUST 覆盖整条凹槽**：控件本体只有 8px 高，
    凹槽上下各 3px 点不到 → MUST 覆写命中判定。
+4. **正文 MUST 关闭投影（`dropShadow = false`）。**
+   原版 `EditBox#renderWidget` 用的 5 参 `drawString` 默认带投影，投影色是
+   `(color & 0xFCFCFC) >> 2`：墨色 `#4A1A2C` 的投影约 `#12060B`，在浅粉凹底上
+   等于每个字右下角多一块近黑实心像素；guiScale=4 下那是 4×4 物理像素鬼影，
+   中文笔画密，实机读作「字发糊、双份」。
+   `EditBox` 的投影写死在 `renderWidget` 内、没有可覆写的开关 → MUST 整段接管绘制
+   （正文 / 光标 / 选区都自绘），并镜像父类的 `displayPos` / `highlightPos`
+   （两者只经 public 的 `setCursorPosition` / `setHighlightPos` 写入）以保持滚动与选区一致。
+   「追加态」光标（顶到长度上限时画竖线）MUST 用墨色，MUST NOT 沿用原版的浅灰
+   `0xFFD0D0D0` —— 浅灰在浅粉凹底上看不见。
 
 #### Scenario: 搜索框外观是樱符的
 - **WHEN** 打开带搜索框的面板
@@ -108,6 +118,10 @@ Python 侧 `tools/textures/gui_sakura.py` 的 `PAL` 是烘焙侧的色源，Java
 #### Scenario: 凹槽任意位置都能点到
 - **WHEN** 点击凹槽上下边缘（不在 8px 正文行内）
 - **THEN** 搜索框 MUST 获得焦点
+
+#### Scenario: 浅底深字不带投影
+- **WHEN** 搜索框内有输入内容
+- **THEN** 字形 MUST 不画 1px 投影，MUST NOT 出现与正文同色的偏移重影
 
 ---
 

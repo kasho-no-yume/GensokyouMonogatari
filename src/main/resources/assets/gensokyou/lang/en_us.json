@@ -118,6 +118,8 @@
   "entity.gensokyou.yamame": "Kurodani Yamame",
   "entity.gensokyou.nomen_mask": "Rumia",
   "entity.gensokyou.rinnosuke": "Rinnosuke Morichika",
+  "entity.gensokyou.blood_bar_probe_t3": "Boss Bar Probe (T3)",
+  "entity.gensokyou.blood_bar_probe_t4": "Boss Bar Probe (T4)",
   "gensokyou.book.category.fantasy_materials": "Fantasy Materials",
   "gensokyou.book.category.fantasy_materials.desc": "Gensokyo's specialty materials from the five resource rituals, and the three minerals refined in the forge.",
   "gensokyou.book.category.items": "Curios",

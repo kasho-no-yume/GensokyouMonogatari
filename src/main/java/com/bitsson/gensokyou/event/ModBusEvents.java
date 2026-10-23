@@ -44,6 +44,10 @@ public final class ModBusEvents {
         event.put(ModEntityTypes.NOMEN_MASK.get(), NomenMaskEntity.createAttributes().build());
         event.put(ModEntityTypes.CIRNO.get(), FairyEntity.createAttributes().build());
         event.put(ModEntityTypes.BALANCE_TEST_BOSS.get(), FairyEntity.createAttributes().build());
+        event.put(ModEntityTypes.BLOOD_BAR_PROBE_T3.get(),
+                com.bitsson.gensokyou.entity.BloodBarProbeBoss.createAttributes().build());
+        event.put(ModEntityTypes.BLOOD_BAR_PROBE_T4.get(),
+                com.bitsson.gensokyou.entity.BloodBarProbeBoss.createAttributes().build());
         event.put(ModEntityTypes.RINNOSUKE.get(), TouhouNpcEntity.createAttributes().build());
     }
 
