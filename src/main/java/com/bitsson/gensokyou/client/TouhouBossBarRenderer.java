@@ -60,8 +60,10 @@ import java.util.UUID;
  * {@code frame_1..5} 五套边框，由 {@link TouhouBoss#bossTier()} 索引；<b>同一阶共用一套</b>，
  * 不逐 BOSS 个体定制。条身取该阶品阶色（{@link TierPalette}，全模组单一色源）。
  *
- * <p><b>五阶差异是「装饰度」而非「色相」</b>：阶越高，两端符柱上的印越多、花瓣越多、
- * 金线越满。边框本身仍是定色朱红（识别色），MUST NOT 参与染色。
+ * <p><b>五阶差异是「主题」而非「亮度」</b>：每一阶是一套独立的装饰意象，
+ * 主题色与 {@link TierPalette} 同色相（1 绿竹 / 2 蓝水纹 / 3 金箔流光 / 4 彼岸花 / 5 紫境界裂痕），
+ * 阶越高纹样越密、越华丽。边框色**画死在像素里**，不参与运行期染色；色相来源仍是
+ * {@link TierPalette}（改色时五张图与色板一起改）。
  *
  * <h2>符卡名在血条下方</h2>
  * 血条本体高度<b>不因符卡行而变</b>；符卡行是独立的第二行，只把高度计入
@@ -69,15 +71,21 @@ import java.util.UUID;
  * {@code setIncrement()} 是 NeoForge 给的唯一正规扩展点（去 {@code RenderGuiEvent.Post}
  * 重算全部 y 等于把原版的 {@code screenHeight/3} 截断逻辑整个复制一遍）。
  *
- * <h2>贴图与画法（全分辨率）</h2>
- * 边框贴图是 <b>{@value #FRAME_TEX_W}x{@value #FRAME_TEX_H}</b>，与默认 config 宽度<b>同尺寸</b>：
- * 182 宽时九宫格中段源宽度恰好等于目标宽度（{@code 182 - 2*60 == 62}），
- * <b>全图 1:1 落屏，没有任何放大</b>。上一版是 64x24 拉成 182 —— 端头虽然也是 1:1，
- * 但整张图的设计信息量只有 182 宽的 35%，中间 4px 的纯色带被拉长 45 倍，屏上读作「中间发空」。
+ * <h2>贴图与画法（物理像素全分辨率 + 上方花丛）</h2>
+ * 边框贴图是 <b>{@value #FRAME_TEX_W}x{@value #FRAME_TEX_H}</b>，即逻辑尺寸
+ * 182x(24+{@link #TOP_BAND}) 在 <b>1920x1080 / guiScale=4</b> 下的物理像素数
+ * （{@value #TEXEL_SCALE} 倍）。屏上血条本体仍占 182x24 逻辑像素，上方再多 12 行花丛；
+ * 默认分辨率下每个 texel 恰好落在一个物理像素上，<b>没有任何缩放</b>。
  *
- * <p>美术由本地 Qwen-Image 扩散模型绘制，结构由 {@code tools/boss_bar_art.py} 收口时钉死：
- * 血槽行范围、血槽左右内缩（{@link #TRACK_INSET}）、内框边线的通长连续、中段横向均质
- * （九宫格只拉伸中段，中段有花纹就会被拉糊）。
+ * <p><b>为什么不用 1 texel = 1 逻辑像素</b>：182x24 只有 4368 个 texel，端头柱仅 22x20，
+ * 扩散模型的细节在屏上被放大 4 倍后读起来仍是「大色块」。本项目明确接受这一例外：
+ * 血条是 HUD 上最大的单件美术，按物理像素产出才体现模型的优势。代价是玩家把 guiScale
+ * 调到 4 以下时会被降采样（1080p 默认即 4，属预期取值）。
+ *
+ * <p>美术由 Qwen-Image 扩散模型绘制（整条符纸 + 上方花丛），结构由
+ * {@code tools/boss_bar_art.py} 收口时钉死：血槽行范围、血槽左右内缩
+ * （{@link #TRACK_INSET}）、血槽区透明。收口**不重绘**血槽边线（保留 AI 原画），
+ * 只把边线一圈的 alpha 钉成不透明，避免缩放产生脏边。
  *
  * <p>绘制序 <b>条身先、边框后</b>——两端符柱的纸边与朱印都悬在条身<b>外面</b>，
  * 压在上面才不会被填充盖掉。
@@ -92,30 +100,47 @@ public final class TouhouBossBarRenderer {
     // 与 tools/boss_bar_art.py 一一对应，改一处 MUST 改另一处。
 
     /**
-     * 边框贴图尺寸 = <b>默认 config 宽度 x 高度，全分辨率 1:1</b>。
-     *
-     * <p>不再是「64 宽的小图拉成 182」：182 宽时九宫格的中段与源尺寸<b>完全重合</b>
-     * （{@code 182 - 2*60 == 62}），屏幕上每一列都是贴图原样，没有任何横向放大。
-     * 只有玩家把 config 宽度改成非 182 时才拉伸中段（中段是横向均质的纯色带）。
-     *
-     * <p>三段切：端头 {@link #FRAME_CAP}px / 中段 {@link #FRAME_MID}px / 端头。
+     * 贴图相对逻辑坐标的倍率：1920x1080 下 MC 的 auto GUI scale = 4，
+     * 即 1 个逻辑像素 = 4x4 物理像素。边框贴图按物理像素 1:1 产出。
      */
-    private static final int FRAME_TEX_W = 182;
-    private static final int FRAME_TEX_H = 24;
-    private static final int FRAME_CAP = 60;
-    private static final int FRAME_MID = FRAME_TEX_W - 2 * FRAME_CAP;
+    private static final int TEXEL_SCALE = 4;
+
+    /** 符纸上方的花丛带高度（逻辑像素）。血条本体位置不变，花丛向上长。 */
+    private static final int TOP_BAND = 12;
 
     /**
-     * 边框贴图里<b>透明血槽</b>（= 血条条身区）的行范围，闭区间。
+     * 边框贴图尺寸 = 逻辑尺寸 182x(24+{@link #TOP_BAND}) x {@link #TEXEL_SCALE}
+     * = <b>728x144 物理像素</b>。
+     *
+     * <p>默认 1080p / guiScale=4 时，728 texel 恰好铺满 182 逻辑像素的 728 个物理像素，
+     * 九宫格中段源宽（{@code 728 - 2*240 == 248 texel}）与目标宽（62 逻辑 = 248 物理）
+     * <b>完全重合</b>，屏上零放大。只有玩家把 config 宽度改成非 182 时才拉伸中段。
+     *
+     * <p>三段切：端头 {@link #FRAME_CAP_TEX} texel / 中段 {@link #FRAME_MID_TEX} texel / 端头；
+     * 目标侧端头是 {@link #FRAME_CAP} 逻辑像素。
+     */
+    private static final int FRAME_TEX_W = 182 * TEXEL_SCALE;
+    private static final int FRAME_TEX_H = (24 + TOP_BAND) * TEXEL_SCALE;
+    private static final int FRAME_CAP_TEX = 60 * TEXEL_SCALE;
+    private static final int FRAME_MID_TEX = FRAME_TEX_W - 2 * FRAME_CAP_TEX;
+    private static final int FRAME_CAP = 60;
+    /** 边框贴图的**逻辑**高度（= 贴图 texel 高 / 倍率）。 */
+    private static final int FRAME_LOGICAL_H = FRAME_TEX_H / TEXEL_SCALE;
+
+    /**
+     * 边框贴图里<b>透明血槽</b>（= 血条条身区）的 texel 行范围，闭区间。
+     *
+     * <p>纵向分区（逻辑 36 行）：0..13 花丛带 / 14..17 符纸上边距 / 18..19 顶边 /
+     * 20..27 血槽 / 28..29 底边 / 30..33 下边距 / 34..35 透明。
      *
      * <p><b>5 阶共用同一个窗口</b>，这是刻意的：窗口位置若随阶变化，条身高度就会变成
      * 阶的函数，于是 config 的 bodyHeight、多血条堆叠预算、`screenHeight/3` 截断判定
-     * 全都要跟着分叉。逐阶差异只放在窗口之外的端头装饰里。
+     * 全都要跟着分叉。逐阶差异只放在窗口之外的装饰里。
      */
-    private static final int WIN_ROW_TOP = 8;
-    private static final int WIN_ROW_BOTTOM = 15;
-    /** 窗口高（像素）。文本路径的条身高度恒等于此值。 */
-    private static final int BODY_H = WIN_ROW_BOTTOM - WIN_ROW_TOP + 1;
+    private static final int WIN_ROW_TOP_TEX = (TOP_BAND + 8) * TEXEL_SCALE;
+    private static final int WIN_ROW_BOTTOM_TEX = (TOP_BAND + 16) * TEXEL_SCALE - 1;
+    /** 窗口高（逻辑像素）。文本路径的条身高度恒等于此值。 */
+    private static final int BODY_H = (WIN_ROW_BOTTOM_TEX - WIN_ROW_TOP_TEX + 1) / TEXEL_SCALE;
 
     /**
      * 血槽左右各内缩几列，<b>5 阶 MUST 同一值</b>。
@@ -127,12 +152,23 @@ public final class TouhouBossBarRenderer {
     private static final int TRACK_INSET = 22;
 
 
-    /** 条身贴图尺寸（灰度，被 tint）。8 行 = 条身 8 行，纵向 1:1；横向每行同色，拉伸无损。 */
-    private static final int SEG_TEX_W = 16;
-    private static final int SEG_TEX_H = 8;
+    /** 条身贴图尺寸（灰度，被 tint）。32 texel 高 = 条身 8 逻辑行在 guiScale=4 下的物理像素数；横向每行同色，拉伸无损。 */
+    private static final int SEG_TEX_W = 64;
+    private static final int SEG_TEX_H = 32;
 
     private static final ResourceLocation SEGMENT =
             Gensokyou.id("textures/gui/boss_bar/segment.png");
+
+    /**
+     * 液面前缘（灵力收口）：8x32 的近白月牙，运行期乘**提亮后的阶色**。
+     *
+     * <p>为什么单独一张：条身贴图的最大亮度只有 0.86，乘法染色又只能压暗；
+     * 想让「血量前端」比条身更亮，只能另给一张近白的高光贴图并乘一个提亮色。
+     */
+    private static final ResourceLocation SEGMENT_EDGE =
+            Gensokyou.id("textures/gui/boss_bar/segment_edge.png");
+    private static final int EDGE_TEX_W = 8;
+    private static final int EDGE_TEX_H = 32;
 
     /** 下标 = 阶级-1。越界在 {@link #clampTier} 里夹掉。 */
     private static final ResourceLocation[] FRAMES = {
@@ -143,8 +179,10 @@ public final class TouhouBossBarRenderer {
             Gensokyou.id("textures/gui/boss_bar/frame_5.png"),
     };
 
-    /** 符卡行高度（像素）。计入 {@code setIncrement()}，不计入血条本体。 */
-    private static final int CARD_LINE_H = 10;
+    /** 符卡行高度（像素）。计入 {@code setIncrement()}，不计入血条本体。
+     *  <p>行高预算：符卡字在 {@code underY + 4}，字形实占 8 行 → 到 {@code underY + 12}；
+     *  下一根血条的名字在其 {@code y - 21}，故卡行需要 11 才能保证 1px 不叠。 */
+    private static final int CARD_LINE_H = 11;
 
     private TouhouBossBarRenderer() {
     }
@@ -250,9 +288,9 @@ public final class TouhouBossBarRenderer {
      * 「这个文件在不在」。
      *
      * <p><b>为什么还要读尺寸</b>：贴图尺寸是渲染契约的一部分（{@link #FRAME_TEX_W}x
-     * {@link #FRAME_TEX_H} 内的列/行位置全部被坐标写死）。仓库里留过一版 64x24 的旧图，
-     * 只更新一部分 assets 时「文件在但尺寸不对」不会报错、只会画成一团 ——
-     * 故尺寸不符 MUST 视同缺失，回落 {@link #drawLegacy}，并打日志。
+     * {@link #FRAME_TEX_H} texel 内的列/行位置全部被坐标写死）。仓库里留过旧版
+     * 182x24（逻辑像素）的图，只更新一部分 assets 时「文件在但尺寸不对」不会报错、
+     * 只会画成一团 —— 故尺寸不符 MUST 视同缺失，回落 {@link #drawLegacy}，并打日志。
      *
      * <p>存在性判定的目的：正式美术逐张替换时，缺的那一阶回落成老画法，<b>不崩也不空</b>。
      */
@@ -313,13 +351,18 @@ public final class TouhouBossBarRenderer {
         Font font = Minecraft.getInstance().font;
         int width = GensokyouClientConfig.BOSS_BAR_WIDTH.get();
         int tier = clampTier(((TouhouBoss) boss).bossTier());
+        int tierColor = TierPalette.rgb(tier);
 
-        // 名字画在符纸之上（原版是画在条上方，这里上移到符首里，读作"符上书名"）
-        int nameY = y - font.lineHeight + 1;
+        // 贴图向上多出 TOP_BAND 行花丛：为了让**条身本体**停在原来的屏幕位置，
+        // 整个边框从 y - TOP_BAND 开始画，而不是从 y。
+        int frameY = y - TOP_BAND;
+
+        // 名字画在花丛上方（贴图区之外），颜色跟品阶色主题
+        int nameY = frameY - font.lineHeight + 1;
         g.drawString(font, bar.getName(), x + width / 2 - font.width(bar.getName()) / 2, nameY,
-                frameColor(), false);
+                tierColor, false);
 
-        int bodyY = y + WIN_ROW_TOP;
+        int bodyY = frameY + WIN_ROW_TOP_TEX / TEXEL_SCALE;
         int bodyW = Math.max(0, width - 2 * TRACK_INSET);
         float health = advanceGhost(bar);
         float progress = Mth.clamp(bar.getProgress(), 0.0F, 1.0F);
@@ -332,21 +375,33 @@ public final class TouhouBossBarRenderer {
             drawLegacy(g, x, bodyY, width, legacyH, health, progress);
             underY = bodyY + legacyH + 2;
         } else {
-            // 条身：暗轨底（结构色）→ 残影（结构色）→ 当前血量（阶色，走贴图 tint）
-            fill(g, x + TRACK_INSET, bodyY, bodyW, BODY_H, trackColor());
+            // 条身三层：凹轨底（暗、带内阴影）→ 残影（半透明）→ 当前灵力（阶色）
+            // 三层都用同一张 64x32 的纵向剖面：槽读作「凹进去的轨」，而不是一条色带。
+            tintedBlit(g, SEGMENT, x + TRACK_INSET, bodyY, bodyW, BODY_H,
+                    0, 0, SEG_TEX_W, SEG_TEX_H, SEG_TEX_W, SEG_TEX_H,
+                    opaque(trackColor(tier)));
             int ghostW = Mth.floor(bodyW * Mth.clamp(health, 0.0F, 1.0F));
             if (ghostW > 0) {
-                fill(g, x + TRACK_INSET, bodyY, ghostW, BODY_H, ghostColor());
+                tintedBlit(g, SEGMENT, x + TRACK_INSET, bodyY, ghostW, BODY_H,
+                        0, 0, SEG_TEX_W, SEG_TEX_H, SEG_TEX_W, SEG_TEX_H,
+                        0x99000000 | (ghostColor() & 0xFFFFFF));
             }
             int fillW = Mth.floor(bodyW * progress);
             if (fillW > 0) {
                 tintedBlit(g, SEGMENT, x + TRACK_INSET, bodyY, fillW, BODY_H,
                         0, 0, SEG_TEX_W, SEG_TEX_H, SEG_TEX_W, SEG_TEX_H,
-                        TierPalette.rgb(tier));
+                        tierColor);
+                // 液面前缘：贴着填充右端的一枚提亮月牙，血量越低也至少占 1px
+                int ew = Math.min(EDGE_TEX_W, fillW);
+                int eu = EDGE_TEX_W - ew;
+                tintedBlit(g, SEGMENT_EDGE,
+                        x + TRACK_INSET + fillW - ew, bodyY, ew, BODY_H,
+                        eu, 0, ew, EDGE_TEX_H, EDGE_TEX_W, EDGE_TEX_H,
+                        lighten(tierColor));
             }
-            // 边框最后画：端头的纸边/朱印悬在条身外面，压在上面才不被填充盖掉
-            nineSlice(g, FRAMES[tier - 1], x, y, width, FRAME_TEX_W, FRAME_TEX_H, FRAME_CAP);
-            underY = y + FRAME_TEX_H;
+            // 边框最后画：纸框、藤蔓与装饰压住条身与填充
+            nineSlice(g, FRAMES[tier - 1], x, frameY, width);
+            underY = frameY + FRAME_LOGICAL_H;
         }
 
         int seal = 0;
@@ -360,7 +415,7 @@ public final class TouhouBossBarRenderer {
         }
 
         if (cardName != null) {
-            drawCardLine(g, font, cardName, x, width, seal, underY);
+            drawCardLine(g, font, cardName, x, width, seal, underY, tierColor);
         }
     }
 
@@ -392,10 +447,10 @@ public final class TouhouBossBarRenderer {
      * 故<b>不设省略号</b>——真超长再说，别为一个从未发生的情况牺牲可读性。
      */
     private static void drawCardLine(GuiGraphics g, Font font, Component name,
-                                    int x, int width, int seal, int underY) {
+                                    int x, int width, int seal, int underY, int color) {
         String text = name.getString();
         int right = x + width - (seal > 0 ? seal + 2 : 0);
-        g.drawString(font, text, right - font.width(text), underY + 4, frameColor(), false);
+        g.drawString(font, text, right - font.width(text), underY + 4, color, false);
     }
 
     /**
@@ -423,21 +478,22 @@ public final class TouhouBossBarRenderer {
     /**
      * 无符卡行时一行需要的高度。
      *
-     * <p>贴图路径只画到 {@code y + FRAME_TEX_H}，但仍留出 {@code TALISMAN_BAR_TORN_EDGE/2 = 4}
-     * 的呼吸带：符卡行要落在条外的空隙里，多血条堆叠时两根之间也不至于贴脸。
+     * <p>贴图从 {@code y - TOP_BAND} 画到 {@code y + 24}，名字在它上方 9 行，
+     * 故整行是 {@code TOP_BAND + 24 + 9 = 45}，留 1px 呼吸带。
      * 降级路径（2 + 7 + 2 + 撕边 = 17）比它矮，取大者即可覆盖两者。
      */
     private static int rowHeightNoCard() {
-        int torn = BalanceNumbers.TALISMAN_BAR_TORN_EDGE > 0
-                ? Math.max(1, bodyH() / 2) : 0;
-        return FRAME_TEX_H + torn + 2;
+        return FRAME_LOGICAL_H + NAME_LINE_H + 1;
     }
+
+    /** 名字行高（= MC 默认 Font.lineHeight；仅用于行高预算）。 */
+    private static final int NAME_LINE_H = 9;
 
     /**
      * 条身高度 = 边框贴图的透明血槽高（{@link #BODY_H}），<b>不是</b> config 的
      * {@code TALISMAN_BAR_BODY_HEIGHT}——后者控制的是<b>降级画法</b>的条身高度。
      * 让 config 也能改贴图路径的条身高，就得让血槽高度随 config 变，而血槽位置一阶一档
-     * 就会把堆叠预算和截断判定全拖下水（见 {@link #WIN_ROW_TOP} 的说明）。
+     * 就会把堆叠预算和截断判定全拖下水（见 {@link #WIN_ROW_TOP_TEX} 的说明）。
      */
     private static int bodyH() {
         return BODY_H;
@@ -452,31 +508,36 @@ public final class TouhouBossBarRenderer {
     /**
      * 九宫格拉伸：端头原样、中段横向拉伸。
      *
-     * <p>默认宽度 182 时 {@code midTarget == FRAME_MID}，等于<b>原样 1:1</b>，不产生任何拉伸；
+     * <p>默认宽度 182 时 {@code midTarget == 62 逻辑像素 == 248 texel}，与中段源宽
+     * {@link #FRAME_MID_TEX} 相等：在 guiScale=4 下<b>原样 1:1</b>，不产生任何拉伸；
      * 只有玩家改 config 宽度时才拉伸中段。中段之所以敢拉伸，是因为
-     * {@code tools/boss_bar_art.py} 收口时把中段 62 列做成了<b>横向均质</b>
+     * {@code tools/boss_bar_art.py} 收口时把中段 248 列做成了<b>横向均质</b>
      * （每行同色），横向复制不失真；血槽在中段里是透明的，复制透明像素没有可见后果。
+     *
+     * <p>⚠️ 目标宽度/高度用**逻辑像素**，源区域用**texel**——两者差 {@link #TEXEL_SCALE} 倍，
+     * 混用会画成裁切错位（不报错，只是画错）。
      */
     private static void nineSlice(GuiGraphics g, ResourceLocation tex,
-                                  int x, int y, int targetW, int texW, int texH, int cap) {
+                                  int x, int y, int targetW) {
         if (targetW <= 0) {
             return;
         }
-        int midTarget = targetW - 2 * cap;
+        int midTarget = targetW - 2 * FRAME_CAP;
         if (midTarget > 0) {
-            blitRegion(g, tex, x + cap, y, midTarget, texH,
-                    cap, 0, FRAME_MID, texH, texW, texH);
+            blitRegion(g, tex, x + FRAME_CAP, y, midTarget, FRAME_LOGICAL_H,
+                    FRAME_CAP_TEX, 0, FRAME_MID_TEX, FRAME_TEX_H);
         }
-        blitRegion(g, tex, x, y, cap, texH, 0, 0, cap, texH, texW, texH);
-        blitRegion(g, tex, x + targetW - cap, y, cap, texH,
-                texW - cap, 0, cap, texH, texW, texH);
+        blitRegion(g, tex, x, y, FRAME_CAP, FRAME_LOGICAL_H,
+                0, 0, FRAME_CAP_TEX, FRAME_TEX_H);
+        blitRegion(g, tex, x + targetW - FRAME_CAP, y, FRAME_CAP, FRAME_LOGICAL_H,
+                FRAME_TEX_W - FRAME_CAP_TEX, 0, FRAME_CAP_TEX, FRAME_TEX_H);
     }
 
     /** 原版 {@code GuiGraphics.blit} 的独立纹理子区域版本（不染色）。 */
     private static void blitRegion(GuiGraphics g, ResourceLocation tex,
                                    int x, int y, int w, int h,
-                                   int u, int v, int uW, int vH, int texW, int texH) {
-        g.blit(tex, x, y, w, h, (float) u, (float) v, uW, vH, texW, texH);
+                                   int u, int v, int uW, int vH) {
+        g.blit(tex, x, y, w, h, (float) u, (float) v, uW, vH, FRAME_TEX_W, FRAME_TEX_H);
     }
 
     /**
@@ -579,7 +640,26 @@ public final class TouhouBossBarRenderer {
         if (w <= 0 || h <= 0) {
             return;
         }
-        g.fill(x, y, x + w, y + h, 0xFF000000 | (rgb & 0xFFFFFF));
+        g.fill(x, y, x + w, y + h, opaque(rgb));
+    }
+
+    /** 0xRRGGBB -> 0xFFRRGGBB。{@code tintedBlit} 读 alpha，缺 alpha 会整块透明。 */
+    private static int opaque(int rgb) {
+        return 0xFF000000 | (rgb & 0xFFFFFF);
+    }
+
+    /**
+     * 阶色的提亮版（约 1.25x），给液面前缘用。
+     *
+     * <p>乘法染色只能压暗：条身贴图最大 0.86，前缘贴图近白再乘提亮色，
+     * 才会比条身亮一档。金色这类接近上限的色会被压到 255，属预期。
+     */
+    private static int lighten(int argb) {
+        int a = argb >>> 24 & 0xFF;
+        int r = Math.min(255, (argb >> 16 & 0xFF) * 5 / 4);
+        int g = Math.min(255, (argb >> 8 & 0xFF) * 5 / 4);
+        int b = Math.min(255, (argb & 0xFF) * 5 / 4);
+        return a << 24 | r << 16 | g << 8 | b;
     }
 
     // config 色：文本路径下它们仍是**结构色**（暗轨底 / 残影 / 朱红框 / 撕边），
@@ -591,6 +671,25 @@ public final class TouhouBossBarRenderer {
 
     private static int trackColor() {
         return BalanceNumbers.TALISMAN_BAR_COLOR_TRACK;
+    }
+
+    /**
+     * 凹轨色：深墨底 + 25% 品阶色。
+     *
+     * <p>纯 {@code #2A1A1C} 在暗色剖面下就是一块纯黑（实机反馈「血条底不要纯黑」）。
+     * 混入品阶色后，绿阶是暗橄榄、蓝阶是暗蓝灰、金阶是暗金褐、红阶是暗红、紫阶是暗紫，
+     * 既保留「凹槽」的暗度，又和边框主题同源。
+     */
+    private static int trackColor(int tier) {
+        return blendRgb(trackColor(), TierPalette.rgb(tier), 0.25F);
+    }
+
+    /** 0xRRGGBB 两色线性混合；输入可带 alpha，输出 alpha = 0xFF。 */
+    private static int blendRgb(int a, int b, float t) {
+        int r = Math.round((a >> 16 & 0xFF) * (1 - t) + (b >> 16 & 0xFF) * t);
+        int g = Math.round((a >> 8 & 0xFF) * (1 - t) + (b >> 8 & 0xFF) * t);
+        int bl = Math.round((a & 0xFF) * (1 - t) + (b & 0xFF) * t);
+        return 0xFF000000 | r << 16 | g << 8 | bl;
     }
 
     private static int ghostColor() {

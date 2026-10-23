@@ -239,7 +239,9 @@ def send_local(base, workflow, image_paths, timeout=1800, poll=2):
 
 def main(argv):
     ap = argparse.ArgumentParser(description="Runpod 生图端点调用封装")
-    ap.add_argument("--prompt", required=True)
+    ap.add_argument("--prompt", default=None)
+    ap.add_argument("--prompt-file", default=None,
+                    help="从文件读 prompt（避免 PowerShell 传长串时被截断/转义）")
     ap.add_argument("--draft", default=None, help="结构草稿（编辑目标，image_1）")
     ap.add_argument("--material", default=None, help="材质件（风格参考，image_2）")
     ap.add_argument("--width", type=int, required=True)
@@ -253,8 +255,16 @@ def main(argv):
     ap.add_argument("--local-url", default=LOCAL_URL, help="本机 ComfyUI 地址")
     ap.add_argument("--timeout", type=int, default=1800, help="等图上限（秒）")
     ap.add_argument("--out", default=None, help="出图落盘路径")
+    ap.add_argument("--payload-out", default=None,
+                    help="把**完整请求体**写成 JSON（给 MCP / 手工 /run 复用，MUST NOT 含 key）")
     ap.add_argument("--send", action="store_true", help="真发（默认只打印请求体摘要）")
     args = ap.parse_args(argv)
+
+    if args.prompt_file:
+        args.prompt = pathlib.Path(args.prompt_file).read_text(encoding="utf-8").strip()
+    if not args.prompt:
+        print("缺少 --prompt 或 --prompt-file")
+        return 1
 
     paths = [p for p in (args.draft, args.material) if p]
     if not paths:
@@ -263,6 +273,12 @@ def main(argv):
     wf = build_workflow(args.prompt, args.seed, args.width, args.height,
                         args.steps, args.cfg, len(paths), local=args.local)
     body = json.dumps({"input": {"workflow": wf, "images": []}}) if not args.local else None
+    if args.payload_out and not args.local:
+        payload = build_payload(wf, paths)
+        out = pathlib.Path(args.payload_out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        print("payload  -> %s（%.2f MB，不含 key）" % (out, out.stat().st_size / 1e6))
     print("mode     : %s" % ("LOCAL %s" % args.local_url if args.local
                              else "RUNPOD %s" % args.endpoint_id))
     print("output   : %dx%d  steps=%d cfg=%.1f seed=%d" %

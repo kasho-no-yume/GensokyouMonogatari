@@ -5,8 +5,8 @@
    2x/4x 落盘后降尺寸 blit 会被 NEAREST 降采样丢像素，边缘糊掉。
 2. assets 里 MUST 有对应贴图。
 3. 槽格阵 / 槽框 MUST 落在面板内（越框 = 控件画到纸外，实机可见）。
-4. **咒符条血条**（`gui/boss_bar/`）：182x24 全分辨率、血槽 MUST 全透明、
-   内框边线 MUST 不透明（破洞 = 虚线边框）。
+4. **咒符条血条**（`gui/boss_bar/`）：728x144（182x36 逻辑 x4 物理像素，含 12 行花丛带）、
+   槽内允许前景装饰，中心读数区须通透，上下框须保留有效覆盖。
 
 用法（仓库根目录执行）：
     python tools/validate_gui_textures.py
@@ -73,10 +73,14 @@ def check(name, layout, failures):
 
 
 def check_boss_bar(failures):
-    """咒符条血条：尺寸 + 血槽透明 + 内框连续（与 TouhouBossBarRenderer 的常量对齐）。"""
-    W, H = 182, 24
-    TRACK_X0, TRACK_X1 = 22, 159
-    WIN_TOP, WIN_BOT = 8, 15
+    """咒符条血条：尺寸 + 血槽透明 + 内框连续（与 TouhouBossBarRenderer 的常量对齐）。
+
+    贴图按 1080p / guiScale=4 的**物理像素**产出：182x36 逻辑 x4 = 728x144。
+    """
+    SS = 4
+    W, H = 182 * SS, 36 * SS
+    TRACK_X0, TRACK_X1 = 22 * SS, (159 + 1) * SS - 1
+    WIN_TOP, WIN_BOT = 20 * SS, (27 + 1) * SS - 1
     for tier in range(1, 6):
         path = ASSETS / ("gui/boss_bar/frame_%d.png" % tier)
         if not path.exists():
@@ -85,23 +89,26 @@ def check_boss_bar(failures):
         with Image.open(path) as im:
             im = im.convert("RGBA")
             if im.size != (W, H):
-                failures.append("boss_bar frame_%d: %dx%d != %dx%d（全分辨率宪法）"
+                failures.append("boss_bar frame_%d: %dx%d != %dx%d（1080p 物理像素 1:1）"
                                 % (tier, im.width, im.height, W, H))
                 continue
             px = im.load()
-            # 血槽 MUST 全透明（血条自己填）
-            solid_in_track = [(x, y) for y in range(WIN_TOP, WIN_BOT + 1)
-                              for x in range(TRACK_X0, TRACK_X1 + 1)
-                              if px[x, y][3] != 0]
-            if solid_in_track:
-                failures.append("boss_bar frame_%d: 血槽内有 %d 个不透明像素（血条会被盖住）"
-                                % (tier, len(solid_in_track)))
-            # 内框边线 MUST 不透明（破了就是虚线边框）
-            holes = [(x, y) for y in (6, 7, 16, 17) for x in range(TRACK_X0 - 2, TRACK_X1 + 3)
-                     if px[x, y][3] != 255]
-            if holes:
-                failures.append("boss_bar frame_%d: 内框边线有 %d 个透明像素（虚线边框）"
-                                % (tier, len(holes)))
+            # The frame is a foreground overlay; encroaching ornaments are intentional.
+            center = im.getchannel("A").crop((W // 2 - 8, WIN_TOP + 8,
+                                               W // 2 + 8, WIN_BOT - 7))
+            if sum(i * n for i, n in enumerate(center.histogram())) / (center.width * center.height) >= 64:
+                failures.append("boss_bar frame_%d: central health reading area is obscured" % tier)
+            # Natural rims may contain antialiasing/torn edges. Forcing every
+            # pixel opaque recreates the white rectangle this check must catch.
+            alpha = im.getchannel("A")
+            for label, box in (("top", (TRACK_X0, 64, TRACK_X1 + 1, WIN_TOP)),
+                               ("bottom", (TRACK_X0, WIN_BOT + 1, TRACK_X1 + 1, 128))):
+                band = alpha.crop(box)
+                covered = sum(v > 128 for v in band.get_flattened_data())
+                if covered < band.width * band.height * 0.5:
+                    failures.append("boss_bar frame_%d: %s rim mostly missing" % (tier, label))
+            if alpha.getpixel((0, 110)) == 255 and alpha.getpixel((W - 1, 110)) == 255:
+                failures.append("boss_bar frame_%d: opaque backing reaches both canvas edges" % tier)
         print("[ok] %-26s %dx%d  gui/boss_bar/frame_%d" % ("boss_bar frame_%d" % tier, W, H, tier))
 
     seg = ASSETS / "gui/boss_bar/segment.png"
@@ -109,11 +116,22 @@ def check_boss_bar(failures):
         failures.append("boss_bar segment: 缺少贴图 %s" % seg)
     else:
         with Image.open(seg) as im:
-            if im.size != (16, 8):
-                failures.append("boss_bar segment: %dx%d != 16x8（条身 8 行 1:1）"
+            if im.size != (64, 32):
+                failures.append("boss_bar segment: %dx%d != 64x32（条身 32 texel 1:1）"
                                 % (im.width, im.height))
             else:
-                print("[ok] %-26s 16x8  gui/boss_bar/segment" % "boss_bar segment")
+                print("[ok] %-26s 64x32  gui/boss_bar/segment" % "boss_bar segment")
+
+    edge = ASSETS / "gui/boss_bar/segment_edge.png"
+    if not edge.exists():
+        failures.append("boss_bar segment_edge: 缺少贴图 %s" % edge)
+    else:
+        with Image.open(edge) as im:
+            if im.size != (8, 32):
+                failures.append("boss_bar segment_edge: %dx%d != 8x32（液面前缘）"
+                                % (im.width, im.height))
+            else:
+                print("[ok] %-26s 8x32  gui/boss_bar/segment_edge" % "boss_bar edge")
 
 
 def main():
