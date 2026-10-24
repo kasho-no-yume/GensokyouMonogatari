@@ -14,11 +14,11 @@
 | 内容 | 新程序组合 | 验收重点 |
 |---|---|---|
 | 默认弹墙 | Every(60)→Capture主目标帧→AngularGrid(5×5,10°)→源前移3→Linear(.3)，直径.7 | 公共一份25发；是角度网格弧面；默认寿命1200 |
-| 1 花环 | Loop240→CaptureTargets→ForEachTarget→DiscRing(48,r4,后移6)→Hold60→SampleTargetPoint→逐成员AimAtPoint→Linear(.6)；DamageWindow[60,400) | 同时48颗而非多拍漂移；每环只瞄所属UUID；无目标采用Collapse该个人组；前120tick移动锁 |
+| 1 花环 | Loop240→CaptureTargets→ForEachTarget→Aimed帧(后移6)→组内不可见载体绕组帧Z轴每2tick扫描→出现弹(life116)+攻击弹(AIM_LOCAL)；DamageWindow[0,400) | 48颗逐颗出现/逐颗按当时目标位置射出，但组帧t=0锁定，48颗仍共圆；每人一份；前120tick移动锁 |
 | 2 花之海洋 | Loop240，Repeat(16,4)→随机出射轴和独立随机花平面→Union(core,45 petals)→SpeedCurve(.24→0,60t)→Hold40；age100 petals Detach径向.2，core采样随机有效目标点后.3 | 每花46、每轮736发；无害100、寿命400；core直径1.1/4倍，petals .55；中心随平移，径向参考必须取爆散时花心 |
 | 3 雨季喷泉 | Loop200，Every20共10拍；VolumeScatter圆盘24点→ResolveSurface首空气→Linear向下.3；另一lane地面采样→LaserWindow(40预警,120激活) | 雨240+光柱10/轮，光柱长80/r.8/1.1倍；第5/10拍采玩家xz；寿命400，雨与激光不因owner移动而拖拽 |
 
-花海允许跨轮存活直到400tick，不在240时全清；结束卡才清。随机目标的选择时刻必须固定：花心在age100选择当时有效目标并采样一次，之后不追踪；相对于旧实现发生的差异需明确登记。环按表格静止60，不能保留“1tick减速造成轻微漂移”的偶然实现。
+花海允许跨轮存活直到400tick，不在240时全清；结束卡才清。随机目标的选择时刻必须固定：花心在age100选择当时有效目标并采样一次，之后不追踪；相对于旧实现发生的差异需明确登记。环的组帧在首次发射时锁定；逐颗出现只影响出现时刻，不改变圆心/平面；出现弹寿命116、攻击弹出生即判伤。
 
 ## 3. 黑谷山女
 
@@ -26,9 +26,9 @@
 |---|---|---|
 | 底噪 | Every80→主目标Fan(3,55°)→Linear(.35) | 公共一份，直径.55，寿命1200 |
 | 1 捕获之网 | Cycle200；Every60的body含At0/20/40，各ConeScatter6→Linear(.70,life100)→EmitAlongPath(every4)；另Every70个人Fan3 | 每个完整60tick子轮18根；尾珠Hold40→随机Linear(.06),life400；前100锁位 |
-| 2 瘴气充溢 | Cycle260；Every60 Spiral20(r3..8,turn1)+Breathe(1±.4,80)+Linear(.18)；Every30 ConeScatter7(.12) | 两lane公共一份，穿墙、life400；前130锁位；沿法线推进不被缩放改变 |
+| 2 瘴气充溢 | Cycle260；Every60 每目标槽各建 aimed 组，Spiral20(r3..8,turn1)+Breathe(1±.4,80)+Linear(.36)；Every30 ConeScatter7(.12) | 螺旋每人一份；每波重建组；穿墙、life400；前130锁位；沿法线推进不被缩放改变 |
 | 3 石窟蜘蛛巢 | Cycle260；Every60的At0/20/40各ConeScatter7(.64)+尾珠；Every50 ConeScatter6(120°,.45) | 完整子轮21根；尾珠规则与卡1相同；前130锁位 |
-| 4 原因不明之热病 | Cycle260；Every50同时创建三个Spiral子组：14/r3..9/.20、6/r1.5..4/.22/偏移+6、6/反手/偏移−6；各自Breathe；Every26毒雾7 | 中心幅.45周期70，左右幅.4周期60；4lane全1.25倍、life400；共享采样但局部中心独立 |
+| 4 原因不明之热病 | Cycle260；Every50 每目标槽各建 base+左右偏移，三个Spiral子组：14/r3..9/.40、6/r1.5..4/.44/偏移+6、6/反手/偏移−6；各自Breathe；Every26毒雾7 | 每人一份三重螺旋；每波重建组；中心幅.45周期70，左右幅.4周期60；4lane全1.25倍、life400 |
 
 子拍采用周期内偏移：卡1在200tick一轮内织丝拍为0/20/40/60/80/100/120/140/160/180（60根）；卡3在260tick为0..240每20tick（91根）。不能延续当前外层 `isDue(track)` 只放周期0相位导致子拍丢失的行为。周期在卡循环边界重置，尾珠继续，不能把200/260强行改成60的倍数。
 

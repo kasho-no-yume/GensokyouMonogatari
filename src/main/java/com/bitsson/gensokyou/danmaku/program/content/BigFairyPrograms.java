@@ -25,7 +25,15 @@ public final class BigFairyPrograms {
     private BigFairyPrograms() {}
 
     private static final int RING_CYCLE = 240;
-    private static final int RING_HOLD = 60;
+    /** 花环颗数；48 颗 × 0.1s = 4.8s 出现 / 4.8s 射出。 */
+    private static final int RING_COUNT = 48;
+    /** 出现与射出的逐颗间隔：0.1s = 2 tick。 */
+    private static final int RING_STEP = 2;
+    /** 全部出现后等待 1s 再射；也是攻击载体的首个生成年龄。 */
+    private static final int RING_WAIT = RING_COUNT * RING_STEP + 20;
+    private static final int RING_LIFETIME = 400;
+    private static final double RING_RADIUS = 4.0D;
+    private static final double RING_LAUNCH_SPEED = 0.6D;
     private static final int FLOWER_CYCLE = 240;
     private static final int FLOWER_COUNT = 16;
     private static final int FLOWER_STEP = 4;
@@ -64,32 +72,64 @@ public final class BigFairyPrograms {
     }
 
     // ------------------------------------------------------------------
-    // 1 · 花符[弹幕花环]：单拍 48 颗共圆 → 静止 3 秒 → 重新瞄准所属玩家
+    // 1 · 花符[弹幕花环]：48 颗逐颗出现（每 0.1s 一颗）→ 等 1s → 逐颗重瞄射出
     // ------------------------------------------------------------------
     private static BossProgramCards.Card ring() {
         var card = new CardProgram("gensokyou:big_fairy_ring");
         var targets = card.targets("players", 64, 5);
+
+        // 同一组的帧只在 t=0 采样一次，48 颗因此严格共圆。
+        // 出现与发射都用“不可见载体绕组帧 Z 轴扫描 + 每 2 tick 留一颗子弹”，
+        // 每个位置的目标采样发生在该颗子弹出生那一 tick，所以逐颗追踪的是当时站位。
+        var ghost = MemberProgram.decoration("ringGhost",
+                        MemberProgram.styled(new Patterns.Point(Vec3.ZERO, Vec3.Z),
+                                "sphere", hex(1), 0.35, 1, 0.7),
+                        new Paths.Hold(), RING_WAIT)
+                .fixedDirection().build();
+        var shot = MemberProgram.attack("ringShot",
+                        MemberProgram.styled(new Patterns.Point(Vec3.ZERO, Vec3.Z),
+                                "sphere", hex(1), 0.35, 1, 0.7),
+                        new Paths.Linear(Vec3.Z, RING_LAUNCH_SPEED), RING_LIFETIME)
+                .aimAtTarget().build();
+
+        var carrierAngle = new ScalarCurve(List.of(
+                new ScalarCurve.Key(0, 0.0D),
+                new ScalarCurve.Key(RING_COUNT * RING_STEP, Deterministic.TAU),
+                new ScalarCurve.Key(RING_WAIT, Deterministic.TAU),
+                new ScalarCurve.Key(RING_WAIT + RING_COUNT * RING_STEP, Deterministic.TAU * 2)));
+        var ringCarrier = carrier("ringCarrier", "ringCarrier", carrierAngle, ghost, shot);
+
         List<CardProgram.Group> guns = new ArrayList<>();
         for (int slot = 0; slot < 5; slot++) {
             int s = slot;
             var group = card.aimed("ring" + s, targets, s, new Vec3(0, 1, -6));
-            var pattern = MemberProgram.styled(new Patterns.Ring(48, 4, 0, 0),
-                    "sphere", hex(1), 0.35, 1, 0.7, "ring");
-            var members = MemberProgram.attack("ring", pattern, new Paths.Hold(), 400)
-                    .fixedDirection()
-                    .presentation(new Presentation.Profile(
-                            List.of(new Presentation.Window(TimeDomain.MEMBER_AGE, RING_HOLD, 400)), null, null, List.of()))
-                    .build();
-            card.at(0, c -> c.fire(group, members, 0, 71 + s));
-            card.at(RING_HOLD, c -> c.reaim(group, s, new Selection.Tag("ring"), 0.6));
             guns.add(group);
+            card.at(0, c -> c.fire(group, ringCarrier, 0, 71 + s));
         }
-        // 前 120 tick 锁位：48 颗共圆的圆心 MUST 在采样那一 tick 锁定。
+        // 前 120 tick 锁位：覆盖完整出现段和首次射出；组帧已在 t=0 锁定，后续游走不破坏圆。
         card.at(0, c -> c.lockMovement(guns.get(0), 120));
         // RETAIN：环弹寿命 400，跨轮保留直到自身寿命结束。
         return new BossProgramCards.Card(1, "spellcard.gensokyou.big_fairy.1", 1.00D,
                 RING_CYCLE, 0, card.loop(RING_CYCLE, TailPolicy.RETAIN_UNTIL_LIFETIME),
-                List.of("环弹寿命 400 跨轮保留（RETAIN）；伤害窗口 [60,400) 与内容映射一致。"));
+                List.of("48 颗逐颗出现（每 2 tick 一颗，4.8s），再等 1s 后逐颗按当时目标位置射出（每 2 tick 一颗）。",
+                        "出现/发射由不可见载体绕组帧 Z 轴旋转扫描，组帧在 t=0 锁定，因此 48 颗仍严格共圆。",
+                        "每颗攻击弹 AIM_LOCAL 在出生 tick 采样目标；伤害窗口 [0,400)，寿命 400。"));
+    }
+
+    /** 不可见旋转载体：沿组帧 Z 轴扫描一圈，每 2 tick 在环位上留一颗出现弹/攻击弹。 */
+    private static Actions.ChildProgram carrier(String name, String tag, ScalarCurve angle,
+                                                Actions.ChildProgram ghost, Actions.ChildProgram shot) {
+        return MemberProgram.decoration(name,
+                        MemberProgram.styled(new Patterns.Point(new Vec3(RING_RADIUS, 0, 0), Vec3.Z),
+                                "sphere", hex(1), 0.05, 1, 0.05, tag),
+                        new Paths.Hold(), RING_CYCLE)
+                .fixedDirection()
+                .transform(new Transforms.Rotate(Vec3.Z, angle, Vec3.ZERO))
+                .presentation(new Presentation.Profile(List.of(), null,
+                        new Presentation.Fade(TimeDomain.MEMBER_AGE, ScalarCurve.constant(0)), List.of()))
+                .emit(new Selection.Tag(tag), 0, RING_STEP, RING_COUNT, ghost)
+                .emit(new Selection.Tag(tag), RING_WAIT, RING_STEP, RING_COUNT, shot)
+                .build();
     }
 
     // ------------------------------------------------------------------

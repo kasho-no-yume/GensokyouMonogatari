@@ -28,7 +28,12 @@ public final class StandardProgramOperations {
     public static Optional<Object> decode(OperationNode node) {
         return TYPES.values().stream().filter(type->type.id().equals(node.operationId())).findFirst().map(type->type.decode(node.parameters()));
     }
-    public static ProgramLimits limits() { return new ProgramLimits(4096,8,512,4096,256,262144); }
+    /**
+     * 512KB 的定义预算：山女 4 卡按 5 名玩家各复制一份三重螺旋时，单个定义约 338KB；
+     * 旧的 256KB 会误伤这类合法内容。传输/快照另受 {@code NetworkLimits.snapshotBytes}
+     * 的 4MB 上限约束，不靠本常量兜底。
+     */
+    public static ProgramLimits limits() { return new ProgramLimits(4096,8,512,4096,256,524288); }
     @SuppressWarnings("unchecked")
     public static <P extends Record> OperationType<P> type(Class<P> type) {
         var result=TYPES.get(type);

@@ -109,33 +109,84 @@ class ProgramContentTest {
     }
 
     // ------------------------------------------------------------------
-    // 大妖精：环卡 48/人、120 tick 锁位
+    // 大妖精：花环 48 颗逐颗出现、逐颗重瞄；前 120 tick 锁位
     // ------------------------------------------------------------------
-    @Test void bigFairyRingIsFortyEightPerPlayerAndLocksFirst120Ticks() {
+    @Test void bigFairyRingSpawnsAndReaimsOnePointAtATime() {
         var deck = BossProgramCards.forOwner("big_fairy").orElseThrow();
         var session = session(1);
         var controller = new BossProgramController(session, OWNER);
         var battle = new com.bitsson.gensokyou.danmaku.program.gameplay.BossProgramBattle(controller, deck);
         battle.install(0);
-        long commits = 0;
+        var ghostBirths = new TreeSet<Long>();
+        var shotBirths = new TreeSet<Long>();
+        var samples = new TreeSet<Long>();
         long members = 0;
         for (int tick = 0; tick <= 239; tick++) {
             session.advance(tick, 4096);
             for (var event : session.runtime().drainEvents()) {
                 if (event.kind() == DanmakuWorldRuntime.Kind.COMMIT
-                        && event.plan().program().pattern().countBound() == 48) {
-                    commits++;
+                        && event.plan().program().pattern().countBound() == 1
+                        && event.plan().program().actions().isEmpty()) {
+                    if (event.tick() < 116) ghostBirths.add(event.tick());
+                    else shotBirths.add(event.tick());
                     members += event.plan().members().size();
                 }
+                if (event.kind() == DanmakuWorldRuntime.Kind.TARGET_SAMPLE) samples.add(event.tick());
             }
             if (tick < 120) assertTrue(session.runtime().movementLocked(controller.encounter()), "locked at " + tick);
             if (tick == 120) assertFalse(session.runtime().movementLocked(controller.encounter()), "released at 120");
         }
-        assertEquals(1, commits, "单名玩家只命中 slot0；缺席槽不补人也不发射");
-        assertEquals(48, members, "单拍 48 颗共圆");
+        var expectedBirths = new TreeSet<Long>();
+        var expectedSamples = new TreeSet<Long>();
+        for (int i = 0; i < 48; i++) {
+            expectedBirths.add((long) i * 2);
+            expectedSamples.add(116L + i * 2L);
+        }
+        assertEquals(expectedBirths, ghostBirths, "48 颗幽灵弹每 2 tick 出现一颗，4.8 秒出现完");
+        assertEquals(expectedSamples, shotBirths, "48 颗攻击弹从 116 tick 起每 2 tick 一颗射出");
+        assertEquals(96, members, "48 颗幽灵 + 48 颗攻击；单名玩家只命中 slot0");
+        assertEquals(expectedSamples, samples, "每颗攻击弹在自己的出生 tick 单独采样一次目标位置");
         // RETAIN：环弹寿命 400，240 边界不清场。
         assertTrue(session.runtime().liveMembers() > 0, "RETAIN keeps the ring until its own lifetime");
         battle.close();
+    }
+
+    @Test void yamameMiasmaSpawnsOneSpiralPerTargetPerWave() {
+        var deck = BossProgramCards.forOwner("yamame").orElseThrow();
+        var session = session(5);
+        var controller = new BossProgramController(session, OWNER);
+        controller.card(deck.card(2).program(), 0);
+        long spiralMembers = 0;
+        for (int tick = 0; tick <= 259; tick++) {
+            session.advance(tick, 32768);
+            for (var event : session.runtime().drainEvents())
+                if (event.kind() == DanmakuWorldRuntime.Kind.COMMIT
+                        && event.plan().program().pattern().countBound() == 20)
+                    spiralMembers += event.plan().members().size();
+        }
+        assertEquals(5 * 5 * 20L, spiralMembers, "5 波 × 20 颗 × 5 名被锁定玩家，每人一份");
+        controller.close();
+    }
+
+    @Test void yamameFeverSpawnsThreeSpiralsPerTargetPerWave() {
+        var deck = BossProgramCards.forOwner("yamame").orElseThrow();
+        var session = session(5);
+        var controller = new BossProgramController(session, OWNER);
+        controller.card(deck.card(4).program(), 0);
+        long centre = 0;
+        long arms = 0;
+        for (int tick = 0; tick <= 259; tick++) {
+            session.advance(tick, 32768);
+            for (var event : session.runtime().drainEvents()) {
+                if (event.kind() != DanmakuWorldRuntime.Kind.COMMIT) continue;
+                int bound = event.plan().program().pattern().countBound();
+                if (bound == 14) centre += event.plan().members().size();
+                if (bound == 6) arms += event.plan().members().size();
+            }
+        }
+        assertEquals(6 * 5 * 14L, centre, "6 波 × 14 颗 × 5 人");
+        assertEquals(6 * 5 * 12L, arms, "6 波 × (左右各 6 颗) × 5 人");
+        controller.close();
     }
 
     // ------------------------------------------------------------------

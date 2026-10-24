@@ -98,33 +98,42 @@ public final class YamamePrograms {
                 List.of("子拍 0/20/40 每 60 tick：10 拍/轮（0..180），60 根/轮，符合内容映射。"));
     }
 
-    // 2 · 瘴符「瘴气充溢」：中央螺旋呼吸 + 毒雾缓速
+    // 2 · 瘴符「瘴气充溢」：每名目标一份中央螺旋呼吸 + 毒雾缓速
     private static BossProgramCards.Card miasma() {
         var card = new CardProgram("gensokyou:yamame_miasma");
         var targets = card.targets("players", 64, 5);
-        var flow = card.arena("flow", targets);
         var mist = card.arena("mist", targets);
         var spiral = MemberProgram.attack("flow", MemberProgram.styled(new Patterns.Spiral(20, 1, 3, 8, 1, 0),
                         "sphere", hex(2), 0.275, 1, 0.55, "flow"), new Paths.Hold(), 400)
                 .fixedDirection().piercing()
                 .transform(new Transforms.Compose(List.of(new Transforms.Breathe(1, 0.4D, 80, 0),
-                        new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.18)))))
+                        new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.36D)))))
                 .build();
         var mists = MemberProgram.attack("mist", MemberProgram.styled(new Patterns.ConeScatter(7, Math.PI, 3),
                         "sphere", hex(3), 0.25, 1, 0.5, "mist"), new Paths.Linear(Vec3.Z, 0.12), 400)
                 .templateDirections().piercing().build();
-        for (int i = 0; i < 5; i++) {
-            int tick = i * 60;
-            card.at(tick, c -> c.fire(flow, spiral, 0, 91 + tick));
+        for (int wave = 0; wave < 5; wave++) {
+            int tick = wave * 60;
+            int w = wave;
+            card.at(tick, c -> {
+                // 每波、每名被锁定玩家各建一个精确朝向该玩家的组；多人 = 每人一份，不是每人五份。
+                for (int slot = 0; slot < 5; slot++) {
+                    int s = slot;
+                    var flow = c.aimed("flow" + w + "_" + s, targets, s, Vec3.ZERO);
+                    c.fire(flow, spiral, 0, 91 + tick + s);
+                    if (w == 0 && s == 0) c.lockMovement(flow, 130);
+                }
+            });
         }
         for (int i = 0; i < 9; i++) {
             int tick = i * 30;
             card.at(tick, c -> c.fire(mist, mists, 0, 97 + tick));
         }
-        card.at(0, c -> c.lockMovement(flow, 130));
         return new BossProgramCards.Card(2, "spellcard.gensokyou.yamame.2", 0.75D, 260, 0,
                 card.loop(260, TailPolicy.RETAIN_UNTIL_LIFETIME),
-                List.of("螺旋呼吸 + 沿法线推进正交；毒雾半球随机。"));
+                List.of("螺旋每 60 tick 按目标槽各建一个 AIMED 组：多人时每人一份，方向精确取 BOSS 眼位→该玩家。",
+                        "推进 0.36 格/tick；每波重建组，已生成的波保持出生时快照，新波才按当时位置/方向采样。",
+                        "毒雾仍为公共 arena 组（本次不改）；前 130 tick 锁位。"));
     }
 
     // 3 · 蜘蛛「石窟蜘蛛巢」：更密织丝（13 拍/轮）+ 石窟吐丝
@@ -153,50 +162,56 @@ public final class YamamePrograms {
                         "石窟吐丝用 120° 锥（spread=120 ⇒ 半角 60°）。"));
     }
 
-    // 4 · 瘴气「原因不明之热病」：三重螺旋 + 更浓毒雾
+    // 4 · 瘴气「原因不明之热病」：每名目标一份三重螺旋 + 更浓毒雾
     private static BossProgramCards.Card fever() {
         var card = new CardProgram("gensokyou:yamame_fever");
         var targets = card.targets("players", 64, 5);
-        var base = card.arena("feverBase", targets);
-        var left = card.offset("feverLeft", base, new Vec3(6, 0, 0));
-        var right = card.offset("feverRight", base, new Vec3(-6, 0, 0));
         var mist = card.arena("feverMist", targets);
         var centre = MemberProgram.attack("feverCentre", MemberProgram.styled(new Patterns.Spiral(14, 1, 3, 9, 1, 0),
                         "sphere", hex(2), 0.25, 1.25, 0.5, "centre"), new Paths.Hold(), 400)
                 .fixedDirection().piercing()
                 .transform(new Transforms.Compose(List.of(new Transforms.Breathe(1, 0.45D, 70, 0),
-                        new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.20)))))
+                        new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.40D)))))
                 .build();
         var leftArm = MemberProgram.attack("feverLeft", MemberProgram.styled(new Patterns.Spiral(6, 1, 1.5, 4, 1, 0),
                         "sphere", hex(4), 0.225, 1.25, 0.45, "left"), new Paths.Hold(), 400)
                 .fixedDirection().piercing()
                 .transform(new Transforms.Compose(List.of(new Transforms.Breathe(1, 0.4D, 60, 0),
-                        new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.22)))))
+                        new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.44D)))))
                 .build();
         var rightArm = MemberProgram.attack("feverRight", MemberProgram.styled(new Patterns.Spiral(6, 1, 1.5, 4, -1, 0),
                         "sphere", hex(3), 0.225, 1.25, 0.45, "right"), new Paths.Hold(), 400)
                 .fixedDirection().piercing()
                 .transform(new Transforms.Compose(List.of(new Transforms.Breathe(1, 0.4D, 60, 0),
-                        new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.22)))))
+                        new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.44D)))))
                 .build();
         var mists = MemberProgram.attack("feverMist", MemberProgram.styled(new Patterns.ConeScatter(7, Math.PI, 7),
                         "sphere", hex(5), 0.25, 1.25, 0.5, "mist"), new Paths.Linear(Vec3.Z, 0.12), 400)
                 .templateDirections().piercing().build();
-        for (int i = 0; i < 6; i++) {
-            int tick = i * 50;
+        for (int wave = 0; wave < 6; wave++) {
+            int tick = wave * 50;
+            int w = wave;
             card.at(tick, c -> {
-                c.fire(base, centre, 0, 151 + tick);
-                c.fire(left, leftArm, 0, 157 + tick);
-                c.fire(right, rightArm, 0, 163 + tick);
+                // 每人一份三重螺旋：同一玩家的左/右副螺旋从该玩家的中心组横向偏移。
+                for (int slot = 0; slot < 5; slot++) {
+                    int s = slot;
+                    var base = c.aimed("feverBase" + w + "_" + s, targets, s, Vec3.ZERO);
+                    var left = c.offset("feverLeft" + w + "_" + s, base, new Vec3(6, 0, 0));
+                    var right = c.offset("feverRight" + w + "_" + s, base, new Vec3(-6, 0, 0));
+                    c.fire(base, centre, 0, 151 + tick + s);
+                    c.fire(left, leftArm, 0, 157 + tick + s);
+                    c.fire(right, rightArm, 0, 163 + tick + s);
+                    if (w == 0 && s == 0) c.lockMovement(base, 130);
+                }
             });
         }
         for (int i = 0; i < 10; i++) {
             int tick = i * 26;
             card.at(tick, c -> c.fire(mist, mists, 0, 167 + tick));
         }
-        card.at(0, c -> c.lockMovement(base, 130));
         return new BossProgramCards.Card(4, "spellcard.gensokyou.yamame.4", 0.25D, 260, 0,
                 card.loop(260, TailPolicy.RETAIN_UNTIL_LIFETIME),
-                List.of("四轨 1.25 倍；左右小螺旋一正一反旋向，共享局部中心但偏移独立。"));
+                List.of("每波、每目标槽各建 base + 左右偏移组：多人时每人一份三重螺旋，不互相叠五份。",
+                        "推进 0.40 / 左右 0.44 格/tick；四轨伤害 1.25 倍；每波重建组，旧波保持出生快照。"));
     }
 }

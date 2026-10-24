@@ -18,6 +18,18 @@ metadata:
 
 低经验作者阅读顺序：指南§0先确认只能预览/交付、尚未自动上线；§1分清Targets/Group；§2有全部参数解释和标签；持续型必须看§3完整loop例子（END_AT_BOUNDARY与RETAIN的差别）；§4伤害/方向/隐藏；派生看§5；生成失败看§6净距/预算与§8诊断表。不要用once写持续卡，也不要用clearance(0)或加大limits掩盖正式内容问题。
 
+### 查当前行为：先读程序内容，别从退役实现推导
+
+正式三只（大妖精 / 黑谷山女 / 八云蓝残魂）的符卡**当前行为**只在
+`danmaku/program/content/{BigFairy,Yamame,YakumoRan}Programs.java`。排查“现在为什么这样”时按这个顺序：
+
+1. `<Boss>Programs.java`——唯一运行中的内容；
+2. `sheet/bossspellcard.xlsx` 对应行——设计意图（可能滞后于程序）；
+3. `docs/danmaku-program/content-mapping.md`——迁移映射（与代码冲突时以代码为准）；
+4. 旧 `BossCards.java`、归档 change 的“实现落点 / 修订”只在追溯“为什么这样设计”时读，**不得用来推断当前行为**。
+
+已踩过的岔路：旧 `BossCards#ringCard()` 是“单拍 48 颗”，程序版是“一个组一次 fire”；山女旧轨道的 `phaseStep(9°/11°)` 在程序版没有；`docs/danmaku-program-authoring.md` 里“默认仍为 legacy”是迁移期旧句。看到这些旧描述先停手，回到 `<Boss>Programs.java` 核对。
+
 普通弹和激光的隐藏态用`MemberProgram.hiddenCycle(clock, period, activeTicks, phase)`：隐藏仍半透明可见，球弹/三维模型按profile.hiddenAlpha降本体alpha且保留RGB，激光按旧实体0.18同时降alpha/RGB；完全跳过实体和方块碰撞，正常相位恢复。不要用Fade代替隐藏，Fade单独不关碰撞；VisibilityCycle的非正常相位不再表示彻底消失。`author_hidden`可对照球/三维星形模型/激光。
 
 下文第3/4/8/15/17节的Track/Shape/Beat/实体发射和旧编队规则仅适用于维护旧后端。新卡遵守指南与新程序契约，不得把旧步骤复制到新框架；R1/R2/R3、角色签名、伤害属性等设计原则继续适用。
