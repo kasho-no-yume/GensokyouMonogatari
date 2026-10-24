@@ -62,24 +62,20 @@
       "effect": "hyakki:ran"
     },
     {
-      "name": "hyakki_boss_nomen",
-      "_comment": "L2 · 露米娅（占位外观复用傩面）。钥匙 = 整颗符卡星（8 碎换 1），压轴档。8 条料占满 8 个台，故与八云蓝残影互斥。",
+      "name": "hyakki_boss_rumia",
+      "_comment": "L1 · 露米娅（T1 最终 BOSS）。钥匙 = 整颗符卡星（她是系列第一个使用符卡的角色）；另需大妖精/山女的保底信物，确认玩家已走完 T1 两位先行者。四料占满 L1 四个台。",
       "mode": "activation",
       "match": "max",
-      "minTier": 2,
+      "minTier": 1,
       "minPlayerTier": 0,
-      "spCost": 3000000,
+      "spCost": 600000,
       "ingredients": [
         { "item": "gensokyou:spellcard_star", "count": 1 },
-        { "item": "gensokyou:sukima_fragment", "count": 1 },
-        { "item": "gensokyou:star_silver", "count": 1 },
-        { "item": "gensokyou:tide_crystal", "count": 1 },
-        { "item": "gensokyou:ritual_stone_2", "count": 1 },
-        { "item": "gensokyou:broken_spell_card_star", "count": 1 },
-        { "item": "gensokyou:spirit_iron", "count": 1 },
-        { "item": "gensokyou:yen", "count": 1 }
+        { "item": "gensokyou:fairy_nectar", "count": 1 },
+        { "item": "gensokyou:earth_spider_silk", "count": 1 },
+        { "item": "gensokyou:ritual_stone_1", "count": 1 }
       ],
-      "effect": "hyakki:nomen"
+      "effect": "hyakki:rumia"
     }
   ]
 }

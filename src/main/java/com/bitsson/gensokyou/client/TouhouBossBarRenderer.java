@@ -467,7 +467,7 @@ public final class TouhouBossBarRenderer {
      *
      * <p><b>缺 lang 键的判据</b>是「解析结果仍是 {@code spellcard.gensokyou.} 开头的串」
      * ——lang 未加载或键缺失时 {@code getString()} 原样吐出键名，画出来是
-     * {@code spellcard.gensokyou.nomen_mask.3} 这串东西，比不显示更难读。
+     * {@code spellcard.gensokyou.rumia.3} 这串东西，比不显示更难读。
      * 真正的防线是 {@code tools/lang_audit.py}（它展开 {@code BossCards#card()} 逐键核对），
      * 这里只是渲染期兜底。
      */

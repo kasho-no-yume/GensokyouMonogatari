@@ -14,7 +14,7 @@
     "id": "gensokyou:boss_residual_codex",
     "count": 1,
     "components": {
-      "gensokyou:boss_residual_data": { "boss": "gensokyou:nomen_mask", "tier": 1 }
+      "gensokyou:boss_residual_data": { "boss": "gensokyou:rumia", "tier": 1 }
     }
   }
 }

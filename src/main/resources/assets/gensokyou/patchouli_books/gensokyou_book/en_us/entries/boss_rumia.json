@@ -1,0 +1,25 @@
+{
+  "name": "entity.gensokyou.rumia",
+  "category": "gensokyou:monsters",
+  "icon": "gensokyou:nightfall_core",
+  "sortnum": 103,
+  "advancement": "gensokyou:guide/nether_unlock",
+  "secret": true,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.boss_rumia.p1"
+    },
+    {
+      "type": "patchouli:entity",
+      "entity": "gensokyou:rumia"
+    },
+    {
+      "type": "gensokyou:boss_arrival",
+      "anchor": "arrival",
+      "ritual": "gensokyou:hyakki_yagyo_circle",
+      "recipe": "gensokyou:hyakki_boss_rumia",
+      "token": "gensokyou:nightfall_core"
+    }
+  ]
+}

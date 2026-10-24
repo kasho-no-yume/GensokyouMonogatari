@@ -11,7 +11,31 @@
     },
     {
       "type": "patchouli:crafting",
-      "recipe": "gensokyou:boss_residual_codex_big_fairy"
+      "recipe": "gensokyou:boss_residual_codex_big_fairy",
+      "title": "item.gensokyou.fairy_nectar",
+      "text": "gensokyou.book.entry.item_recipe.boss_residual_codex.big_fairy",
+      "advancement": "gensokyou:guide/nether_unlock"
+    },
+    {
+      "type": "patchouli:crafting",
+      "recipe": "gensokyou:boss_residual_codex_yamame",
+      "title": "item.gensokyou.earth_spider_silk",
+      "text": "gensokyou.book.entry.item_recipe.boss_residual_codex.yamame",
+      "advancement": "gensokyou:guide/nether_unlock"
+    },
+    {
+      "type": "patchouli:crafting",
+      "recipe": "gensokyou:boss_residual_codex_rumia",
+      "title": "item.gensokyou.nightfall_core",
+      "text": "gensokyou.book.entry.item_recipe.boss_residual_codex.rumia",
+      "advancement": "gensokyou:guide/nether_unlock"
+    },
+    {
+      "type": "patchouli:crafting",
+      "recipe": "gensokyou:boss_residual_codex_yakumo_ran",
+      "title": "item.gensokyou.sukima_fragment",
+      "text": "gensokyou.book.entry.item_recipe.boss_residual_codex.yakumo_ran",
+      "advancement": "gensokyou:guide/end_unlock"
     }
   ]
 }

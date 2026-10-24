@@ -59,7 +59,7 @@ class ProgramContentTest {
     // ------------------------------------------------------------------
     @Test void decksCompileWithExpectedLegacyCompatibleShape() {
         var decks = BossProgramCards.all();
-        assertEquals(List.of("big_fairy", "yamame", "yakumo_ran"),
+        assertEquals(List.of("big_fairy", "yamame", "yakumo_ran", "rumia"),
                 decks.stream().map(BossProgramCards.Deck::ownerId).toList());
 
         var bigFairy = BossProgramCards.forOwner("big_fairy").orElseThrow();
@@ -80,6 +80,15 @@ class ProgramContentTest {
         assertEquals(List.of(1.000D, 0.875D, 0.750D, 0.625D, 0.500D, 0.375D, 0.250D, 0.125D),
                 ran.cards().stream().map(BossProgramCards.Card::hpFraction).toList());
 
+        var rumia = BossProgramCards.forOwner("rumia").orElseThrow();
+        assertEquals(4, rumia.cards().size());
+        assertNull(rumia.background(), "露米娅 v1 不设独立底噪");
+        assertEquals(List.of(1.00D, 0.75D, 0.50D, 0.25D),
+                rumia.cards().stream().map(BossProgramCards.Card::hpFraction).toList());
+        assertEquals(List.of("spellcard.gensokyou.rumia.1", "spellcard.gensokyou.rumia.2",
+                        "spellcard.gensokyou.rumia.3", "spellcard.gensokyou.rumia.4"),
+                rumia.cards().stream().map(BossProgramCards.Card::nameKey).toList());
+
         for (var deck : decks) {
             for (int i = 0; i < deck.cards().size(); i++) {
                 var card = deck.cards().get(i);
@@ -87,15 +96,11 @@ class ProgramContentTest {
                 assertEquals("spellcard.gensokyou." + deck.ownerId() + "." + (i + 1), card.nameKey());
             }
         }
-        assertEquals(List.of("nomen_mask"), BossProgramCards.excludedOwners());
-        assertTrue(BossProgramCards.forOwner("nomen_mask").isEmpty());
     }
 
-    @Test void migratedAndExcludedManifestCoversTheAuthorizedFifteenNotTwenty() {
+    @Test void formalManifestCoversTheAuthorizedNineteen() {
         int migrated = BossProgramCards.all().stream().mapToInt(d -> d.cards().size()).sum();
-        assertEquals(15, migrated, "大妖精3 + 山女4 + 蓝8；tasks 1.5 明确不迁移露米娅/傩面");
-        assertEquals(List.of("nomen_mask"), BossProgramCards.excludedOwners(),
-                "露米娅/傩面整体排除，不再因旧 20 卡表自动补全");
+        assertEquals(19, migrated, "大妖精3 + 山女4 + 蓝8 + 露米娅4");
     }
 
     @Test void selectionUsesLastReachedThresholdLikeLegacyRunner() {

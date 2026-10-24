@@ -28,7 +28,7 @@ TBD - created by syncing change spellcard-crafting-and-boss-signatures. Update P
 
 #### Scenario: 宵暗之核由露米娅保底掉落
 - **WHEN** 审查 `gensokyou:nightfall_core` 的来源与配方
-- **THEN** 由露米娅（`gensokyou:nomen_mask`）击杀保底掉落，并作为 `demarcation` 的原料被引用
+- **THEN** 由露米娅（`gensokyou:rumia`）击杀保底掉落，并作为 `demarcation` 的原料被引用
 
 #### Scenario: 独立贴图非染色
 - **WHEN** 审查三件新主题信物的物品模型与颜色处理
@@ -42,7 +42,7 @@ TBD - created by syncing change spellcard-crafting-and-boss-signatures. Update P
 
 主题 BOSS 被击杀时 SHALL **保底掉落**其签名信物，数量 SHALL 由 config 提供（默认 1）。
 该掉落 SHALL 与既有 `broken_spell_card_star` 掉落相互独立，二者可在同一次击杀中同时发生。
-`nightfall_core` 的产出源 SHALL 为**露米娅**（`gensokyou:nomen_mask`，击杀保底掉落）。
+`nightfall_core` 的产出源 SHALL 为**露米娅**（`gensokyou:rumia`，击杀保底掉落）。
 
 `gensokyou:sukima_fragment` 的产出源 SHALL 为 **T2 正主八云蓝**（击杀保底掉落）。
 黑谷山女 MUST NOT 再掉落隙间碎片。

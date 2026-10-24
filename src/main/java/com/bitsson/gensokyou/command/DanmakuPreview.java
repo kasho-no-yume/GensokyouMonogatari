@@ -1,7 +1,6 @@
 package com.bitsson.gensokyou.command;
 
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.danmaku.track.BossCards;
 import com.bitsson.gensokyou.danmaku.track.SignaturePalette;
 import com.bitsson.gensokyou.danmaku.track.SpellCard;
 import com.bitsson.gensokyou.danmaku.track.TrackRunner;
@@ -18,7 +17,6 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -237,26 +235,4 @@ public final class DanmakuPreview {
         }
     }
 
-    /** 全部可预览的符卡，供命令列出。 */
-    public static String describeAll() {
-        StringBuilder sb = new StringBuilder();
-        for (String id : new String[]{"nomen_mask"}) {
-            List<SpellCard> cards = setOf(id).cards();
-            sb.append(id).append("  ");
-            for (int i = 0; i < cards.size(); i++) {
-                sb.append(i).append('=').append(cards.get(i).name().getString()).append("  ");
-            }
-            sb.append('\n');
-        }
-        return sb.toString();
-    }
-
-    /** 按 id 取符卡表 + 其真实签名色盘；未知 id 返回 null。 */
-    public static CardSet setOf(String id) {
-        return switch (id.toLowerCase(Locale.ROOT)) {
-            case "nomen_mask", "nomen", "露米娅", "rumia" ->
-                    new CardSet(BossCards.nomenMask(), BossCards.NOMEN_PALETTE);
-            default -> null;
-        };
-    }
 }

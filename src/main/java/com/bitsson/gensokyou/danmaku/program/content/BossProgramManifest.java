@@ -29,7 +29,7 @@ public final class BossProgramManifest {
         public Entry { notes = List.copyOf(notes); }
     }
 
-    /** 全部正式条目：三个 BOSS 的底噪（如有）+ 15 张符卡。 */
+    /** 全部正式条目：BOSS 的底噪（如有）+ 19 张符卡。 */
     public static List<Entry> entries() {
         List<Entry> rows = new ArrayList<>();
         for (var deck : BossProgramCards.all()) {
@@ -45,14 +45,9 @@ public final class BossProgramManifest {
         return List.copyOf(rows);
     }
 
-    /** 正式迁移的 15 张卡（不含底噪）。 */
+    /** 正式内容的卡数（不含底噪）。 */
     public static long migratedCardCount() {
         return entries().stream().filter(e -> !e.background()).count();
-    }
-
-    /** 被排除的旧卡数：露米娅/傩面五卡整体不迁移。 */
-    public static int excludedLegacyCardCount() {
-        return 5;
     }
 
     /**
@@ -68,9 +63,7 @@ public final class BossProgramManifest {
                 new String[]{"yakumo_ran.4", "旧要求激活前走廊方块净空校验", "只保证几何物理断口 2.64",
                         "作者入口未暴露 corridor；运行期仍由方块碰撞裁剪光束"},
                 new String[]{"yamame.1/3", "旧外层调度只放周期 0 相位", "周期内显式多拍（10/13 拍）",
-                        "content-mapping §3 要求修复子拍；密度相较旧实现上升"},
-                new String[]{"nomen_mask.1-5", "旧表 20 卡含傩面五卡", "不迁移",
-                        "tasks 1.5：露米娅非正式符卡，后续整卡重做"});
+                        "content-mapping §3 要求修复子拍；密度相较旧实现上升"});
     }
 
     /** 明确未执行的验收项（不得伪造记录）。 */

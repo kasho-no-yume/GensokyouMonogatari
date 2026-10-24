@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 
-/** Explicit legacy island for excluded placeholder content; never a fallback for program BOSSes. */
+/** Legacy track backend for debug/probe bosses; never a fallback for program BOSSes. */
 public abstract class UnmigratedTouhouBoss extends AbstractTouhouBoss {
     private TrackRunner runner;
     private int announced = -1;

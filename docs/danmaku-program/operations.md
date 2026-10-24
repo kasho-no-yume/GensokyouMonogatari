@@ -2,7 +2,7 @@
 
 本文是 design 的组成部分。名字为建议 API 名，语义与组合契约为实现要求；不要求先造一个通用脚本 VM。首批操作覆盖全部现有符卡及组合验收，后续扩展遵循同一注册边界。
 
-**状态：纯核、世界运行、网络与游戏接线已有实现，正式15卡使用程序战斗。** 实际API和限制见[可运行作者指南](../danmaku-program-authoring.md)及[阶段2交接](../../openspec/changes/archive/2026-10-19-add-danmaku-program-operations/operations-api.md)，逐项状态见[操作台账](../../.opencode/skills/boss-dev-design/references/danmaku-operations.md)。本文仍是语义设计目录，表中建议名不全部对应同名Java类型。先读`author-guide.md`理解术语，再读`pattern-recipes.md`看组合案例。§10同样属于本次交付，配方中的future项不属于本次交付。
+**状态：纯核、世界运行、网络与游戏接线已有实现，正式19卡使用程序战斗。** 实际API和限制见[可运行作者指南](../danmaku-program-authoring.md)及[阶段2交接](../../openspec/changes/archive/2026-10-19-add-danmaku-program-operations/operations-api.md)，逐项状态见[操作台账](../../.opencode/skills/boss-dev-design/references/danmaku-operations.md)。本文仍是语义设计目录，表中建议名不全部对应同名Java类型。先读`author-guide.md`理解术语，再读`pattern-recipes.md`看组合案例。§10同样属于本次交付，配方中的future项不属于本次交付。
 
 ## 1. 四类扩展点
 
@@ -73,7 +73,7 @@ At的时钟锚点不随Sequence游标或Repeat次数隐式改变。局部偏移�
 | Rose / Spiral | petalCount/samples；turns/rMin/rMax/handedness | 花海、山女呼吸螺旋 |
 | ConeScatter / VolumeScatter | 分布、角包络/体积、seed channel | 随机蛛丝、毒雾、雨、地雷 |
 | SurfaceRays / AxisNodes | 节点距离列表、每节点方向/内缩 | 光柱；蓝节点6/10及±R双射线 |
-| Shell / Cage / Radial | 面/半径/缺口/数量、速度方向规则 | 露米娅现有母题与兼容内容 |
+| Shell / Cage / Radial | 面/半径/缺口/数量、速度方向规则 | 旧兼容内容与低位调试工具；露米娅已改走程序内容 |
 | AroundPoint / Lattice | 半径区间、瞄准比例、散射角 | 旧蓝迁移探针及既有调试能力 |
 
 ParallelGrid 的门是显式列 mask，不复用角度。3×7去中央列真实18发；AxisNodes 的count是节点数，展开数另算，2节点×2方向=4激光。`Union(core,petals)` 共享组快照，核心tag决定4倍伤害和单独重瞄，不在 Rose 内写死花心。

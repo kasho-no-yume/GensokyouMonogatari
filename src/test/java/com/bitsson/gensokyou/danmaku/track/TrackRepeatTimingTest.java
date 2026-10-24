@@ -57,7 +57,7 @@ class TrackRepeatTimingTest {
     @Test
     void everyProductionTrackActuallyFires() {
         for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
-                BossCards.yakumoRan(), BossCards.nomenMask())) {
+                BossCards.yakumoRan())) {
             for (SpellCard card : cards) {
                 for (Track track : card.tracks()) {
                     int fired = 0;
@@ -80,27 +80,29 @@ class TrackRepeatTimingTest {
     /** 无终止轨道必须持续发射，永不进入收束。 */
     @Test
     void endlessTracksKeepFiringPastAnyHorizon() {
-        for (SpellCard card : BossCards.nomenMask()) {
-            for (Track track : card.tracks()) {
-                assertFalse(track.terminates(),
-                        "无终止轨道的节拍 MUST 无终止条件：" + track.name());
-                int firstHalf = 0;
-                int secondHalf = 0;
-                for (int tick = 0; tick < 7200; tick++) {
-                    final int at = tick;
-                    boolean hit = trackDue(track, at) && track.beats().stream()
-                            .anyMatch(b -> isDue(b, track, at));
-                    if (tick < 3600 && hit) {
-                        firstHalf++;
-                    } else if (hit) {
-                        secondHalf++;
-                    }
-                }
-                assertTrue(firstHalf > 0 && secondHalf > 0,
-                        "无终止轨道在长时间后仍应持续发射：" + track.name()
-                                + "（前半 " + firstHalf + " 次 / 后半 " + secondHalf + " 次）");
+        Track track = Track.of("无终止测试", 0xFFFFFF)
+                .endless()
+                .repeatEvery(40)
+                .at(0, Shape.RING_FACING, Shape.Params.defaults()
+                        .count(10).gap(60.0D).speed(0.3D), TargetMode.SELF_AXIS)
+                .build();
+        assertFalse(track.terminates(),
+                "无终止轨道的节拍 MUST 无终止条件：" + track.name());
+        int firstHalf = 0;
+        int secondHalf = 0;
+        for (int tick = 0; tick < 7200; tick++) {
+            final int at = tick;
+            boolean hit = trackDue(track, at) && track.beats().stream()
+                    .anyMatch(b -> isDue(b, track, at));
+            if (tick < 3600 && hit) {
+                firstHalf++;
+            } else if (hit) {
+                secondHalf++;
             }
         }
+        assertTrue(firstHalf > 0 && secondHalf > 0,
+                "无终止轨道在长时间后仍应持续发射：" + track.name()
+                        + "（前半 " + firstHalf + " 次 / 后半 " + secondHalf + " 次）");
     }
 
     /** 相位随重复推进，环才会自转。 */

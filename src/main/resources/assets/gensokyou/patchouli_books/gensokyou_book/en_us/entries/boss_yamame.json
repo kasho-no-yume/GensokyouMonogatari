@@ -1,0 +1,25 @@
+{
+  "name": "entity.gensokyou.yamame",
+  "category": "gensokyou:monsters",
+  "icon": "gensokyou:earth_spider_silk",
+  "sortnum": 102,
+  "advancement": "gensokyou:guide/nether_unlock",
+  "secret": true,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.boss_yamame.p1"
+    },
+    {
+      "type": "patchouli:entity",
+      "entity": "gensokyou:yamame"
+    },
+    {
+      "type": "gensokyou:boss_arrival",
+      "anchor": "arrival",
+      "ritual": "gensokyou:hyakki_yagyo_circle",
+      "recipe": "gensokyou:hyakki_boss_yamame",
+      "token": "gensokyou:earth_spider_silk"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 ## 0. 现在能做什么，不能做什么
 
-**你现在可以编写、编译、测试和预览新程序。大妖精、山女、八云蓝的正式战斗仅使用程序牌组，临时后端开关与旧回退已移除；露米娅/傩面排除。最终实机验收边界见[退役记录](../openspec/changes/archive/2026-10-19-retire-legacy-boss-danmaku/validation.md)。新写的卡仍需显式登记才能用于正式战斗。**
+**你现在可以编写、编译、测试和预览新程序。大妖精、山女、八云蓝、露米娅的正式战斗仅使用程序牌组，临时后端开关与旧回退已移除；傩面已删除。最终实机验收边界见[退役记录](../openspec/changes/archive/2026-10-19-retire-legacy-boss-danmaku/validation.md)。新写的卡仍需显式登记才能用于正式战斗。**
 
 - 普通内容作者：使用`danmaku/program/author/`，交付`CardProgram.Compiled`。
 - 想试效果：运行下面的预览指令；新增自己的预览需在`ProgramPreviewHost`与`ProgramPreviewCommands`登记入口。

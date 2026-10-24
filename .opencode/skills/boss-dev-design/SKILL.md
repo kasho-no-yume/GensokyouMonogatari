@@ -12,7 +12,7 @@ metadata:
 
 **任务范围与历史状态分开读。** 用户明确要求正式迁移时，按对应change当前tasks及本轮授权实施；下文“尚未迁移”描述实现状态，“本轮不实施/禁止迁移”等旧交接措辞不能覆盖后续授权和验收。先核对明确排除项，再核对卡数；不能为了满足历史总数扩大迁移范围。当前有效验收看台账顶部与change最新记录，历史段落仅用于追踪，不代表所有实机矩阵已通过。
 
-阶段1–6已有`DanmakuProgram`世界执行、事务、网络、碰撞和渲染闭环、作者入口及大妖精3卡/山女4卡/蓝8卡内容。阶段7移除这三只的旧轨道、默认实体发射及失败回退，正式战斗直接使用程序；露米娅/傩面排除，旧执行隔离在`UnmigratedTouhouBoss`，玩家/妖精实体能力保留。自动化通过不代表地形/生存/真实多人/读档实机全部验收，最终证据见退役change。**写新程序先读[可运行作者指南](../../../docs/danmaku-program-authoring.md)，照抄AuthoringTemplates；不要照抄预览的底层装配。**
+阶段1–6已有`DanmakuProgram`世界执行、事务、网络、碰撞和渲染闭环、作者入口及大妖精3卡/山女4卡/蓝8卡/露米娅4卡内容。阶段7移除正式BOSS的旧轨道、默认实体发射及失败回退，正式战斗直接使用程序；傩面「無終」5卡与`nomen_mask`已删除，旧执行隔离在`UnmigratedTouhouBoss`仅供调试探针，玩家/妖精实体能力保留。露米娅的4张卡目前是最小占位程序，正式表现待用户设计。自动化通过不代表地形/生存/真实多人/读档实机全部验收，最终证据见退役change。**写新程序先读[可运行作者指南](../../../docs/danmaku-program-authoring.md)，照抄AuthoringTemplates；不要照抄预览的底层装配。**
 
 作者步骤：`CardProgram`建时间轴 → `targets/aimed`建目标和组 → `MemberProgram.attack/decoration`明确伤害 → 必选`fixedDirection/templateDirections/randomDirections` → `fire`/`emit`/`replace`组合 → `once/loop`编译。派生上界自动推导；颜色可用`#RRGGBB`；普通内容不改网络/渲染分支。底层扩展与接BOSS的范围、生命周期约束见指南。
 
@@ -20,8 +20,8 @@ metadata:
 
 ### 查当前行为：先读程序内容，别从退役实现推导
 
-正式三只（大妖精 / 黑谷山女 / 八云蓝残魂）的符卡**当前行为**只在
-`danmaku/program/content/{BigFairy,Yamame,YakumoRan}Programs.java`。排查“现在为什么这样”时按这个顺序：
+正式四只（大妖精 / 黑谷山女 / 八云蓝残魂 / 露米娅）的符卡**当前行为**只在
+`danmaku/program/content/{BigFairy,Yamame,YakumoRan,Rumia}Programs.java`。排查“现在为什么这样”时按这个顺序：
 
 1. `<Boss>Programs.java`——唯一运行中的内容；
 2. `sheet/bossspellcard.xlsx` 对应行——设计意图（可能滞后于程序）；
@@ -542,6 +542,7 @@ emitted=? entityHits=? blockHits=? damageSum=? live=? cap=? rejected=[...]
   □ bosses.json tag
   □ SummonBossEffects 注册 effect id
   □ ritual_recipes 加配方（Σcount ≤ 该阶台数，钥匙与他人互斥）
+  □ 指导书条目：信物图标 + 模型页 + 抵达与信物同页 + 阶级门槛 + 排序区（见下）
   □ 常量：BOSS_MOVE_* / bossSeconds / 挨弹数（`*Numbers`）
   □ 常量：默认攻击的频率与参数（若有，第 6 节）——不进 BossCards
   □ 常量：BOSS_WANDER_AVOID_ANCHOR 按场地调（寝宫窄场要调大）
@@ -559,9 +560,19 @@ emitted=? entityHits=? blockHits=? damageSum=? live=? cap=? rejected=[...]
   □ 符卡表过 TrackLint（含 R1/R2/R3 + 视觉独占 + 色盘容量）
   □ 配方过 SummonBossRecipeCapacityTest（Σcount / spCost / 互斥）
   □ 数值秒带与 danmaku_damage 基准
+  □ 跑 `tools/audit_boss_book_entries.py`（条目/门槛/排序/图标/抵达页）
 ```
 
-**流程**：先改 spec → 再实现 → `gradlew build` → `lang_audit` → `validate_ritual_pattern` → `openspec validate --strict`。
+### 指导书 BOSS 条目（add-boss-guidebook-entries）
+
+- 位置：`monsters` 分类；`sortnum = 100 × bossTier + n`（普通怪占 0–99）。
+- 门槛：按 `bossTier` → `nether_unlock` / `end_unlock` / `gensokyo_unlock` / `tier_4` / `tier_5`，并设 `secret: true`。
+- 三页：`patchouli:text` 引言 → `patchouli:entity` 模型（不配文字）→ `gensokyou:boss_arrival`（`anchor: "arrival"`，带 `ritual`、`recipe`、`token`）。
+- 图标：直接用主题信物物品 id（与抵达页展示的信物一致）；无信物用代表物品。**不要**用模型面部裁切——16×16 下辨识度差。
+- **没有召唤配方也算合法**：任务/结构遭遇的 BOSS 用 `patchouli:text` 写抵达条件；审计明确不要求配方。
+- 权威规范：`openspec/specs/guide-book/spec.md` 的「BOSS 条目…」要求。
+
+**流程**：先改 spec → 再实现 → `gradlew build` → `lang_audit` → `validate_ritual_pattern` → `audit_boss_book_entries` → `openspec validate --strict`。
 
 ---
 

@@ -209,15 +209,16 @@ public final class ModEntityTypes {
                     .build("yakumo_ran"));
 
     /**
-     * 露米娅：T1 召唤 BOSS（占位外观复用傩面）。压轴，生命以伤害除数承载。
+     * 露米娅：T1 最终 BOSS，正式 GeckoLib 模型（add-rumia-tier1-final-boss）。
+     * 她的强度是 T1 上限，但不是 1→2 的进度门。
      */
-    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.NomenMaskEntity>> NOMEN_MASK =
-            ENTITY_TYPES.register("nomen_mask", () -> EntityType.Builder
-                    .<com.bitsson.gensokyou.entity.NomenMaskEntity>of(
-                            com.bitsson.gensokyou.entity.NomenMaskEntity::new, MobCategory.MONSTER)
-                    .sized(0.9F, 1.8F)
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.RumiaEntity>> RUMIA =
+            ENTITY_TYPES.register("rumia", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.RumiaEntity>of(
+                            com.bitsson.gensokyou.entity.RumiaEntity::new, MobCategory.MONSTER)
+                    .sized(0.7F, 1.5F)
                     .clientTrackingRange(12)
-                    .build("nomen_mask"));
+                    .build("rumia"));
 
     public static final DeferredHolder<EntityType<?>, EntityType<FlandreEntity>> FLANDRE =
             ENTITY_TYPES.register("flandre", () -> EntityType.Builder

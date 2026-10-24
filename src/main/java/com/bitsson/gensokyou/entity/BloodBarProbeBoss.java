@@ -45,15 +45,15 @@ public abstract class BloodBarProbeBoss extends UnmigratedTouhouBoss {
         return bossAttributes(200.0D, 8.0D);
     }
 
-    /** 复用露米娅的符卡表：已过 {@code BossCardLintTest}，且能让血条下那行符卡名有内容。 */
+    /** 复用八云蓝的符卡表：已过 {@code BossCardLintTest}，且能让血条下那行符卡名有内容。 */
     @Override
     protected List<SpellCard> spellCards() {
-        return BossCards.nomenMask();
+        return BossCards.yakumoRan();
     }
 
     @Override
     protected SignaturePalette palette() {
-        return BossCards.NOMEN_PALETTE;
+        return BossCards.RAN_PALETTE;
     }
 
     @Override

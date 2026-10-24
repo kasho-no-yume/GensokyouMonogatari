@@ -61,7 +61,7 @@ class SpellCardThresholdTest {
     @Test
     void everyBossRunsThroughAllItsCards() {
         for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
-                BossCards.yakumoRan(), BossCards.nomenMask())) {
+                BossCards.yakumoRan())) {
             java.util.Set<String> seen = new java.util.LinkedHashSet<>();
             for (double f = 1.0D; f >= 0.0D; f -= 0.01D) {
                 seen.add(select(cards, f));
@@ -75,7 +75,7 @@ class SpellCardThresholdTest {
     @Test
     void everyCardIsReachable() {
         for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
-                BossCards.yakumoRan(), BossCards.nomenMask())) {
+                BossCards.yakumoRan())) {
             for (SpellCard card : cards) {
                 boolean reachable = select(cards, card.hpFraction()).equals(card.name().getString());
                 assertTrue(reachable, "符卡「" + card.name().getString() + "」永远不会被选中");
@@ -87,7 +87,7 @@ class SpellCardThresholdTest {
     @Test
     void thresholdsAreMonotonicDescending() {
         for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
-                BossCards.yakumoRan(), BossCards.nomenMask())) {
+                BossCards.yakumoRan())) {
             for (int i = 1; i < cards.size(); i++) {
                 assertTrue(cards.get(i).hpFraction() < cards.get(i - 1).hpFraction(),
                         "符卡「" + cards.get(i).name().getString() + "」的起始占比未低于前一张");

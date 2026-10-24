@@ -253,6 +253,10 @@ public final class BalanceNumbers {
     public static final Double RAN_BOSS_SECONDS = 320D;
     /** 由原 COMMON 配置迁移（键名 RAN_BOSS_HITS）。 */
     public static final Integer RAN_BOSS_HITS = 9;
+    /** 露米娅：T1 最终 BOSS；240 秒 / 7 挨弹。她是 T1 强度上限，但不是 1→2 的进度门。 */
+    public static final Double RUMIA_BOSS_SECONDS = 240D;
+    /** 露米娅的挨弹数（T1 最终档）。 */
+    public static final Integer RUMIA_BOSS_HITS = 7;
     /** 由原 COMMON 配置迁移（键名 RAN_FOXFIRE_INTERVAL）。 */
     public static final Integer RAN_FOXFIRE_INTERVAL = 40;
     /** 由原 COMMON 配置迁移（键名 RAN_FOXFIRE_COUNT）。 */

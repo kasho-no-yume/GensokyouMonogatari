@@ -18,7 +18,7 @@ public final class GensokyouTextures {
     public static final ResourceLocation SUKIMA = entity("sukima");
     public static final ResourceLocation SUKIMA_PORTAL = entity("sukima_portal");
     public static final ResourceLocation RAN = entity("yakumo_ran");
-    public static final ResourceLocation NOMEN_MASK = entity("nomen_mask");
+    public static final ResourceLocation RUMIA = entity("rumia");
 public static final ResourceLocation CRYSTAL = entity("crystal");
     /** 式神狐火 / 丝弹的通用发光贴图（add-player-spellcards）。 */
     public static final ResourceLocation FOX_FIRE = entity("fox_fire");

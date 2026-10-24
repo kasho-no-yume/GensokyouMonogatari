@@ -40,7 +40,7 @@ public final class SummonBossEffects {
         register("hyakki:big_fairy", ModEntityTypes.BIG_FAIRY);
         register("hyakki:yamame", ModEntityTypes.YAMAME);
         register("hyakki:ran", ModEntityTypes.YAKUMO_RAN);
-        register("hyakki:nomen", ModEntityTypes.NOMEN_MASK);
+        register("hyakki:rumia", ModEntityTypes.RUMIA);
     }
 
     private SummonBossEffects() {

@@ -79,35 +79,27 @@ public final class BossProgramCards {
     private static Deck bigFairyDeck() { return DECKS.computeIfAbsent("big_fairy", id -> BigFairyPrograms.deck()); }
     private static Deck yamameDeck() { return DECKS.computeIfAbsent("yamame", id -> YamamePrograms.deck()); }
     private static Deck yakumoRanDeck() { return DECKS.computeIfAbsent("yakumo_ran", id -> YakumoRanPrograms.deck()); }
+    private static Deck rumiaDeck() { return DECKS.computeIfAbsent("rumia", id -> RumiaPrograms.deck()); }
 
-    /** 已正式迁移的 BOSS ownerId（不含被排除者）。 */
+    /** 已有正式程序内容的 BOSS ownerId。 */
     public static List<String> migratedOwners() {
-        return List.of("big_fairy", "yamame", "yakumo_ran");
+        return List.of("big_fairy", "yamame", "yakumo_ran", "rumia");
     }
 
-    /**
-     * 明确排除迁移的 ownerId：露米娅/傩面。
-     *
-     * <p>tasks 1.5 由用户明确画线——露米娅不是正式符卡，后续整卡重做，迁移无意义。
-     * 这里显式登记，避免「20 卡表」被自动补全成含傩面的 20 卡。
-     */
-    public static List<String> excludedOwners() {
-        return List.of("nomen_mask");
-    }
-
-    /** 取某 BOSS 的正式内容；未迁移返回空。 */
+    /** 取某 BOSS 的正式内容；无内容返回空。 */
     public static Optional<Deck> forOwner(String ownerId) {
         return switch (ownerId) {
             case "big_fairy" -> Optional.of(bigFairyDeck());
             case "yamame" -> Optional.of(yamameDeck());
             case "yakumo_ran" -> Optional.of(yakumoRanDeck());
+            case "rumia" -> Optional.of(rumiaDeck());
             default -> Optional.empty();
         };
     }
 
-    /** 全部正式内容（按迁移顺序）。构建失败会抛出，供测试与加载期自检暴露问题。 */
+    /** 全部正式内容（按登记顺序）。构建失败会抛出，供测试与加载期自检暴露问题。 */
     public static List<Deck> all() {
-        return List.of(bigFairyDeck(), yamameDeck(), yakumoRanDeck());
+        return List.of(bigFairyDeck(), yamameDeck(), yakumoRanDeck(), rumiaDeck());
     }
 
     // --- 供内容模块共用的小工具 -------------------------------------------------

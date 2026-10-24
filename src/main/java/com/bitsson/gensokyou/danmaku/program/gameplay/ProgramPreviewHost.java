@@ -63,6 +63,7 @@ public final class ProgramPreviewHost {
             case "formal_big_fairy" -> formalCard("big_fairy");
             case "formal_yamame" -> formalCard("yamame");
             case "formal_yakumo_ran" -> formalCard("yakumo_ran");
+            case "formal_rumia" -> formalCard("rumia");
             default -> throw new IllegalArgumentException("unknown program preview");
         };
         // Blue4 places a node ten blocks towards the viewer; 12 blocks violates its six-block birth clearance.

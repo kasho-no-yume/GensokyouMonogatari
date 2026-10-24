@@ -10,12 +10,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Repeatable export of actual declaration values, not comments or intended replacements. */
 class LegacyManifestTest {
-    @Test void exportTwentyLegacyCards() throws Exception {
+    @Test void exportLegacyCards() throws Exception {
         var owners = new LinkedHashMap<String,List<SpellCard>>();
         owners.put("big_fairy",BossCards.bigFairy());
         owners.put("yamame",BossCards.yamame());
         owners.put("yakumo_ran",BossCards.yakumoRan());
-        owners.put("nomen_mask",BossCards.nomenMask());
         Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
         JsonArray cards = new JsonArray();
         for (var owner : owners.entrySet()) {
@@ -30,10 +29,10 @@ class LegacyManifestTest {
                 cards.add(row);
             }
         }
-        assertEquals(20,cards.size());
+        assertEquals(15,cards.size());
         Path output = Path.of("build/reports/danmaku-core/legacy-cards.json");
         Files.createDirectories(output.getParent());
         Files.writeString(output,gson.toJson(cards)+"\n",StandardCharsets.UTF_8);
-        assertEquals(20,JsonParser.parseString(Files.readString(output)).getAsJsonArray().size());
+        assertEquals(15,JsonParser.parseString(Files.readString(output)).getAsJsonArray().size());
     }
 }

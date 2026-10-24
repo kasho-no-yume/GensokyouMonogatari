@@ -12,7 +12,7 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 public final class ProgramPreviewCommands {
     private ProgramPreviewCommands() {}
     @SubscribeEvent public static void register(RegisterCommandsEvent event) {
-        for (String formal:java.util.List.of("formal_big_fairy","formal_yamame","formal_yakumo_ran"))
+        for (String formal:java.util.List.of("formal_big_fairy","formal_yamame","formal_yakumo_ran","formal_rumia"))
             event.getDispatcher().register(Commands.literal("gs_program_preview").requires(source->source.hasPermission(2))
                     .then(Commands.literal("start").then(Commands.literal(formal).executes(context->{
                         var source=context.getSource();

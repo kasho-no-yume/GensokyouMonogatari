@@ -1,6 +1,6 @@
 # 先读这份：怎样用通用操作写弹幕
 
-状态：阶段1–6已交付代码，阶段7正式三只BOSS仅走程序。**实际写代码先读[可运行作者指南](../danmaku-program-authoring.md)**，使用`CardProgram/MemberProgram`与`AuthoringTemplates`。本文保留概念解释，其中大写操作名是语义名称，并非全部同名Java方法；原子操作完整契约见`operations.md`。实机验收边界见[退役报告](../../openspec/changes/archive/2026-10-19-retire-legacy-boss-danmaku/validation.md)。
+状态：阶段1–6已交付代码，阶段7正式四只BOSS（大妖精/山女/蓝/露米娅）仅走程序。**实际写代码先读[可运行作者指南](../danmaku-program-authoring.md)**，使用`CardProgram/MemberProgram`与`AuthoringTemplates`。本文保留概念解释，其中大写操作名是语义名称，并非全部同名Java方法；原子操作完整契约见`operations.md`。实机验收边界见[退役报告](../../openspec/changes/archive/2026-10-19-retire-legacy-boss-danmaku/validation.md)。
 
 ## 1. 六个概念，先分清
 

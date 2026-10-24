@@ -2,7 +2,7 @@
 
 ## 退役交接（2026-10-19，优先于历史状态）
 
-正式大妖精/山女/蓝仅走`AbstractTouhouBoss → BossProgramBackend → BossProgramBattle → BossProgramHost`；后端开关/失败回退/子类旧默认弹已移除。排除的傩面走`UnmigratedTouhouBoss`，旧实体工具、玩家与妖精能力保留。`ProgramBackendState`仅兼容旧存档和恢复卡号；不再决定正式内容是否走程序。
+正式大妖精/山女/蓝/露米娅仅走`AbstractTouhouBoss → BossProgramBackend → BossProgramBattle → BossProgramHost`；后端开关/失败回退/子类旧默认弹已移除。傩面「無終」5卡与`nomen_mask`已删除；`UnmigratedTouhouBoss`仅保留给调试探针，旧实体工具、玩家与妖精能力保留。`ProgramBackendState`仅兼容旧存档和恢复卡号；不再决定正式内容是否走程序。
 
 `Style.effectiveCollisionRadius()`统一应用0.5判定倍率，视觉尺寸不变。`ProgramRetirementTest`覆盖2008峰值×20次回收；缩放与负载见`ProgramScalingGateTest`、`ProgramBenchmarkLoadTest`。阶段7已按用户最终确认归档，7项delta合入主spec；验证边界与最终证据见[退役报告](../../../../openspec/changes/archive/2026-10-19-retire-legacy-boss-danmaku/validation.md)，未执行矩阵见[后续专项](../../../../docs/danmaku-program/follow-up-validation.md)。历史记录中的“默认legacy/正式迁移未实施/消费者待gameplay”均非现行实现状态。
 
@@ -10,7 +10,7 @@
 
 ## 当前入口（2026-10-18作者层）
 
-正式迁移代码更新：大妖精3卡、山女4卡、蓝8卡及2底噪位于`program/content`，`BossProgramBattle`接血量/HUD/移动锁，`ProgramBackendState`持久化后端/卡，默认legacy。作者新增`aimAtTarget`（真实目标快照）、`piercing`、`corridor`、`surfaceFire/AtTargets`与`FIRST_AIR_BELOW`。已核对wrapper build `20261018-154530-build.log`成功及XML结果139 suites / 1100 tests / 0 failures / 0 errors，strict通过。任务1.7实机/多人/读档验收仍未完成，露米娅/傩面排除；下文“正式迁移未实施”为历史。详见迁移change的`migration-manifest.md`及`docs/boss-program-migration-observation.md`，不以自动化代替真实观感验收。
+正式内容更新：大妖精3卡、山女4卡、蓝8卡、露米娅4卡及大妖精/山女两条底噪位于`program/content`；露米娅当前为最小占位程序，正式表现待用户设计。`BossProgramBattle`接血量/HUD/移动锁，`ProgramBackendState`持久化后端/卡。作者新增`aimAtTarget`（真实目标快照）、`piercing`、`corridor`、`surfaceFire/AtTargets`与`FIRST_AIR_BELOW`。已核对wrapper build成功；任务1.7实机/多人/读档验收仍未完成，露米娅待实机，傩面已删除；下文“正式迁移未实施”为历史。详见迁移change的`migration-manifest.md`及`docs/boss-program-migration-observation.md`，不以自动化代替真实观感验收。
 
 远程时钟最新策略：用户接受轻微校正/拉回以避免闪烁，ProgramClock初始化后不可信时保留最后姿态，短holdover后冻结，独立样本恢复可重锚；不因时钟置信度整批隐藏，不无限外推。End/Release照常清理。此项覆盖历史“严重积压必须隐藏/短grace后隐藏”口径，远程实机待复验。
 

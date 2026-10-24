@@ -21,6 +21,7 @@ import java.util.function.UnaryOperator;
  * 仪式配方卡组件（一页一配方）：读取 {@code ritual} + {@code recipe_index}，
  * 渲染该仪式的第 recipe_index 个配方（原料×数量 / 产物或本地化效果名 / spCost / minTier）。
  * 数据未同步时显示占位。头部与效果名经 {@code Font.split} 自动换行（complete-ritual-book-entries D3）。
+ * 原料超过一行时按 {@link #WRAP_WIDTH} 折行，避免 8 个祭品的配方横向溢出页面。
  */
 public class RitualPageComponent implements ICustomComponent {
 
@@ -86,20 +87,21 @@ public class RitualPageComponent implements ICustomComponent {
                         .copy().append("  ").append(recipe.displayName());
         y = drawWrapped(graphics, mc, header, x, y, HEADER_COLOR);
         y += 4;
-        int col = 0;
-        for (RitualRecipe.Ingredient ingredient : recipe.ingredients()) {
-            if (col >= 9) {
-                break;
-            }
+        List<RitualRecipe.Ingredient> ingredients = recipe.ingredients();
+        int perRow = Math.max(1, WRAP_WIDTH / 16);
+        int shown = Math.min(ingredients.size(), perRow * 2);
+        for (int i = 0; i < shown; i++) {
+            RitualRecipe.Ingredient ingredient = ingredients.get(i);
             ItemStack stack = ingredient.tag() != null
                     ? tagRepresentative(ingredient) : new ItemStack(ingredient.item());
             if (!stack.isEmpty()) {
-                context.renderItemStack(graphics, x + col * 16, y, mouseX, mouseY,
-                        stack.copyWithCount(ingredient.count()));
+                context.renderItemStack(graphics,
+                        x + (i % perRow) * 16, y + (i / perRow) * 18,
+                        mouseX, mouseY, stack.copyWithCount(ingredient.count()));
             }
-            col++;
         }
-        y += 22;
+        int rows = Math.max(1, (shown + perRow - 1) / perRow);
+        y += 18 * rows + 4;
         y = drawWrapped(graphics, mc,
                 Component.translatable("jei.gensokyou.recipe.spirit_cost", recipe.spCost()),
                 x, y, BODY_COLOR);

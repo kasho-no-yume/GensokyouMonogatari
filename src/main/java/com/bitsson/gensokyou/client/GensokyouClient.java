@@ -7,7 +7,7 @@ import com.bitsson.gensokyou.client.renderer.FairyGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.BigFairyGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.YamameGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.YakumoRanGeoRenderer;
-import com.bitsson.gensokyou.client.renderer.RemnantBossRenderer;
+import com.bitsson.gensokyou.client.renderer.RumiaGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.SkinMobRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualPedestalRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualCoreRenderer;
@@ -94,9 +94,8 @@ public final class GensokyouClient {
         event.registerEntityRenderer(ModEntityTypes.YAMAME.get(), YamameGeoRenderer::new);
         // 八云蓝：正式 GeckoLib 残影模型（不走残影占位通路）。
         event.registerEntityRenderer(ModEntityTypes.YAKUMO_RAN.get(), YakumoRanGeoRenderer::new);
-        // 残影 BOSS：渲染由注册点按实体 id 解析，实体类内不硬编（替换零成本）。
-        event.registerEntityRenderer(ModEntityTypes.NOMEN_MASK.get(),
-                context -> RemnantBossRenderer.create(ModEntityTypes.NOMEN_MASK.get(), context));
+        // 露米娅：正式 GeckoLib 模型（add-rumia-tier1-final-boss）。
+        event.registerEntityRenderer(ModEntityTypes.RUMIA.get(), RumiaGeoRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.FLANDRE.get(),
                 context -> new SkinMobRenderer<>(context, 0.5F, 1.0F, GensokyouTextures.FLANDRE));
         event.registerEntityRenderer(ModEntityTypes.FAKE_FLANDRE.get(),

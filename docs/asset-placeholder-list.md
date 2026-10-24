@@ -117,7 +117,7 @@ AI 扩散生图（64×64 新绘物品）：`python tools/comfy_pixel_gen.py --sp
 | textures/entity/greater_fairy.* | DONE(Blockbench 工程，F:/blockbench/touhou_fairies/大妖精) | 外部美术资源 | big_fairy（GeckoLib：geo/animation/贴图，idle/fly/walk/cast） |
 | textures/entity/yamame.* | DONE(Blockbench 工程，F:/blockbench/kurodani) | 外部美术资源 | yamame（GeckoLib：geo/animation/贴图，idle/walk/cast） |
 | textures/entity/yakumo_ran.* | DONE(Blockbench 工程，`C:\Users\spdimdriver\Documents\ran`；贴图已暗化 `yakumo_ran.png` + 自发光掩码 `yakumo_ran_glowmask.png`) | 外部美术资源 | yakumo_ran（GeckoLib：geo/animation/贴图，首版 idle） |
-| textures/entity/nomen_mask.png | TODO | 复用 danmaku.png（lightorb） | nomen_mask（残影占位，同上） |
+| textures/entity/rumia.* | DONE(Blockbench 工程 `F:/blockbench/rumia`；`rumia.png` + `rumia.geo.json` + `rumia.animation.json`) | 外部美术资源 | rumia（GeckoLib：idle/walk/cast） |
 | textures/entity/danmaku.png | DONE(暂定旧版贴图) | 旧仓库 lightorb.png | 弹幕投射物 billboard |
 | textures/entity/orbit_orb.png | DONE(暂定旧版贴图) | 旧仓库 lightorb.png | 环绕阴阳玉 billboard |
 | textures/entity/laser_danmaku.png | DONE(gen_tex 新绘·U跨宽渐隐/V平铺能量条纹) | 占位纯色块 | 激光弹幕光束 |

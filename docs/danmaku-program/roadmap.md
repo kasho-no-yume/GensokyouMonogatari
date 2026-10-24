@@ -1,6 +1,6 @@
 # 拆分路线图（2026-10-16）
 
-2026-10-19：总设计已从active changes移至`docs/danmaku-program/`，仅作为设计资产保存，父specs不会重复合入。正式范围为15卡（大妖精3/山女4/蓝8），傩面5卡排除。阶段7已按最终授权收口归档，7项delta已合入主规范；证据与后续专项边界见[退役报告](../../openspec/changes/archive/2026-10-19-retire-legacy-boss-danmaku/validation.md)。下文是拆分时的历史依赖说明，不代表所有历史实机门槛已经通过。
+2026-10-19：总设计已从active changes移至`docs/danmaku-program/`，仅作为设计资产保存，父specs不会重复合入。正式范围为19卡（大妖精3/山女4/蓝8/露米娅4）；露米娅 4 张已接入，傩面5卡已删除。阶段7已按最终授权收口归档，7项delta已合入主规范；证据与后续专项边界见[退役报告](../../openspec/changes/archive/2026-10-19-retire-legacy-boss-danmaku/validation.md)。下文是拆分时的历史依赖说明，不代表所有历史实机门槛已经通过。
 
 本目录现在是**总设计与需求索引，不作为整包代码实施入口**。原有design、operations、recipes和specs保留为完整上下文；实现应选择下列子change。父目录中的规范不单独归档合入主spec，以免重复宣称所有能力已经交付。
 

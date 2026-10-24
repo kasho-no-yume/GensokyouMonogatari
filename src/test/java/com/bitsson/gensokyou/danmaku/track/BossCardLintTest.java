@@ -22,7 +22,6 @@ class BossCardLintTest {
         assertLintClean("大妖精", BossCards.bigFairy(), BossCards.BIG_FAIRY_PALETTE);
         assertLintClean("黑谷山女", BossCards.yamame(), BossCards.YAMAME_PALETTE);
         assertLintClean("八云蓝", BossCards.yakumoRan(), BossCards.RAN_PALETTE);
-        assertLintClean("傩神楽面", BossCards.nomenMask(), BossCards.NOMEN_PALETTE);
     }
 
     private void assertLintClean(String owner, List<SpellCard> cards, SignaturePalette palette) {
@@ -49,8 +48,7 @@ class BossCardLintTest {
         List<Entry> tables = List.of(
                 new Entry("大妖精", BossCards.bigFairy()),
                 new Entry("黑谷山女", BossCards.yamame()),
-                new Entry("八云蓝", BossCards.yakumoRan()),
-                new Entry("傩神楽面", BossCards.nomenMask()));
+                new Entry("八云蓝", BossCards.yakumoRan()));
         double worst = 0.0D;
         String worstWhere = "-";
         for (Entry entry : tables) {
@@ -165,8 +163,8 @@ class BossCardLintTest {
     /** 色盘容量不足必须被检出。 */
     @Test
     void undersizedPaletteIsRejected() {
-        List<SpellCard> cards = BossCards.nomenMask();
-        List<String> violations = TrackLint.lint("傩神楽面", cards, SignaturePalette.of(0x000001));
+        List<SpellCard> cards = BossCards.yakumoRan();
+        List<String> violations = TrackLint.lint("八云蓝", cards, SignaturePalette.of(0x000001));
         assertFalse(violations.isEmpty(), "色盘容量不足应被检出");
     }
 
@@ -285,20 +283,19 @@ class BossCardLintTest {
         assertFalse(TargetMode.ARENA.copiesPerTarget());
     }
 
-    /** 符卡数分档：大妖精 3、黑谷山女 4、八云蓝 8、傩神楽面 5。 */
+    /** 旧后端符卡数分档：大妖精 3、黑谷山女 4、八云蓝 8；露米娅走程序内容，不在此表。 */
     @Test
     void spellCardCounts() {
         assertTrue(BossCards.bigFairy().size() == 3);
         assertTrue(BossCards.yamame().size() == 4);
         assertTrue(BossCards.yakumoRan().size() == 8);
-        assertTrue(BossCards.nomenMask().size() == 5);
     }
 
     /** 符卡起始占比 MUST 随血量递减（阶段切分的前提）。 */
     @Test
     void cardThresholdsDecrease() {
         for (List<SpellCard> cards : List.of(BossCards.bigFairy(), BossCards.yamame(),
-                BossCards.yakumoRan(), BossCards.nomenMask())) {
+                BossCards.yakumoRan())) {
             double previous = Double.MAX_VALUE;
             for (SpellCard card : cards) {
                 assertTrue(card.hpFraction() <= previous,

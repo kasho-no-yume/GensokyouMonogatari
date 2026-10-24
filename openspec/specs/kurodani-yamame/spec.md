@@ -55,7 +55,7 @@ TBD - created by archiving change add-kurodani-yamame-boss. Update Purpose after
 
 #### Scenario: 阶段随血量切换不叠加
 - **WHEN** 生命跨过下一张符卡的起始阈值
-- **THEN** 切换被挂起到当前符卡循环边界后发生，MUST NOT 出现两张符卡同时运行
+- **THEN** 切换立即发生，MUST NOT 挂起到当前符卡循环边界之后；MUST NOT 出现两张符卡同时运行
 
 ### Requirement: 符卡表通过轨道静态校验
 

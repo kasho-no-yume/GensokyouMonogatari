@@ -9,11 +9,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /** Repeatable export of the migrated program manifest (tasks 1.7). */
 class ProgramManifestTest {
-    @Test void exportsFifteenCardsPlusTwoBackgroundsAndKeepsExclusions() throws Exception {
+    @Test void exportsNineteenCardsPlusTwoBackgrounds() throws Exception {
         var rows = BossProgramManifest.entries();
-        assertEquals(17, rows.size(), "15 张卡 + 大妖精/山女两条底噪；蓝无底噪");
-        assertEquals(15, BossProgramManifest.migratedCardCount());
-        assertEquals(5, BossProgramManifest.excludedLegacyCardCount());
+        assertEquals(21, rows.size(), "19 张卡 + 大妖精/山女两条底噪；蓝/露米娅无底噪");
+        assertEquals(19, BossProgramManifest.migratedCardCount());
 
         Set<String> ids = new HashSet<>();
         for (var row : rows) {
@@ -42,13 +41,11 @@ class ProgramManifestTest {
         report.add("cards", cards);
         report.add("sheetConflicts", gson.toJsonTree(BossProgramManifest.sheetConflicts()));
         report.add("unexecutedVerifications", gson.toJsonTree(BossProgramManifest.unexecutedVerifications()));
-        report.addProperty("excludedLegacyCards", BossProgramManifest.excludedLegacyCardCount());
-        report.addProperty("excludedOwners", String.join(",", BossProgramCards.excludedOwners()));
 
         Path output = Path.of("build/reports/danmaku-program/content-manifest.json");
         Files.createDirectories(output.getParent());
         Files.writeString(output, gson.toJson(report) + "\n", StandardCharsets.UTF_8);
-        assertEquals(17, JsonParser.parseString(Files.readString(output))
+        assertEquals(21, JsonParser.parseString(Files.readString(output))
                 .getAsJsonObject().getAsJsonArray("cards").size());
     }
 }

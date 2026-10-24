@@ -198,33 +198,6 @@ public final class DanmakuTestCommands {
                 // 凌乱激光网：发射点真随机，瞄准逐发独立，玩家置身网中找夹缝
                 .then(webNode())
 
-                // /danmaku card <BOSS> [卡序] [秒数] [伤害] - 只跑弹幕，不跑 BOSS
-                .then(Commands.literal("card")
-                        .then(Commands.argument("boss", StringArgumentType.word())
-                                .executes(context -> previewCards(context.getSource(),
-                                        StringArgumentType.getString(context, "boss"), -1, 30, 0.0F))
-                                .then(Commands.argument("card", IntegerArgumentType.integer(-1, 9))
-                                        .executes(context -> previewCards(context.getSource(),
-                                                StringArgumentType.getString(context, "boss"),
-                                                IntegerArgumentType.getInteger(context, "card"),
-                                                30, 0.0F))
-                                        .then(Commands.argument("seconds",
-                                                        IntegerArgumentType.integer(5, 300))
-                                                .executes(context -> previewCards(context.getSource(),
-                                                        StringArgumentType.getString(context, "boss"),
-                                                        IntegerArgumentType.getInteger(context, "card"),
-                                                        IntegerArgumentType.getInteger(context, "seconds"),
-                                                        0.0F))
-                                                .then(Commands.argument("damage",
-                                                                DoubleArgumentType.doubleArg(0.0D, 100.0D))
-                                                        .executes(context -> previewCards(
-                                                                context.getSource(),
-                                                                StringArgumentType.getString(context, "boss"),
-                                                                IntegerArgumentType.getInteger(context, "card"),
-                                                                IntegerArgumentType.getInteger(context, "seconds"),
-                                                                (float) DoubleArgumentType
-                                                                        .getDouble(context, "damage"))))))))
-
                 // ---- extend-danmaku-orchestration 验收命令 ----
 
                 // /danmaku harmless <window> - 前窗无害：窗口内贴身不掉血
@@ -537,79 +510,6 @@ public final class DanmakuTestCommands {
                 "§c安全观察 §7每 20 tick 在装置处重发一组。§f%s（最小安全距离 %.1f）",
                 "朝装置走近到 6 格内：整组应消失；走远：整组恢复。读 safetyCancelled 是否随走位递增",
                 min)));
-        return 1;
-    }
-
-    /**
-     * 预览符卡图案：<b>只跑弹幕</b>，没有 BOSS 的 AI / 转向 / 避障。
-     *
-     * <p>用途是审图案本身。实机对着 BOSS 看时，「弹走得不顺」与「BOSS 站错了位置」
-     * 会混在一起；本命令把后者摘掉。
-     *
-     * @param cardIndex -1 = 依次预览该 BOSS 的全部符卡
-     * @param damage    默认 0。伤害为 0 仍会走完命中判定（弹照样撞上你并消失），
-     *                  故命中行为可验，但不会在审图案时把人打死
-     */
-    private static int previewCards(CommandSourceStack source, String bossId, int cardIndex,
-                                    int seconds, float damage) {
-        ServerPlayer player;
-        try {
-            player = source.getPlayerOrException();
-        } catch (CommandSyntaxException e) {
-            source.sendFailure(Component.literal("该命令需要由玩家执行"));
-            return 0;
-        }
-        DanmakuPreview.CardSet set = DanmakuPreview.setOf(bossId);
-        if (set == null) {
-            String migrated = switch (bossId.toLowerCase(java.util.Locale.ROOT)) {
-                case "big_fairy", "大妖精" -> "formal_big_fairy";
-                case "yamame", "黑谷山女", "山女" -> "formal_yamame";
-                case "yakumo_ran", "ran", "八云蓝", "蓝", "八云蓝残影" -> "formal_yakumo_ran";
-                default -> null;
-            };
-            if (migrated != null) {
-                source.sendFailure(Component.translatable("commands.gensokyou.program_preview.migrated", "/gs_program_preview start " + migrated));
-                return 0;
-            }
-            source.sendFailure(Component.literal("未知的 BOSS id: " + bossId));
-            source.sendFailure(Component.literal("可用: " + String.join(", ",
-                    "nomen_mask")));
-            return 0;
-        }
-        List<SpellCard> cards = set.cards();
-        if (cardIndex >= cards.size()) {
-            source.sendFailure(Component.literal("卡序越界: " + bossId + " 只有 "
-                    + cards.size() + " 张"));
-            return 0;
-        }
-        List<SpellCard> selected = cardIndex < 0
-                ? cards
-                : List.of(cards.get(cardIndex));
-        DanmakuPreview.start(player, set, selected, seconds, damage);
-        source.sendSuccess(() -> Component.literal("§c图案预览 §7"
-                + bossId + (cardIndex < 0 ? "（全部 " + cards.size() + " 张）" : " / " + cards.get(cardIndex).name().getString())
-                + "，共 " + seconds + " 秒，伤害 " + damage
-                + "。§f/danmaku stop 停止"), false);
-        return selected.size();
-    }
-
-    private static int listCards(CommandSourceStack source) {
-        source.sendSuccess(() -> Component.literal("§c可预览的符卡 §7（/danmaku card <id> [卡序] [秒数] [伤害]）"), false);
-        for (String line : DanmakuPreview.describeAll().split("\n")) {
-            if (!line.isBlank()) {
-                source.sendSuccess(() -> Component.literal("§7" + line.trim()), false);
-            }
-        }
-        return 1;
-    }
-
-    private static int stopPreview(CommandSourceStack source) {
-        try {
-            DanmakuPreview.stop(source.getPlayerOrException());
-        } catch (CommandSyntaxException e) {
-            // 无玩家在场时无从停止，忽略
-        }
-        source.sendSuccess(() -> Component.literal("预览已停止"), false);
         return 1;
     }
 
