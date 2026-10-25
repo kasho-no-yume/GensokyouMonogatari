@@ -6,7 +6,8 @@
     " 后者覆盖前者」，把 mod 条目留在原文件会让整合包无法单独改写它们；且 BrewReagentIndexTest",
     " 会在纯 JUnit 环境解析原版文件，混入 mod 物品 id 会让整表解析失败。",
     "档位并非每个效果都有三档：reiki_recovery 是瞬发效果（无 long 档），spiritual_sight 与",
-    " higanbana_poison 的品质无机制意义（无 strong 档）。缺失的兄弟指针直接省略即可。"
+    " higanbana_poison 的品质无机制意义（无 strong 档）；dolphins_grace 借用原版单级的海豚恩惠，",
+    " 同样只有基础 + 长效。缺失的兄弟指针直接省略即可。"
   ],
   "entries": [
     {
@@ -29,6 +30,11 @@
       "reagent": "gensokyou:higanbana",
       "potion": "gensokyou:higanbana_poison",
       "long_potion": "gensokyou:long_higanbana_poison"
+    },
+    {
+      "reagent": "gensokyou:spirit_fish",
+      "potion": "gensokyou:dolphins_grace",
+      "long_potion": "gensokyou:long_dolphins_grace"
     }
   ]
 }

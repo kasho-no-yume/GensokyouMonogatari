@@ -251,7 +251,7 @@ public class WatatsumiBehavior implements RitualBehavior {
         outputs.addAll(rollFishing(level, corePos, rodCopy, fishingCount(ritualLevel), treasure));
         if (specialUnlocked(ritualLevel)) {
             boolean gkLow = ToolSacrificeBehavior.countGuideBooks(level, match) >= 1;
-            boolean gkHigh = ToolSacrificeBehavior.countSukimaFragments(level, match) >= 1;
+            boolean gkHigh = ToolSacrificeBehavior.countFairyNectar(level, match) >= 1;
             outputs.addAll(rollSpecial(level, specialCount(ritualLevel), gkLow, gkHigh));
         }
         boolean bonus = false;

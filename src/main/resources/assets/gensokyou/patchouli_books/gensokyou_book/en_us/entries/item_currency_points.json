@@ -1,0 +1,12 @@
+{
+  "name": "gensokyou.book.entry.item_currency_points",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:bpoint",
+  "sortnum": 65,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.item_currency_points.p1"
+    }
+  ]
+}

@@ -147,7 +147,7 @@ class BrewReagentIndexTest {
      * <p><b>为什么不走 {@link RitualBrewRuleLoader#parseFile}</b>：该入口会把
      * {@code gensokyou:*} id 送进注册表解析，而纯 JUnit 环境没有 mod 加载器，
      * {@code ModItems} / {@code ModPotions} 的 DeferredRegister 不会跑，一律查不到。
-     * 这里只做<b>数据形状</b>断言——四条试剂各自的档位符合设计，且凡出现的兄弟档
+     * 这里只做<b>数据形状</b>断言——各条试剂各自的档位符合设计，且凡出现的兄弟档
      * 都遵循 {@code <base> / long_<base> / strong_<base>} 约定（{@code
      * PotionTierTransform.findSibling} 靠这条约定找兄弟），真正的注册表解析由运行时的 loader 承担。
      *
@@ -162,7 +162,7 @@ class BrewReagentIndexTest {
         assertEquals("gensokyou:sunako_circle", shipped.get("pattern").getAsString());
 
         JsonArray entries = shipped.getAsJsonArray("entries");
-        assertEquals(4, entries.size());
+        assertEquals(5, entries.size());
         java.util.Set<String> reagents = new java.util.HashSet<>();
         java.util.Map<String, String[]> tiers = new java.util.HashMap<>();
         for (com.google.gson.JsonElement element : entries) {
@@ -191,10 +191,10 @@ class BrewReagentIndexTest {
             }
             tiers.put(reagent, new String[]{longPotion, strongPotion});
         }
-        // 四种植物各一条，缺一条 mod 药水线就断一环
+        // 四种植物各一条 + 灵鱼（海豚恩惠），缺一条 mod 药水线就断一环
         assertEquals(java.util.Set.of(
                         "gensokyou:spirit_herb", "gensokyou:magic_mushroom",
-                        "gensokyou:gentian", "gensokyou:higanbana"),
+                        "gensokyou:gentian", "gensokyou:higanbana", "gensokyou:spirit_fish"),
                 reagents);
 
         // 回灵汤：瞬发，无长效档；强效档保留（I=10% / II=20%）
@@ -209,6 +209,9 @@ class BrewReagentIndexTest {
         // 彼岸花毒：品质无意义，无强效档；保留长效档
         assertNotNull(tiers.get("gensokyou:higanbana")[0], "彼岸花毒应有长效档");
         assertNull(tiers.get("gensokyou:higanbana")[1], "彼岸花毒不应有强效档");
+        // 海豚恩惠：原版效果单级、品质无机制意义，无强效档；保留长效档
+        assertNotNull(tiers.get("gensokyou:spirit_fish")[0], "海豚恩惠应有长效档");
+        assertNull(tiers.get("gensokyou:spirit_fish")[1], "海豚恩惠不应有强效档");
     }
 
     private static byte[] readResource(String path) {

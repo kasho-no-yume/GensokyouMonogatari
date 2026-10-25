@@ -704,7 +704,7 @@ public final class DebugCommands {
                 boolean gkLow = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
                         .countGuideBooks(serverLevel, am) >= 1;
                 boolean gkHigh = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
-                        .countSukimaFragments(serverLevel, am) >= 1;
+                        .countFairyNectar(serverLevel, am) >= 1;
                 String tier = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
                         .debugTier(serverLevel, am, table);
                 if (tier == null) {

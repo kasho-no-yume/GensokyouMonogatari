@@ -1,0 +1,38 @@
+{
+  "name": "item.gensokyou.dragon_scale_chestplate",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:dragon_scale_chestplate",
+  "sortnum": 63,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.item_dragon_scale_armor.p1"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_dragon_scale_helmet",
+      "advancement": "gensokyou:guide/end_unlock"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_dragon_scale_chestplate",
+      "advancement": "gensokyou:guide/end_unlock"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_dragon_scale_leggings",
+      "advancement": "gensokyou:guide/end_unlock"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_dragon_scale_boots",
+      "advancement": "gensokyou:guide/end_unlock"
+    }
+  ],
+  "advancement": "gensokyou:guide/end_unlock",
+  "secret": true
+}

@@ -230,4 +230,22 @@ public class FairyEntity extends FlyingMob implements Enemy, TouhouMonster, GeoE
         this.spawnAtLocation(new ItemStack(ModItems.MEMORY_FRAGMENT.get()));
         this.spawnAtLocation(new ItemStack(ModItems.PPOINT.get()));
     }
+
+    /**
+     * 压制默认实体战利品表在<b>实际击杀</b>时的掷骰。
+     *
+     * <p><b>为什么必须显式压制</b>：1.21.1 的 {@code LivingEntity#dropAllDeathLoot} 会先
+     * {@code dropFromLootTable(...)}（其 {@code getLootTable()} 回落到
+     * {@code EntityType#getDefaultLootTable()}）、再 {@code dropCustomDeathLoot(...)}。
+     * 也就是说 {@code loot_table/entities/fairy.json} 一旦存在，实际击杀就会
+     * 「表 + 代码」各掉一次（记忆残页与 P 点双份）。
+     *
+     * <p>该表的存在意义是给众生余录（镇魂返照）按 {@code getDefaultLootTable} 取表掷骰；
+     * 实际击杀的掉落口径仍以 {@link #dropCustomDeathLoot} 为唯一来源。
+     * <b>删掉这个覆写会让妖精重新双掉</b>，改动前请先看本节说明。
+     */
+    @Override
+    protected void dropFromLootTable(DamageSource damageSource, boolean recentlyHit) {
+        // 有意留空：实际击杀走 dropCustomDeathLoot，默认表只服务众生余录。
+    }
 }

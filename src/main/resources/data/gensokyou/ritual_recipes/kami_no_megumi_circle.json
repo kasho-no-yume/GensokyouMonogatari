@@ -7,7 +7,7 @@
       "match": "max",
       "minTier": 1,
       "minPlayerTier": 0,
-      "spCost": 200,
+      "spCost": 200000,
       "ingredients": [
         { "item": "gensokyou:spirit_iron", "count": 2 },
         { "item": "minecraft:diamond", "count": 2 }

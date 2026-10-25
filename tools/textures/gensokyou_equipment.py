@@ -1,4 +1,5 @@
-# spirit_iron / star_silver equipment textures (add-gensokyou-material-uses).
+# spirit_iron / star_silver / mermaid_scale / dragon_scale equipment textures
+# (add-gensokyou-material-uses, add-early-material-uses).
 #
 # Silhouettes were traced from the vanilla iron tool/armour sprites (the project's
 # established "vanilla-derived shape, mod palette" convention) and are stored here as
@@ -28,6 +29,28 @@ PAL_SILVER = {
     's': (87, 100, 123),
     'b': (157, 174, 197),
     'h': (215, 230, 244),
+    'g': (92, 64, 36),
+    'G': (150, 110, 58),
+}
+
+# mermaid scale -> cool sea-green / pearl
+PAL_MERMAID = {
+    '.': None,
+    'o': (16, 46, 50),
+    's': (32, 105, 106),
+    'b': (74, 176, 166),
+    'h': (151, 226, 210),
+    'g': (92, 64, 36),
+    'G': (150, 110, 58),
+}
+
+# dragon scale -> deep crimson / molten gold
+PAL_DRAGON = {
+    '.': None,
+    'o': (44, 12, 18),
+    's': (116, 30, 34),
+    'b': (176, 58, 48),
+    'h': (238, 146, 84),
     'g': (92, 64, 36),
     'G': (150, 110, 58),
 }
@@ -228,6 +251,24 @@ PAL_ARMOUR_SILVER = {
     'H': (248, 252, 255),
 }
 
+PAL_ARMOUR_MERMAID = {
+    '.': None,
+    'o': (16, 46, 50),
+    's': (32, 105, 106),
+    'b': (74, 176, 166),
+    'h': (151, 226, 210),
+    'H': (214, 250, 240),
+}
+
+PAL_ARMOUR_DRAGON = {
+    '.': None,
+    'o': (44, 12, 18),
+    's': (116, 30, 34),
+    'b': (176, 58, 48),
+    'h': (238, 146, 84),
+    'H': (255, 214, 150),
+}
+
 LAYER_1 = [
     "........oooooooo................................................",
     "........oHHHHhho................................................",
@@ -317,10 +358,22 @@ _ROWS = {
     "item/star_silver_chestplate": TEX_CHESTPLATE,
     "item/star_silver_leggings": TEX_LEGGINGS,
     "item/star_silver_boots": TEX_BOOTS,
+    "item/mermaid_scale_helmet": TEX_HELMET,
+    "item/mermaid_scale_chestplate": TEX_CHESTPLATE,
+    "item/mermaid_scale_leggings": TEX_LEGGINGS,
+    "item/mermaid_scale_boots": TEX_BOOTS,
+    "item/dragon_scale_helmet": TEX_HELMET,
+    "item/dragon_scale_chestplate": TEX_CHESTPLATE,
+    "item/dragon_scale_leggings": TEX_LEGGINGS,
+    "item/dragon_scale_boots": TEX_BOOTS,
     "models/armor/spirit_iron_layer_1": LAYER_1,
     "models/armor/spirit_iron_layer_2": LAYER_2,
     "models/armor/star_silver_layer_1": LAYER_1,
     "models/armor/star_silver_layer_2": LAYER_2,
+    "models/armor/mermaid_scale_layer_1": LAYER_1,
+    "models/armor/mermaid_scale_layer_2": LAYER_2,
+    "models/armor/dragon_scale_layer_1": LAYER_1,
+    "models/armor/dragon_scale_layer_2": LAYER_2,
 }
 
 _PALETTES = {
@@ -342,10 +395,22 @@ _PALETTES = {
     "item/star_silver_chestplate": PAL_SILVER,
     "item/star_silver_leggings": PAL_SILVER,
     "item/star_silver_boots": PAL_SILVER,
+    "item/mermaid_scale_helmet": PAL_MERMAID,
+    "item/mermaid_scale_chestplate": PAL_MERMAID,
+    "item/mermaid_scale_leggings": PAL_MERMAID,
+    "item/mermaid_scale_boots": PAL_MERMAID,
+    "item/dragon_scale_helmet": PAL_DRAGON,
+    "item/dragon_scale_chestplate": PAL_DRAGON,
+    "item/dragon_scale_leggings": PAL_DRAGON,
+    "item/dragon_scale_boots": PAL_DRAGON,
     "models/armor/spirit_iron_layer_1": PAL_ARMOUR_IRON,
     "models/armor/spirit_iron_layer_2": PAL_ARMOUR_IRON,
     "models/armor/star_silver_layer_1": PAL_ARMOUR_SILVER,
     "models/armor/star_silver_layer_2": PAL_ARMOUR_SILVER,
+    "models/armor/mermaid_scale_layer_1": PAL_ARMOUR_MERMAID,
+    "models/armor/mermaid_scale_layer_2": PAL_ARMOUR_MERMAID,
+    "models/armor/dragon_scale_layer_1": PAL_ARMOUR_DRAGON,
+    "models/armor/dragon_scale_layer_2": PAL_ARMOUR_DRAGON,
 }
 
 TEXES = _ROWS

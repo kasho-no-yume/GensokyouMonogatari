@@ -27,7 +27,8 @@ import net.neoforged.neoforge.registries.DeferredHolder;
  * <p><b>档位素材门槛</b>：长效档把 {@code moon_sand} 当"红石"用、强效档把
  * {@code porcelain} 当"荧石"用——两者都是普通物品，天然满足"恰好消耗 1 个"，
  * 不需要额外事件拦截。原版红石 / 荧石对 mod 药水<b>无效</b>（这里没有注册它们的 mix），
- * 因此 mod 线的档位进阶永远绕不开月砂与瓷器。
+ * 因此 mod 线的档位进阶永远绕不开月砂与瓷器。海豚恩惠没有强效档（效果单级），
+ * 故它只注册月砂一条升级边。
  */
 @EventBusSubscriber(modid = Gensokyou.MODID)
 public final class ModPotionBrewing {
@@ -43,7 +44,7 @@ public final class ModPotionBrewing {
         // 第一步：粗制药水 + 瓶装三途川水（冥水）→ 粗制冥汤（mod 版 awkward，无效果、无档位）
         builder.addMix(Potions.AWKWARD, flask, ModPotions.CRUDE_SANZU);
 
-        // 第二步：粗制冥汤 + 四种 mod 植物 → 对应成品药水（基础档）
+        // 第二步：粗制冥汤 + 各 mod 试剂 → 对应成品药水（基础档）
         for (String id : ModPotions.ORDER) {
             builder.addMix(ModPotions.CRUDE_SANZU, reagentFor(id), ModPotions.BASE.get(id));
         }
@@ -76,6 +77,7 @@ public final class ModPotionBrewing {
             case "reiki_recovery" -> ModItems.SPIRIT_HERB.get();
             case "spiritual_sight" -> ModItems.MAGIC_MUSHROOM.get();
             case "spirit_touch" -> ModItems.GENTIAN.get();
+            case "dolphins_grace" -> ModItems.SPIRIT_FISH.get();
             default -> ModItems.HIGANBANA.get();
         };
     }

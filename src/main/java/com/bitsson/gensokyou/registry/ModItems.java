@@ -377,6 +377,44 @@ public final class ModItems {
                     () -> new ArmorItem(ModEquipmentMaterials.STAR_SILVER, ArmorItem.Type.BOOTS,
                             armorProps(ArmorItem.Type.BOOTS, 40)));
 
+    // ---------------- 人鱼鳞 / 龙鳞功能甲（add-early-material-uses）----------------
+
+    /** 人鱼鳞 4 件盔甲（耐久倍率 33，与钻石甲同值）。 */
+    public static final DeferredItem<ArmorItem> MERMAID_SCALE_HELMET =
+            ITEMS.register("mermaid_scale_helmet",
+                    () -> new ArmorItem(ModEquipmentMaterials.MERMAID_SCALE, ArmorItem.Type.HELMET,
+                            armorProps(ArmorItem.Type.HELMET, 33)));
+    public static final DeferredItem<ArmorItem> MERMAID_SCALE_CHESTPLATE =
+            ITEMS.register("mermaid_scale_chestplate",
+                    () -> new ArmorItem(ModEquipmentMaterials.MERMAID_SCALE, ArmorItem.Type.CHESTPLATE,
+                            armorProps(ArmorItem.Type.CHESTPLATE, 33)));
+    public static final DeferredItem<ArmorItem> MERMAID_SCALE_LEGGINGS =
+            ITEMS.register("mermaid_scale_leggings",
+                    () -> new ArmorItem(ModEquipmentMaterials.MERMAID_SCALE, ArmorItem.Type.LEGGINGS,
+                            armorProps(ArmorItem.Type.LEGGINGS, 33)));
+    public static final DeferredItem<ArmorItem> MERMAID_SCALE_BOOTS =
+            ITEMS.register("mermaid_scale_boots",
+                    () -> new ArmorItem(ModEquipmentMaterials.MERMAID_SCALE, ArmorItem.Type.BOOTS,
+                            armorProps(ArmorItem.Type.BOOTS, 33)));
+
+    /** 龙鳞 4 件盔甲（耐久倍率 33，与钻石甲同值；功能效果走全套加成）。 */
+    public static final DeferredItem<ArmorItem> DRAGON_SCALE_HELMET =
+            ITEMS.register("dragon_scale_helmet",
+                    () -> new ArmorItem(ModEquipmentMaterials.DRAGON_SCALE, ArmorItem.Type.HELMET,
+                            armorProps(ArmorItem.Type.HELMET, 33)));
+    public static final DeferredItem<ArmorItem> DRAGON_SCALE_CHESTPLATE =
+            ITEMS.register("dragon_scale_chestplate",
+                    () -> new ArmorItem(ModEquipmentMaterials.DRAGON_SCALE, ArmorItem.Type.CHESTPLATE,
+                            armorProps(ArmorItem.Type.CHESTPLATE, 33)));
+    public static final DeferredItem<ArmorItem> DRAGON_SCALE_LEGGINGS =
+            ITEMS.register("dragon_scale_leggings",
+                    () -> new ArmorItem(ModEquipmentMaterials.DRAGON_SCALE, ArmorItem.Type.LEGGINGS,
+                            armorProps(ArmorItem.Type.LEGGINGS, 33)));
+    public static final DeferredItem<ArmorItem> DRAGON_SCALE_BOOTS =
+            ITEMS.register("dragon_scale_boots",
+                    () -> new ArmorItem(ModEquipmentMaterials.DRAGON_SCALE, ArmorItem.Type.BOOTS,
+                            armorProps(ArmorItem.Type.BOOTS, 33)));
+
     // ---------------- 妙妙工具（add-gensokyou-material-uses）----------------
 
     /** 整地器：可放置方块物品，右键开界面配置长/宽/高盒体并启动整地。 */

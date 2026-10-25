@@ -1,0 +1,34 @@
+{
+  "name": "item.gensokyou.mermaid_scale_helmet",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:mermaid_scale_helmet",
+  "sortnum": 62,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.item_mermaid_scale_armor.p1"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_mermaid_scale_helmet"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_mermaid_scale_chestplate"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_mermaid_scale_leggings"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_mermaid_scale_boots"
+    }
+  ],
+  "advancement": "gensokyou:guide/nether_unlock",
+  "secret": true
+}

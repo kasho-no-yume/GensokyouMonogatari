@@ -42,27 +42,47 @@
 - **THEN** 至少存在一个可打开的样例条目，正文无裸 key
 
 ### Requirement: 进度解锁机制
-书 SHALL 提供隐形引导 advancement：`guide/nether_unlock`（进入下界）、`guide/end_unlock`（进入末地）、`guide/gensokyo_unlock`（进入幻想乡维度），均为 `changed_dimension` 触发器、无 display。需要门槛的内容条目 SHALL 以 `"advancement"` + `"secret": true` 声明：解锁前条目在书中**完全不显示**（非灰色锁定态），解锁时弹出 toast。内容 SHALL 以**世界进度**而非玩家超人类阶级（temperLevel）为门槛：0 阶内容条目 MUST NOT 挂任何 advancement（无条件可见）；结构阶 1/2/3 的内容分别以 `guide/nether_unlock` / `guide/end_unlock` / `guide/gensokyo_unlock` 为门槛；结构阶 4/5 的门槛在阶段 4/5 世界进度落地前 SHALL 以过渡实现承载（`temperLevel` 授予）。
 
-#### Scenario: 1 阶内容的门槛
+书 SHALL 提供隐形引导 advancement：`guide/nether_unlock`（进入下界）、`guide/end_unlock`（进入末地）、`guide/gensokyo_unlock`（进入幻想乡维度），均为 `changed_dimension` 触发器、无 display。需要门槛的内容条目 SHALL 以 `"advancement"` + `"secret": true` 声明：解锁前条目在书中**完全不显示**（非灰色锁定态），解锁时弹出 toast。
+
+内容门槛 SHALL 按**内容所属的轴**选择，MUST NOT 一律按结构阶挂：
+
+- **材料带**：T1 材料页（指导书带）MUST NOT 挂额外 advancement；T2 材料页（花精之滴带）SHALL 挂 `guide/nether_unlock`——花精之滴由 T1 阶段的大妖精产出，玩家在进入末地前就可能采到 T2 材。
+- **结构阶**：结构/仪式词条 SHALL 按结构阶挂 `guide/nether_unlock`（1 阶）/ `guide/end_unlock`（2 阶）/ `guide/gensokyo_unlock`（3 阶）；2 阶石与 2 阶结构继续挂末地。
+- **BOSS**：按 `bossTier()` 挂对应门槛（沿用「BOSS 条目的阶级门槛」）。
+- **玩家阶**：神恩相关条目挂对应世界进度或玩家阶，二者取其一并写明。
+
+0 阶内容条目 MUST NOT 挂任何 advancement（无条件可见）。结构阶 4/5 的门槛在阶段 4/5 世界进度落地前 SHALL 以过渡实现承载（`temperLevel` 授予）。门槛判定 SHALL 以世界进度而非玩家超人类阶级（temperLevel）为唯一依据；玩家阶级不得替代世界进度解锁材料/结构页。
+
+#### Scenario: 1 阶结构页按末地前的世界进度
+
 - **WHEN** 玩家从未进入下界时阅读仪式章节
-- **THEN** 挂 nether_unlock 的 1 阶内容条目不出现；对应 0 阶条目正常可见
+- **THEN** 挂 `guide/nether_unlock` 的 1 阶结构页不出现；对应 0 阶条目正常可见
 
-#### Scenario: 进入下界解锁
+#### Scenario: 进入下界解锁 1 阶结构
+
 - **WHEN** 玩家进入下界后重开仪式章节
-- **THEN** 1 阶内容条目出现并收到解锁 toast
+- **THEN** 1 阶结构页出现并收到解锁 toast
 
-#### Scenario: 2 阶内容按末地解锁
-- **WHEN** 玩家已进末地但从未玩过本 mod（temperLevel 仍为 0）
-- **THEN** 挂 end_unlock 的 2 阶内容条目出现，与 temperLevel 无关
+#### Scenario: 星银材料页在下界后出现
 
-#### Scenario: 2 阶内容的门槛
-- **WHEN** 玩家已进下界但未进末地
-- **THEN** 挂 end_unlock 的 2 阶内容条目在书中完全不出现
+- **WHEN** 玩家已进入下界、尚未进入末地
+- **THEN** `material_star_silver` 词条可见，且正文说明花精之滴是 T2 材料带信物
+
+#### Scenario: 2 阶结构页仍按末地
+
+- **WHEN** 玩家已进入下界但未进入末地
+- **THEN** 挂 `guide/end_unlock` 的 2 阶石/2 阶结构/2 阶核心/八云蓝条目不出现
 
 #### Scenario: 3 阶内容按幻想乡解锁
+
 - **WHEN** 玩家进入幻想乡维度后
-- **THEN** 挂 gensokyo_unlock 的 3 阶内容条目出现
+- **THEN** 挂 `guide/gensokyo_unlock` 的 3 阶内容条目出现
+
+#### Scenario: 0 阶内容无条件可见
+
+- **WHEN** 新建世界、玩家尚未进入下界
+- **THEN** 0 阶石/0 阶仪式/材料带总览等无 advancement 条目正常可见
 
 ### Requirement: 仪式章节配方卡与结构展示
 仪式列表章节 SHALL 以自定义页面模板渲染配方卡（输入物品×数量、产物或本地化效果名、spCost、minTier），展示字段与语言键 SHALL 与 `jei-ritual-display` 共用同一数据模型（`RitualRecipe`）。仪式结构 SHALL 以 Patchouli 原生 `patchouli:multiblock` 页呈现 3D 投影（支持在世界上幽灵投影照搭），其多重方块 SHALL 由构建期生成器从 `rituals` v5 数据内联生成（谓词映射 EXACT→方块 id、TAG→`#tag`、AIR→空格、IGNORE→`_`、锚点→`0`），MUST NOT 依赖运行期 `multiblock_id` 注册。结构与「本阶参数」SHALL **按阶级分页**并各挂对应阶级门槛（见「进度解锁机制」），显示以玩家当前世界进度为上限（锁住的页完全隐藏）；分阶页 MUST NOT 渲染「搭建材料」段；页内文本 SHALL 自动换行以适应页宽（`Font.split`），MUST NOT 因超宽裁切。配方 SHALL 一配方一页，但**满足以下任一条件的仪式 MUST NOT 补配方页**：配方数 > 12；作者显式指认为开放式配方或极多配方。客户端 SHALL 在玩家登录与 datapack 重载时从服务端同步配方数据并写入本地缓存；数据未到达时配方卡 SHALL 呈现占位，离线时读缓存。Patchouli 页列表为静态，无法运行时增页，故长文本 SHALL 在生成期拆分为多张 `patchouli:text` 页。
@@ -392,4 +412,76 @@ MUST NOT 只展示单条配方，或使玩家以为某一信物是唯一可用�
 
 - **WHEN** 某 BOSS 只有结构遭遇、没有召唤配方
 - **THEN** 审计通过其条目检查
+
+### Requirement: 仪式入门展示仪式石升阶配方
+
+「仪式列表」章节的第一条「仪式入门」SHALL 在原有正文/构建器页之后增加两页
+`gensokyou:ritual_page`，分别按**完整配方 id** 绑定：
+
+- `gensokyou:zaohua_stone_t1`（0 阶石 → 1 阶石）
+- `gensokyou:zaohua_stone_t2`（1 阶石 → 2 阶石）
+
+两页 MUST NOT 依赖全局配方排序（`recipe_index`）或 JEI；MUST 在配方数据未到达时呈现占位，
+不得渲染空白页或裸 id。0 阶/1 阶石页 SHALL 常驻可见；2 阶石页 SHALL 挂 `guide/end_unlock`
+（其配方需要末地紫珀块）。页面 SHALL 复用 `ritual_page` 的配方卡渲染，显示原料×数量、
+产物×数量、spCost 与结构阶级。
+
+#### Scenario: 0 阶/1 阶石页常驻
+
+- **WHEN** 新玩家第一次打开「仪式入门」
+- **THEN** 能看到 0 阶石→1 阶石与 1 阶石→2 阶石的配方页（2 阶页在进末地前隐藏）
+
+#### Scenario: 2 阶石页按末地解锁
+
+- **WHEN** 玩家进入末地后打开「仪式入门」
+- **THEN** 2 阶石配方页出现，显示 2 仪式石 1 + 4 灵铁 + 潮汐晶 + 三植物 + 6 紫珀块 → 4 仪式石 2
+
+#### Scenario: 配方按 id 绑定
+
+- **WHEN** `zaohua_circle.json` 的配方顺序发生变化
+- **THEN** 两页仍分别显示 `zaohua_stone_t1` / `zaohua_stone_t2`，不显示其它配方
+
+#### Scenario: 数据未到达时占位
+
+- **WHEN** 客户端刚登录、服务端配方数据尚未同步
+- **THEN** 两页显示占位而非空白或裸 id；数据到达后在同一会话内刷新
+
+### Requirement: 新物品书内条目
+
+指导书 SHALL 为以下新增内容各提供玩家向条目，且条目正文 MUST NOT 出现注册 id、
+文件路径、内部字段名或工程占位语：
+
+- **人鱼鳞盔甲**：`items` 章，展示 4 件、钻石甲数值、全套水下呼吸 + 仅水下夜视、
+  5/8/7/4 配方。
+- **龙鳞盔甲**：`items` 章，展示 4 件、钻石甲数值、全套火焰伤害全免 + 100% 抗击退、
+  5/8/7/4 配方。
+- **灵鱼与海豚恩惠**：`fantasy_materials` 章一条灵鱼条目，`items` 章一条药水条目；
+  说明素盏呜尊酿造、只做长效档、长效需月砂。
+- **P 点 / B 点**：`items` 章一条；说明 P 点用于仪式石/灵力核心，
+  B 点由 8 P 点合成、用于符卡配方（低 1 / 中 2 / 高 2）。
+- **妖精与众生典籍**：`monsters` 章或 `codex_of_beings` 词条补一段；
+  说明小妖精可被典籍收录、镇魂可产出记忆残页（纸）/P/B 点，大妖精仍不可收录。
+
+新增文案 SHALL 仅维护 `zh_cn`；`en_us` 缺失不视为缺陷。条目图标 SHALL 使用对应物品 id，
+MUST NOT 使用模型面部裁切或纯文字代替。
+
+#### Scenario: 人鱼鳞/龙鳞条目可打开
+
+- **WHEN** 玩家打开 `items` 章
+- **THEN** 能分别打开人鱼鳞盔甲与龙鳞盔甲条目，看到 4 件、效果与配方
+
+#### Scenario: 灵鱼药水条目说明长效
+
+- **WHEN** 玩家打开灵鱼/海豚恩惠条目
+- **THEN** 正文写明素盏呜尊酿造、只有长效档、长效消耗月砂
+
+#### Scenario: P/B 点条目说明用途
+
+- **WHEN** 玩家打开 P/B 点条目
+- **THEN** 正文写明 8 P → 1 B 与 B 点在符卡配方中的数量档位
+
+#### Scenario: 妖精典籍条目说明产出
+
+- **WHEN** 玩家打开妖精与众生典籍条目
+- **THEN** 正文写明小妖精可收录、镇魂产出纸/P/B 点
 

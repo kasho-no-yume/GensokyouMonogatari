@@ -20,6 +20,17 @@
     {
       "type": "patchouli:text",
       "text": "gensokyou.book.entry.rituals_basics.p3"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_stone_t1"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_stone_t2",
+      "advancement": "gensokyou:guide/end_unlock"
     }
   ]
 }

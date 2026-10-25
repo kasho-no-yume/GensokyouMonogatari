@@ -1,0 +1,13 @@
+{
+  "name": "item.gensokyou.spirit_fish",
+  "category": "gensokyou:fantasy_materials",
+  "icon": "gensokyou:spirit_fish",
+  "sortnum": 10,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:spirit_fish",
+      "text": "gensokyou.book.entry.material_spirit_fish.p1"
+    }
+  ]
+}

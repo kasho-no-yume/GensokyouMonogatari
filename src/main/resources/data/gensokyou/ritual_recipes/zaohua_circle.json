@@ -8,9 +8,10 @@
       "minTier": 0,
       "spCost": 2000,
       "ingredients": [
-        { "item": "minecraft:diamond", "count": 4 },
+        { "item": "minecraft:diamond", "count": 1 },
         { "item": "gensokyou:ritual_stone_0", "count": 2 },
-        { "item": "gensokyou:refined_cinnabar", "count": 2 }
+        { "item": "gensokyou:cinnabar", "count": 1 },
+        { "item": "minecraft:blackstone", "count": 4 }
       ],
       "result": { "item": "gensokyou:ritual_stone_1", "count": 1 }
     },
@@ -21,12 +22,15 @@
       "minTier": 1,
       "spCost": 20000,
       "ingredients": [
-        { "item": "gensokyou:ritual_stone_1", "count": 4 },
+        { "item": "gensokyou:ritual_stone_1", "count": 2 },
         { "item": "gensokyou:spirit_iron", "count": 4 },
-        { "item": "gensokyou:star_silver", "count": 2 },
-        { "item": "gensokyou:tide_crystal", "count": 1 }
+        { "item": "gensokyou:tide_crystal", "count": 1 },
+        { "item": "gensokyou:spirit_herb", "count": 1 },
+        { "item": "gensokyou:gentian", "count": 1 },
+        { "item": "gensokyou:higanbana", "count": 1 },
+        { "item": "minecraft:purpur_block", "count": 6 }
       ],
-      "result": { "item": "gensokyou:ritual_stone_2", "count": 1 }
+      "result": { "item": "gensokyou:ritual_stone_2", "count": 4 }
     },
     {
       "name": "zaohua_talisman_paper",
@@ -498,11 +502,94 @@
       "result": { "item": "gensokyou:star_silver_boots", "count": 1 }
     },
     {
+      "_comment": "人鱼鳞铠甲：T1 水产线功能甲。主材 5/8/7/4 + 海晶凡材；数值同钻石甲，全套给水下呼吸与仅水下夜视。",
+      "name": "zaohua_mermaid_scale_helmet",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 6000,
+      "ingredients": [
+        { "item": "gensokyou:mermaid_scale", "count": 5 },
+        { "item": "minecraft:prismarine_shard", "count": 1 },
+        { "item": "minecraft:iron_ingot", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:mermaid_scale_helmet", "count": 1 }
+    },
+    {
+      "name": "zaohua_mermaid_scale_chestplate",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 9000,
+      "ingredients": [
+        { "item": "gensokyou:mermaid_scale", "count": 8 },
+        { "item": "minecraft:prismarine_shard", "count": 2 },
+        { "item": "minecraft:iron_ingot", "count": 3 }
+      ],
+      "result": { "item": "gensokyou:mermaid_scale_chestplate", "count": 1 }
+    },
+    {
+      "name": "zaohua_mermaid_scale_leggings",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 7000,
+      "ingredients": [
+        { "item": "gensokyou:mermaid_scale", "count": 7 },
+        { "item": "minecraft:prismarine_shard", "count": 1 },
+        { "item": "minecraft:iron_ingot", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:mermaid_scale_leggings", "count": 1 }
+    },
+    {
+      "name": "zaohua_mermaid_scale_boots",
+      "mode": "activation", "match": "max", "minTier": 1, "spCost": 5000,
+      "ingredients": [
+        { "item": "gensokyou:mermaid_scale", "count": 4 },
+        { "item": "minecraft:prismarine_shard", "count": 1 },
+        { "item": "minecraft:iron_ingot", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:mermaid_scale_boots", "count": 1 }
+    },
+    {
+      "_comment": "龙鳞铠甲：T2 水产线重甲。主材 5/8/7/4 + 下界合金碎凡材；数值同钻石甲，全套给火焰伤害全免与 100% 抗击退。",
+      "name": "zaohua_dragon_scale_helmet",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 24000,
+      "ingredients": [
+        { "item": "gensokyou:dragon_scale", "count": 5 },
+        { "item": "minecraft:netherite_scrap", "count": 1 },
+        { "item": "minecraft:amethyst_shard", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:dragon_scale_helmet", "count": 1 }
+    },
+    {
+      "name": "zaohua_dragon_scale_chestplate",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 36000,
+      "ingredients": [
+        { "item": "gensokyou:dragon_scale", "count": 8 },
+        { "item": "minecraft:netherite_scrap", "count": 2 },
+        { "item": "minecraft:amethyst_shard", "count": 3 }
+      ],
+      "result": { "item": "gensokyou:dragon_scale_chestplate", "count": 1 }
+    },
+    {
+      "name": "zaohua_dragon_scale_leggings",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 28000,
+      "ingredients": [
+        { "item": "gensokyou:dragon_scale", "count": 7 },
+        { "item": "minecraft:netherite_scrap", "count": 1 },
+        { "item": "minecraft:amethyst_shard", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:dragon_scale_leggings", "count": 1 }
+    },
+    {
+      "name": "zaohua_dragon_scale_boots",
+      "mode": "activation", "match": "max", "minTier": 2, "spCost": 20000,
+      "ingredients": [
+        { "item": "gensokyou:dragon_scale", "count": 4 },
+        { "item": "minecraft:netherite_scrap", "count": 1 },
+        { "item": "minecraft:amethyst_shard", "count": 2 }
+      ],
+      "result": { "item": "gensokyou:dragon_scale_boots", "count": 1 }
+    },
+    {
       "_comment": "玩家符卡获取（spellcard-crafting-and-boss-signatures）：低档=碎符卡星mod门；中/高档=符卡星门。主题卡另含对应主题信物。",
       "name": "zaohua_spellcard_spider_web",
       "mode": "activation", "match": "max", "minTier": 1, "spCost": 12000,
       "ingredients": [
         { "item": "gensokyou:broken_spell_card_star", "count": 2 },
+        { "item": "gensokyou:bpoint", "count": 1 },
         { "item": "gensokyou:earth_spider_silk", "count": 1 },
         { "item": "minecraft:string", "count": 4 },
         { "item": "gensokyou:talisman_paper", "count": 2 },
@@ -515,6 +602,7 @@
       "mode": "activation", "match": "max", "minTier": 1, "spCost": 12000,
       "ingredients": [
         { "item": "gensokyou:broken_spell_card_star", "count": 2 },
+        { "item": "gensokyou:bpoint", "count": 1 },
         { "item": "gensokyou:earth_spider_silk", "count": 1 },
         { "item": "gensokyou:higanbana", "count": 2 },
         { "item": "gensokyou:magic_mushroom", "count": 1 },
@@ -527,6 +615,7 @@
       "mode": "activation", "match": "max", "minTier": 1, "spCost": 12000,
       "ingredients": [
         { "item": "gensokyou:broken_spell_card_star", "count": 2 },
+        { "item": "gensokyou:bpoint", "count": 1 },
         { "item": "minecraft:glowstone", "count": 2 },
         { "item": "gensokyou:talisman_paper", "count": 2 },
         { "item": "gensokyou:memory_fragment", "count": 2 }
@@ -538,6 +627,7 @@
       "mode": "activation", "match": "max", "minTier": 1, "spCost": 24000,
       "ingredients": [
         { "item": "gensokyou:spellcard_star", "count": 1 },
+        { "item": "gensokyou:bpoint", "count": 2 },
         { "item": "gensokyou:fairy_nectar", "count": 1 },
         { "item": "gensokyou:spirit_herb", "count": 4 },
         { "item": "gensokyou:gentian", "count": 2 },
@@ -550,6 +640,7 @@
       "mode": "activation", "match": "max", "minTier": 1, "spCost": 24000,
       "ingredients": [
         { "item": "gensokyou:spellcard_star", "count": 1 },
+        { "item": "gensokyou:bpoint", "count": 2 },
         { "item": "gensokyou:fairy_nectar", "count": 1 },
         { "item": "gensokyou:spirit_herb", "count": 2 },
         { "item": "minecraft:amethyst_shard", "count": 4 },
@@ -563,6 +654,7 @@
       "mode": "activation", "match": "max", "minTier": 1, "spCost": 24000,
       "ingredients": [
         { "item": "gensokyou:spellcard_star", "count": 1 },
+        { "item": "gensokyou:bpoint", "count": 2 },
         { "item": "gensokyou:nightfall_core", "count": 1 },
         { "item": "minecraft:coal", "count": 4 },
         { "item": "gensokyou:talisman_paper", "count": 2 },
@@ -575,6 +667,7 @@
       "mode": "activation", "match": "max", "minTier": 1, "spCost": 24000,
       "ingredients": [
         { "item": "gensokyou:spellcard_star", "count": 1 },
+        { "item": "gensokyou:bpoint", "count": 2 },
         { "item": "minecraft:blue_ice", "count": 2 },
         { "item": "minecraft:snowball", "count": 2 },
         { "item": "gensokyou:memory_fragment", "count": 2 }
@@ -587,6 +680,7 @@
       "mode": "activation", "match": "max", "minTier": 1, "spCost": 48000,
       "ingredients": [
         { "item": "gensokyou:spellcard_star", "count": 2 },
+        { "item": "gensokyou:bpoint", "count": 2 },
         { "item": "gensokyou:sukima_fragment", "count": 1 },
         { "item": "minecraft:blaze_powder", "count": 4 },
         { "item": "minecraft:glowstone", "count": 2 },
@@ -599,6 +693,7 @@
       "mode": "activation", "match": "max", "minTier": 1, "spCost": 48000,
       "ingredients": [
         { "item": "gensokyou:spellcard_star", "count": 2 },
+        { "item": "gensokyou:bpoint", "count": 2 },
         { "item": "minecraft:amethyst_shard", "count": 4 },
         { "item": "gensokyou:talisman_paper", "count": 4 },
         { "item": "gensokyou:memory_fragment", "count": 4 }

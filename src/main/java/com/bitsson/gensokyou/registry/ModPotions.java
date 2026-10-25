@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.alchemy.Potion;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -13,7 +14,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
 /**
  * mod 药水线的 {@link Potion} 注册表。
  *
- * <p><b>命名约定</b>：除基液 {@code crude_sanzu_potion} 外，四个成品按需注册
+ * <p><b>命名约定</b>：除基液 {@code crude_sanzu_potion} 外，成品按需注册
  * {@code <name>} / {@code long_<name>} / {@code strong_<name>}。这条约定不是冗余：
  * {@code PotionTierTransform#findSibling} 就靠 {@code long_} / {@code strong_} 前缀找兄弟，
  * 少名渡汤之仪的 2/3 阶时长与品质提升全部以此为参考值；没有兄弟条目就会退化成
@@ -26,6 +27,8 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  *   <li>{@code spiritual_sight} 与 {@code higanbana_poison} 的品质不承载任何机制差异
  *       （显形半径固定 / 免伤固定）→ <b>无 strong 档</b>（同原版夜视：只有 I / 长效）。</li>
  *   <li>{@code spirit_touch} 的品质决定触及加成 → 三档齐全。</li>
+ *   <li>{@code dolphins_grace} 直接借用原版海豚的恩惠（单级效果，品质无机制意义）→
+ *       <b>无 strong 档</b>。其效果 id 属 {@code minecraft} 命名空间，注册时按完整 id 解析。</li>
  * </ul>
  * 没有的档位在 {@link #LONG} / {@link #STRONG} 里根本没有条目，调用方用
  * {@link #longOf(String)} / {@link #strongOf(String)} 取（缺失返回 {@code null}）。
@@ -61,18 +64,21 @@ public final class ModPotions {
 
     /** 供 lang / 调试遍历的成品顺序（也决定创造栏预览顺序）。 */
     public static final List<String> ORDER =
-            List.of("reiki_recovery", "spiritual_sight", "spirit_touch", "higanbana_poison");
+            List.of("reiki_recovery", "spiritual_sight", "spirit_touch", "higanbana_poison",
+                    "dolphins_grace");
 
     /**
-     * effect id（{@code gensokyou:<path>} 的 path 部分）→ 各档时长（tick）与品质。
+     * effect id（完整 {@link ResourceLocation}）→ 各档时长（tick）与品质。
      *
+     * @param effectId 效果注册 id；mod 效果为 {@code gensokyou:<path>}，
+     *                 借用原版效果的成品（海豚恩惠）为 {@code minecraft:<path>}
      * @param baseTicks 基础档时长；瞬发效果填 1（时长不参与，只为构造合法条目）
      * @param longTicks 长效档时长；{@code hasLong} 为 false 时忽略
      * @param strongTicks 强效档时长；{@code hasStrong} 为 false 时忽略
      * @param hasLong 是否有长效档
      * @param hasStrong 是否有强效档（强效档品质恒为 1）
      */
-    private record Spec(String effectPath, int baseTicks, int longTicks, int strongTicks,
+    private record Spec(ResourceLocation effectId, int baseTicks, int longTicks, int strongTicks,
                         boolean hasLong, boolean hasStrong) {
     }
 
@@ -80,13 +86,16 @@ public final class ModPotions {
 
     static {
         // 瞬发：无 long 档（时长无意义），II 阶 = 20%（同原版瞬间治疗）。
-        put("reiki_recovery", new Spec("reiki_recovery", 1, 1, 1, false, true));
+        put("reiki_recovery", "reiki_recovery", 1, 1, 1, false, true);
         // 品质无意义：无 strong 档，仅基础 + 长效（同原版夜视）。
-        put("spiritual_sight", new Spec("spiritual_sight", 1200, 4800, 600, true, false));
+        put("spiritual_sight", "spiritual_sight", 1200, 4800, 600, true, false);
         // 品质决定触及加成：三档齐全。
-        put("spirit_touch", new Spec("spirit_touch", 1200, 4800, 600, true, true));
+        put("spirit_touch", "spirit_touch", 1200, 4800, 600, true, true);
         // 品质无意义：无 strong 档，仅基础 + 长效。
-        put("higanbana_poison", new Spec("higanbana_poison", 600, 2400, 300, true, false));
+        put("higanbana_poison", "higanbana_poison", 600, 2400, 300, true, false);
+        // 借用原版海豚的恩惠（单级、无强效档）：只做基础 + 长效，基础档本身已足够实用，
+        // 故不设「短到没用」的档位；海豚恩惠的 amplifier 不承载任何机制差异。
+        putVanilla("dolphins_grace", "dolphins_grace", 2400, 9600, 1, true, false);
         for (String id : ORDER) {
             registerTiers(id, SPECS.get(id));
         }
@@ -95,8 +104,17 @@ public final class ModPotions {
     private ModPotions() {
     }
 
-    private static void put(String id, Spec spec) {
-        SPECS.put(id, spec);
+    private static void put(String id, String effectPath, int baseTicks, int longTicks,
+                            int strongTicks, boolean hasLong, boolean hasStrong) {
+        SPECS.put(id, new Spec(Gensokyou.id(effectPath), baseTicks, longTicks, strongTicks,
+                hasLong, hasStrong));
+    }
+
+    /** 借用原版效果（{@code minecraft:} 命名空间）的成品。 */
+    private static void putVanilla(String id, String vanillaEffectPath, int baseTicks, int longTicks,
+                                   int strongTicks, boolean hasLong, boolean hasStrong) {
+        SPECS.put(id, new Spec(ResourceLocation.withDefaultNamespace(vanillaEffectPath),
+                baseTicks, longTicks, strongTicks, hasLong, hasStrong));
     }
 
     /** 某成品是否有长效档。 */
@@ -121,14 +139,14 @@ public final class ModPotions {
 
     private static void registerTiers(String id, Spec spec) {
         BASE.put(id, POTIONS.register(id,
-                () -> LazyEffectsPotion.of(spec.effectPath(), spec.baseTicks(), 0)));
+                () -> new LazyEffectsPotion(spec.effectId(), spec.baseTicks(), 0)));
         if (spec.hasLong()) {
             LONG.put(id, POTIONS.register("long_" + id,
-                    () -> LazyEffectsPotion.of(spec.effectPath(), spec.longTicks(), 0)));
+                    () -> new LazyEffectsPotion(spec.effectId(), spec.longTicks(), 0)));
         }
         if (spec.hasStrong()) {
             STRONG.put(id, POTIONS.register("strong_" + id,
-                    () -> LazyEffectsPotion.of(spec.effectPath(), spec.strongTicks(), 1)));
+                    () -> new LazyEffectsPotion(spec.effectId(), spec.strongTicks(), 1)));
         }
     }
 }

@@ -132,16 +132,39 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
         return countItem(level, match, ModItems.GUIDE_BOOK.get());
     }
 
-    /** 台上隙间碎片数量（幻想乡信物·中阶带）。 */
-    public static int countSukimaFragments(ServerLevel level, RitualMatch match) {
-        return countItem(level, match, ModItems.SUKIMA_FRAGMENT.get());
+    /** 中阶带信物 id（数据层常量：世界无关，供单测与调试断言）。 */
+    public static final ResourceLocation HIGH_BAND_TOKEN_ID =
+            ResourceLocation.fromNamespaceAndPath(com.bitsson.gensokyou.Gensokyou.MODID, "fairy_nectar");
+
+    /** 台上花精之滴数量（幻想乡信物·中阶带）。 */
+    public static int countFairyNectar(ServerLevel level, RitualMatch match) {
+        return countItem(level, match, ModItems.FAIRY_NECTAR.get());
     }
 
     private static int countItem(ServerLevel level, RitualMatch match, Item item) {
-        int count = 0;
+        List<ItemStack> held = new ArrayList<>();
         for (BlockPos pos : RitualPedestals.positions(match)) {
-            if (level.getBlockEntity(pos) instanceof RitualPedestalBlockEntity pedestal
-                    && pedestal.getHeld().is(item)) {
+            if (level.getBlockEntity(pos) instanceof RitualPedestalBlockEntity pedestal) {
+                held.add(pedestal.getHeld());
+            }
+        }
+        return countTokens(held, item);
+    }
+
+    /**
+     * 信物计数内核（世界无关）：统计台面栈列表里某件信物的件数。
+     *
+     * <p><b>纯读</b>：只 {@code ItemStack#is} 判定，不修改、不消耗任何栈——
+     * 「信物不消耗」这条不变量由本方法与「只有 {@code scanTools} 命中的工具才会被扣」
+     * 两侧共同保证。
+     */
+    public static int countTokens(List<ItemStack> held, Item token) {
+        if (token == null) {
+            return 0;
+        }
+        int count = 0;
+        for (ItemStack stack : held) {
+            if (stack != null && !stack.isEmpty() && stack.is(token)) {
                 count++;
             }
         }
@@ -223,7 +246,7 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
         boolean end = heads >= table.dragonHeadsRequired();
         // 幻想乡信物带（不消耗、与头颅条件独立）
         boolean gkLow = countGuideBooks(level, match) >= 1;
-        boolean gkHigh = countSukimaFragments(level, match) >= 1;
+        boolean gkHigh = countFairyNectar(level, match) >= 1;
 
         // 随机抽一把工具（其余留守）
         PedestalTool chosen = tools.get(level.random.nextInt(tools.size()));

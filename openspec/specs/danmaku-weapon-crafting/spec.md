@@ -6,7 +6,7 @@
 ### Requirement: 弹幕主武器框采用一阶仪式中门槛
 系统 SHALL 移除 `danmaku_weapon` 的普通工作台配方，并仅通过源初造化之仪配方 `zaohua_danmaku_weapon_frame` 产出主武器框。该配方 SHALL 使用 `mode:"activation"`、`match:"max"`、`minTier:1`、`spCost:20000`，消耗 `ritual_stone_1×1 + spirit_iron×2 + minecraft:netherite_ingot×1 + gensokyou:ppoint×4`，产出 `gensokyou:danmaku_weapon×1`。配方 SHALL NOT 校验玩家维度访问历史或仪式运行地点。
 
-该配方 MUST NOT 包含任何 T2 及以上材料：`star_silver`（星银）原为本配方的第五项材料，因其属 T2 材料带而须移除。T2 材料带的唯一钥匙是 `sukima_fragment`，若入口级配方以 T2 材料为门，则「获得弹幕武器」将被锁在「击败 BOSS」之后，与 BOSS 需要弹幕武器对抗形成倒挂死锁。
+该配方 MUST NOT 包含任何 T2 及以上材料：`star_silver`（星银）原为本配方的第五项材料，因其属 T2 材料带而须移除。T2 材料带的唯一钥匙是 `fairy_nectar`（花精之滴，首 BOSS 大妖精的信物），若入口级配方以 T2 材料为门，则「获得弹幕武器」将被锁在「击败 BOSS」之后，与 BOSS 需要弹幕武器对抗形成倒挂死锁。
 
 该配方 MUST NOT 以 `spellcard_star` 或 `broken_spell_card_star` 为原料：符卡之星属于符卡一系，若武器本体也卡在 BOSS 掉落之后，则「无武器 → 打不过 BOSS → 无星 → 无武器」同样成环。武器的入口级材料 SHALL 全部可经 0 阶源初造化与金山彦命锻造在击败 BOSS 之前取得。
 

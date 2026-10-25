@@ -17,7 +17,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 /**
- * 灵铁 / 星银的盔甲材质注册表。
+ * 灵铁 / 星银 / 人鱼鳞 / 龙鳞的盔甲材质注册表。
  *
  * <p><b>贴图层命名</b>：{@link ArmorMaterial.Layer} 的 assetName 决定客户端去
  * {@code textures/models/armor/<assetName>_layer_1.png} 取图，命名空间必须是
@@ -46,6 +46,22 @@ public final class ModEquipmentMaterials {
                     3.5F, 0.1F, 18,
                     SoundEvents.ARMOR_EQUIP_NETHERITE,
                     () -> Ingredient.of(ModItems.STAR_SILVER.get())));
+
+    /** 人鱼鳞铠：数值逐项对齐钻石（防御 20、韧性 2.0、无击退抗性）。 */
+    public static final DeferredHolder<ArmorMaterial, ArmorMaterial> MERMAID_SCALE =
+            ARMOR_MATERIALS.register("mermaid_scale", () -> armor(
+                    "mermaid_scale", 3, 6, 8, 3,
+                    2.0F, 0.0F, 10,
+                    SoundEvents.ARMOR_EQUIP_TURTLE,
+                    () -> Ingredient.of(ModItems.MERMAID_SCALE.get())));
+
+    /** 龙鳞铠：数值逐项对齐钻石；火焰免疫与 100% 抗击退由全套效果提供，不在材质上叠。 */
+    public static final DeferredHolder<ArmorMaterial, ArmorMaterial> DRAGON_SCALE =
+            ARMOR_MATERIALS.register("dragon_scale", () -> armor(
+                    "dragon_scale", 3, 6, 8, 3,
+                    2.0F, 0.0F, 10,
+                    SoundEvents.ARMOR_EQUIP_NETHERITE,
+                    () -> Ingredient.of(ModItems.DRAGON_SCALE.get())));
 
     private ModEquipmentMaterials() {
     }

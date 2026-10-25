@@ -1,0 +1,14 @@
+{
+  "name": "gensokyou.book.entry.item_dolphins_grace",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:sanzu_flask",
+  "sortnum": 64,
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.item_dolphins_grace.p1"
+    }
+  ],
+  "advancement": "gensokyou:guide/nether_unlock",
+  "secret": true
+}

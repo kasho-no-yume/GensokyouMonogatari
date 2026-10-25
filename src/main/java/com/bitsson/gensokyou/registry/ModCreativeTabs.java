@@ -102,6 +102,15 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.STAR_SILVER_CHESTPLATE.get());
                         output.accept(ModItems.STAR_SILVER_LEGGINGS.get());
                         output.accept(ModItems.STAR_SILVER_BOOTS.get());
+                        // 人鱼鳞 / 龙鳞功能甲（add-early-material-uses）
+                        output.accept(ModItems.MERMAID_SCALE_HELMET.get());
+                        output.accept(ModItems.MERMAID_SCALE_CHESTPLATE.get());
+                        output.accept(ModItems.MERMAID_SCALE_LEGGINGS.get());
+                        output.accept(ModItems.MERMAID_SCALE_BOOTS.get());
+                        output.accept(ModItems.DRAGON_SCALE_HELMET.get());
+                        output.accept(ModItems.DRAGON_SCALE_CHESTPLATE.get());
+                        output.accept(ModItems.DRAGON_SCALE_LEGGINGS.get());
+                        output.accept(ModItems.DRAGON_SCALE_BOOTS.get());
                         output.accept(ModItems.PORCELAIN.get());
                         output.accept(ModItems.LANDSCAPING_TOOL.get());
                         output.accept(ModItems.SPIRIT_BOMB.get());
