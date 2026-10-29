@@ -1,0 +1,11 @@
+{
+  "components": [
+    { "type": "patchouli:item", "item": "#i1#", "x": 4, "y": 6, "framed": true },
+    { "type": "patchouli:item", "item": "#i2#", "x": 44, "y": 6, "framed": true },
+    { "type": "patchouli:item", "item": "#i3#", "x": 84, "y": 6, "framed": true },
+    { "type": "patchouli:item", "item": "#i4#", "x": 4, "y": 30, "framed": true },
+    { "type": "patchouli:item", "item": "#i5#", "x": 44, "y": 30, "framed": true },
+    { "type": "patchouli:item", "item": "#i6#", "x": 84, "y": 30, "framed": true },
+    { "type": "patchouli:text", "text": "#caption#", "x": 0, "y": 54, "width": 116 }
+  ]
+}

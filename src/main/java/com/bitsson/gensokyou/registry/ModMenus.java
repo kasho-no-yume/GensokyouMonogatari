@@ -5,6 +5,7 @@ import com.bitsson.gensokyou.menu.CrystalStorageMenu;
 import com.bitsson.gensokyou.menu.DanmakuAssemblyBenchMenu;
 import com.bitsson.gensokyou.menu.RitualBuilderMenu;
 import com.bitsson.gensokyou.menu.RitualCoreMenu;
+import com.bitsson.gensokyou.menu.TreasureBasinMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.inventory.MenuType;
@@ -68,6 +69,13 @@ public final class ModMenus {
                     (IContainerFactory<com.bitsson.gensokyou.menu.LandscapingMenu>)
                             (id, inventory, buf) -> new com.bitsson.gensokyou.menu.LandscapingMenu(
                                     id, inventory, buf.readBlockPos()),
+                    FeatureFlags.VANILLA_SET));
+
+    /** 聚宝盆界面：3×3 容器 + 背包。客户端工厂从 extraData 读回方块坐标。 */
+    public static final DeferredHolder<MenuType<?>, MenuType<TreasureBasinMenu>> TREASURE_BASIN =
+            MENUS.register("treasure_basin", () -> new MenuType<>(
+                    (IContainerFactory<TreasureBasinMenu>)
+                            (id, inventory, buf) -> new TreasureBasinMenu(id, inventory, buf.readBlockPos()),
                     FeatureFlags.VANILLA_SET));
 
     private ModMenus() {

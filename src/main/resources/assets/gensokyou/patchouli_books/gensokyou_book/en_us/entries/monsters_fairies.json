@@ -3,7 +3,9 @@
   "category": "gensokyou:monsters",
   "icon": "gensokyou:ppoint",
   "pages": [
-    { "type": "patchouli:text", "text": "gensokyou.book.entry.monsters_fairies.p1" },
-    { "type": "patchouli:text", "text": "gensokyou.book.entry.monsters_fairies.p2" }
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.monsters_fairies.p1"
+    }
   ]
 }

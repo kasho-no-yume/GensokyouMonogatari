@@ -25,5 +25,10 @@ public final class ModCapabilities {
                 ModBlockEntities.CRYSTAL.get(),
                 (CrystalBlockEntity crystal, net.minecraft.core.Direction side) ->
                         crystal.hasOwner() ? null : crystal.itemHandler());
+        // 聚宝盆全向开放：任意面可抽出、也可插入（用户确认的设计语义）
+        event.registerBlockEntity(Capabilities.ItemHandler.BLOCK,
+                ModBlockEntities.TREASURE_BASIN.get(),
+                (com.bitsson.gensokyou.block.entity.TreasureBasinBlockEntity basin,
+                 net.minecraft.core.Direction side) -> basin.itemHandler());
     }
 }

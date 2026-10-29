@@ -1,0 +1,22 @@
+{
+  "name": "item.gensokyou.treasure_basin",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:treasure_basin",
+  "sortnum": 62,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:treasure_basin",
+      "text": "gensokyou.book.entry.item_treasure_basin.p1"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_treasure_basin"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.item_treasure_basin.p2"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "parent": "gensokyou:block/treasure_basin",
+  "textures": {
+    "inner": "gensokyou:block/treasure_basin_inner_3"
+  }
+}

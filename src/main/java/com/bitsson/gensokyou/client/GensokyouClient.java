@@ -228,5 +228,7 @@ public final class GensokyouClient {
                 com.bitsson.gensokyou.client.screen.SpiritBombScreen::new);
         event.register(ModMenus.LANDSCAPING.get(),
                 com.bitsson.gensokyou.client.screen.LandscapingScreen::new);
+        event.register(ModMenus.TREASURE_BASIN.get(),
+                com.bitsson.gensokyou.client.screen.TreasureBasinScreen::new);
     }
 }

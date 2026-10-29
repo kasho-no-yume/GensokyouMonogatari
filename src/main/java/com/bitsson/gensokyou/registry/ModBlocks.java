@@ -14,6 +14,7 @@ import com.bitsson.gensokyou.block.SpiritSaplingBlock;
 import com.bitsson.gensokyou.block.SpiritSoilBlock;
 import com.bitsson.gensokyou.block.SpiritSoilFarmlandBlock;
 import com.bitsson.gensokyou.block.TieredBlock;
+import com.bitsson.gensokyou.block.TreasureBasinBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.StairBlock;
@@ -123,6 +124,18 @@ public final class ModBlocks {
             BLOCKS.registerBlock("landscaping_tool", LandscapingBlock::new,
                     BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_GREEN)
                             .strength(1.5F, 6F).sound(SoundType.STONE).noOcclusion().noLootTable());
+
+    /**
+     * 聚宝盆：7×7×7 范围内牵引掉落物，9 格容量、满仓即停。
+     *
+     * <p>{@code fill} 四档由容器占用格数派生，驱动盆膛符文贴图与 0~3 微光；
+     * 掉落由掉落表给（本体），内容物由 {@code onRemove → dropContents()} 负责。
+     */
+    public static final DeferredBlock<TreasureBasinBlock> TREASURE_BASIN =
+            BLOCKS.registerBlock("treasure_basin", TreasureBasinBlock::new,
+                    BlockBehaviour.Properties.of().mapColor(MapColor.GOLD)
+                            .strength(2.0F, 6F).sound(SoundType.METAL).noOcclusion()
+                            .lightLevel(state -> state.getValue(TreasureBasinBlock.FILL)));
 
     // ---------------- 幻想乡素材方块（矿产/土产/木材）----------------
     /** 矿产：辰砂 / 灵铁矿 / 星银矿 / 鬼石。 */

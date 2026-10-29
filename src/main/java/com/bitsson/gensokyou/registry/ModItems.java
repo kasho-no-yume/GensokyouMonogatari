@@ -425,6 +425,9 @@ public final class ModItems {
     public static final DeferredItem<com.bitsson.gensokyou.item.SpiritBombItem> SPIRIT_BOMB =
             ITEMS.register("spirit_bomb", () -> new SpiritBombItem(
                     ModBlocks.SPIRIT_BOMB.get(), new Item.Properties()));
+    /** 聚宝盆：可放置方块物品，吸附 7×7×7 范围内的掉落物（9 格容量）。 */
+    public static final DeferredItem<BlockItem> TREASURE_BASIN_ITEM =
+            ITEMS.registerSimpleBlockItem("treasure_basin", ModBlocks.TREASURE_BASIN);
 
     private static List<DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem>> registerSpiritCores() {
         List<DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem>> cores = new ArrayList<>();

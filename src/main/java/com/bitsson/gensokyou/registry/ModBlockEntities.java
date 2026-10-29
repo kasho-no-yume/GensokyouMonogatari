@@ -7,6 +7,7 @@ import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.block.entity.SukimaBlockEntity;
 import com.bitsson.gensokyou.block.entity.SpiritBombBlockEntity;
+import com.bitsson.gensokyou.block.entity.TreasureBasinBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -50,4 +51,9 @@ public final class ModBlockEntities {
             BLOCK_ENTITIES.register("landscaping", () -> new BlockEntityType<>(
                     com.bitsson.gensokyou.block.entity.LandscapingBlockEntity::new,
                     Set.of(ModBlocks.LANDSCAPING.get()), null));
+
+    /** 聚宝盆方块实体：9 格容器 + 7×7×7 掉落物牵引。 */
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TreasureBasinBlockEntity>> TREASURE_BASIN =
+            BLOCK_ENTITIES.register("treasure_basin", () -> new BlockEntityType<>(
+                    TreasureBasinBlockEntity::new, Set.of(ModBlocks.TREASURE_BASIN.get()), null));
 }

@@ -82,6 +82,19 @@
       "result": { "item": "gensokyou:spellcard_star", "count": 1 }
     },
     {
+      "name": "zaohua_treasure_basin",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 0,
+      "spCost": 6000,
+      "ingredients": [
+        { "item": "minecraft:hopper", "count": 2 },
+        { "item": "minecraft:gold_block", "count": 2 },
+        { "item": "gensokyou:spirit_iron", "count": 4 }
+      ],
+      "result": { "item": "gensokyou:treasure_basin", "count": 1 }
+    },
+    {
       "name": "zaohua_spirit_bomb",
       "mode": "activation",
       "match": "max",

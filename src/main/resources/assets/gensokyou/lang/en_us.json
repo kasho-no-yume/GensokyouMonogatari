@@ -174,6 +174,8 @@
   "gensokyou.book.entry.item_landscaping_tool.p2": "It deletes everything inside the box - terrain, trees, even chests - except ritual structure blocks and bedrock, and the dirt floor never replaces bedrock.$(br2)Each activation costs spirit equal to base x length x width x height: a full 32x32x24 box runs about 100,000, after which the device goes on cooldown. Creative mode pays nothing.",
   "gensokyou.book.entry.item_spirit_bomb.p1": "A placeable, reusable detonator. Place it, then right-click to set the fuse (0.1-600 s), power (1-12) and blast radius (1-24).$(br2)Press Arm to begin the countdown; the cost is drawn from your own spirit pool and the bomb refuses to arm when you are short.",
   "gensokyou.book.entry.item_spirit_bomb.p2": "Cost is base x (power/4)^2 x (radius/6) - a full power 12, radius 24 charge runs about 20,000.$(br2)The blast drops every block it destroys, and the detonator itself falls back as an item afterwards, ready to be used again. The countdown keeps running even while you are away.",
+  "gensokyou.book.entry.item_treasure_basin.p1": "A square ding-shaped basin. Every dropped item within a 7x7x7 area around it is drawn in on a slow arc, over the rim and into the belly.$(br2)Nine stacks fit inside; when it is full it simply stops pulling, and resumes on its own once a slot frees up.",
+  "gensokyou.book.entry.item_treasure_basin.p2": "Forged in a tier-0 Zaohua circle out of two hoppers, two blocks of gold and spirit iron: it inherits the hopper's duty but keeps what it gathers.$(br2)Right-click to look inside, or sneak-right-click to pour everything into your pack; whatever does not fit stays in the belly. The runes light up as it fills. Hoppers and pipes may draw from any side; broken apart, the basin and all it holds fall out together.",
   "gensokyou.book.entry.monsters_fairies": "Fairies",
   "gensokyou.book.entry.monsters_fairies.p1": "Fairy grunts hover above you and rain danmaku; defeating one always drops a Memory Fragment.",
   "gensokyou.book.entry.monsters_fairies.p2": "Great fairies are summoned bosses; her fairy nectar is both the token of the mid-grade material band and a material for Rumia's summon and themed spell cards. This book is pieced together from nine memory fragments.",
@@ -1028,5 +1030,8 @@
   "gui.gensokyou.spirit_bomb.short": "Not enough spirit",
   "gui.gensokyou.spirit_bomb.armed": "Armed, counting down",
   "gui.gensokyou.spirit_bomb.gone": "Bomb no longer exists",
-  "gui.gensokyou.spirit_bomb.cost": "Estimated cost: %s"
+  "gui.gensokyou.spirit_bomb.cost": "Estimated cost: %s",
+  "item.gensokyou.treasure_basin": "Treasure Basin",
+  "block.gensokyou.treasure_basin": "Treasure Basin",
+  "container.gensokyou.treasure_basin": "Treasure Basin"
 }

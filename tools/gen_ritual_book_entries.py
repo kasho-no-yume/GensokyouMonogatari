@@ -440,13 +440,27 @@ def build_item_entries():
 
 def main():
     args = sys.argv[1:]
+    only = None
+    if "--only" in args:
+        index = args.index("--only")
+        if index + 1 >= len(args):
+            raise SystemExit("--only 需要一个仪式 path（如 barrier_break_circle）")
+        only = args[index + 1]
+        del args[index:index + 2]
     unknown = [arg for arg in args if arg != "--items-only"]
     if unknown:
         raise SystemExit(f"unknown arguments: {' '.join(unknown)}")
+    if only is not None:
+        known = {path for path, _icon, _nr in ENTRIES}
+        if only not in known:
+            raise SystemExit(f"--only 不认识 {only}；可选：{', '.join(sorted(known))}")
     if "--items-only" not in args:
         for sortnum, (path, icon, no_recipes) in enumerate(ENTRIES, start=1):
+            if only is not None and path != only:
+                continue
             build_entry(path, icon, no_recipes, sortnum)
-    build_item_entries()
+    if only is None:
+        build_item_entries()
     if MISSING_TEXT:
         # 缺键 = 故事页被整条抹掉（条目直接从结构页开始，读者看不到任何来历）。
         # 必须失败，别让缺陷静默溜过去。

@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "fill=0": { "model": "gensokyou:block/treasure_basin" },
+    "fill=1": { "model": "gensokyou:block/treasure_basin_fill1" },
+    "fill=2": { "model": "gensokyou:block/treasure_basin_fill2" },
+    "fill=3": { "model": "gensokyou:block/treasure_basin_fill3" }
+  }
+}

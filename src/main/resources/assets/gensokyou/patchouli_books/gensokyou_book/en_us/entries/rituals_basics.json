@@ -9,10 +9,6 @@
       "text": "gensokyou.book.entry.rituals_basics.p1"
     },
     {
-      "type": "patchouli:text",
-      "text": "gensokyou.book.entry.rituals_basics.p2"
-    },
-    {
       "type": "patchouli:spotlight",
       "item": "gensokyou:ritual_builder",
       "text": "gensokyou.book.entry.rituals_basics.builder"
