@@ -13,14 +13,6 @@
       "text": "gensokyou.book.entry.ritual.barrier_break_circle.p2"
     },
     {
-      "type": "patchouli:text",
-      "text": "gensokyou.book.entry.ritual.barrier_break_circle.p3"
-    },
-    {
-      "type": "patchouli:text",
-      "text": "gensokyou.book.entry.ritual.barrier_break_circle.p4"
-    },
-    {
       "type": "patchouli:multiblock",
       "name": "gensokyou.book.ritual.structure.2",
       "multiblock": {

@@ -1861,12 +1861,35 @@ async function saveAll(){
     pending = {lang:{}, entries:{}};
     deletedKeys = new Set();
     await reload(true);
-    if(skipped.length){
-      toast(`正文已保存；${skipped.length} 个生成器条目的结构改动没有直接写回（${skipped.join("、")}）。`
-        + `点「重跑生成器」，由脚本按新的 p1…pN 产出页面。`, 7000);
-    } else {
-      toast("已保存");
+    if(!skipped.length){ toast("已保存"); return; }
+
+    // 生成器条目的页结构只能由生成器产出：正文存完后主动问要不要立刻重跑
+    const rituals = skipped.filter(f=>f.startsWith("ritual_")).map(f=>f.slice(7,-5));
+    const rest = skipped.filter(f=>!f.startsWith("ritual_"));
+    let note = "";
+    if(rituals.length){
+      const go = confirm(`正文已保存。\n${rituals.length} 个生成器条目的页结构还没跟上新正文（${rituals.join("、")}）。\n\n现在重跑生成器？`);
+      if(go){
+        try{
+          for(const name of rituals){
+            const r = await fetch("/api/regenerate",{method:"POST",
+              headers:{"Content-Type":"application/json"},
+              body:JSON.stringify({only:name})}).then(r=>r.json());
+            if(!r.ok) throw new Error((r.output||"").trim().split(/\r?\n/).slice(-3).join(" / "));
+          }
+          await reload(true);
+          note = `已保存，并按新正文重排了 ${rituals.length} 个仪式条目`;
+        }catch(err){
+          note = "正文已保存，但重跑生成器失败：" + err.message;
+        }
+      }else{
+        note = "正文已保存；页结构未更新（可点顶部「重跑生成器」补上）";
+      }
+    }else{
+      note = `正文已保存；${skipped.length} 个生成条目的结构未写回`;
     }
+    if(rest.length) note += `；另有 ${rest.length} 个非仪式生成条目需手动处理：${rest.join("、")}`;
+    toast(note, 7000);
   }catch(err){ toast(err.message, 4000); markDirty(); }
 }
 async function reload(silent){
