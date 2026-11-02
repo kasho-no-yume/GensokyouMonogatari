@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "owner": "rumia",
+  "index": 2,
+  "card": "spellcard.gensokyou.rumia.2",
+  "cycleTicks": 240,
+  "ticks": 602,
+  "stride": 2,
+  "scene": {"dimension": "preview:arena", "boss": [0.000,80.000,0.000], "stub": [0.000,64.000,10.000], "stubEyes": [0.000,65.620,10.000], "groundTop": 64.000, "fov": 70, "ticksPerSecond": 20},
+  "renderer": {"bullet": "gensokyou:textures/entity/sphere_danmaku_glow.png", "warning": "gensokyou:textures/entity/sphere_danmaku_lod.png", "laser": "gensokyou:textures/entity/laser_danmaku.png", "cap": "gensokyou:textures/entity/laser_cap.png", "circle": "gensokyou:textures/entity/laser_magic_circle.png"},
+  "styles": [
+    {"mesh": "quad", "tint": "#9C7BFF", "radius": 0.400, "scale": 1.000, "texture": "gensokyou:textures/entity/sphere_danmaku_glow.png", "tumbleAmp": 0.000, "tumblePeriod": 0}
+  ],
+  "members": [
+    {"g": 1, "b": 0, "i": 0, "born": 1, "life": 120, "style": 0, "laser": false, "s": [[1,0.000,81.000,0.000,1.000,1.000,1.000],[21,0.000,77.982,1.962,1.000,1.000,1.000],[41,0.000,74.964,3.925,1.000,1.000,1.000],[61,0.000,71.946,5.887,1.000,1.000,1.000],[81,0.000,68.927,7.849,1.000,1.000,1.000],[101,0.000,65.909,9.812,1.000,1.000,1.000],[119,0.000,63.193,11.578,1.000,1.000,1.000]]},
+    {"g": 2, "b": 0, "i": 0, "born": 241, "life": 120, "style": 0, "laser": false, "s": [[241,0.000,81.000,0.000,1.000,1.000,1.000],[261,0.000,77.982,1.962,1.000,1.000,1.000],[281,0.000,74.964,3.925,1.000,1.000,1.000],[301,0.000,71.946,5.887,1.000,1.000,1.000],[321,0.000,68.927,7.849,1.000,1.000,1.000],[341,0.000,65.909,9.812,1.000,1.000,1.000],[359,0.000,63.193,11.578,1.000,1.000,1.000]]},
+    {"g": 3, "b": 0, "i": 0, "born": 481, "life": 120, "style": 0, "laser": false, "s": [[481,0.000,81.000,0.000,1.000,1.000,1.000],[501,0.000,77.982,1.962,1.000,1.000,1.000],[521,0.000,74.964,3.925,1.000,1.000,1.000],[541,0.000,71.946,5.887,1.000,1.000,1.000],[561,0.000,68.927,7.849,1.000,1.000,1.000],[581,0.000,65.909,9.812,1.000,1.000,1.000],[599,0.000,63.193,11.578,1.000,1.000,1.000]]}
+  ],
+  "warnings": [],
+  "billboards": [],
+  "guides": [],
+  "events": []
+}

@@ -1,0 +1,23 @@
+{
+  "cards": [
+    {"owner": "big_fairy", "index": 1, "card": "spellcard.gensokyou.big_fairy.1", "ticks": 882, "members": 363, "samples": 4194, "bytes": 223660, "file": "big_fairy_1.json"},
+    {"owner": "big_fairy", "index": 2, "card": "spellcard.gensokyou.big_fairy.2", "ticks": 882, "members": 2944, "samples": 59984, "bytes": 2944767, "file": "big_fairy_2.json"},
+    {"owner": "big_fairy", "index": 3, "card": "spellcard.gensokyou.big_fairy.3", "ticks": 802, "members": 1023, "samples": 15876, "bytes": 831494, "file": "big_fairy_3.json"},
+    {"owner": "yamame", "index": 1, "card": "spellcard.gensokyou.yamame.1", "ticks": 802, "members": 5769, "samples": 88956, "bytes": 4575677, "file": "yamame_1.json"},
+    {"owner": "yamame", "index": 2, "card": "spellcard.gensokyou.yamame.2", "ticks": 922, "members": 584, "samples": 19671, "bytes": 932146, "file": "yamame_2.json"},
+    {"owner": "yamame", "index": 3, "card": "spellcard.gensokyou.yamame.3", "ticks": 922, "members": 7861, "samples": 127069, "bytes": 6502508, "file": "yamame_3.json"},
+    {"owner": "yamame", "index": 4, "card": "spellcard.gensokyou.yamame.4", "ticks": 922, "members": 798, "samples": 33335, "bytes": 1563750, "file": "yamame_4.json"},
+    {"owner": "yakumo_ran", "index": 1, "card": "spellcard.gensokyou.yakumo_ran.1", "ticks": 602, "members": 288, "samples": 1746, "bytes": 108545, "file": "yakumo_ran_1.json"},
+    {"owner": "yakumo_ran", "index": 2, "card": "spellcard.gensokyou.yakumo_ran.2", "ticks": 602, "members": 396, "samples": 2286, "bytes": 141547, "file": "yakumo_ran_2.json"},
+    {"owner": "yakumo_ran", "index": 3, "card": "spellcard.gensokyou.yakumo_ran.3", "ticks": 602, "members": 330, "samples": 1986, "bytes": 124717, "file": "yakumo_ran_3.json"},
+    {"owner": "yakumo_ran", "index": 4, "card": "spellcard.gensokyou.yakumo_ran.4", "ticks": 552, "members": 155, "samples": 675, "bytes": 48432, "file": "yakumo_ran_4.json"},
+    {"owner": "yakumo_ran", "index": 5, "card": "spellcard.gensokyou.yakumo_ran.5", "ticks": 602, "members": 288, "samples": 4086, "bytes": 207819, "file": "yakumo_ran_5.json"},
+    {"owner": "yakumo_ran", "index": 6, "card": "spellcard.gensokyou.yakumo_ran.6", "ticks": 602, "members": 288, "samples": 2220, "bytes": 198721, "file": "yakumo_ran_6.json"},
+    {"owner": "yakumo_ran", "index": 7, "card": "spellcard.gensokyou.yakumo_ran.7", "ticks": 602, "members": 411, "samples": 2355, "bytes": 146830, "file": "yakumo_ran_7.json"},
+    {"owner": "yakumo_ran", "index": 8, "card": "spellcard.gensokyou.yakumo_ran.8", "ticks": 602, "members": 456, "samples": 2670, "bytes": 166731, "file": "yakumo_ran_8.json"},
+    {"owner": "rumia", "index": 1, "card": "spellcard.gensokyou.rumia.1", "ticks": 602, "members": 3, "samples": 21, "bytes": 2106, "file": "rumia_1.json"},
+    {"owner": "rumia", "index": 2, "card": "spellcard.gensokyou.rumia.2", "ticks": 602, "members": 3, "samples": 21, "bytes": 2106, "file": "rumia_2.json"},
+    {"owner": "rumia", "index": 3, "card": "spellcard.gensokyou.rumia.3", "ticks": 602, "members": 3, "samples": 21, "bytes": 2106, "file": "rumia_3.json"},
+    {"owner": "rumia", "index": 4, "card": "spellcard.gensokyou.rumia.4", "ticks": 602, "members": 3, "samples": 21, "bytes": 2106, "file": "rumia_4.json"}
+  ]
+}

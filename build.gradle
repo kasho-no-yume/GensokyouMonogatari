@@ -293,6 +293,39 @@ tasks.named('check') {
     dependsOn 'verifyNoTestContent'
 }
 
+// 符卡预览导出（openspec: add-danmaku-preview-site）。
+// 跑在 test classpath 上：导出器只在 src/test，永不进 jar；这条链不需要 Minecraft，
+// 但它消费的正是客户端渲染投影，所以必须跑真实 runtime 与真实 wire/replica。
+// 产物 preview/data/*.json 是入库基准；`checkDanmakuPreview` 只比对不写盘。
+// 单卡重导：--project-prop preview.only=big_fairy:3（用长选项，PowerShell 会吃掉 -P 前缀）。
+def previewOnly = providers.gradleProperty('preview.only')
+def previewStride = providers.gradleProperty('preview.stride')
+def previewNoStub = providers.gradleProperty('preview.noStub')
+
+tasks.register('exportDanmakuPreview', JavaExec) {
+    group = 'gensokyou'
+    description = 'Bake formal spellcard render projections into preview/data (committed baseline).'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.bitsson.gensokyou.danmaku.program.preview.PreviewExport'
+    workingDir = projectDir
+    if (previewOnly.present) args '--only', previewOnly.get()
+    if (previewStride.present) args '--stride', previewStride.get()
+    if (previewNoStub.present) args '--no-stub'
+}
+
+tasks.register('checkDanmakuPreview', JavaExec) {
+    group = 'gensokyou'
+    description = 'Fail when the committed preview baseline no longer matches the content code.'
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.bitsson.gensokyou.danmaku.program.preview.PreviewExport'
+    workingDir = projectDir
+    args '--check'
+    if (previewOnly.present) args '--only', previewOnly.get()
+    if (previewStride.present) args '--stride', previewStride.get()
+}
+
 // IDEA no longer automatically downloads sources/javadoc jars for dependencies, so we need to explicitly enable the behavior.
 idea {
     module {
