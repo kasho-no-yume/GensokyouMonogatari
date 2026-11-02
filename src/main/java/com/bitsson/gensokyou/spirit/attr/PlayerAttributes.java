@@ -31,7 +31,17 @@ public final class PlayerAttributes {
     }
 
     private static float finalValue(ServerPlayer player, AttributeKey key, PlayerAttributesData data) {
-        return AttributeMath.finalFrom(key.baseValue(player), data.totalContribution(key.id()), key.cap());
+        int tier = com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player);
+        double contribution = data.totalContribution(key.id());
+        if (key == AttributeKey.SPIRIT_POWER && tier > 0) {
+            // Only extra sources are capped; saved innate ledger remains the single truth.
+            contribution = Math.min(contribution, com.bitsson.gensokyou.balance.BuildNumbers
+                    .cap("spirit_power", tier));
+        }
+        double lower = com.bitsson.gensokyou.balance.BuildNumbers.attributeLower(key.id(), tier);
+        double upper = com.bitsson.gensokyou.balance.BuildNumbers.attributeUpper(key.id(), tier, key.cap());
+        return (float) com.bitsson.gensokyou.balance.BuildAttributeBounds
+                .resolve(key.baseValue(player), contribution, 0D, lower, upper).effective();
     }
 
     public static Breakdown breakdown(ServerPlayer player, AttributeKey key) {
@@ -39,9 +49,13 @@ public final class PlayerAttributes {
         double base = key.baseValue(player);
         float perm = sum(data.permanent().get(key.id()));
         float tmp = sum(data.temp().get(key.id()));
-        double cap = key.cap();
+        int tier = com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player);
+        double cap = com.bitsson.gensokyou.balance.BuildNumbers.attributeUpper(key.id(), tier, key.cap());
+        if (key == AttributeKey.SPIRIT_POWER && tier > 0) {
+            cap = base + com.bitsson.gensokyou.balance.BuildNumbers.cap("spirit_power", tier);
+        }
         float effective = finalValue(player, key, data);
-        boolean capped = cap >= 0D && base + perm + tmp > cap;
+        boolean capped = Math.abs(base + perm + tmp - effective) > 1e-6D;
         return new Breakdown(key, base, perm, tmp, cap, effective, capped);
     }
 
@@ -109,7 +123,7 @@ public final class PlayerAttributes {
         var it = temp.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<String, Map<String, Float>> e = it.next();
-            e.getValue().keySet().removeIf(id -> id.startsWith(prefix));
+            if (e.getValue().keySet().removeIf(id -> id.startsWith(prefix))) changed = true;
             if (e.getValue().isEmpty()) {
                 it.remove();
                 changed = true;
@@ -191,14 +205,17 @@ public final class PlayerAttributes {
                                  float extraChance, float extraDamage) {
         float chance = AttributeMath.clampPercent(
                 finalValue(player, AttributeKey.CRIT_CHANCE) + Math.max(0F, extraChance));
-        double chanceCap = AttributeKey.CRIT_CHANCE.cap();
+        int tier = com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player);
+        double chanceCap = tier > 0 ? com.bitsson.gensokyou.balance.BuildNumbers.cap("crit_chance", tier) : 0D;
         if (chanceCap >= 0D) {
             chance = (float) Math.min(chance, chanceCap);
         }
         if (random.nextFloat() >= chance) {
             return 1F;
         }
-        return Math.max(0F, 1F + finalValue(player, AttributeKey.CRIT_DAMAGE) + Math.max(0F, extraDamage));
+        double bonus = finalValue(player, AttributeKey.CRIT_DAMAGE) + Math.max(0F, extraDamage);
+        if (tier > 0) bonus = Math.min(bonus, com.bitsson.gensokyou.balance.BuildNumbers.cap("crit_damage", tier));
+        return (float) Math.max(0D, 1D + bonus);
     }
 
     // ---- D3 原版属性桥（幂等重算，非累加） ----

@@ -23,6 +23,40 @@ import java.util.Set;
  */
 public final class WeaponFiring {
 
+    private static final java.util.Map<ServerPlayer, HeldState> HELD = new java.util.WeakHashMap<>();
+
+    private record HeldState(ItemStack weapon, long tick, double credit) { }
+
+    /** Held-use tick, once per player and game tick; idle time never banks a burst. */
+    public static void tickHeld(ServerPlayer player, ItemStack weapon) {
+        long now = player.level().getGameTime();
+        HeldState previous = HELD.get(player);
+        if (previous != null && previous.tick() == now) return;
+        WeaponSlots slots = WeaponSlotsHelper.read(weapon);
+        if (!(slots.slot1().getItem() instanceof BulletCoreItem core)) return;
+        double carry = previous != null && previous.tick() == now - 1 && previous.weapon() == weapon
+                ? previous.credit() : 0D;
+        var runes = RuneSummary.of(slots.slot3().getOrDefault(ModDataComponents.RUNE_AFFIXES.get(), List.of()));
+        int tier = com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player);
+        if (tier <= 0) return;
+        double speed = Math.min(com.bitsson.gensokyou.balance.BuildNumbers.cap("attack_rate_pct", tier),
+                effectiveSpeed(slots.slot3(), runes.attackRatePct()));
+        var step = com.bitsson.gensokyou.balance.WeaponFrequencyMath.tick(carry,
+                core.stats().attackRateTicks().getAsInt(), speed, true);
+        HELD.put(player, new HeldState(weapon, now, step.credit()));
+        for (int i = 0; i < step.triggers(); i++) firePermitted(player, weapon, false);
+    }
+
+    public static void stopHeld(ServerPlayer player) {
+        HELD.remove(player);
+    }
+
+    private static double effectiveSpeed(ItemStack amp, float value) {
+        return amp.getOrDefault(ModDataComponents.RUNE_VALUE_VERSION.get(), 0) >= 1
+                ? Math.max(0D, value)
+                : com.bitsson.gensokyou.balance.SpellAttributeMath.legacyIntervalReductionToSpeed(value);
+    }
+
     private WeaponFiring() {
     }
 
@@ -30,6 +64,10 @@ public final class WeaponFiring {
         if (player.getCooldowns().isOnCooldown(weapon.getItem())) {
             return;
         }
+        firePermitted(player, weapon, true);
+    }
+
+    private static void firePermitted(ServerPlayer player, ItemStack weapon, boolean initial) {
         // 凡人零灵力统一拦截（superhuman-temper）：0 阶不可使用弹幕主武器
         if (!com.bitsson.gensokyou.spirit.grace.GraceService.requireGrace(player)) {
             return;
@@ -43,14 +81,20 @@ public final class WeaponFiring {
                         slots.slot3().getOrDefault(ModDataComponents.RUNE_AFFIXES.get(), List.of()))
                 .weapon();
 
-        int cost = Math.max(0, Math.round(stats.spiritCost().getAsInt() * (1F + runes.spiritCostPct())));
-        var power = ModAttachments.get(player);
-        if (power.current() < cost) {
+        int tier = com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player);
+        double payload = stats.coreBaseMult().get() * (core.pattern().isLaser()
+                ? Math.max(1D, Math.floor(core.pattern().laserDurationSeconds().getAsDouble() * 20D
+                        / CoreMath.LASER_PULSE_TICKS))
+                : Math.max(1, core.pattern().count().getAsInt()));
+        double baseCost = com.bitsson.gensokyou.balance.BuildNumbers.sphereCost(tier) * payload / 2D;
+        double reduction = Math.min(com.bitsson.gensokyou.balance.BuildNumbers.cap("spirit_cost_pct", tier),
+                Math.max(0D, -runes.spiritCostPct()));
+        double cost = baseCost * (1D - reduction);
+        if (!com.bitsson.gensokyou.spirit.SpiritPayments.pay(player, cost)) {
             player.displayClientMessage(
                     Component.translatable("msg.gensokyou.weapon_no_sp", cost), true);
             return;
         }
-        ModAttachments.set(player, power.withCurrent(power.current() - cost));
 
         // 暴击：发射时服务端 roll 一次，系数烘入伤害（命中不重 roll），并随弹 NBT 持久化。
         // 暴击率/暴伤已迁到玩家属性域（核的 crit_chance / crit_damage 走 contribution 加区），
@@ -61,13 +105,20 @@ public final class WeaponFiring {
         float finalDamage = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.spiritPower(player)
                 * stats.coreBaseMult().get()
                 * WeaponSlotsHelper.weaponLevelMult(weapon)
-                * (1F + runes.damagePct())
+                * (1F + (float) Math.min(com.bitsson.gensokyou.balance.BuildNumbers.cap("damage_pct", tier),
+                        Math.max(0F, runes.damagePct())))
                 * critMult;
 
-        int rate = Math.max(1, Math.round(stats.attackRateTicks().getAsInt()
-                * (1F - Math.min(0.8F, Math.max(0F, runes.attackRatePct())))));
         fire(player, core.pattern(), finalDamage, critMult, runes.rangeMultiplier());
-        player.getCooldowns().addCooldown(weapon.getItem(), rate);
+        // Held-use scheduling owns frequency. A short re-click gate prevents click spam
+        // from bypassing the fractional schedule without suppressing permitted held shots.
+        if (initial) {
+            double speed = Math.min(com.bitsson.gensokyou.balance.BuildNumbers.cap("attack_rate_pct", tier),
+                    effectiveSpeed(slots.slot3(), runes.attackRatePct()));
+            int rate = Math.max(1, (int) Math.ceil(stats.attackRateTicks().getAsInt() / (1D + speed)));
+            player.getCooldowns().addCooldown(weapon.getItem(), rate);
+            HELD.put(player, new HeldState(weapon, player.level().getGameTime(), 0D));
+        }
     }
 
     /**

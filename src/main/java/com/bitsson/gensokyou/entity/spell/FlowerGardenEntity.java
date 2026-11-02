@@ -41,7 +41,9 @@ public class FlowerGardenEntity extends AbstractSpellFieldEntity {
 
     @Override
     protected void serverTick(ServerLevel level) {
-        if (intervalTicks <= 0 || tickCount % intervalTicks != 0) {
+        // World-clock alignment is required for strongest-field selection: different
+        // spawn phases must not suppress one another on ticks when the winner is idle.
+        if (intervalTicks <= 0 || level.getGameTime() % intervalTicks != 0) {
             return;
         }
         double amount = healPerSecond * intervalTicks / 20.0D;
@@ -53,7 +55,18 @@ public class FlowerGardenEntity extends AbstractSpellFieldEntity {
         List<Player> players = level.getEntitiesOfClass(Player.class, box,
                 p -> p.isAlive() && p.distanceToSqr(this) <= (double) r * r);
         for (Player player : players) {
-            player.heal((float) amount);
+            // One deterministic winner per target/tick, including different casters.
+            // Compare all live overlapping fields rather than letting traversal order decide.
+            boolean stronger = !level.getEntitiesOfClass(FlowerGardenEntity.class,
+                    player.getBoundingBox().inflate(32D), other -> other != this && !other.isRemoved()
+                            && other.remainingTicks() > 0
+                            && other.intervalTicks > 0
+                            && level.getGameTime() % other.intervalTicks == 0
+                            && player.distanceToSqr(other) <= (double) other.radius() * other.radius()
+                            && (other.healPerSecond > this.healPerSecond
+                            || (other.healPerSecond == this.healPerSecond && other.getId() < getId())))
+                    .isEmpty();
+            if (!stronger) player.heal((float) amount);
         }
     }
 

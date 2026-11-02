@@ -30,7 +30,29 @@ public class DanmakuWeaponItem extends Item {
         if (!level.isClientSide && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
             WeaponFiring.tryFire(serverPlayer, stack);
         }
+        player.startUsingItem(hand);
         return InteractionResultHolder.consume(stack);
+    }
+
+    @Override
+    public int getUseDuration(ItemStack stack, net.minecraft.world.entity.LivingEntity entity) {
+        return 72000;
+    }
+
+    @Override
+    public void onUseTick(Level level, net.minecraft.world.entity.LivingEntity entity,
+                          ItemStack stack, int remainingUseDuration) {
+        if (entity instanceof net.minecraft.server.level.ServerPlayer player) {
+            WeaponFiring.tickHeld(player, stack);
+        }
+    }
+
+    @Override
+    public void releaseUsing(ItemStack stack, Level level,
+                             net.minecraft.world.entity.LivingEntity entity, int remaining) {
+        if (entity instanceof net.minecraft.server.level.ServerPlayer player) {
+            WeaponFiring.stopHeld(player);
+        }
     }
 
     /**

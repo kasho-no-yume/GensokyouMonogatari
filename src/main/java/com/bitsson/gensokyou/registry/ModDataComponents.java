@@ -49,6 +49,13 @@ public final class ModDataComponents {
                     .networkSynchronized(ByteBufCodecs.VAR_INT)
                     .build());
 
+    /** Missing/zero means legacy interval-reduction values; one means frequency bonuses. */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> RUNE_VALUE_VERSION =
+            DATA_COMPONENTS.register("rune_value_version", () -> DataComponentType.<Integer>builder()
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .build());
+
     /** 仪式构建器当前选择（图案 id + 品阶），随物品持久化并同步客户端。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<BuilderSelection>> RITUAL_BUILDER_SELECTION =
             DATA_COMPONENTS.register("ritual_builder_selection", () -> DataComponentType.<BuilderSelection>builder()

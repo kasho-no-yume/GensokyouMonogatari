@@ -22,7 +22,7 @@ public enum AttributeKey {
             p -> ModAttachments.get(p).max(), () -> -1D),
     SPIRIT_REGEN_RATE("spirit_regen_rate", false, true,
             p -> BalanceNumbers.BASE_REGEN_PER_SECOND, () -> -1D),
-    SPIRIT_POWER("spirit_power", false, true,
+    SPIRIT_POWER("spirit_power", true, true,
             p -> ModAttachments.get(p).spiritDamage(), () -> -1D),
     HEALTH_BONUS("health_bonus", true, true,
             p -> BalanceNumbers.ATTR_BASE_HEALTH_BONUS,
@@ -47,7 +47,7 @@ public enum AttributeKey {
 
     // ---- 输出 ----
     CRIT_CHANCE("crit_chance", false, false,
-            p -> BalanceNumbers.ATTR_BASE_CRIT_CHANCE,
+            p -> 0D,
             () -> BalanceNumbers.ATTR_CRIT_CHANCE_CAP),
     CRIT_DAMAGE("crit_damage", false, false,
             p -> BalanceNumbers.ATTR_BASE_CRIT_DAMAGE,
@@ -55,6 +55,10 @@ public enum AttributeKey {
     SPELL_AMP("spell_amp", false, true,
             p -> BalanceNumbers.ATTR_BASE_SPELL_AMP,
             () -> BalanceNumbers.ATTR_SPELL_AMP_CAP),
+    SPELL_DAMAGE_AMP("spell_damage_amp", false, false, p -> 0D, () -> 5D),
+    SPELL_HEAL_AMP("spell_heal_amp", false, false, p -> 0D, () -> .5D),
+    SPELL_DURATION("spell_duration", false, false, p -> 0D, () -> 3D),
+    SPELL_COST_REDUCTION("spell_cost_reduction", false, false, p -> 0D, () -> .75D),
 
     // ---- 技能 / 续航 ----
     SPELL_CDR("spell_cdr", false, false,

@@ -12,6 +12,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
 import java.util.EnumMap;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +67,7 @@ public final class GraceService {
                 .withLedgerTier(newTier, roll.maxGain(), roll.powerGain())
                 .withTemper(newTier));
         applyContributions(player, roll);
+        player.setData(ModAttachments.BUILD_VALUE_VERSION.get(), 1);
         GraceFlight.applyPermission(player);
         if (newTier >= 1) {
             com.bitsson.gensokyou.event.AchievementAwards.award(player, "divine_grace");
@@ -131,14 +133,16 @@ public final class GraceService {
     public static void onLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             migrateIfNeeded(player);
+            player.setData(ModAttachments.BUILD_VALUE_VERSION.get(), 1);
+            PlayerAttributes.refreshBridged(player);
             GraceFlight.applyPermission(player);
         }
     }
 
     /**
-     * 旧档一次性迁移（PlayerEvent.Load）：
-     * 凡人（tier 0）池清零；缺台账（旧线性淬炼调试档）或**旧表量级**（balance v1 前的百分比/
-     * 小池表）按新表逐阶重 roll 覆盖——整组替换顺带清掉已退役的 danmaku_resist 贡献。
+     * Legacy compatibility: never reroll existing player attributes on login.
+     * A missing ledger is reconstructed deterministically from the saved pool totals;
+     * existing ledgers (including small, old-scale totals) are left untouched.
      */
     public static void migrateIfNeeded(ServerPlayer player) {
         SpiritPowerData data = ModAttachments.get(player);
@@ -149,21 +153,19 @@ public final class GraceService {
             }
             return;
         }
-        boolean emptyLedger = data.graceLedger().isEmpty();
-        // 旧表 1 阶 max_spirit ≈ [170,230]；新表 ≈ [800,1200]：量级差足够安全地区分版本。
-        boolean legacyScale = data.hasLedgerTier(1) && data.ledgerMaxGain(1) < LEGACY_MAX_SPIRIT_T1_THRESHOLD;
-        if (!emptyLedger && !legacyScale) {
-            return; // 已是新表
+        if (!data.graceLedger().isEmpty()) {
+            return;
         }
-        SpiritPowerData next = data;
-        for (int tier = 1; tier <= Math.min(SpiritPowerData.MAX_TIER, data.temperLevel()); tier++) {
-            GraceNumbers.GraceRoll roll = GraceNumbers.rollTier(tier, player.getRandom());
-            next = next.withLedgerTier(tier, roll.maxGain(), roll.powerGain());
-            applyContributions(player, roll);
+        int top = Math.min(SpiritPowerData.MAX_TIER, data.temperLevel());
+        List<Double> maxWeights = new ArrayList<>();
+        List<Double> powerWeights = new ArrayList<>();
+        for (int tier = 1; tier <= top; tier++) {
+            GraceNumbers.Entry max = GraceNumbers.entry(tier, AttributeKey.MAX_SPIRIT);
+            GraceNumbers.Entry power = GraceNumbers.entry(tier, AttributeKey.SPIRIT_POWER);
+            maxWeights.add(max == null ? 1D : max.base());
+            powerWeights.add(power == null ? 1D : power.base());
         }
-        ModAttachments.set(player, next.withTemper(data.temperLevel()));
+        ModAttachments.set(player, com.bitsson.gensokyou.balance.GraceLedgerMigrationMath
+                .reconstruct(data, maxWeights, powerWeights));
     }
-
-    /** 旧表 1 阶 max_spirit 上界（230）与新表下界（800）之间的判别阈值。 */
-    private static final float LEGACY_MAX_SPIRIT_T1_THRESHOLD = 500F;
 }

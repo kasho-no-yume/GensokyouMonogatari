@@ -39,7 +39,16 @@ public final class GraceNumbers {
 
     /** 查某阶某键表项（config 表；配置缺项回退内置默认）；未配置返回 null。 */
     public static Entry entry(int tier, AttributeKey key) {
-        return entry(effectiveRows(), tier, key);
+        Entry legacy = entry(effectiveRows(), tier, key);
+        if (tier < 1 || tier > 5 || key == AttributeKey.MAX_SPIRIT || key == AttributeKey.SPIRIT_POWER) {
+            return legacy;
+        }
+        double current = com.bitsson.gensokyou.balance.BuildNumbers.standardAttribute(
+                key.id(), tier, Double.NaN);
+        if (Double.isNaN(current)) return legacy;
+        double previous = tier == 1 ? (key == AttributeKey.CRIT_DAMAGE ? .5D : 0D)
+                : com.bitsson.gensokyou.balance.BuildNumbers.standardAttribute(key.id(), tier - 1, 0D);
+        return new Entry(Math.max(0D, current - previous), 0D);
     }
 
     /**
@@ -80,20 +89,56 @@ public final class GraceNumbers {
 
     /** 按阶级 roll 全部表内键（config 表；配置缺项回退内置默认）。 */
     public static GraceRoll rollTier(int tier, RandomSource random) {
-        return rollTier(effectiveRows(), tier, random);
+        return rollTier(effectiveRows(), tier, random, true);
     }
 
     /** 按阶级 roll 全部表内键（注入行表，可单测）：池两键记入 gain 字段，其余进 contributions map。 */
     public static GraceRoll rollTier(List<? extends String> rows, int tier, RandomSource random) {
+        return rollTier(rows, tier, random, false);
+    }
+
+    private static GraceRoll rollTier(List<? extends String> rows, int tier, RandomSource random,
+                                      boolean buildDistribution) {
         Map<AttributeKey, Float> contributions = new EnumMap<>(AttributeKey.class);
         float maxGain = 0F;
         float powerGain = 0F;
         for (AttributeKey key : AttributeKey.values()) {
             Entry entry = entry(rows, tier, key);
-            if (entry == null) {
+            boolean newKey = key == AttributeKey.SPELL_DAMAGE_AMP || key == AttributeKey.SPELL_HEAL_AMP
+                    || key == AttributeKey.SPELL_DURATION || key == AttributeKey.SPELL_COST_REDUCTION;
+            if (entry == null && !(buildDistribution && newKey)) {
                 continue;
             }
-            float value = rolled(entry, random);
+            float value = entry == null ? 0F : rolled(entry, random);
+            if (key == AttributeKey.HEALTH_BONUS || key == AttributeKey.DANMAKU_REDUCE
+                    || key == AttributeKey.SPIRIT_REGEN_RATE || key == AttributeKey.CRIT_CHANCE
+                    || key == AttributeKey.CRIT_DAMAGE || key == AttributeKey.SPELL_CDR
+                    || key == AttributeKey.SPELL_AMP || key == AttributeKey.SPELL_DAMAGE_AMP
+                    || key == AttributeKey.SPELL_HEAL_AMP || key == AttributeKey.SPELL_DURATION
+                    || key == AttributeKey.SPELL_COST_REDUCTION) {
+                if (buildDistribution) {
+                    value = key == AttributeKey.SPELL_AMP ? 0F : (float)
+                            com.bitsson.gensokyou.balance.BuildNumbers.innateIncrement(
+                                    key.id(), tier, random.nextDouble());
+                }
+            }
+            if (buildDistribution && entry != null && (key == AttributeKey.MOVE_SPEED_BONUS
+                    || key == AttributeKey.GRAZE_CHANCE || key == AttributeKey.TENACITY
+                    || key == AttributeKey.BUFF_EXTEND || key == AttributeKey.JUMP
+                    || key == AttributeKey.PHYS_RESIST || key == AttributeKey.MELEE_DAMAGE
+                    || key == AttributeKey.SPIRIT_LEECH_RATE)) {
+                double cumulative = 0D;
+                double previous = 0D;
+                for (int t = 1; t <= tier; t++) {
+                    Entry old = entry(rows, t, key);
+                    if (old != null) cumulative += old.base();
+                    if (t < tier) previous = cumulative;
+                }
+                double max = com.bitsson.gensokyou.balance.BuildNumbers.utilityInnateMaximum(key.id(), tier, cumulative);
+                double oldMax = tier == 1 ? 0D : com.bitsson.gensokyou.balance.BuildNumbers
+                        .utilityInnateMaximum(key.id(), tier - 1, previous);
+                value = (float) (Math.max(0D, max - oldMax) * (.8D + .2D * random.nextDouble()));
+            }
             switch (key) {
                 case MAX_SPIRIT -> maxGain = value;
                 case SPIRIT_POWER -> powerGain = value;

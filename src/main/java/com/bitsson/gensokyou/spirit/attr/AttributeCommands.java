@@ -46,9 +46,13 @@ public final class AttributeCommands {
     private static int show(ServerPlayer player) {
         for (AttributeKey key : AttributeKey.values()) {
             PlayerAttributes.Breakdown b = PlayerAttributes.breakdown(player, key);
-            String capPart = key.cap() >= 0D
-                    ? String.format(Locale.ROOT, " cap=%.2f%s", key.cap(), b.capped() ? "(!)" : "")
+            String capPart = b.cap() >= 0D
+                    ? String.format(Locale.ROOT, " cap=%.2f%s", b.cap(), b.capped() ? "(!)" : "")
                     : "";
+            capPart += String.format(Locale.ROOT, " min=%.2f raw=%.2f%s",
+                    com.bitsson.gensokyou.balance.BuildNumbers.attributeLower(key.id(),
+                            com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player)),
+                    b.base() + b.permanent() + b.temp(), b.capped() ? " [limited]" : "");
             String extra = key == AttributeKey.DANMAKU_REDUCE
                     ? String.format(Locale.ROOT, "  [灵力护壁 x%.0f]",
                             AttributeMath.wardDivisor(b.effective()))

@@ -236,9 +236,9 @@
   "gensokyou.book.entry.spellcards_overview.p2": "符卡之星是极为珍贵的材料：碎符卡星不会自行出现，只有击倒强敌才能从其身上取得；八枚碎星可在源初造化之仪上重铸为一枚完整的符卡星。想凑齐它们，就得先面对那些危险的存在。",
   "gensokyou.book.entry.spellcards_overview.p3": "道具符卡目前由源初造化之仪按配方合成；对应的角色 BOSS 直掉暂未开放。而已学形态不同——只能通过幻想乡内的委托任务习得，掉落的道具卡永远无法转化为已学状态。",
   "gensokyou.book.entry.healing_garden.p1": "花之海洋曾漫过大妖精的花园，雨之泉在花瓣间泛起微光。她始终相信，只要有花盛开的地方，纵使伤痕累累，也终会被重新滋养。",
-  "gensokyou.book.entry.healing_garden.p2": "绽放一座花期不散的花圃。立于其中的人会被柔和的生机包裹，伤势一分一分地愈合。园中花朵不会补益灵力，也不会治愈与花园为敌之人。",
+  "gensokyou.book.entry.healing_garden.p2": "绽放一座花圃，范围内玩家逐渐恢复生命，不回复灵力。$(br2)基础总治疗约为该品阶标准生命的25%。已学形态可受治疗强度与时长增强；同一目标同时只接受最强的一座同类花园治疗，不因多人重叠而相加。$(br2)已学形态冷却不会低于60秒。道具形态按品质固定结算。",
   "gensokyou.book.entry.flower_armor.p1": "大妖精从不擅长争斗。她能做的，只是把最柔软的花瓣一片片编起来，做成一层披甲，拦在伤痕与危险之间。",
-  "gensokyou.book.entry.flower_armor.p2": "花瓣披甲环绕身侧。飞来的弹幕触及花瓣时，伤害被尽数消解，一朵花瓣随之凋落；而近身的利刃与坠落的冲击，花瓣则无能为力。",
+  "gensokyou.book.entry.flower_armor.p2": "花瓣披甲只完整抵挡弹幕，不抵挡近战与坠落。基础1片，已学形态可受符卡强度增强，但最终最多2片；重施替换剩余花瓣，不叠加。$(br2)基础持续20秒，可受符卡时长延长。已学形态冷却不会低于120秒，不能靠冷却减免突破。道具形态按品质固定结算。",
   "gensokyou.book.entry.demarcation.p1": "露米娅讨厌被人看见。她只需抬手，光便被拦在界外——黑暗里没有方向，也没有猎物。只是若你贸然出手，黑暗会先一步知道你在何处。",
   "gensokyou.book.entry.demarcation.p2": "以自身为中心铺开一片黑暗。界内的敌手会骤然失去你的身影与方向，连最凶狠的妖物也只能在原地迟疑；一旦你主动出手伤敌，这片黑暗便会应声散去。",
   "gensokyou.book.entry.spider_web.p1": "山谷深处的蛛网从不见光，却总能等到路过的旅人。黑谷山女把丝线织成一座看不见的牢笼，越是挣扎，网收得越紧。",
@@ -1142,5 +1142,9 @@
   "item.gensokyou.treasure_basin": "聚宝盆",
   "block.gensokyou.treasure_basin": "聚宝盆",
   "container.gensokyou.treasure_basin": "聚宝盆",
+  "attribute.gensokyou.spell_damage_amp": "符卡强度：%s",
+  "attribute.gensokyou.spell_heal_amp": "符卡治疗增幅：%s",
+  "attribute.gensokyou.spell_duration": "符卡时长延长：%s",
+  "attribute.gensokyou.spell_cost_reduction": "符卡消耗减免：%s",
   "gensokyou.book.entry.ritual.barrier_break_circle.p2": "结界缓存上限 5,000,000，且$(l:../rituals_basics)$(br)每秒自然流失 150,000$(br)$(/l)——那裂口是一张会吃饭的嘴。要喂饱它，灵力必须从外面源源不断地送进来。$(br2)缓存蓄满而供品未齐，则静静等待、也不再流失；$(br2)供品一齐，天穹即刻裂开。$(br2)开启之后，隙间常开。除非核心被毁，或那位置换成了别的仪式——否则再也关不上了。"
 }

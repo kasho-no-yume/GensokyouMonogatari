@@ -179,8 +179,14 @@ public final class SpellCardEffects {
         Player player = ctx.player();
         double radius = BalanceNumbers.MUSOU_RADIUS;
         double angularSpeed = BalanceNumbers.MUSOU_ANGULAR_SPEED;
-        int duration = BalanceNumbers.MUSOU_DURATION_TICKS;
-        float damageCap = BalanceNumbers.MUSOU_DAMAGE_CAP.floatValue();
+        int duration = (int) Math.round(parameter(ctx, MUSOU_FUUIN, "duration",
+                BalanceNumbers.MUSOU_DURATION_TICKS, false, false));
+        double d0 = com.bitsson.gensokyou.balance.BuildBudgetMath.referenceDps(
+                com.bitsson.gensokyou.balance.BuildNumbers.power(ctx.quality()),
+                ctx.quality() <= 2 ? 1D : ctx.quality() <= 4 ? 2D : 4D, 2D, 2.5D);
+        // Six orbs, nine base pulses at .25 plus the final pulse: fixed lifecycle budget.
+        float damageCap = (float) parameter(ctx, MUSOU_FUUIN, "damage_cap",
+                d0 * 4D / (6D * 3.25D), false, false);
         for (int i = 0; i < 6; i++) {
             OrbitYinYangOrb orb = new OrbitYinYangOrb(level, player, i, radius, angularSpeed, duration, damageCap);
             level.addFreshEntity(orb);
@@ -192,7 +198,10 @@ public final class SpellCardEffects {
         Player player = ctx.player();
         int count = BalanceNumbers.ICICLE_COUNT;
         double speed = BalanceNumbers.ICICLE_SPEED;
-        float damage = BalanceNumbers.ICICLE_DAMAGE.floatValue();
+        double d0 = com.bitsson.gensokyou.balance.BuildBudgetMath.referenceDps(
+                com.bitsson.gensokyou.balance.BuildNumbers.power(ctx.quality()),
+                ctx.quality() <= 2 ? 1D : ctx.quality() <= 4 ? 2D : 4D, 2D, 2.5D);
+        float damage = (float) parameter(ctx, ICICLE_FALL, "damage", d0 * 3D / count, false, false);
         Vec3 look = player.getLookAngle().normalize();
         for (int i = 0; i < count; i++) {
             double offset = Math.toRadians((i - (count - 1) / 2.0D) * 12D);
@@ -221,7 +230,46 @@ public final class SpellCardEffects {
         }
         float amp = com.bitsson.gensokyou.spirit.attr.PlayerAttributes
                 .finalValue(sp, com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_AMP);
-        return ctx.magnitude() * (1D + Math.max(0F, amp));
+        float classified = com.bitsson.gensokyou.spirit.attr.PlayerAttributes
+                .finalValue(sp, com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_DAMAGE_AMP);
+        int tier = GraceService.tierOf(sp);
+        double bonus = com.bitsson.gensokyou.balance.SpellAttributeMath.combinedBonus(
+                classified, amp, true, com.bitsson.gensokyou.balance.BuildNumbers.cap("spell_damage_amp", tier));
+        return ctx.magnitude() * (1D + bonus);
+    }
+
+    public static double effectiveCost(String cardId, ServerPlayer player) {
+        double reduction = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.finalValue(player,
+                com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_COST_REDUCTION);
+        return com.bitsson.gensokyou.balance.BuildBudgetMath.discountedCost(
+                com.bitsson.gensokyou.balance.BuildNumbers.spellBaseCost(cardId, GraceService.tierOf(player)), reduction);
+    }
+
+    public static long effectiveCooldown(String cardId, ServerPlayer player, long baseTicks) {
+        double cdr = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.finalValue(player,
+                com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_CDR);
+        return com.bitsson.gensokyou.balance.SpellAttributeMath.cooldown(baseTicks, cdr,
+                com.bitsson.gensokyou.balance.SpellParameterPolicies.card(cardId).minimumCooldownTicks());
+    }
+
+    private static double parameter(CastContext ctx, String card, String parameter, double base,
+                                     boolean healing, boolean legacyConsumer) {
+        double strength = 0D;
+        double duration = 0D;
+        if (!ctx.itemForm() && ctx.serverPlayer() != null) {
+            ServerPlayer player = ctx.serverPlayer();
+            var key = healing ? com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_HEAL_AMP
+                    : com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_DAMAGE_AMP;
+            double classified = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.finalValue(player, key);
+            double legacy = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.finalValue(player,
+                    com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_AMP);
+            strength = com.bitsson.gensokyou.balance.SpellAttributeMath.combinedBonus(classified, legacy,
+                    legacyConsumer, com.bitsson.gensokyou.balance.BuildNumbers.cap(key.id(), ctx.quality()));
+            duration = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.finalValue(player,
+                    com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_DURATION);
+        }
+        return com.bitsson.gensokyou.balance.SpellParameterPolicies.card(card)
+                .parameter(parameter).apply(base, strength, duration);
     }
 
     private static int secondsToTicks(double seconds) {
@@ -238,10 +286,12 @@ public final class SpellCardEffects {
         if (!(ctx.level() instanceof ServerLevel level)) {
             return;
         }
-        double perSecond = amplified(ctx);
+        double baseHealing = com.bitsson.gensokyou.balance.BuildNumbers.gardenHealingPerSecond(ctx.quality());
+        double perSecond = parameter(ctx, HEALING_GARDEN, "healing_per_second", baseHealing, true, true);
         float radius = (float) SpellCardScaling.tableEntry(
                 BalanceNumbers.HEALING_GARDEN_RADIUS, ctx.quality());
-        int duration = durationTicks(ctx, BalanceNumbers.HEALING_GARDEN_DURATION_SECONDS);
+        int duration = (int) Math.round(parameter(ctx, HEALING_GARDEN, "duration",
+                durationTicks(ctx, BalanceNumbers.HEALING_GARDEN_DURATION_SECONDS), true, false));
         level.addFreshEntity(new FlowerGardenEntity(level,
                 ctx.player().getX(), ctx.player().getY(), ctx.player().getZ(),
                 radius, duration, perSecond));
@@ -252,9 +302,9 @@ public final class SpellCardEffects {
         if (!(ctx.player() instanceof ServerPlayer player)) {
             return;
         }
-        int petals = (int) Math.round(SpellCardScaling.tableEntry(
-                BalanceNumbers.FLOWER_ARMOR_BLOCKS, ctx.quality()));
-        int duration = secondsToTicks(BalanceNumbers.FLOWER_ARMOR_DURATION_SECONDS);
+        int petals = (int) Math.round(parameter(ctx, FLOWER_ARMOR, "petals", 1D, false, false));
+        int duration = (int) Math.round(parameter(ctx, FLOWER_ARMOR, "duration",
+                secondsToTicks(BalanceNumbers.FLOWER_ARMOR_DURATION_SECONDS), false, false));
         ModAttachments.setSpellBuffs(player, ModAttachments.spellBuffs(player)
                 .withFlowerArmor(petals, player.level().getGameTime() + duration));
         player.displayClientMessage(
@@ -302,10 +352,18 @@ public final class SpellCardEffects {
         if (!(ctx.level() instanceof ServerLevel level)) {
             return;
         }
-        double damage = Math.min(BalanceNumbers.FOX_SERVANT_DAMAGE_CAP, amplified(ctx));
+        double standardPower = SpellCardScaling.standardSpiritPower(ctx.quality());
+        double relativePower = ctx.itemForm() || ctx.serverPlayer() == null ? 1D
+                : Math.pow(com.bitsson.gensokyou.spirit.attr.PlayerAttributes.spiritPower(ctx.serverPlayer())
+                / Math.max(1e-9D, standardPower), BalanceNumbers.FOX_SERVANT_ALPHA);
+        double damage = Math.min(BalanceNumbers.FOX_SERVANT_DAMAGE_CAP,
+                parameter(ctx, FOX_SERVANT, "damage",
+                        com.bitsson.gensokyou.balance.BuildNumbers.foxDamagePerSecond(ctx.quality()) * relativePower,
+                        false, true));
         double range = SpellCardScaling.tableEntry(
                 BalanceNumbers.FOX_SERVANT_RANGE, ctx.quality());
-        int duration = durationTicks(ctx, BalanceNumbers.FOX_SERVANT_DURATION_SECONDS);
+        int duration = (int) Math.round(parameter(ctx, FOX_SERVANT, "duration",
+                durationTicks(ctx, BalanceNumbers.FOX_SERVANT_DURATION_SECONDS), false, false));
         int interval = BalanceNumbers.FOX_SERVANT_INTERVAL_TICKS;
         level.addFreshEntity(new FoxServantEntity(level, ctx.player(), range, duration, damage, interval));
     }

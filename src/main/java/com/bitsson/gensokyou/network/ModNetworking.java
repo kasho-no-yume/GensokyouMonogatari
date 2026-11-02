@@ -476,19 +476,17 @@ public final class ModNetworking {
                         Component.translatable("msg.gensokyou.skill_on_cooldown", seconds), true);
                 return;
             }
-            var powerData = ModAttachments.get(player);
-            int spCost = entry.spCost().get();
-            if (powerData.current() < spCost) {
+            double spCost = SpellCardEffects.effectiveCost(cardId, player);
+            if (!com.bitsson.gensokyou.spirit.SpiritPayments.pay(player, spCost)) {
                 player.displayClientMessage(
                         Component.translatable("msg.gensokyou.skill_no_sp", spCost), true);
                 return;
             }
-            ModAttachments.set(player, powerData.withCurrent(powerData.current() - spCost));
             SpellCardEffects.perform(cardId, player.level(), player);
             // 冷却施放瞬间经套件 CDR 折减（中途属性变化不回溯）
             ModAttachments.setSkills(player,
-                    state.withCooldown(slot, now + com.bitsson.gensokyou.spirit.attr.PlayerAttributes
-                            .effectiveSkillCooldown(player, entry.cooldownTicks().get())));
+                    state.withCooldown(slot, now + SpellCardEffects
+                            .effectiveCooldown(cardId, player, entry.cooldownTicks().get())));
         });
     }
 

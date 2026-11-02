@@ -75,20 +75,16 @@ public final class MonsterStatBudget {
 
     /** 参照玩家某阶级的平均 DPS（球核基准 × 武器倍率 × 暴击期望 × 参考射速；不含词条）。 */
     public static double referencePlayerDps(int tier) {
-        double spiritPower = cumulative(tier, AttributeKey.SPIRIT_POWER);
+        double spiritPower = BuildNumbers.power(tier);
         double weaponMult = weaponLevelMult(tier);
-        double critAvg = 1D + critChance(tier) * critDamageBonus(tier);
-        return spiritPower * weaponMult * critAvg
-                * BalanceNumbers.MONSTER_REF_SHOTS_PER_SECOND;
+        double critAvg = 1D + BuildNumbers.innateMean("crit_chance", tier)
+                * BuildNumbers.innateMean("crit_damage", tier);
+        return spiritPower * weaponMult * critAvg * 5D;
     }
 
     /** 参照玩家某阶级的有效血量 EHP（含护壁指数与擦弹率）。 */
     public static double referencePlayerEhp(int tier) {
-        double hp = 20D + cumulative(tier, AttributeKey.HEALTH_BONUS);
-        double ward = Math.max(0D, cumulative(tier, AttributeKey.DANMAKU_REDUCE));
-        double graze = clamp01(cumulative(tier, AttributeKey.GRAZE_CHANCE));
-        double takenFactor = Math.pow(2D, -ward) * (1D - graze);
-        return takenFactor <= 0D ? hp : hp / takenFactor;
+        return BuildBudgetMath.effectiveHealth(BuildNumbers.health(tier), BuildNumbers.ward(tier), 0D);
     }
 
     private static double critChance(int tier) {

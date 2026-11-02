@@ -315,7 +315,8 @@ public abstract class AbstractTouhouBoss extends FlyingMob implements Enemy, Tou
      * 而不是各自重算一套伤害——加弹数会撞上 R3 密度预算。
      */
     public double baseDanmakuDamage() {
-        return MonsterStatBudget.referencePlayerEhp(referenceTier()) / Math.max(1, bossHits());
+        return MonsterStatBudget.referencePlayerEhp(referenceTier())
+                / com.bitsson.gensokyou.balance.BuildNumbers.bossReferenceHits(bossHits());
     }
 
     @Override

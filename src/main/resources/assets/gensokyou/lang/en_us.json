@@ -197,9 +197,9 @@
   "gensokyou.book.entry.spellcards_overview.p2": "Spell Card Stars are among the rarest materials: the broken shards never appear on their own and are only taken from fallen enemies, and eight shards reforge into one whole star in the Circle of Creation. Gathering them means facing something dangerous first.",
   "gensokyou.book.entry.spellcards_overview.p3": "An item spell card is currently crafted at the Circle of Creation; the matching character BOSS drop is not yet open. The learned form is different - it can only be gained through commissioned work in Gensokyo, and a dropped item card can never be turned into a learned spell.",
   "gensokyou.book.entry.healing_garden.p1": "The Sea of Flowers once spilled across the fairy's garden, and rain-springs shimmered between the petals. She still believes that wherever blossoms bloom, even the deepest wounds are tended in time.",
-  "gensokyou.book.entry.healing_garden.p2": "Raise a garden whose blossoms never fade. Those who stand within are wrapped in gentle life and healed moment by moment. The garden grants no spirit, and it will not mend those who mean it harm.",
+  "gensokyou.book.entry.healing_garden.p2": "A garden gradually heals nearby players, not spirit. Base total healing is about 25% of that quality's reference health. Learned spells benefit from healing strength and duration. Only the strongest overlapping garden heals each target, including gardens from different players. Learned cooldown cannot fall below 60 seconds. Item cards use fixed quality values.",
   "gensokyou.book.entry.flower_armor.p1": "The great fairy was never one for battle. All she can do is weave the softest petals, one by one, into a mantle and set it between herself and harm.",
-  "gensokyou.book.entry.flower_armor.p2": "A mantle of petals circles you. When danmaku strikes it, the blow is negated and a petal falls away; against close blades and falling impacts, the petals can do nothing.",
+  "gensokyou.book.entry.flower_armor.p2": "Petals fully block danmaku, not melee or falling damage. Base capacity is one; learned spell strength can increase it, but never beyond two. Recasting replaces remaining petals. Base duration is 20 seconds and may be extended. Learned cooldown cannot fall below 120 seconds. Item cards use fixed quality values.",
   "gensokyou.book.entry.demarcation.p1": "Rumia hates to be seen. A single gesture and the light is shut outside - in the dark there is no direction, and no prey. Yet should you lash out, the darkness learns where you are first.",
   "gensokyou.book.entry.demarcation.p2": "Spread a field of darkness around yourself. Foes within lose your shape and their bearings, and even the fiercest youkai hesitate in place. The moment you wound anything yourself, the darkness scatters.",
   "gensokyou.book.entry.spider_web.p1": "Deep in the valley the webs never see light, yet they always wait for a passerby. Kurodani Yamame weaves her threads into an unseen prison - struggle only draws it tighter.",
@@ -1033,5 +1033,9 @@
   "gui.gensokyou.spirit_bomb.cost": "Estimated cost: %s",
   "item.gensokyou.treasure_basin": "Treasure Basin",
   "block.gensokyou.treasure_basin": "Treasure Basin",
-  "container.gensokyou.treasure_basin": "Treasure Basin"
+  "container.gensokyou.treasure_basin": "Treasure Basin",
+  "attribute.gensokyou.spell_damage_amp": "Spell strength: %s",
+  "attribute.gensokyou.spell_heal_amp": "Spell healing: %s",
+  "attribute.gensokyou.spell_duration": "Spell duration: %s",
+  "attribute.gensokyou.spell_cost_reduction": "Spell cost reduction: %s"
 }

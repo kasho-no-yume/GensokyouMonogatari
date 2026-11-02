@@ -41,6 +41,7 @@ public final class SpiritLeechHandler {
         if (!(attacker instanceof ServerPlayer player) || player == event.getEntity()) {
             return;
         }
+        if (com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player) <= 0) return;
         float rate = AttributeMath.clampPercent(
                 PlayerAttributes.finalValue(player, AttributeKey.SPIRIT_LEECH_RATE));
         if (rate <= 0F) {
@@ -54,7 +55,8 @@ public final class SpiritLeechHandler {
         LedgerData ledger = player.getData(ModAttachments.SPIRIT_LEECH_LEDGER.get())
                 .advance(player.level().getGameTime(),
                         Math.max(1, BalanceNumbers.SETTLE_PERIOD_TICKS),
-                        BalanceNumbers.SPIRIT_LEECH_MAX_PER_SECOND.floatValue()
+                        (float) com.bitsson.gensokyou.balance.BuildNumbers.leechCapPerSecond(
+                                com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player))
                                 * Math.max(1, BalanceNumbers.SETTLE_PERIOD_TICKS) / 20F);
         float gain = AttributeMath.leechGain(dealt, rate, ledger.remaining());
         if (gain > 0F) {

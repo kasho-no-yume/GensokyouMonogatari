@@ -33,6 +33,14 @@ public final class ModAttachments {
                     .copyOnDeath()
                     .build());
 
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Integer>> BUILD_VALUE_VERSION =
+            ATTACHMENTS.register("build_value_version", () -> AttachmentType.<Integer>builder(() -> 0)
+                    .serialize(com.mojang.serialization.Codec.INT).copyOnDeath().build());
+
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<Double>> SPIRIT_PAYMENT_REMAINDER =
+            ATTACHMENTS.register("spirit_payment_remainder", () -> AttachmentType.<Double>builder(() -> 0D)
+                    .serialize(com.mojang.serialization.Codec.DOUBLE).copyOnDeath().build());
+
     /** 玩家属性套件容器（player-attribute-suite）：持久层入档、死亡保留；旧档缺=空容器取基准。 */
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.bitsson.gensokyou.spirit.attr.PlayerAttributesData>> PLAYER_ATTRIBUTES =
             ATTACHMENTS.register("player_attributes", () -> AttachmentType

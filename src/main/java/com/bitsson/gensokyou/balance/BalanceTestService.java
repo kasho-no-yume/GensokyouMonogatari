@@ -74,7 +74,14 @@ public final class BalanceTestService {
             next = next.withLedgerTier(t, maxGain, powerGain);
         }
         for (java.util.Map.Entry<AttributeKey, Double> entry : totals.entrySet()) {
-            PlayerAttributes.setPermanent(player, entry.getKey(), TEST_SOURCE, entry.getValue().floatValue());
+            double value = BuildNumbers.standardAttribute(entry.getKey().id(), tier, entry.getValue());
+            if (entry.getKey() == AttributeKey.CRIT_DAMAGE) value -= BalanceNumbers.ATTR_BASE_CRIT_DAMAGE;
+            PlayerAttributes.setPermanent(player, entry.getKey(), TEST_SOURCE, (float) value);
+        }
+        for (AttributeKey key : List.of(AttributeKey.SPELL_DAMAGE_AMP, AttributeKey.SPELL_HEAL_AMP,
+                AttributeKey.SPELL_DURATION, AttributeKey.SPELL_COST_REDUCTION)) {
+            PlayerAttributes.setPermanent(player, key, TEST_SOURCE,
+                    (float) BuildNumbers.standardAttribute(key.id(), tier, 0D));
         }
         next = next.withTemper(tier);
         ModAttachments.set(player, next.withCurrent(next.max()));
