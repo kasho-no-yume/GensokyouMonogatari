@@ -715,8 +715,8 @@ public final class BalanceNumbers {
     public static final Double ATTR_BASE_MELEE_DAMAGE = 0D;
     /** 由原 COMMON 配置迁移（键名 ATTR_MELEE_DAMAGE_CAP）。 */
     public static final Double ATTR_MELEE_DAMAGE_CAP = 100D;
-    /** 由原 COMMON 配置迁移（键名 WEAPON_LEVEL_MULT）。 */
-    public static final List<Double> WEAPON_LEVEL_MULT = List.of(1.0D, 2.0D, 4.0D);
+    /** 核阶跨带倍率：T1/T2/T3 = ×1/×2/×4。原武器等级倍率迁移至此；武器等级核不再直接增伤（design D7）。 */
+    public static final List<Double> CORE_TIER_MULT = List.of(1.0D, 2.0D, 4.0D);
     /** 由原 COMMON 配置迁移（键名 WEAPON_TALISMAN_PICK_RANGE）。 */
     public static final Double WEAPON_TALISMAN_PICK_RANGE = 40D;
     /** 由原 COMMON 配置迁移（键名 RUNE_AFFIX_POOL）。 */

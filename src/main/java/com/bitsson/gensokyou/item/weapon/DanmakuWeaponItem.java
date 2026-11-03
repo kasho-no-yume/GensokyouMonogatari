@@ -106,7 +106,7 @@ public class DanmakuWeaponItem extends Item {
         BulletCoreItem.appendCombatLines(bullet, tooltip, true);
     }
 
-    /** 武器等级核：只报等级（它不改变弹幕形态，只改倍率档）。 */
+    /** 武器等级核：只报等级（它是闸门，不再提供伤害倍率）。 */
     private static void appendLevelCoreLine(List<Component> tooltip, ItemStack core) {
         if (core.isEmpty() || !(core.getItem() instanceof WeaponLevelCoreItem levelCore)) {
             return;

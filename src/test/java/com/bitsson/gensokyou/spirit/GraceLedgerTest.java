@@ -6,8 +6,11 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import com.bitsson.gensokyou.balance.GraceLedgerMigrationMath;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -112,14 +115,10 @@ class GraceLedgerTest {
     }
 
     /**
-     * 旧表存档的自动迁移判别（rebalance-tier1-spirit-and-danmaku-cost，design Migration Plan A 族）。
-     *
-     * <p>{@code GraceService.migrateIfNeeded()} 按阶 1 台账增益与
-     * {@code LEGACY_MAX_SPIRIT_T1_THRESHOLD = 500} 比较：低于阈值视为旧表档，按当前表重 roll
-     * 覆盖（旧表 1 阶 max_spirit 基准 200、roll 0.15 ⇒ 170~230；新表 1000/0.2 ⇒ 800~1200）。
-     *
-     * <p>此处锁的是<b>判别阈值两侧的归属</b>——它决定"哪些玩家会自动吃到新表"，
-     * 是本变更唯一的存档侧行为。
+     * 化石对照（历史记录，NOT 当前行为）：旧版曾按阶 1 池阈值（500）判别旧表并按新表重 roll；
+     * 该自动重掷已由 rework-player-stat-build-budgets 移除（{@code migrateIfNeeded} 不再含随机
+     * 重掷，见 {@code BuildSourceContractTest} 静态守卫）。此处仅锁两张表字面量与阈值两侧归属，
+     * MUST NOT 被解读为现行迁移规则；现行规则见 {@code GraceLedgerMigrationMathTest}。
      */
     @Test
     void legacyLedgerIsDetectedByTierOnePoolThreshold() {
@@ -152,6 +151,71 @@ class GraceLedgerTest {
         assertTrue(roll.powerGain() >= lo - 1e-6 && roll.powerGain() <= hi + 1e-6,
                 "重 roll 的 1 阶 spirit_power 应落在 [0.8, 1.2], got " + roll.powerGain());
         assertTrue(roll.powerGain() < 2F, "旧表量级（8）不应再出现");
+    }
+
+    /**
+     * 死亡规则（rework-player-stat-build-budgets tasks 2.4）：仅当前灵力与进位 buffer 清零，
+     * 上限/阶级/台账/强度/惯性全部保留；MUST NOT 重掷或补台账。
+     */
+    @Test
+    void deathClearKeepsLedgerAndResetsOnlyCurrentAndBuffers() {
+        SpiritPowerData data = new SpiritPowerData(75F, 173.25F, 3, .75F, 24.5F,
+                List.of(1F, 9F, 80F, 683F, 5750F, 0F), .25F, false);
+        SpiritPowerData cleared = data.withClearedCurrentForDeath();
+        assertEquals(0F, cleared.current());
+        assertEquals(0F, cleared.regenBuffer());
+        assertEquals(0F, cleared.flightBuffer());
+        assertEquals(data.max(), cleared.max());
+        assertEquals(data.temperLevel(), cleared.temperLevel());
+        assertEquals(data.spiritDamage(), cleared.spiritDamage());
+        assertEquals(data.graceLedger(), cleared.graceLedger());
+        assertEquals(data.flightInertia(), cleared.flightInertia());
+    }
+
+    /**
+     * 重复登录 + 死亡组合幂等（tasks 2.4）：缺台账重建 → 死亡清池 → 再登录重建
+     * 不得二次分配、不得补条、不得漂移；已有台账的二次重建返回同一实例。
+     */
+    @Test
+    void deathAndReloginReconstructionIsIdempotent() {
+        var weightsMax = List.of(1000D, 9000D, 90000D);
+        var weightsPower = List.of(1D, 9D, 80D);
+        SpiritPowerData saved = new SpiritPowerData(75F, 173.25F, 3, .75F, 24.5F,
+                List.of(), .25F, true);
+        SpiritPowerData reconstructed = GraceLedgerMigrationMath.reconstruct(saved, weightsMax, weightsPower);
+        assertEquals(6, reconstructed.graceLedger().size(), "3 阶应有 6 条台账份额");
+        SpiritPowerData afterDeath = reconstructed.withClearedCurrentForDeath();
+        SpiritPowerData secondLogin = GraceLedgerMigrationMath.reconstruct(afterDeath, weightsMax, weightsPower);
+        assertSame(afterDeath, secondLogin, "已有台账不得再次分配");
+        assertEquals(reconstructed.graceLedger(), afterDeath.graceLedger());
+        assertEquals(reconstructed.max(), afterDeath.max());
+        assertEquals(0F, afterDeath.current());
+    }
+
+    /**
+     * 逐阶洗练整组替换的幂等与隔离（tasks 2.4）：重复应用同一阶同一组数值无漂移；
+     * 只重洗一阶不得动其他阶份额；池字段恒等于台账求和。
+     */
+    @Test
+    void steppedRerollIsIdempotentAndGroupIsolated() {
+        SpiritPowerData data = SpiritPowerData.initial()
+                .withLedgerTier(1, 800F, 0.9F).withTemper(1)
+                .withLedgerTier(2, 9000F, 9F).withTemper(2)
+                .withLedgerTier(3, 90000F, 80F).withTemper(3);
+        data = data.withCurrent(data.max());
+        SpiritPowerData snapshot = data;
+        // 同一组数值重复应用（重复登录/重复提交）→ 无漂移
+        assertEquals(snapshot, snapshot.withLedgerTier(3, 90000F, 80F));
+        // 只重洗 2 阶 → 1/3 阶份额不动
+        SpiritPowerData rerolled = snapshot.withLedgerTier(2, 9500F, 9.5F);
+        assertEquals(800F, rerolled.ledgerMaxGain(1));
+        assertEquals(9500F, rerolled.ledgerMaxGain(2));
+        assertEquals(90000F, rerolled.ledgerMaxGain(3));
+        assertEquals(0.9F, rerolled.ledgerPowerGain(1));
+        assertEquals(9.5F, rerolled.ledgerPowerGain(2));
+        assertEquals(80F, rerolled.ledgerPowerGain(3));
+        assertEquals(100_300F, rerolled.max(), "池上限=Σ台账");
+        assertEquals(90.4F, rerolled.spiritDamage(), 1e-4F);
     }
 
     /** 变更后的 config 默认表 1 阶行（单测不触 config 加载态）。 */

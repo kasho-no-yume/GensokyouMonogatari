@@ -73,13 +73,15 @@ public final class MonsterStatBudget {
         return new Budget(dps * hpMin, dps * hpMax, ehp / hitsMax, ehp / hitsMin);
     }
 
-    /** 参照玩家某阶级的平均 DPS（球核基准 × 武器倍率 × 暴击期望 × 参考射速；不含词条）。 */
+    /** 参照玩家某阶级的平均 DPS（球核基准 × 标准核阶倍率 × 暴击期望 × 参考射速；不含词条）。
+     *  <p>标准核阶倍率 = 匹配核阶核（tier1-2→T1、3-4→T2、5→T3）的 [×1/×2/×4]；
+     *  武器等级核不参与伤害，仅闸门（design D7）。数值与旧武器等级倍率一致，BOSS 血量不上调。 */
     public static double referencePlayerDps(int tier) {
         double spiritPower = BuildNumbers.power(tier);
-        double weaponMult = weaponLevelMult(tier);
+        double coreTierMult = standardCoreTierMult(tier);
         double critAvg = 1D + BuildNumbers.innateMean("crit_chance", tier)
                 * BuildNumbers.innateMean("crit_damage", tier);
-        return spiritPower * weaponMult * critAvg * 5D;
+        return spiritPower * coreTierMult * critAvg * 5D;
     }
 
     /** 参照玩家某阶级的有效血量 EHP（含护壁指数与擦弹率）。 */
@@ -99,14 +101,14 @@ public final class MonsterStatBudget {
         return Math.min(cap, base + cumulative(tier, AttributeKey.CRIT_DAMAGE));
     }
 
-    private static double weaponLevelMult(int tier) {
-        List<? extends Double> table = BalanceNumbers.WEAPON_LEVEL_MULT;
+    private static double standardCoreTierMult(int tier) {
+        List<? extends Double> table = BalanceNumbers.CORE_TIER_MULT;
         if (table.isEmpty()) {
             return 1D;
         }
-        // 武器等级每级覆盖两个灵启阶：tier1-2→Lv1, 3-4→Lv2, 5→Lv3
-        int level = (Math.max(1, tier) + 1) / 2;
-        int index = Math.min(level, table.size()) - 1;
+        // 核阶每级覆盖两个灵启阶：tier1-2→T1, 3-4→T2, 5→T3（参考配装为匹配核阶核）
+        int coreTier = (Math.max(1, tier) + 1) / 2;
+        int index = Math.min(coreTier, table.size()) - 1;
         return table.get(index);
     }
 

@@ -25,12 +25,12 @@ class BuildBudgetProfileSearchTest {
         report.append("|Tier|Profile|Feasible|Killed|Best seconds|Core score|Core|\n");
         report.append("|---|---|---|---|---|---|---|\n");
         for (int tier = 1; tier <= 5; tier++) {
-            double d0 = BuildBudgetMath.referenceDps(BuildBudgetCandidate.power(tier),
+            double d0 = BuildBudgetMath.referenceDps(BuildNumbers.power(tier),
                     tier <= 2 ? 1D : tier <= 4 ? 2D : 4D, 2D, 2.5D);
             var standard = BuildBudgetLoadoutTest.core(tier, 5);
-            double target = d0 * multiplier(tier, standard) * BuildBudgetCandidate.window(tier);
+            double target = d0 * multiplier(tier, standard) * BuildNumbers.window(tier);
             for (int profile = 0; profile < 6; profile++) {
-                int ct = BuildBudgetCandidate.coreTier(tier);
+                int ct = BuildNumbers.coreTier(tier);
                 Random random = new Random(20261102L + tier * 100L + profile);
                 double bestTime = Double.POSITIVE_INFINITY;
                 Map<String, Double> best = Map.of();
@@ -45,32 +45,32 @@ class BuildBudgetProfileSearchTest {
                                 : profile == 0 && key.equals("damage_pct") ? .8D + random.nextDouble() * .2D
                                 : profile == 0 && key.equals("attack_rate_pct") ? random.nextDouble() * .2D
                                 : .05D + random.nextDouble() * .95D;
-                        values.put(key, BuildBudgetCandidate.coreMaximum(key, ct) * fraction);
+                        values.put(key, BuildNumbers.coreMaximum(key, ct) * fraction);
                     }
-                    double score = BuildBudgetCandidate.coreScore(values, ct);
+                    double score = BuildNumbers.coreScore(values, ct);
                     if (score > 1D) {
                         double scale = Math.sqrt(1D / score);
                         values.replaceAll((key, value) -> value * scale);
                     }
-                    if (!BuildBudgetCandidate.legalCore(values, ct)) continue;
+                    if (!BuildNumbers.legalCore(values, ct)) continue;
                     // Preserve style identity. Otherwise a 'heavy' search can simply choose
                     // speed and a 'defense' search can allocate everything to damage.
                     double normalizedDamage = values.getOrDefault("damage_pct", 0D)
-                            / BuildBudgetCandidate.coreMaximum("damage_pct", ct);
+                            / BuildNumbers.coreMaximum("damage_pct", ct);
                     double normalizedSpeed = values.getOrDefault("attack_rate_pct", 0D)
-                            / BuildBudgetCandidate.coreMaximum("attack_rate_pct", ct);
+                            / BuildNumbers.coreMaximum("attack_rate_pct", ct);
                     double normalizedWard = values.getOrDefault("danmaku_reduce", 0D)
-                            / BuildBudgetCandidate.coreMaximum("danmaku_reduce", ct);
+                            / BuildNumbers.coreMaximum("danmaku_reduce", ct);
                     if (profile == 0 && (normalizedDamage < .65D || normalizedSpeed > .25D)) continue;
                     if (profile == 2 && (normalizedSpeed < .5D
                             || values.getOrDefault("spirit_cost_pct", 0D)
-                            / BuildBudgetCandidate.coreMaximum("spirit_cost_pct", ct) < .4D)) continue;
+                            / BuildNumbers.coreMaximum("spirit_cost_pct", ct) < .4D)) continue;
                     if (profile == 4 && normalizedWard < .6D) continue;
                     feasible++;
                     double speed = BuildBudgetLoadoutTest.stat("attack_rate_pct", tier, values);
                     var actions = BuildBudgetLoadoutTest.actions(tier, profile, values, d0,
                             multiplier(tier, values), speed, 3600D);
-                    double pool = BuildBudgetCandidate.pool(tier);
+                    double pool = BuildNumbers.pool(tier);
                     var result = BuildBudgetMath.simulateUntilDamage(new BuildBudgetMath.ResourcePlan(
                                     pool, pool, pool * .0012D + values.getOrDefault("spirit_regen_rate", 0D),
                                     0D, 0D), actions, 3600D, target);
@@ -85,7 +85,7 @@ class BuildBudgetProfileSearchTest {
                 // the style constraint or relabel a balanced allocation as specialized.
                 report.append(String.format(Locale.ROOT, "|%d|%s|%d|%s|%.2f|%.4f|%s|%n", tier,
                         BuildBudgetLoadoutTest.NAMES[profile], feasible, killed,
-                        bestTime, best.isEmpty() ? 0D : BuildBudgetCandidate.coreScore(best, ct), best));
+                        bestTime, best.isEmpty() ? 0D : BuildNumbers.coreScore(best, ct), best));
             }
         }
         Path path = Path.of("build", "reports", "build-budget", "profile-search.md");

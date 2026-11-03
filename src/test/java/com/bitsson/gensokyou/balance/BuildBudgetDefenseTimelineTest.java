@@ -26,17 +26,17 @@ class BuildBudgetDefenseTimelineTest {
         report.append("|---|---|---|---|---|---|---|---|---|---|\n");
         for (int tier = 1; tier <= 5; tier++) {
             for (boolean highDefense : new boolean[]{false, true}) {
-                double health = BuildBudgetCandidate.health(tier);
-                double lowWard = BuildBudgetCandidate.ward(tier) - .04D * tier;
+                double health = BuildNumbers.health(tier);
+                double lowWard = BuildNumbers.ward(tier) - .04D * tier;
                 double ward = lowWard + (highDefense ? BuildBudgetMath.wardSpan(3D) : 0D);
-                double rawDamage = health * Math.pow(2D, BuildBudgetCandidate.ward(tier)) / 2.5D;
+                double rawDamage = health * Math.pow(2D, BuildNumbers.ward(tier)) / 2.5D;
                 double damage = rawDamage * Math.pow(2D, -ward);
                 long lethalHits = BuildBudgetMath.lethalHits(health, rawDamage, ward);
                 assertTrue(lethalHits >= 2 && lethalHits <= 8);
                 for (int recovery = 0; recovery < 5; recovery++) {
                     for (double interval : new double[]{10D, 30D}) {
                         List<BuildSurvivalMath.Event> events = new ArrayList<>();
-                        double window = BuildBudgetCandidate.window(tier);
+                        double window = BuildNumbers.window(tier);
                         for (int hit = 1; hit * interval <= window; hit++) {
                             events.add(new BuildSurvivalMath.Event(hit * interval, damage, 0D, 0));
                         }
@@ -92,23 +92,23 @@ class BuildBudgetDefenseTimelineTest {
         report.append("|Tier|Upper ward|Armor|Paid casts|Starved actions|Survived|Lived(s)|Blocked|Effective heal|\n");
         report.append("|---|---|---|---|---|---|---|---|---|\n");
         for (int tier = 1; tier <= 5; tier++) {
-            double pool = BuildBudgetCandidate.pool(tier);
-            double window = BuildBudgetCandidate.window(tier);
+            double pool = BuildNumbers.pool(tier);
+            double window = BuildNumbers.window(tier);
             List<BuildBudgetMath.Action> actions = new ArrayList<>();
             java.util.Map<BuildBudgetMath.Action, String> kinds = new java.util.HashMap<>();
             for (int shot = 0; shot / 1.25D < window; shot++) {
                 actions.add(new BuildBudgetMath.Action(shot / 1.25D,
-                        BuildBudgetCandidate.sphereCost(tier), 0D, true));
+                        BuildNumbers.sphereCost(tier), 0D, true));
             }
             for (int time = 0; time < window; time += 60) {
                 var cast = new BuildBudgetMath.Action(time,
-                        BuildBudgetCandidate.spellBaseCost("healing_garden", tier), 0D, false);
+                        BuildNumbers.spellBaseCost("healing_garden", tier), 0D, false);
                 actions.add(cast);
                 kinds.put(cast, "garden");
             }
             for (int time = 0; time < window; time += 120) {
                 var cast = new BuildBudgetMath.Action(time,
-                        BuildBudgetCandidate.spellBaseCost("flower_armor", tier), 0D, false);
+                        BuildNumbers.spellBaseCost("flower_armor", tier), 0D, false);
                 actions.add(cast);
                 kinds.put(cast, "shield");
             }
@@ -121,10 +121,10 @@ class BuildBudgetDefenseTimelineTest {
                             if (!action.weapon()) paid.add(action);
                         });
                 for (boolean highWard : new boolean[]{false, true}) {
-                    double hp = BuildBudgetCandidate.health(tier);
-                    double ward = BuildBudgetCandidate.ward(tier) - .04D * tier
+                    double hp = BuildNumbers.health(tier);
+                    double ward = BuildNumbers.ward(tier) - .04D * tier
                             + (highWard ? BuildBudgetMath.wardSpan(3D) : 0D);
-                    double damage = hp * Math.pow(2D, BuildBudgetCandidate.ward(tier) - ward) / 2.5D;
+                    double damage = hp * Math.pow(2D, BuildNumbers.ward(tier) - ward) / 2.5D;
                     List<BuildSurvivalMath.Event> events = new ArrayList<>();
                     for (int hit = 1; hit * 30D <= window; hit++) {
                         events.add(new BuildSurvivalMath.Event(hit * 30D, damage, 0D, 0));

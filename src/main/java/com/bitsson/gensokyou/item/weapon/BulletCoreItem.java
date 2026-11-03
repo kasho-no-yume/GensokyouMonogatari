@@ -101,11 +101,16 @@ public class BulletCoreItem extends Item {
     public static void appendCombatLines(BulletCoreItem core, List<Component> out, boolean compact) {
         CoreStats stats = core.stats;
         FirePattern p = core.pattern;
+        // 核的伤害倍率为单一口径：行为基准 × 核阶步进（T1×1 / T2×2 / T3×4）。
+        // 核阶 MUST NOT 作为独立行出现——它就体现在这个倍数里。
+        double damageMult = stats.coreBaseMult().get().doubleValue()
+                * com.bitsson.gensokyou.balance.BuildNumbers
+                        .coreTierMult(stats.requiredTier().getAsInt());
         if (!compact) {
             out.add(sep());
         }
         out.add(Component.translatable("tooltip.gensokyou.core_damage_mult",
-                "x" + fmt(stats.coreBaseMult().get().doubleValue())).withStyle(ChatFormatting.BLUE));
+                "×" + fmtMult(damageMult)).withStyle(ChatFormatting.BLUE));
         out.add(Component.translatable("tooltip.gensokyou.core_cooldown",
                 stats.attackRateTicks().getAsInt(),
                 fmt(rate(stats.attackRateTicks().getAsInt()))).withStyle(ChatFormatting.BLUE));
@@ -122,8 +127,9 @@ public class BulletCoreItem extends Item {
             if (!compact) {
                 out.add(sep());
             }
+            // 每脉冲倍率取核心自身倍率（含核阶）。旧实现误传激光长度当倍率，会虚报 DPS。
             out.add(Component.translatable("tooltip.gensokyou.core_dps",
-                    fmt(CoreMath.laserDpsFactor(p.laserMaxLength().getAsDouble(),
+                    fmt(CoreMath.laserDpsFactor(damageMult,
                             stats.attackRateTicks().getAsInt(),
                             (int) (duration * 20D)))).withStyle(ChatFormatting.GOLD));
             return;
@@ -139,7 +145,7 @@ public class BulletCoreItem extends Item {
                 out.add(sep());
             }
             out.add(Component.translatable("tooltip.gensokyou.core_dps",
-                    fmt(CoreMath.bulletDpsFactor(stats.coreBaseMult().get().doubleValue(), 1,
+                    fmt(CoreMath.bulletDpsFactor(damageMult, 1,
                             stats.attackRateTicks().getAsInt()))).withStyle(ChatFormatting.GOLD));
             return;
         }
@@ -172,7 +178,7 @@ public class BulletCoreItem extends Item {
             out.add(sep());
         }
         out.add(Component.translatable("tooltip.gensokyou.core_dps",
-                fmt(CoreMath.bulletDpsFactor(stats.coreBaseMult().get().doubleValue(), pellets,
+                fmt(CoreMath.bulletDpsFactor(damageMult, pellets,
                         stats.attackRateTicks().getAsInt()))).withStyle(ChatFormatting.GOLD));
     }
 
@@ -190,5 +196,11 @@ public class BulletCoreItem extends Item {
 
     private static String fmt(double v) {
         return String.format(Locale.ROOT, "%.2f", v);
+    }
+
+    private static String fmtMult(double v) {
+        return Math.abs(v - Math.rint(v)) < 1.0E-9
+                ? String.valueOf((long) Math.rint(v))
+                : fmt(v);
     }
 }

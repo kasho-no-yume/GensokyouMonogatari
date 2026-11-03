@@ -222,6 +222,12 @@ public final class BuildNumbers {
         return (index(playerTier) / 2) + 1;
     }
 
+    /** 弹幕核核阶倍率（T1×1 / T2×2 / T3×4），按 1..3 钳制。跨带跃升的唯一来源；武器等级核不参与伤害（design D7）。 */
+    public static double coreTierMult(int coreTier) {
+        int i = Math.min(Math.max(coreTier, 1), BalanceNumbers.CORE_TIER_MULT.size()) - 1;
+        return BalanceNumbers.CORE_TIER_MULT.get(i);
+    }
+
     /** Current per-card T1 costs become explicit fixed-pool coefficients for all player tiers. */
     public static double spellBaseCost(String card, int tier) {
         double fraction = switch (card) {

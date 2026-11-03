@@ -73,10 +73,10 @@ public record SpiritPowerData(float current, float max, int temperLevel, float r
         return tier >= 1 && tier <= MAX_TIER && graceLedger.size() > i + 1 ? graceLedger.get(i) : 0F;
     }
 
-    /** 某阶级台账强度份额（未 roll 过返回 0）。 */
+    /** 某阶级台账强度份额（未 roll 过返回 0）。第 N 阶的成对条目为下标 2(N-1)/2(N-1)+1。 */
     public float ledgerPowerGain(int tier) {
         int i = (tier - 1) * 2 + 1;
-        return tier >= 1 && tier <= MAX_TIER && graceLedger.size() > i + 1 ? graceLedger.get(i) : 0F;
+        return tier >= 1 && tier <= MAX_TIER && graceLedger.size() > i ? graceLedger.get(i) : 0F;
     }
 
     /** 该阶级池份额是否已由进阶写入。 */
@@ -116,5 +116,14 @@ public record SpiritPowerData(float current, float max, int temperLevel, float r
     public SpiritPowerData withTemper(int newTemperLevel) {
         return new SpiritPowerData(current, max, newTemperLevel, regenBuffer, spiritDamage,
                 graceLedger, flightBuffer, flightInertia);
+    }
+
+    /**
+     * 死亡规则（copyOnDeath 的 Clone 侧）：仅清当前灵力与两个进位 buffer；
+     * 上限、阶级、台账、灵力强度与惯性开关全部保留。MUST NOT 在此重掷或补台账。
+     */
+    public SpiritPowerData withClearedCurrentForDeath() {
+        return new SpiritPowerData(0F, max, temperLevel, 0F, spiritDamage,
+                graceLedger, 0F, flightInertia);
     }
 }

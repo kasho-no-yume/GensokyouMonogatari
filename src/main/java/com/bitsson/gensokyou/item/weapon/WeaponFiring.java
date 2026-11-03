@@ -102,9 +102,13 @@ public final class WeaponFiring {
         float critMult = com.bitsson.gensokyou.spirit.attr.PlayerAttributes
                 .rollCrit(player, player.getRandom());
 
+        // 核的伤害倍率为单一口径：行为基准 × 核阶步进（T1×1 / T2×2 / T3×4），
+        // 结算与展示不再出现独立的核阶参数；武器等级核不再直接增伤（design D7）。
+        float coreDamageMult = stats.coreBaseMult().get()
+                * (float) com.bitsson.gensokyou.balance.BuildNumbers
+                        .coreTierMult(stats.requiredTier().getAsInt());
         float finalDamage = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.spiritPower(player)
-                * stats.coreBaseMult().get()
-                * WeaponSlotsHelper.weaponLevelMult(weapon)
+                * coreDamageMult
                 * (1F + (float) Math.min(com.bitsson.gensokyou.balance.BuildNumbers.cap("damage_pct", tier),
                         Math.max(0F, runes.damagePct())))
                 * critMult;

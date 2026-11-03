@@ -118,22 +118,26 @@ class DanmakuWeaponBalanceTest {
     }
 
     /**
-     * 每一级武器都解锁出严格强于上一级最好选择的新核。
+     * 每一核阶都写着更强的载体：T1/T2/T3 核阶倍率 ×1/×2/×4 承担武器跨带跃升（design D7）。
      *
-     * <p>否则 {@code requiredTier} 只是"装备门槛"，而门槛后面的东西反而更弱——
-     * 等级闸门形同虚设（这正是本次重排要修的问题）。
+     * <p>武器等级核不再直接增伤；低级核装在高级武器上只吃自身核阶倍率（×1），不再继承 ×4。
+     * 等级闸门仍由 requiredTier ≤ 武器等级控制。
      */
     @Test
-    void eachWeaponLevelUnlocksAStrongerBestCore() {
-        List<Double> weaponLevelMult = List.of(1.0, 2.0, 4.0);
+    void eachCoreTierUnlocksAStrongerBestCore() {
+        List<Double> coreTierMult = List.of(1.0, 2.0, 4.0);
         // 各阶最强核（mult × 弹数 × 20/间隔）
         double tier1Best = CoreMath.bulletDpsFactor(2.00, 1, 8);   // 单发玉 5.00
         double tier2Best = CoreMath.laserDpsFactor(1.40, 10, 10);  // 激光机枪 5.60
         double tier3Best = CoreMath.laserDpsFactor(2.00, 60, 60);  // 激光炮 8.00
-        assertTrue(tier2Best * weaponLevelMult.get(1) > tier1Best * weaponLevelMult.get(0),
-                "Lv2 最强核应严格强于 Lv1 最强核");
-        assertTrue(tier3Best * weaponLevelMult.get(2) > tier2Best * weaponLevelMult.get(1),
-                "Lv3 最强核应严格强于 Lv2 最强核");
+        assertTrue(tier2Best * coreTierMult.get(1) > tier1Best * coreTierMult.get(0),
+                "T2 核阶最强核应严格强于 T1 核阶最强核");
+        assertTrue(tier3Best * coreTierMult.get(2) > tier2Best * coreTierMult.get(1),
+                "T3 核阶最强核应严格强于 T2 核阶最强核");
+        // 同武器换核步进恰为 ×2；低核阶核在高级武器上仍为 ×1
+        assertEquals(2.0, coreTierMult.get(1) / coreTierMult.get(0), 1e-9);
+        assertEquals(2.0, coreTierMult.get(2) / coreTierMult.get(1), 1e-9);
+        assertEquals(1.0, coreTierMult.get(0), 1e-9);
     }
 
     @Test
@@ -145,25 +149,45 @@ class DanmakuWeaponBalanceTest {
     }
 
     @Test
-    void weaponLevelLadderIsThreeBandsTwoTiersEach() {
-        // Lv1=阶1-2 / Lv2=阶3-4 / Lv3=阶5；每级 ×2 = 跨带的一次跃升
+    void coreTierLadderDoublesPerTier() {
+        // T1/T2/T3 核阶倍率 ×1/×2/×4（原武器等级倍率迁移）；闸门仍由武器等级（每级两个灵启阶）控制
         List<Double> table = List.of(1.0, 2.0, 4.0);
         assertEquals(3, table.size());
         assertEquals(2.0, table.get(1) / table.get(0), 1e-9);
         assertEquals(2.0, table.get(2) / table.get(1), 1e-9);
     }
 
+    /** 核阶倍率读取与钳制；玩家阶→核阶映射为 T1/T1/T2/T2/T3（BuildNumbers.coreTier）。 */
+    @Test
+    void coreTierMultMappingAndClamping() {
+        assertEquals(1.0, com.bitsson.gensokyou.balance.BuildNumbers.coreTierMult(1), 1e-9);
+        assertEquals(2.0, com.bitsson.gensokyou.balance.BuildNumbers.coreTierMult(2), 1e-9);
+        assertEquals(4.0, com.bitsson.gensokyou.balance.BuildNumbers.coreTierMult(3), 1e-9);
+        assertEquals(1.0, com.bitsson.gensokyou.balance.BuildNumbers.coreTierMult(0), 1e-9);
+        assertEquals(4.0, com.bitsson.gensokyou.balance.BuildNumbers.coreTierMult(9), 1e-9);
+        assertEquals(1, com.bitsson.gensokyou.balance.BuildNumbers.coreTier(1));
+        assertEquals(1, com.bitsson.gensokyou.balance.BuildNumbers.coreTier(2));
+        assertEquals(2, com.bitsson.gensokyou.balance.BuildNumbers.coreTier(3));
+        assertEquals(2, com.bitsson.gensokyou.balance.BuildNumbers.coreTier(4));
+        assertEquals(3, com.bitsson.gensokyou.balance.BuildNumbers.coreTier(5));
+        // 参考 DPS 改用标准核阶来源后数值不变（BOSS 不上调，design D7）
+        double critAvg5 = 1D + com.bitsson.gensokyou.balance.BuildNumbers.innateMean("crit_chance", 5)
+                * com.bitsson.gensokyou.balance.BuildNumbers.innateMean("crit_damage", 5);
+        assertEquals(6523D * 4D * critAvg5 * 5D,
+                com.bitsson.gensokyou.balance.MonsterStatBudget.referencePlayerDps(5), 1e-6);
+    }
+
     @Test
     void playerDpsLadderAtLeastTenPerTier() {
-        // 与 config grace 表同构：spirit_power 累计 / 暴击期望 / 武器带倍率
+        // 与 config grace 表同构：spirit_power 累计 / 暴击期望 / 标准核阶带（参考配装 T1/T1/T2/T2/T3）
         // rebalance-tier1-spirit-and-danmaku-cost：spirit_power 整列 ÷6，比例结构不变
         double[] spiritPower = {1, 10, 90, 773, 6523};
         double[] critAvg = {1.066, 1.128, 1.253, 1.465, 1.80};
-        double[] weaponBand = {1.0, 1.0, 2.0, 2.0, 4.0};
+        double[] standardCoreTierBand = {1.0, 1.0, 2.0, 2.0, 4.0};
         double shotsPerSecond = 2.5;
         double prev = 0;
         for (int i = 0; i < spiritPower.length; i++) {
-            double dps = spiritPower[i] * critAvg[i] * weaponBand[i] * shotsPerSecond;
+            double dps = spiritPower[i] * critAvg[i] * standardCoreTierBand[i] * shotsPerSecond;
             if (i > 0) {
                 assertTrue(dps / prev >= 10.0 - 1e-6,
                         "第 " + (i + 1) + " 阶 DPS 应至少 ×10, got " + (dps / prev));
@@ -205,7 +229,7 @@ class DanmakuWeaponBalanceTest {
      */
     @Test
     void tierOneSphereDamageIsAboutOneAndBelowStoneSword() {
-        // T1：spirit_power 1、coreBaseMult 2.0、暴击率 0.11、暴伤 +0.6
+        // T1：spirit_power 1、coreBaseMult 2.0、核阶倍率 ×1（T1）、暴击率 0.11、暴伤 +0.6
         double spiritPower = 1.0;
         double critAvg = 1.0 + 0.11 * 0.60;
         double perShot = spiritPower * 2.0 * 1.0 * critAvg;

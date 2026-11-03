@@ -167,3 +167,16 @@
 ### 验证
 
 全量`tools/gradle_task.ps1 test`在2026-11-02 17:16启动，shell等待超时后后台正常完成（2m18s），日志`20261102-171609-test.log`为BUILD SUCCESSFUL、exit哨兵0。后续balance与spirit定向回归持续通过；完整构建、客户端生存实测与第二change联合验收仍未进行。
+
+## 11. 弹幕核核阶重做（2026-11-03，design D7 实施记录）
+
+用户确认：等级核退出伤害乘区，原武器等级倍率 [1,2,4] 整份迁移为弹幕核核阶倍率（T1×1 / T2×2 / T3×4，步进 ×2/阶）；匹配装总量不变，BOSS 血量不上调。已实施（未实机）：
+
+- `BalanceNumbers.CORE_TIER_MULT`（原 `WEAPON_LEVEL_MULT` 改名与语义迁移）；`BuildNumbers.coreTierMult(coreTier)` 提供 1..3 钳制读取。
+- `WeaponFiring` 伤害式改为 `spiritPower × coreBaseMult × coreTierMult × (1+Σrune) × crit`；`WeaponSlotsHelper.weaponLevelMult` 删除，等级核仅闸门；其余引用（`CoreOrbRenderer` 环绕环等）不受影响。
+- `MonsterStatBudget.referencePlayerDps` 来源改为标准核阶（T1/T1/T2/T2/T3），逐阶数值与旧武器等级倍率完全相同；D0 = 5/50/900/7730/130460 不变。
+- 七核数值复核（tasks 6.3）：T1 带 3.50~5.00、T2 5.50/5.60、T3 8.00，全部满足行为层带 [3.50, 8.00]、同层比值 ≤1.5、T1 效率带 [0.40, 0.55]；匹配装产品与旧表一致。**现值保留、不做数值替换**；成本仍按行为 payload 派生，核阶倍率不进成本。
+- tooltip：核阶并入「伤害倍率」与「有效 DPS」的单一数值展示（`tooltip.gensokyou.core_damage_mult` = 合计），不再分列、无独立核阶键；`docs/weapon-design-guidelines.md` §1/§2/§3/§6 与 `docs/player-build-budgets.md` 武器段已按新归属改写。
+- 验证：`item.weapon.*` 与 `balance.*` 定向测试通过（含新增核阶映射/换核断言）；报告重新生成——`core-tier-ladder.md`（匹配装不变、换核 ×2/阶、T1@Lv3 = 匹配装的 1/4）、`standard-ladder.md`、`legal-borrowed-cores.md`、`borrowed-equipment.md`（借核口径措辞改为核阶倍率）。
+- 未证明（不提前勾选）：同武器换核与低核高阶掉伤的实机体感、tooltip 实机渲染；tasks 1.5/1.6 完整门槛与 5.2 联合仍待第二 change；6.4 的实机部分归入实机待验清单。
+- 登记项（不设行动）：T3 弹幕核（激光炮）与 Lv3 武器等级核无配方（tasks 6.6）。

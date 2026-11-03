@@ -1,6 +1,6 @@
 # 接续交接：玩家构筑基线重做
 
-更新时间：2026-11-02。本文件是**停工现场交接**，不是完成报告。
+更新时间：2026-11-02（2026-11-03 追加 §1.6 定案记录：弹幕核核阶重做并入本 change，未实施）。本文件是**停工现场交接**，不是完成报告。
 
 ## 0. 先读这段
 
@@ -55,6 +55,12 @@
 旧天赋和旧核不自动重掷、不补条；确定性、幂等迁移，原始成果保留，生效值受新边界。旧核可能超新版生成预算，明确legacy例外，不暗删词条。
 
 盔甲旧+50%回灵本轮保留为兼容例外，分别测试无甲/全甲。星银8%强度原先未接入当前主武器读取链，**不顺手启用**。后续套装改不影响核心属性的其他功效，尚未设计替代效果。
+
+### 1.6 弹幕核核阶（2026-11-03 定案，未实施）
+
+用户新要求：最初「弹幕核不影响数值计算、高阶玩家用低阶核也打差不多 DPS」作废；弹幕核核阶 T1/T2/T3 要阶级分明、参与数值计算，更高级的核有更明显更多的伤害加成。现存核数值均为占位，按白纸在总量约束内复核。
+
+定案（见 design D7）：**等级核不再作为伤害乘区**，原武器等级倍率 [1,2,4] 整份搬入弹幕核核阶（T1×1/T2×2/T3×4，步进×2/阶）。匹配装总表不变 ⇒ D0、BOSS 血量、资源与符卡预算一律不上调；参考 DPS 的 [1,1,2,2,4] 数值不变，仅来源语义改为「标准核阶」。低核阶在高阶武器不再继承等级倍率（T1 核在 Lv3 上从 ×4 变 ×1）。存量核无 NBT 自动生效、无迁移；存量「T1 核 + 高等级武器」掉伤属预期，须写明。T3 弹幕核/Lv3 等级核配方缺口仅登记、不设行动。任务见 tasks 第 6 节；spec delta 已含槽1/槽2/伤害公式/tooltip 改写。**尚未动任何代码。**
 
 ## 2. 当前源码实际已接入什么
 
@@ -213,6 +219,26 @@ python tools/lang_audit.py
 ```
 
 wrapper超时不杀后台，读`build/agent-logs/<timestamp>.log`及`.log.exit`，不要反复重启。禁止裸gradlew、Start-Process、对Gradle管道Select-Object -First。源码编辑用patch/编辑工具或显式UTF-8 Python，不用PowerShell Get-Content/Set-Content往返。
+
+## 9. 实施续记（2026-11-03，本日完成，均未实机、未提交 git）
+
+**弹幕核核阶重做（design D7）已落地为代码**：
+- 公式 `spirit × coreDamageMult × (1+Σrune) × crit`，其中 `coreDamageMult` = 行为基准 × 核阶步进（T1×1/T2×2/T3×4）的**单一合计倍率**（2026-11-03 用户澄清：核阶并入伤害倍率，不出现独立参数/行）；等级核退为纯闸门；
+- `BalanceNumbers.WEAPON_LEVEL_MULT` → `CORE_TIER_MULT`（`BuildNumbers.coreTierMult` 钳制读取）；`MonsterStatBudget.referencePlayerDps` 数值不变、来源改「标准核阶（T1/T1/T2/T2/T3）」；D0/BOSS 不动；
+- tooltip：核阶并入「伤害倍率」/「有效 DPS」的单一数值展示（无独立核阶行；`core_tier_mult` 键已删除）；
+- 报告 `core-tier-ladder.md` 重跑：匹配装不变、换核 ×2/阶、T1@Lv3 = 匹配装的 1/4；`standard-ladder.md`/`legal-borrowed-cores.md` 等全部重跑；
+- 文档：`weapon-design-guidelines.md` §1/§2/§3/§6、`player-build-budgets.md` 武器段、指导书 `weapons_overview.p3`、tasks 第 6 节均已更新。
+
+**原 change 收尾（A+可实施项）**：
+- **2.4 单测化**：死亡清池提取为 `SpiritPowerData.withClearedCurrentForDeath`；重复登录/死亡/逐阶洗练幂等单测（`GraceLedgerTest`）；源守卫锁死亡路径；**修复 `ledgerPowerGain` 末阶 off-by-one**（洗练预览“现状”池强度曾恒为 0）。
+- **3.3**：汲取额度/账本单测（`SpiritLeechLedgerTest`：同周期保留、跨周期重置不累积、额度上界）；**3.4**：旧攻速换算边界单测 + docs 注记；**4.5**：道具形态两处源守卫；**5.1**：`weapon-search.md` 极端 21⁴ 组合扩展为同时报固定池资源 DPS（无减耗/回灵词条）与固定受击生存；报告同源化完成（`BuildBudgetCandidate` 适配器删除，测试直连生产 `BuildNumbers`）。
+- **4.4**：`control-coverage.md` 生成（三张控制卡 CDR 折减后占空 139%/750%/375%，可常驻；花园/花瓣由专属最短冷却兜住）。用户裁决：**先记录、不加锁**；边界已写入 `spell-consumption-matrix.md` 三卡行，控制卡不加最短冷却。
+- **5.2/第二change 仍未动**（用户禁止）；**3.1/4.4/4.6/5.4(实测)/2.4(真实矩阵)** 均未完成（见 tasks.md 各条）。
+
+**验证**：全量 `test`（日志 `build/agent-logs/20261103-163609-test.log`，约 72s 通过）；`build`（日志 `20261103-163724-build.log`，`verifyNoTestContent` OK）；`openspec validate --strict` 通过；lang_audit 与 11-02 基线一致（仅存 zh/en 4 差异 + 32 项 JEI 缺项，非本轮引入）。
+- **实机验收步骤**：`docs/acceptance-rework-player-stat-build-budgets.md`（0–8 节：前置核验 / D7 核阶接线 / 存档·死亡 / 一·三·五阶生存 / 回灵·汲取 / 旧核兼容 / **6 攻速真实交付** / **7 花园去重+道具形态** / 结果登记表）。
+
+接手请以本续记为最新进度基线；§7 第 1 条「读取用户对核的新要求」已完成并落地。
 
 本机API验证源码jar：`C:/Users/spdimdriver/.gradle/caches/neoformruntime/intermediate_results/sourcesAndCompiledWithNeoForge_b4ec97bff2df3e64bdbbe6ed645c826c07b66926_output.jar`。已核实Item.onUseTick/getUseDuration/releaseUsing和LivingEntity.startUsingItem签名。
 

@@ -36,6 +36,22 @@ class SpellAttributeMathTest {
     }
 
     @Test
+    void legacyIntervalReductionBoundaryMatchesDesignContract() {
+        // 旧有效域 r ∈ [0, .8]；a = 1/(1-r) − 1，端点 a(.8) = 4.0（攻速上限边界）
+        assertEquals(4D, SpellAttributeMath.legacyIntervalReductionToSpeed(.8D), 1e-12);
+        assertEquals(1D, SpellAttributeMath.legacyIntervalReductionToSpeed(.5D), 1e-12);
+        // 单调不减，不允许在旧有效域内出现跳变
+        double prev = -1D;
+        for (double r = 0D; r <= .8D; r += .05D) {
+            double a = SpellAttributeMath.legacyIntervalReductionToSpeed(r);
+            assertTrue(a >= prev);
+            prev = a;
+        }
+        assertThrows(IllegalArgumentException.class,
+                () -> SpellAttributeMath.legacyIntervalReductionToSpeed(Double.NaN));
+    }
+
+    @Test
     void explicitParameterPolicyCapsFinalValueWithoutCappingUnrelatedParameters() {
         var shieldCount = new SpellAttributeMath.ParameterPolicy(true, false, 1D, 3D);
         var shieldDuration = new SpellAttributeMath.ParameterPolicy(false, true, 0D, -1D);

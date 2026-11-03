@@ -226,10 +226,8 @@ public final class ModAttachments {
     public static void onClone(PlayerEvent.Clone event) {
         SpiritPowerData old = event.getOriginal().getData(SPIRIT_POWER.get());
         if (event.isWasDeath()) {
-            // 死亡规则：仅当前灵力清零；上限/阶级/台账/惯性开关全部保留
-            event.getEntity().setData(SPIRIT_POWER.get(),
-                    new SpiritPowerData(0F, old.max(), old.temperLevel(), 0F, old.spiritDamage(),
-                            old.graceLedger(), 0F, old.flightInertia()));
+            // 死亡规则：仅当前灵力与进位 buffer 清零；上限/阶级/台账/强度/惯性全部保留
+            event.getEntity().setData(SPIRIT_POWER.get(), old.withClearedCurrentForDeath());
         }
     }
 

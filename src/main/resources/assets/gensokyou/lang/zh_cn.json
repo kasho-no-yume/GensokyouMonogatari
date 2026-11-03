@@ -252,6 +252,7 @@
   "gensokyou.book.entry.weapons_overview": "武器系统",
   "gensokyou.book.entry.weapons_overview.p1": "弹幕武器可发射属性能量的弹幕，近战武器则讲究时机与手感。",
   "gensokyou.book.entry.weapons_overview.p2": "强化插槽与符文词缀能进一步改变武器的表现。",
+  "gensokyou.book.entry.weapons_overview.p3": "弹幕核的阶位决定威力阶梯：一阶核 ×1、二阶核 ×2、三阶核 ×4。武器等级核只是装配闸门——高等级的武器不会放大低阶核；想变强，就要换上对应阶位的核。",
   "gensokyou.book.landing": "欢迎来到幻想乡。这本书收录了灵力、符卡、仪式、生物、NPC 与武器的入门知识。",
   "gensokyou.book.loot.base": "常规产物",
   "gensokyou.book.loot.fishing": "钓鱼池",

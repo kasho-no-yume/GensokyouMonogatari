@@ -35,15 +35,15 @@ class BuildBudgetCoreSamplingTest {
             for (int sample = 0; sample < 100000; sample++) {
                 Map<String, Double> core = null;
                 for (int attempt = 0; attempt < 64; attempt++) {
-                    var keys = new ArrayList<>(java.util.List.of(BuildBudgetCandidate.keys()));
+                    var keys = new ArrayList<>(java.util.List.of(BuildNumbers.keys()));
                     Collections.shuffle(keys, random);
                     var candidate = new LinkedHashMap<String, Double>();
                     for (int i = 0; i < tier + 2; i++) {
                         String key = keys.get(i);
-                        candidate.put(key, BuildBudgetCandidate.coreMaximum(key, tier)
+                        candidate.put(key, BuildNumbers.coreMaximum(key, tier)
                                 * Math.pow(random.nextDouble(), 3D));
                     }
-                    if (BuildBudgetCandidate.legalCore(candidate, tier)) {
+                    if (BuildNumbers.legalCore(candidate, tier)) {
                         core = candidate;
                         break;
                     }
@@ -52,17 +52,17 @@ class BuildBudgetCoreSamplingTest {
                 if (core == null) {
                     fallback++;
                     core = new LinkedHashMap<>();
-                    String[] keys = BuildBudgetCandidate.keys();
+                    String[] keys = BuildNumbers.keys();
                     for (int i = 0; i < tier + 2; i++) {
-                        core.put(keys[i], BuildBudgetCandidate.coreMaximum(keys[i], tier) * .01D);
+                        core.put(keys[i], BuildNumbers.coreMaximum(keys[i], tier) * .01D);
                     }
                 }
                 assertEquals(tier + 2, core.size());
-                assertTrue(BuildBudgetCandidate.legalCore(core, tier));
+                assertTrue(BuildNumbers.legalCore(core, tier));
                 int good = 0;
                 boolean top = false;
                 for (var entry : core.entrySet()) {
-                    double ratio = entry.getValue() / BuildBudgetCandidate.coreMaximum(entry.getKey(), tier);
+                    double ratio = entry.getValue() / BuildNumbers.coreMaximum(entry.getKey(), tier);
                     if (ratio >= .9D) {
                         top = true;
                     }
