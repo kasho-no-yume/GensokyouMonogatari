@@ -31,7 +31,7 @@ class BuildNumbersIntegrationTest {
                 assertTrue(regen >= BuildNumbers.pool(tier) * .00108D - .01D);
                 assertTrue(regen <= BuildNumbers.pool(tier) * .00132D + .01D);
                 assertEquals(0F, roll.contributions().getOrDefault(AttributeKey.SPELL_AMP, 0F));
-                assertTrue(roll.contributions().containsKey(AttributeKey.SPELL_DAMAGE_AMP));
+                assertTrue(roll.contributions().containsKey(AttributeKey.SPELL_EFFECT_AMP));
                 assertTrue(roll.contributions().containsKey(AttributeKey.SPELL_COST_REDUCTION));
             }
         }

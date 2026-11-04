@@ -23,7 +23,8 @@ public record RuneAffix(String affixId, float value) {
      * 词条的 tooltip 行：按语义选单位 —— 玩家属性走 {@code attribute.gensokyou.<id>}，
      * 武器专有走 {@code affix.gensokyou.<id>}。
      *
-     * <p>flat 属性用 {@code +0.5} 绝对值、比率属性用 {@code +2.8%}、
+     * <p>名称为裸键，数值由本方法统一拼接（全属性/武器域一致的格式）：
+     * flat 属性用 {@code +0.5} 绝对值、比率属性用 {@code +2.8%}、
      * {@code danmaku_reduce} 反解成玩家直观的减伤倍率 {@code x2.00}。
      *
      * <p>增幅核自身与武器（装着该核时）两处 tooltip MUST 走本方法，
@@ -43,6 +44,7 @@ public record RuneAffix(String affixId, float value) {
             value = String.format(java.util.Locale.ROOT, "%+.1f%%", affix.value() * 100F);
         }
         String keyName = key != null ? key.langKey() : "affix.gensokyou." + id;
-        return net.minecraft.network.chat.Component.translatable(keyName, value);
+        return net.minecraft.network.chat.Component.translatable(keyName)
+                .append(net.minecraft.network.chat.Component.literal(" " + value));
     }
 }

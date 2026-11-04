@@ -14,18 +14,15 @@ MUST NOT 硬编码于符卡逻辑。
 - **THEN** 其参照灵力强度等于 `Σ_{t=1..N} grace(t, spirit_power)`，即 1/10/90/773/6523
 
 ### Requirement: 已学符卡随灵力强度缩放
-已学符卡的效果值 SHALL 按 `Base × S^α_card` 计算：`S` = 施放者当前灵力强度
-（`PlayerAttributes.spiritPower`），`α_card` = 该卡**自己**的缩放指数（config 逐卡声明），
-`Base` = 该卡品 1 基准值。伤害与治疗类 SHALL 再乘 `(1 + spell_amp)`。冷却 SHALL 经
-`spell_cdr` 折减、`MobEffect` 时长 SHALL 经 `buff_extend` 延长（沿用既有消费点，不另造乘区）。
+已学符卡 SHALL 保留Base×S^alpha_card的逐卡独立缩放，S为当前玩家灵力强度，Base为卡片基准；已获准的低生命治疗适配按单独治疗基准执行。新来源的伤害/治疗效果 SHALL 通过逐卡清单选择强度域；护盾容量 SHALL 使用符卡强度，不新增独立防御增幅域。参数 SHALL 支持增幅后最终硬上下限，默认无额外限制。旧spell_amp SHALL 保留为遗留通用ID和值，只供原有伤害/治疗消费点读取，与各分类贡献平加后受该分类上限约束，MUST NOT 复制多条贡献或获得新增防御收益；新生成 SHALL 不再投放旧ID。符卡持续 SHALL 经独立符卡时长属性按消费矩阵折算，MUST NOT 与普通buff_extend重复作用；冷却 SHALL 经spell_cdr于施放时折减，并遵守卡片可选最终最短冷却。道具形态 SHALL 保持固定品质参照、不读取玩家属性，无额外道具倍率；同品同值指同一基准模型，不包含已学形态的玩家构筑加成。
 
-#### Scenario: 高灵力强度收益亚线性
-- **WHEN** 同一张卡分别由灵力强度 1 与 6523 的玩家施放
-- **THEN** 效果值之比为 `6523^α_card`，远低于灵力强度之比 ×6523
+#### Scenario: 分类增幅
+- **WHEN** 玩家拥有伤害增幅但无治疗增幅，分别施放伤害卡与治疗卡
+- **THEN** 仅伤害参数取得伤害倍率，两卡仍保留各自灵力强度缩放指数
 
-#### Scenario: 冷却与增幅复用既有属性
-- **WHEN** 拥有 CDR 与 spell_amp 的玩家施放一张伤害符卡
-- **THEN** 实际冷却 = 基准 ×(1−CDR)，且伤害含 ×(1+spell_amp)
+#### Scenario: 独立持续
+- **WHEN** 某符卡持续参数允许延长且玩家同时拥有普通Buff延长
+- **THEN** 该参数只按矩阵指定的符卡持续属性处理一次
 
 ### Requirement: 逐卡独立的缩放指数档
 每张符卡的 `α_card` SHALL 落于其类别对应的带内：伤害/自动攻击 [0.85, 1.0]、

@@ -77,11 +77,10 @@ public final class BuildNumbers {
             case "damage_pct" -> DAMAGE[i];
             case "attack_rate_pct" -> SPEED[i];
             case "spirit_cost_pct" -> REDUCTION[i];
-            case "spell_amp", "spell_damage_amp" -> AMP[i];
+            case "spell_amp", "spell_effect_amp" -> AMP[i];
             case "spell_duration" -> DURATION[i];
             case "spell_cost_reduction" -> SPELL_COST[i];
             case "spell_cdr" -> CDR[i];
-            case "spell_heal_amp" -> .5D;
             case "danmaku_reduce" -> BuildBudgetMath.wardSpan(3D) - .4D;
             case "spirit_power" -> power(tier) * .8D * .03D;
             case "spirit_regen_rate" -> pool(tier) * .0012D;
@@ -97,7 +96,7 @@ public final class BuildNumbers {
 
     /** Innate bands use cumulative maxima, then differences per tier. */
     public static double innateMaximum(String key, int tier) {
-        if (key.equals("spell_damage_amp")) key = "spell_amp";
+        if (key.equals("spell_effect_amp")) key = "spell_amp";
         if (key.equals("danmaku_reduce")) {
             return .08D * tier;
         }
@@ -106,7 +105,7 @@ public final class BuildNumbers {
         }
         return switch (key) {
             case "crit_chance", "spell_amp", "spell_duration", "spell_cost_reduction", "spell_cdr",
-                 "spell_heal_amp" -> cap(key, tier) * .3D;
+                 "spell_effect_amp" -> cap(key, tier) * .3D;
             case "crit_damage" -> (cap(key, tier) - .5D) * .3D;
             default -> 0D;
         };
@@ -121,17 +120,21 @@ public final class BuildNumbers {
         return baseline + innateMaximum(key, tier) / 4D;
     }
 
-    /** Affix grants relative to its own nuclear reference tier. Costs use positive reduction here. */
+    /**
+     * 生成带的上沿（候选口径：与 {@link CoreAffixCatalog} 同源 —— attr = pctHi×参考阶累计标准，
+     * 护壁 = ΔP(mitHi)）。非受控 key 显式抛错（不静默按 0 处理）。
+     */
     public static double coreMaximum(String key, int coreTier) {
-        int playerTier = switch (coreTier) {
-            case 1 -> 1;
-            case 2 -> 3;
-            case 3 -> 5;
-            default -> throw new IllegalArgumentException("Core tier outside 1..3");
-        };
-        double baseline = key.equals("crit_damage") ? .5D : 0D;
-        return Math.max(0D, cap(key, playerTier) - baseline);
+        return CoreAffixCatalog.defaultHi(key, coreTier);
     }
+
+    // ---- 符卡效果加成（2026-11-04 统一，rework-player-stat-build-budgets） ----
+    // 统一 amp 属性 SPELL_EFFECT_AMP：伤害类系数 1.0；治疗类系数 HEAL_COEF=0.5，
+    // 且治疗类增幅上限 HEAL_CAP=1.5 ⇒ 治疗总量封顶 ×2.5（伤害翻倍与治疗翻倍刻意不等值）。
+    /** 统一符卡效果加成：治疗类效果量系数（同属性值 ×0.5）。 */
+    public static final double SPELL_EFFECT_AMP_HEAL_COEF = .5D;
+    /** 统一符卡效果加成：治疗类增幅上限（1.5 ⇒ 治疗总量封顶 ×2.5）。 */
+    public static final double SPELL_EFFECT_AMP_HEAL_CAP = 1.5D;
 
     public static double leechCapPerSecond(int tier) {
         return pool(tier) * .0003D;
@@ -139,8 +142,8 @@ public final class BuildNumbers {
 
     public static String[] keys() {
         return new String[]{"crit_chance", "crit_damage", "damage_pct", "attack_rate_pct",
-                "spirit_cost_pct", "spell_damage_amp", "spell_duration", "spell_cost_reduction",
-                "spell_cdr", "spell_heal_amp", "danmaku_reduce",
+                "spirit_cost_pct", "spell_effect_amp", "spell_duration", "spell_cost_reduction",
+                "spell_cdr", "danmaku_reduce",
                 "spirit_power", "spirit_regen_rate", "spirit_leech_rate", "graze_chance",
                 "move_speed_bonus", "tenacity", "phys_resist", "buff_extend", "range_pct",
                 "jump", "melee_damage"};
@@ -201,7 +204,7 @@ public final class BuildNumbers {
             if (dps > limit) {
                 return false;
             }
-            double spellAmp = candidateValue("spell_damage_amp", tier, values)
+            double spellAmp = candidateValue("spell_effect_amp", tier, values)
                     + values.getOrDefault("spell_amp", 0D);
             double duration = candidateValue("spell_duration", tier, values);
             double cdr = candidateValue("spell_cdr", tier, values);
@@ -299,7 +302,7 @@ public final class BuildNumbers {
         return switch (key) {
             case "health_bonus" -> health(tier) - 20D;
             case "danmaku_reduce" -> ward(tier);
-            case "crit_chance", "crit_damage", "spell_damage_amp", "spell_heal_amp",
+            case "crit_chance", "crit_damage", "spell_effect_amp",
                  "spell_duration", "spell_cost_reduction", "spell_cdr" -> innateMean(key, tier);
             case "spell_amp" -> 0D;
             case "spirit_regen_rate" -> pool(tier) * .0012D;

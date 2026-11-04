@@ -248,7 +248,7 @@ public final class SeiiService {
         int pity = RuneGenerator.rerollsOf(target.stack());
         List<RuneAffix> after = SeiiNumbers.roll(target.tier(), pity, level.random);
         seii(core).stage(new SeiiSession.Pending(target.tier(), ritualLevel,
-                before, after, pity));
+                before, after, pity, SeiiNumbers.RULE_VERSION));
         core.markDirty();
         feedback(resolveInitiator(level, seii(core).initiator()), "msg.gensokyou.seii_washed",
                 after.size());
@@ -343,10 +343,28 @@ public final class SeiiService {
                 .equals(pending.before());
         if (accept) {
             if (intact) {
-                held.set(ModDataComponents.RUNE_AFFIXES.get(), pending.after());
-                RuneGenerator.bumpRerollAccept(held);
-                core.setExtraSlot(SEII_CORE_SLOT, held);
-                feedback(viewer, "msg.gensokyou.seii_applied");
+                switch (SeiiNumbers.acceptAction(pending.ruleVersion())) {
+                    case APPLY_NEW -> {
+                        // 新版预览：写回并盖新版本章（攻速=频率加成语义 / 新规则表）
+                        held.set(ModDataComponents.RUNE_AFFIXES.get(), pending.after());
+                        held.set(ModDataComponents.RUNE_VALUE_VERSION.get(), SeiiNumbers.RULE_VERSION);
+                        held.set(ModDataComponents.CORE_RULE_VERSION.get(), SeiiNumbers.RULE_VERSION);
+                        RuneGenerator.bumpRerollAccept(held);
+                        core.setExtraSlot(SEII_CORE_SLOT, held);
+                        feedback(viewer, "msg.gensokyou.seii_applied");
+                    }
+                    case APPLY_LEGACY -> {
+                        // 旧档预览：身份转换 —— 写回旧语义词条、保持 legacy（缺失版本组件），
+                        // 不把旧语义值静默重定为新版值
+                        held.set(ModDataComponents.RUNE_AFFIXES.get(), pending.after());
+                        RuneGenerator.bumpRerollAccept(held);
+                        core.setExtraSlot(SEII_CORE_SLOT, held);
+                        feedback(viewer, "msg.gensokyou.seii_applied_legacy");
+                    }
+                    case REJECT_UNKNOWN ->
+                        // 未来/未知版本预览：明确作废、保留原核、不写任何组件
+                        feedback(viewer, "msg.gensokyou.seii_preview_version_unknown");
+                }
             } else {
                 feedback(viewer, "msg.gensokyou.seii_core_changed");
             }

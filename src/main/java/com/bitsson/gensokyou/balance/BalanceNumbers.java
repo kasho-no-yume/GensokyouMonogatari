@@ -735,8 +735,8 @@ public final class BalanceNumbers {
     public static final List<Double> RUNE_WARD_BAND = List.of(0.01D, 0.03D, 0.02D, 0.05D, 0.05D, 0.08D);
     /** 由原 COMMON 配置迁移（键名 RUNE_ATTR_WEIGHT）。 */
     public static final Integer RUNE_ATTR_WEIGHT = 6;
-    /** 由原 COMMON 配置迁移（键名 RUNE_AFFIX_COUNT）。 */
-    public static final List<Integer> RUNE_AFFIX_COUNT = List.of(1, 3, 5);
+    /** 由原 COMMON 配置迁移（键名 RUNE_AFFIX_COUNT）。新版固定 3/4/5（2026-11，BREAKING）。 */
+    public static final List<Integer> RUNE_AFFIX_COUNT = List.of(3, 4, 5);
     /** 由原 COMMON 配置迁移（键名 RUNE_PITY_CAP）。 */
     public static final Integer RUNE_PITY_CAP = 10;
     /** 由原 COMMON 配置迁移（键名 RUNE_RANGE_DECAY_EXP）。 */

@@ -104,7 +104,7 @@ public final class GraceNumbers {
         float powerGain = 0F;
         for (AttributeKey key : AttributeKey.values()) {
             Entry entry = entry(rows, tier, key);
-            boolean newKey = key == AttributeKey.SPELL_DAMAGE_AMP || key == AttributeKey.SPELL_HEAL_AMP
+            boolean newKey = key == AttributeKey.SPELL_EFFECT_AMP
                     || key == AttributeKey.SPELL_DURATION || key == AttributeKey.SPELL_COST_REDUCTION;
             if (entry == null && !(buildDistribution && newKey)) {
                 continue;
@@ -113,8 +113,8 @@ public final class GraceNumbers {
             if (key == AttributeKey.HEALTH_BONUS || key == AttributeKey.DANMAKU_REDUCE
                     || key == AttributeKey.SPIRIT_REGEN_RATE || key == AttributeKey.CRIT_CHANCE
                     || key == AttributeKey.CRIT_DAMAGE || key == AttributeKey.SPELL_CDR
-                    || key == AttributeKey.SPELL_AMP || key == AttributeKey.SPELL_DAMAGE_AMP
-                    || key == AttributeKey.SPELL_HEAL_AMP || key == AttributeKey.SPELL_DURATION
+                    || key == AttributeKey.SPELL_AMP || key == AttributeKey.SPELL_EFFECT_AMP
+                    || key == AttributeKey.SPELL_DURATION
                     || key == AttributeKey.SPELL_COST_REDUCTION) {
                 if (buildDistribution) {
                     value = key == AttributeKey.SPELL_AMP ? 0F : (float)

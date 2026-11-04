@@ -231,10 +231,10 @@ public final class SpellCardEffects {
         float amp = com.bitsson.gensokyou.spirit.attr.PlayerAttributes
                 .finalValue(sp, com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_AMP);
         float classified = com.bitsson.gensokyou.spirit.attr.PlayerAttributes
-                .finalValue(sp, com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_DAMAGE_AMP);
+                .finalValue(sp, com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_EFFECT_AMP);
         int tier = GraceService.tierOf(sp);
         double bonus = com.bitsson.gensokyou.balance.SpellAttributeMath.combinedBonus(
-                classified, amp, true, com.bitsson.gensokyou.balance.BuildNumbers.cap("spell_damage_amp", tier));
+                classified, amp, true, com.bitsson.gensokyou.balance.BuildNumbers.cap("spell_effect_amp", tier));
         return ctx.magnitude() * (1D + bonus);
     }
 
@@ -258,13 +258,18 @@ public final class SpellCardEffects {
         double duration = 0D;
         if (!ctx.itemForm() && ctx.serverPlayer() != null) {
             ServerPlayer player = ctx.serverPlayer();
-            var key = healing ? com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_HEAL_AMP
-                    : com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_DAMAGE_AMP;
-            double classified = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.finalValue(player, key);
+            // 统一符卡效果加成：伤害系数 1.0；治疗系数 0.5 且上限 1.5（治疗总量封顶 ×2.5）
+            double coef = healing ? com.bitsson.gensokyou.balance.BuildNumbers.SPELL_EFFECT_AMP_HEAL_COEF : 1D;
+            double u = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.finalValue(player,
+                    com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_EFFECT_AMP);
+            double classified = u * coef;
             double legacy = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.finalValue(player,
                     com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_AMP);
-            strength = com.bitsson.gensokyou.balance.SpellAttributeMath.combinedBonus(classified, legacy,
-                    legacyConsumer, com.bitsson.gensokyou.balance.BuildNumbers.cap(key.id(), ctx.quality()));
+            double capEff = healing
+                    ? com.bitsson.gensokyou.balance.BuildNumbers.SPELL_EFFECT_AMP_HEAL_CAP
+                    : com.bitsson.gensokyou.balance.BuildNumbers.cap("spell_effect_amp", ctx.quality());
+            strength = com.bitsson.gensokyou.balance.SpellAttributeMath.combinedBonus(
+                    classified, legacy * coef, legacyConsumer, capEff);
             duration = com.bitsson.gensokyou.spirit.attr.PlayerAttributes.finalValue(player,
                     com.bitsson.gensokyou.spirit.attr.AttributeKey.SPELL_DURATION);
         }

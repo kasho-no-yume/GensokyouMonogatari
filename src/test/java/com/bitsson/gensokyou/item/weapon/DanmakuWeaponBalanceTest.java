@@ -426,13 +426,13 @@ class DanmakuWeaponBalanceTest {
     /** 条数逐位合并：config 优先、内置默认补缺。老配置的 [2,3,4] 仍会被尊重（需手删该行）。 */
     @Test
     void affixCountMergesPerIndexWithDefaults() {
-        assertEquals(1, SeiiNumbers.affixCountOf(1, List.of(), RuneGenerator.countDefaults()));
-        assertEquals(3, SeiiNumbers.affixCountOf(2, List.of(), RuneGenerator.countDefaults()));
+        assertEquals(3, SeiiNumbers.affixCountOf(1, List.of(), RuneGenerator.countDefaults()));
+        assertEquals(4, SeiiNumbers.affixCountOf(2, List.of(), RuneGenerator.countDefaults()));
         assertEquals(5, SeiiNumbers.affixCountOf(3, List.of(), RuneGenerator.countDefaults()));
         assertEquals(2, SeiiNumbers.affixCountOf(1, List.of(2, 3, 4), RuneGenerator.countDefaults()),
                 "config 显式值应被尊重");
-        assertEquals(3, SeiiNumbers.affixCountOf(2, List.of(7), RuneGenerator.countDefaults()),
-                "config 只有 1 位时，越界位应回落默认 3");
+        assertEquals(4, SeiiNumbers.affixCountOf(2, List.of(7), RuneGenerator.countDefaults()),
+                "config 只有 1 位时，越界位应回落默认 4");
         assertEquals(5, SeiiNumbers.affixCountOf(3, List.of(7), RuneGenerator.countDefaults()),
                 "越界位应回落默认 5");
     }
@@ -449,16 +449,12 @@ class DanmakuWeaponBalanceTest {
     }
 
     @Test
-    void softPityShiftsBandUpwardAndWidensIt() {
-        // lo' = lo + w*t*0.5；hi' = lo + w*(1+t*0.5)
-        // t=1 时下界 = 原带中点（"最坏的一次也等于原来的平均"），带宽翻倍
-        assertEquals(0.10D, SeiiNumbers.pityBand(0.10D, 0.20D, 0D)[0], 1e-9, "t=0 返回原带");
-        assertEquals(0.125D, SeiiNumbers.pityBand(0.10D, 0.20D, 0.5D)[0], 1e-9,
-                "t=0.5 下界上移 1/4 带宽");
-        double[] full = SeiiNumbers.pityBand(0.10D, 0.20D, 1.0D);
-        assertEquals(0.15D, full[0], 1e-9, "t=1 下界 = 原带中点");
-        assertEquals(0.25D, full[1], 1e-9, "t=1 上界 = 原上界之上一个带宽");
-        assertEquals(0.10D, full[1] - full[0], 1e-9, "t=1 带宽翻倍");
+    void softPityOnlyFlattensLowBiasExponent() {
+        // k(t) = baseK − (baseK − 1)·t：t=0 → u^3（低值常见），t=1 → 均匀（不保极品、不平移带、不抬上沿）
+        assertEquals(3.0D, SeiiNumbers.pityExponent(3D, 0D), 1e-9, "t=0 保持 u^3");
+        assertEquals(2.0D, SeiiNumbers.pityExponent(3D, 0.5D), 1e-9, "t=0.5 指数降为 2");
+        assertEquals(1.0D, SeiiNumbers.pityExponent(3D, 1.0D), 1e-9, "t=1 退化为均匀，不超越法定上沿");
+        assertEquals(1.0D, SeiiNumbers.pityExponent(3D, 99D), 1e-9, "超 cap 饱和为 1，不反转");
         assertEquals(0.0D, SeiiNumbers.pityProgress(0, 10), 1e-9);
         assertEquals(1.0D, SeiiNumbers.pityProgress(99, 10), 1e-9, "超过 cap 应饱和");
         assertEquals(0.5D, SeiiNumbers.pityProgress(5, 10), 1e-9);

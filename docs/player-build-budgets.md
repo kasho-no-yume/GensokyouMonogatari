@@ -30,7 +30,7 @@
 
 ## 符卡清单与限制
 
-新属性：spell_damage_amp（符卡强度）、spell_heal_amp（治疗）、spell_duration、spell_cost_reduction；CDR复用原键。旧spell_amp保留单一legacy贡献，仅旧治疗/召唤消费者继续读取，不复制来源；与分类增幅平加后各自封顶。
+新属性：spell_effect_amp（符卡效果加成，统一放大；伤害系数 1.0、治疗系数 0.5、治疗增幅上限 1.5，即治疗总量 ≤ ×2.5）、spell_duration、spell_cost_reduction；CDR复用原键。旧spell_amp保留单一legacy贡献，仅旧治疗/召唤消费者继续读取，不复制来源；与分类增幅平加后各自封顶。
 
 - 无想封印：damageCap吃强度，持续吃时长，6玉/脉冲机制固定；基数按固定D0生命周期预算适配。
 - 冰符：单发伤害吃强度，弹数/散射/寿命固定。

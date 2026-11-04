@@ -39,6 +39,12 @@ public final class BuildBudgetMath {
         return nonnegative(damagePerHit) * hitsPerTrigger * 20D / intervalTicks;
     }
 
+    /** 目标减伤 r → 护壁指数增量 ΔP = -log2(1-r)。 */
+    public static double wardExponent(double mitigation) {
+        double r = Math.min(0.95D, Math.max(0D, mitigation));
+        return -Math.log(1D - r) / Math.log(2D);
+    }
+
     public static double wardSpan(double durabilityRatio) {
         if (finite(durabilityRatio) < 1D) {
             throw new IllegalArgumentException("Durability ratio must be at least one");

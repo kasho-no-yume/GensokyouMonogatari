@@ -55,8 +55,14 @@ public enum AttributeKey {
     SPELL_AMP("spell_amp", false, true,
             p -> BalanceNumbers.ATTR_BASE_SPELL_AMP,
             () -> BalanceNumbers.ATTR_SPELL_AMP_CAP),
-    SPELL_DAMAGE_AMP("spell_damage_amp", false, false, p -> 0D, () -> 5D),
-    SPELL_HEAL_AMP("spell_heal_amp", false, false, p -> 0D, () -> .5D),
+    /**
+     * 符卡效果加成（2026-11-04 统一，rework-player-stat-build-budgets）：
+     * 玩家符卡「效果量」一门放大通道。伤害类系数 1.0；治疗类系数 0.5 并以
+     * {@code BuildNumbers.SPELL_EFFECT_AMP_HEAL_CAP}=1.5 封顶（翻倍 ≤ 2.5 倍）；
+     * 时间/频率轴（duration / cdr / cost）不在此属性内。
+     * 旧 spell_damage_amp / spell_heal_amp 键已废弃（未发布变更，不保留迁移）。
+     */
+    SPELL_EFFECT_AMP("spell_effect_amp", false, false, p -> 0D, () -> 5D),
     SPELL_DURATION("spell_duration", false, false, p -> 0D, () -> 3D),
     SPELL_COST_REDUCTION("spell_cost_reduction", false, false, p -> 0D, () -> .75D),
 

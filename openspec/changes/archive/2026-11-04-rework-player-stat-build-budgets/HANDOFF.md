@@ -68,7 +68,7 @@
 
 - `balance/BuildNumbers.java`：由已获准候选提升为正式初轮数值源，包含阶级HP/池/强度、护壁、各属性边界、成长分布、费用、汲取、核预算接口。测试`BuildBudgetCandidate`只是转发adapter，不再复制另一套生产表。
 - `spirit/grace/GraceNumbers.java`：运行时`rollTier(int,random)`接新生命、护壁、回灵、暴击及符卡分类成长；流派u³、核心窄带，杂项有限范围。显式传rows的重载保留legacy纯解析行为。
-- `spirit/attr/AttributeKey.java`新增4键：`spell_damage_amp`、`spell_heal_amp`、`spell_duration`、`spell_cost_reduction`，现在22键；`spirit_power`展示改绝对数值；暴击率基准改0，爆伤仍基础额外0.5。
+- `spirit/attr/AttributeKey.java`新增4键：`spell_damage_amp`、`spell_heal_amp`、`spell_duration`、`spell_cost_reduction`（**2026-11-04 合并为单一 `spell_effect_amp`，22→21 键**）；`spirit_power`展示改绝对数值；暴击率基准改0，爆伤仍基础额外0.5。
 - `PlayerAttributes`按当前阶边界钳制生效值、不破坏保存贡献；额外灵力强度限该阶最小强度3%。暴击消费第二次cap也已改为当前阶，避免旧50% cap覆盖新75%。
 - `/gs_attributes show`显示min/cap/raw/生效/limited；并修了`clearSources`仅删部分来源但未store的旧遗漏。
 - `MonsterStatBudget`参考DPS纳入球核倍率，EHP统一新生命与护壁；`BalanceTestService`标准属性部分对齐新表。
@@ -243,3 +243,53 @@ wrapper超时不杀后台，读`build/agent-logs/<timestamp>.log`及`.log.exit`�
 本机API验证源码jar：`C:/Users/spdimdriver/.gradle/caches/neoformruntime/intermediate_results/sourcesAndCompiledWithNeoForge_b4ec97bff2df3e64bdbbe6ed645c826c07b66926_output.jar`。已核实Item.onUseTick/getUseDuration/releaseUsing和LivingEntity.startUsingItem签名。
 
 没有运行客户端/服务端，没有完成归档，没有做git commit。接手不要宣称成品已完成。
+
+## 10. 实施续记（2026-11-04，第二 change 落地 + 本 change 模型侧收尾）
+
+**第二 change（rework-amp-core-rolls-and-skill-slots）代码侧已实施**（未实机、未归档）：
+
+- **统一受控池**：新增 `balance/CoreAffixCatalog.java`（22 种：4 武器 + 17 属性 + 旧 pool 合并；spec 要求的「每条登记真实消费路径」`consumerOf` 缺失即 validate 失败）；首次与洗练同池，写死 id 唯一，带单一事实来源。
+- **生成**：`SeiiNumbers` 重写 roll——T1/T2/T3 = **3/4/5 条**（BREAKING）；低位偏置 q=u^k(t)，软保底改为 k(t)=3−2t（t=1→均匀；**不平移带、不抬上沿**，SPEC 强制）；整核组合预算在生成阶段拒绝（复用 `BuildNumbers.legalCore`：评分 1.5/2/2.5 + 最坏先天武器乘数 + 符卡吞吐）；64 次有界拒绝 → 确定性低位合法回退（向 0 缩放，条数不减、不补极品）；`rollDiagnostic` 诊断入口（仅报表/测试）。
+- **玩家属性词条改为绝对贡献带**（18×3，spec 强制：概率属性绝对百分点、MUST NOT 用 1~8% 小额比例；旧 `RUNE_ATTR_BAND` 改绝对语义）。护壁 = 目标减伤 pct→ΔP 绝对指数。**54 个数全为待审候选**（见 calibration-review 2026-11-04 节 A）。
+- **旧核**：不补条/不重掷/不改语义（缺失版本组件=legacy）；新生成写 `RUNE_VALUE_VERSION=1`（攻速=频率加成，旧 r 语义按 1/(1−r)−1 兼容）与 `CORE_RULE_VERSION=1`。星移预览携带 `ruleVersion` 并持久化；采纳时：新版→盖新版本章；legacy→身份转换保留旧语义（`msg.gensokyou.seii_applied_legacy`）；未知/更高版本→明确作废保留原核（`msg.gensokyou.seii_preview_version_unknown`）。
+- **技能槽**：`slotCountForTier = clamp(tier,0,5)`；学习资格隔离为 `legacyLearnLimit = max(0,tier−2)`（不随槽数放宽）；换槽不重置冷却、新槽默认空、旧档迁移不丢卡（单测锁定）。
+- **可达性/分布**（真实生成器，固定种子）：六流派每阶全可刷到（20k/阶）；10 万/阶回退率 0%；单项 ≥90% 5.4/7.8/10.0%；双项 ≥75% 0.3/1.0/2.4%；低位占 63~66%；满保底整核评分 1.19/1.68/2.18。报告：`build/reports/build-budget/real-generated-loadouts.md`、`core-generation.md`。
+- **文档**：指导书 seii_circle p1/p2 改写（3/4/5 条+旧核语义，zh/en）；`docs/acceptance-rework-amp-core-rolls-and-skill-slots.md` 新增；`alignment-check.md`（本 change 对齐核对）新增；`calibration-review.md` 增补 2026-11-04 审核清单；新版数值全部标注待审。
+
+**本 change 模型侧收尾**：1.5 的「真实可达六配装+混搭」证据已产出（real-generated-loadouts.md + `CoreReachabilityTest`/`CoreGenerationStatsTest`）；1.6 审核清单已写入 calibration-review（含攻速权重 2.0 致高攻速投放≈0 的冲突，等用户裁定）。**1.6 未勾选、未宣布通过**；2.4 的待决预览部分随第二 change 落地（APPLY_LEGACY/REJECT 路径+幂等单测）；5.2 联合验收文档已覆盖两 change（实机归用户）。
+
+**未完成（明确列出）**：
+- 实机：3.1 攻速真实交付、3.3 回灵/汲取对账、2.4 死亡/重登矩阵、4.4 稳定态裁定+召唤容量、4.6 多人/道具形态、5.4 一三五阶生存实测、二 change 的槽/核实机走查——全部需用户进游戏（验收文档已备好）。
+- 用户裁定：calibration-review 2026-11-04 节 A–F（绝对带表、攻速权重、预算上限、u^3/保底、BREAKING 提交方式、1.6 通过与否）。
+- 归档：两个 change 均不归档，等用户。
+- 攻速词条高值被预算拒绝殆尽（攻速权重 2.0+窄带）——需裁定降权重/放带/接受。
+- git 未提交（等用户）。
+
+## 11. 后修记录（2026-11-04 晚，实机截图反馈）
+
+用户实机截图指出两组问题，已修复：
+
+1. **tooltip 双重符号 / 缺数值**：武器域 lang 模板自带 `+`/`%%`（"伤害 +%s%%" + 带符号值 ⇒ "++3.0%%"）；属性域 lang 键不含 `%s` 占位（danmaku_reduce 以外所有属性行只显示名字、不显示数值）。统一改为**裸模板 + 代码拼接**：`translatable(keyName).append(" " + value)`，全部词条行一致输出（如「伤害 +3.0%」「暴击伤害 +18.5%」「弹幕减免 x1.07」）；`affix.gensokyou.*` 四条模板去掉 `+`/`%%`（zh/en 同改）。
+2. **洗练面板明显胜负信号**：星移预览删除 DPS 粗估行（"x1.07 → x1.18" 即“谁是高值”）；逐行改为只标增减方向——**红=增加 / 绿=减少 / 灰=持平**（新增/移除按从 0 计方向）；神恩洗练预览改同口径（不再全浅绿）。两面板均不再表达“哪个更好”。
+3. **待审全部数值表**：`openspec/changes/rework-player-stat-build-budgets/balance-review-table.md`——A 武器域带+权重、B 17 属性绝对带、C 护壁带、D 条数/权重/u^3/保底/64 回退、E 组合预算（含攻速权重 2.0 冲突实测）、F 符卡上限+治疗/狐/花瓣初值、G 属性阶级上限+生命/护壁/回灵、H 既定（D7 核阶/仪式经济/技能槽/legacy 语义不重审）。**裁定请按 A–H 逐表回复。**
+4. 单测/构建不受影响；lang JSON 校验通过；lang_audit 与 11-02 基线一致（非本轮引入项）。
+
+## 12. 统一符卡效果加成（2026-11-04 用户批准开工）
+
+用户裁定：符卡「效果量」类放大统一为单一属性——**`spell_effect_amp`（符卡效果加成）**，治疗类同值消放大刻意低于伤害类。实施：
+
+- 新增属性 `SPELL_EFFECT_AMP`（cap=AMP 阶梯 .8/1.5/2.5/3.75/5）；**删除** `SPELL_DAMAGE_AMP`/`SPELL_HEAL_AMP`（未发布，不留迁移）；注册表 22→21 键。
+- 消费系数集中成两行常量：`BuildNumbers.SPELL_EFFECT_AMP_HEAL_COEF=0.5`（治疗效果量系数）、`SPELL_EFFECT_AMP_HEAL_CAP=1.5`（治疗增幅上限 ⇒ **治疗总量封顶 ×2.5**）；伤害类系数 1.0，cap=AMP 阶梯（同旧伤害 amp）。
+- `SpellCardEffects.parameter()`/amplified() 统一读 `SPELL_EFFECT_AMP`，治疗分流 coefficient=0.5 且 capEff=1.5（封顶规则写在常量注释）；`BuildNumbers.cap/innateMaximum/standardAttribute/keys()` 全部切换到 spell_effect_amp；`SPELL_AMP` legacy 读法不变。
+- `CoreAffixCatalog`：22→21 种受控 id（合并掉 spell_heal_amp，spell_effect_amp 带 .05/.12,.10/.25,.20/.45 沿用伤害 amp 带）；CONSUMERS 合并一行；`consumerOf` 登记新消费路径。
+- 文档：`spell-consumption-matrix.md` 顶部与共通规则改写（伤害×1.0/治疗×0.5 封顶×2.5；持续/CDR/耗灵仍独立）；`docs/player-build-budgets.md`、balance-review-table.md（B 表两行合并、F 区新增统一项）、两 change 进度行同步；guidance 书一致。
+- 验证：全量 target `test` 通过（2 个既有失败已修：注册表计数 21、诱导 100% 拒绝配置补充 damage 带+攻速上限+护壁 94% 减伤使 64 次必回退——此前测试漏考虑 config 护壁带仍可合法逃脱）。
+- **数值仍为待审候选**（治疗系数 0.5 / 上限 1.5、统一带 .05~.45、AMP 阶梯 cap），列入 balance-review-table.md F 区待你裁定。
+
+## 13. 测试台显示“全是 0”修复（2026-11-04）
+
+用户实机截图：八百万神恩洗练面板（`/gs_test player` 后）所有非池属性“现状”列恒为 0。
+
+根因：测试台把非池键全部写进独立来源 `test_standard` 且是**跨阶累加值**；洗练预览读的是正式链路按阶写入的 `grace_tier_N` 来源——两个互不相交的集合，面板的“现状”必然全 0。正式玩家不受影响。
+
+修复：测试台改为**逐阶写入 `grace_tier_N` 来源**（写每阶行表 base；新键 SPELL_EFFECT_AMP/SPELL_DURATION/SPELL_COST_REDUCTION 用增量均值望远镜和），与 `GraceService.advance()` 完全同路径、同一份额。面板、`/gs_attributes show`、边界计费与实机一致；`reset` / `player 0` 的清空覆盖本就含两类来源，无需改动。测试存档用完即清即可。

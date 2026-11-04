@@ -17,10 +17,11 @@ import java.util.Set;
  * 增幅核词条生成：按核阶过滤受控词条池（config），权重 roll 词条、区间取值，
  * 写入 rune_affixes 组件。
  *
- * <p>词条分两域：<b>武器专有</b>（本类的 config 表，id 形如 {@code damage_pct}）与
- * <b>玩家属性</b>（id 直接等于 {@link com.bitsson.gensokyou.spirit.attr.AttributeKey#id()}，
- * 由 {@link SeiiNumbers} 按"参考玩家阶标准值的百分之几"取带）。本类只负责武器专有域的解析与首次生成；
- * 洗练路径走 {@code SeiiNumbers.roll}（含软保底平移）。
+ * <p>词条分两域：<b>武器专有</b>（id 形如 {@code damage_pct}）与
+ * <b>玩家属性</b>（id 直接等于 {@link com.bitsson.gensokyou.spirit.attr.AttributeKey#id()}），
+ * 两者共用 {@link SeiiNumbers} 的新版生成器（统一受控池、T1/T2/T3 = 3/4/5 条、低位偏置、
+ * 整核组合预算、64 次有界拒绝 + 低位合法回退）。本类只保留 config 合并解析与首次生成入口；
+ * 洗练路径走 {@code SeiiNumbers.roll}。
  *
  * <p><b>config 合并范式</b>：NeoForge 不会把新的 list 默认值写进已存在的配置文件，
  * 故"改了代码里的默认表"对老配置无效（表现为 T1 核仍 roll 2 条）。解法照
@@ -49,8 +50,8 @@ public final class RuneGenerator {
             "spirit_cost_pct,-0.08,-0.03,8,1", "spirit_cost_pct,-0.14,-0.06,8,2", "spirit_cost_pct,-0.22,-0.10,8,3",
             "range_pct,0.03,0.06,6,1", "range_pct,0.06,0.10,6,2", "range_pct,0.08,0.12,6,3");
 
-    /** 内置默认词条条数（不读 config，纯常量）。 */
-    private static final List<Integer> DEFAULT_COUNTS = List.of(1, 3, 5);
+    /** 内置默认条数（新版：T1/T2/T3 = 3/4/5，rework-amp-core-rolls-and-skill-slots）。 */
+    private static final List<Integer> DEFAULT_COUNTS = List.of(3, 4, 5);
 
     private RuneGenerator() {
     }
@@ -119,6 +120,8 @@ public final class RuneGenerator {
 
     /**
      * 首次获得增幅核时懒生成（取出/合成/掉落统一覆盖）：词条 + 晶石随机色，各掷一次。
+     * 新版规则（含玩家属性域、整核组合预算），并写入生成语义版本（{@code RUNE_VALUE_VERSION=1}
+     * 频率加成语义 / {@code CORE_RULE_VERSION=1} 新规则表）。
      *
      * <p>创造物品栏<b>刻意不调</b>本方法：那里的核保持未 roll 状态（tooltip 全空），
      * 玩家取出后才在此处 roll。
@@ -129,7 +132,9 @@ public final class RuneGenerator {
         }
         if (!core.has(ModDataComponents.RUNE_AFFIXES.get())) {
             core.set(ModDataComponents.RUNE_AFFIXES.get(),
-                    roll(tier, RandomSource.create()));
+                    SeiiNumbers.roll(tier, 0, RandomSource.create()));
+            core.set(ModDataComponents.RUNE_VALUE_VERSION.get(), SeiiNumbers.RULE_VERSION);
+            core.set(ModDataComponents.CORE_RULE_VERSION.get(), SeiiNumbers.RULE_VERSION);
         }
         if (!core.has(ModDataComponents.CRYSTAL_COLOR.get())) {
             core.set(ModDataComponents.CRYSTAL_COLOR.get(), rollCrystalColor(RandomSource.create()));
@@ -151,11 +156,7 @@ public final class RuneGenerator {
         return 0xFF000000 | (r << 16) | (g << 8) | b;
     }
 
-    public static List<RuneAffix> roll(int tier, RandomSource random) {
-        return roll(pool(), tier, SeiiNumbers.affixCount(tier), random);
-    }
-
-    /** 注入池版本（可单测）：同 id 唯一、按权重不重复抽、区间内取值。 */
+    /** 注入池版本（可单测）：同 id 唯一、按权重不重复抽、区间内均匀取值。 */
     static List<RuneAffix> roll(List<AffixDef> pool, int tier, int count, RandomSource random) {
         List<AffixDef> candidates = pool.stream()
                 .filter(def -> def.tier() == tier)

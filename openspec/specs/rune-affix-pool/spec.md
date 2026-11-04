@@ -4,156 +4,61 @@
 TBD - created by archiving change balance-danmaku-weapon-stats. Update Purpose after archive.
 ## Requirements
 ### Requirement: 增幅核词条类型集合
+增幅核 SHALL 使用统一受控定义表，首次生成与洗练 SHALL 共享相同类型池。玩家属性域 SHALL 复用注册表ID并走装备来源平加；武器域 SHALL 明确伤害、频率攻速、单次耗灵和射程语义。符卡分类增幅、持续和减耗 SHALL 仅在对应真实消费完成后进入正式池。旧spell_amp及旧攻速语义 SHALL 版本化映射，MUST NOT 重复表达同一效果。max_spirit、health_bonus和退役danmaku_resist SHALL 不入池，同核ID SHALL 唯一；新增版本信息 MUST NOT 破坏既有rune_affixes条目结构。
 
-增幅核（槽3）词条池 SHALL 由受控类型集合构成，共 **19 键**，分两个来源域：
+#### Scenario: 首次与洗练类型一致
+- **WHEN** 同阶核分别首次生成与洗练
+- **THEN** 两者均可产生完整受控池中的武器及玩家属性，不存在首次只有四类武器词条的独立池
 
-**玩家属性域（15 键）** —— 词条 id 直接复用 `AttributeKey.id()`，经装备来源的 contribution 层注入玩家属性，与玩家其它来源的属性进同一个加区、同一套硬上限、同一个属性面板。设计立场为"武器的加成也是给玩家的"：
-
-`spirit_regen_rate`、`spirit_power`、`move_speed_bonus`、`graze_chance`、`danmaku_reduce`、`tenacity`、`crit_chance`、`crit_damage`、`spell_amp`、`spell_cdr`、`buff_extend`、`spirit_leech_rate`、`jump`、`phys_resist`、`melee_damage`
-
-**武器专有域（4 键）** —— 玩家属性注册表中无对应物，只改武器自身的乘区：
-
-`damage_pct`（伤害乘区）、`attack_rate_pct`（攻击冷却折减）、`spirit_cost_pct`（单次灵力消耗增减）、`range_pct`（弹道有效距离）
-
-SHALL NOT 进入池的键：`max_spirit`（神恩池台账，属永久属性）、`health_bonus`（永久属性）、`danmaku_resist`（已退役键，config 注明 intentionally absent）。
-
-同一枚增幅核内每个词条 id MUST NOT 出现多于一次。新增词条类型 SHALL 只扩集合，MUST NOT 改动 `rune_affixes` NBT 结构。
-
-#### Scenario: 类型受控
-
-- **WHEN** 生成一枚增幅核
-- **THEN** 其词条 id 全部来自上述 19 键，不出现集合外词条
-
-#### Scenario: 同类型不重复
-
-- **WHEN** 一枚 T3 增幅核 roll 出 5 条词条
-- **THEN** 5 条 id 互不相同
-
-#### Scenario: 永久属性不入池
-
-- **WHEN** 检查词条池成员
-- **THEN** 不含 `max_spirit` 与 `health_bonus`
+#### Scenario: 无虚假词条
+- **WHEN** 审核正式池全部词条
+- **THEN** 每条存在可测试消费路径，符卡不适用参数有明确说明
 
 ### Requirement: 词条按核阶的数值范围与权重
+核 SHALL 维持T1/T2/T3三档，对应参考玩家阶1/3/5，数值带、权重、单位与分布 SHALL 集中定义并经校准。概率属性 SHALL 明确绝对百分点贡献，MUST NOT 统一用原标准属性1～8%的小额比例。灵力强度 SHALL 为参考值派生的绝对贡献并受实际玩家阶总额度约束；护壁 SHALL 为绝对指数贡献。其他属性 SHALL 按各自单位设置范围；杂项 SHALL 保留有限范围。核投放范围 SHALL 与最终属性边界分离，便于未来调整来源份额。新战力参数 MUST NOT 暴露为TOML战力配置。
 
-词条池 SHALL 只有 **3 个核阶**（T1=灵启阶1-2 / T2=阶3-4 / T3=阶5）。数值来源分两类：
+#### Scenario: 暴击单位明确
+- **WHEN** 核显示暴击率+10个百分点
+- **THEN** 未触及边界时最终暴击率从5%升到15%，而非5.5%
 
-**玩家属性域** —— `value = 采样带% × 对应玩家阶标准属性值`，采样带从 config 按 `核阶,键` 逐键读取，缺省为 T1 `1%~3%` / T2 `2%~5%` / T3 `5%~8%`。参考玩家阶按核阶映射：T1 核取灵启 1 阶标准值、T2 核取 3 阶、T3 核取 5 阶。标准值 SHALL 取自 `grace.graceTierTableV2` 的累加（基准 + Σ各阶增量），MUST NOT 硬编码。
-
-该规则使词条价值随玩家投资等比缩放（永远"占你已有属性的百分之几"），因此不会随阶相对变弱。
-
-**武器专有域** —— 直接百分比，取自 per-tier 表：
-
-| id | T1 | T2 | T3 |
-|---|---|---|---|
-| `damage_pct` | 3–6% | 7–12% | 12–20% |
-| `attack_rate_pct` | 3–6% | 6–10% | 10–15% |
-| `spirit_cost_pct` | −8..−3% | −14..−6% | −22..−10% |
-| `range_pct` | 3–6% | 6–10% | 8–12% |
-
-**`danmaku_reduce` 特例** —— 该键是无量纲指数 P（受伤 = 原伤 × 2^−P），MUST NOT 按"P 的百分比"给带子（两端都崩：1 阶得 +0.01~0.03 几乎无效，5 阶得 +0.43~0.69 一条词条 26~38% 减伤过肥），SHALL 改用"目标减伤 r → ΔP = −log2(1−r)"反解，r 取该核阶的采样带：
-
-| 核阶 | r | ΔP |
-|---|---|---|
-| T1 | 1–3% | 0.0144–0.0457 |
-| T2 | 2–5% | 0.0288–0.0740 |
-| T3 | 5–8% | 0.0740–0.1203 |
-
-数值 SHALL 全部由 config 表驱动，MUST NOT 硬编码于生成器。
-
-#### Scenario: 范围随核阶抬升
-
-- **WHEN** 分别读取 T1 与 T3 的 `damage_pct` 区间
-- **THEN** T3 区间整体高于 T1（12–20% vs 3–6%）
-
-#### Scenario: 玩家属性键随投资缩放
-
-- **WHEN** 5 阶玩家（灵力强度标准值 39,140）roll T3 核的 `spirit_power` 词条
-- **THEN** 数值落在 39,140 × 5%~8% = 1,957~3,131 区间
-
-#### Scenario: 低阶玩家同键数值更小
-
-- **WHEN** 1 阶玩家（灵力强度标准值 6）roll T1 核的 `spirit_power` 词条
-- **THEN** 数值落在 6 × 1%~3% = 0.06~0.18 区间，相对其自身属性为同比例
-
-#### Scenario: 护壁按减伤语义反解
-
-- **WHEN** roll T3 核的 `danmaku_reduce` 词条
-- **THEN** 数值落在 0.0740~0.1203 指数区间（等效受伤 ×0.93~0.92），而非 8.6 的 5%~8%
-
-#### Scenario: 权重抽取
-
-- **WHEN** 大量生成同核阶增幅核
-- **THEN** 出现频率大致符合 config 权重比例
+#### Scenario: 核阶与玩家边界分离
+- **WHEN** 高阶核合法装在低阶玩家武器上
+- **THEN** 核原始值不被改写，实际值遵守当前玩家阶边界且不新增装配门槛
 
 ### Requirement: 词条数量随核阶
+新版生成和主动洗练的词条数 SHALL 为T1=3、T2=4、T3=5，每条ID唯一。类型不足或定义错误 SHALL 显式失败，MUST NOT 静默少给或复制ID。已有旧核 SHALL 不因加载自动补条、删条或重掷，采纳新版洗练后才改为新数量。
 
-单枚增幅核 roll 的词条条数 SHALL 为 **T1 = 1 条、T2 = 3 条、T3 = 5 条**，且不超过受控类型集合大小。条数 SHALL 从 config 读取。
+#### Scenario: 三档数量准确
+- **WHEN** 分别首次生成和洗练T1/T2/T3核
+- **THEN** 每条路径均分别得到3/4/5个唯一ID，不固定使用T1数量
 
-#### Scenario: 高阶核更多词条
-
-- **WHEN** 生成 T1 与 T3 增幅核
-- **THEN** T1 为 1 条、T3 为 5 条
+#### Scenario: 旧核不补条
+- **WHEN** 加载一枚旧版单条T1核
+- **THEN** 原词条保持，主动洗练并采纳才成为新版三条核
 
 ### Requirement: 词条总增益预算
+新版核 SHALL 允许大范围单项随机及稀有多高词条组合，但 SHALL 通过生成阶段组合预算限制输出、资源与生存协同，禁止全部主要输出乘区同时毕业。预算 SHALL 来自依赖变更的校准报告，不沿用旧+80%DPS限制。预算 SHALL 为上限而非每枚核必须花满的定额；MUST NOT 保证极品主词条，MUST NOT 在战斗中再按整核强度削伤。验证 SHALL 覆盖适用玩家阶、天赋边界、弹幕核与符卡组合；生成 SHALL 有有限尝试和合法等条数回退。旧legacy核例外 SHALL 明示且独立测试。
 
-全部词条按最大 roll 组合时，对玩家有效 DPS 的总增益 SHALL ≤ **+80%**；该约束 MUST 由"同 id 唯一 + 上表区间 + 19 键池"共同保证，MUST NOT 依赖运行时再次封顶。
+#### Scenario: 稀有多高条合法
+- **WHEN** 构造预算内的多个高值词条组合
+- **THEN** 该组合在生成分布中有非零概率，而非强制每枚仅一条高值
 
-参考口径（5 阶满属性玩家装 T3 核的最坏 5 条组合：`spirit_power` +8% / `damage_pct` +20% / `attack_rate_pct` +15% / `crit_chance` +2.8 点 / `crit_damage` +12 点）：
+#### Scenario: 全乘区毕业被拒绝
+- **WHEN** 新候选同时接近多个输出乘区极值并超过预算
+- **THEN** 生成阶段拒绝该候选，不提交后再运行时打折
 
-```
-1.08 (灵力强度) × 1.20 (伤害乘区) × 1.176 (攻速) × 1.057 (暴击) = +61%
-各条取采样带中点时 = +48%
-```
-
-两者均落在 +80% 预算内。生成结果与预算校验 SHALL 可被单测覆盖。
-
-#### Scenario: 最大 roll 不超模
-
-- **WHEN** 构造一枚理论最大 roll 的 T3 增幅核
-- **THEN** 其有效 DPS 增益 ≤ +80%，不破坏玩家 ×10/阶 曲线
-
-#### Scenario: 典型值在目标区间
-
-- **WHEN** 取各词条采样带中点生成 T3 增幅核
-- **THEN** 有效 DPS 增益约 +48%~+60%
-
-#### Scenario: 撞 cap 的键按生效值呈现
-
-- **WHEN** 5 阶玩家（韧性标准值 0.70、硬上限 0.75）roll T3 核的 `tenacity` 词条（+0.035~0.056）
-- **THEN** 顶带部分被硬上限截断；洗练预览展示的是结算后的**生效**增量而非 roll 原始值，capped 行带标记
+#### Scenario: 尝试上限
+- **WHEN** 随机源持续产生超预算候选
+- **THEN** 有限尝试后返回合法且数量准确的回退结果，不阻塞服务端
 
 ### Requirement: 洗练软保底
+核 SHALL 保留独立rune_rerolls计数：保留原词条时+1，采纳时向下取整减半。洗练度 SHALL 只改善法定区间内的品质分布，MUST NOT 平移上沿、越过组合预算、保证极品或暗改类型权重。未保底时低值 SHALL 常见，高值 SHALL 稀有；实际概率 SHALL 在组合拒绝与回退之后统计验证。tooltip SHALL 展示可解释属性单位（原值/生效值/溢出原因）；洗练度 SHALL NOT 外显（沿用 2026-09-26 裁定：保底仅内部机制）。
 
-增幅核 SHALL 携带一个独立的洗练度计数器（数据组件 `rune_rerolls : int`，MUST NOT 改动 `rune_affixes` 结构）。语义：
+#### Scenario: 保底不越界
+- **WHEN** 最大洗练度的核重复洗练
+- **THEN** 结果始终处于各条数值带和整核组合预算内，且不必每次出现极端词条
 
-- 玩家选择"保留原词条"时 `rune_rerolls += 1`
-- 玩家选择"全部采纳"时 `rune_rerolls = rune_rerolls / 2`（向下取整，MUST NOT 清零，以便"这枚核被洗过多次"成为可见的长期履历）
+#### Scenario: 采纳减半
+- **WHEN** 洗练度7的核采纳结果
+- **THEN** 洗练度变为3
 
-每次 roll 前，采样区间 SHALL 按洗练度向好的一侧平移：
-
-```
-t    = min(rune_rerolls, PITY_CAP) / PITY_CAP        PITY_CAP = 10
-lo'  = lo + (hi - lo) × t × 0.5
-hi'  = lo + (hi - lo) × (1 + t × 0.5)
-value = uniform(lo', hi')
-```
-
-`t = 0` 时为原区间；`t ≥ PITY_CAP` 时下界抬至原上界之上。玩家属性域的采样带 SHALL 同法平移（对"标准值 × 采样带%"整体乘以 `1 + t × 0.5`）。
-
-计数器 SHALL 在核的 tooltip 中显示为"洗练度 N/10"。`PITY_CAP` SHALL 来自 config。
-
-#### Scenario: 洗练度抬升品质
-
-- **WHEN** 某核 `rune_rerolls` = 10 时洗练
-- **THEN** 采样区间下界等于无保底时的原上界，roll 值整体高于洗练度 0 时
-
-#### Scenario: 采纳减半不清零
-
-- **WHEN** `rune_rerolls` = 7 的核洗练后玩家采纳
-- **THEN** `rune_rerolls` 变为 3（不是 0）
-
-#### Scenario: 保底不改变条数与 id
-
-- **WHEN** 洗练度 10 的 T3 核洗练
-- **THEN** 仍为 5 条互不相同的词条，仅数值抬高

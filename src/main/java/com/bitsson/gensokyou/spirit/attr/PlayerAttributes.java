@@ -30,6 +30,26 @@ public final class PlayerAttributes {
         return finalValue(player, key, data(player));
     }
 
+    /**
+     * 只读推演：把某来源贡献从 before 替换为 after 后的<b>生效值</b>。
+     * 不读不写任何持久数据之外的状态；供洗练预览显示「原值 → 生效值（溢出钳制）」。
+     * 与 {@link #finalValue} 同一套钳制数学（含灵力强度额外额度口径）。
+     */
+    public static float finalValueWithAffixDelta(ServerPlayer player, AttributeKey key,
+                                                 double before, double after) {
+        PlayerAttributesData data = data(player);
+        int tier = com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player);
+        double contribution = data.totalContribution(key.id()) - before + after;
+        if (key == AttributeKey.SPIRIT_POWER && tier > 0) {
+            contribution = Math.min(contribution, com.bitsson.gensokyou.balance.BuildNumbers
+                    .cap("spirit_power", tier));
+        }
+        double lower = com.bitsson.gensokyou.balance.BuildNumbers.attributeLower(key.id(), tier);
+        double upper = com.bitsson.gensokyou.balance.BuildNumbers.attributeUpper(key.id(), tier, key.cap());
+        return (float) com.bitsson.gensokyou.balance.BuildAttributeBounds
+                .resolve(key.baseValue(player), contribution, 0D, lower, upper).effective();
+    }
+
     private static float finalValue(ServerPlayer player, AttributeKey key, PlayerAttributesData data) {
         int tier = com.bitsson.gensokyou.spirit.grace.GraceService.tierOf(player);
         double contribution = data.totalContribution(key.id());

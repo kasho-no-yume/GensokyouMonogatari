@@ -10,7 +10,7 @@ import com.bitsson.gensokyou.ritual.SpiritPowerAccess;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.item.weapon.AmpCoreItem;
 import com.bitsson.gensokyou.item.weapon.RuneAffix;
-import com.bitsson.gensokyou.item.weapon.RuneSummary;
+
 import com.bitsson.gensokyou.item.weapon.SeiiNumbers;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
@@ -69,7 +69,10 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
 
     private static final int COLOR_OK_ACTION = 0xFF66BB6A;
     private static final int COLOR_KEEP_ACTION = 0xFFFFB74D;
-    private static final int COLOR_UP = 0xFFA5D6A7;
+    /** 增幅类动作：红=增加，绿=减少（中式盘面：涨红跌绿）；不表达强弱好坏。 */
+    private static final int COLOR_INCREASE = 0xFFE57373;
+    private static final int COLOR_DECREASE = 0xFF81C784;
+    private static final int COLOR_NEUTRAL = 0xFFB0BEC5;
     private static final int COLOR_TITLE = 0xFFE0B0FF;
 
     @Override
@@ -179,7 +182,7 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
                             / (float) Math.max(1, GensokyouServerConfig.SEII_PERFORM_TICKS.get())), null));
             case REVIEW -> {
                 if (initiator) {
-                    appendReview(lines, session.pending());
+                    appendReview(lines, session.pending(), viewer);
                 } else {
                     lines.add(new InfoLine("gui.gensokyou.ritual.seii.review_waiting",
                             new String[0], "", 0xFFCE93D8, -1F, null));
@@ -226,7 +229,7 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
             lines.add(new InfoLine("gui.gensokyou.ritual.seii.ladder_row",
                     new String[]{String.valueOf(t), InfoLine.compact(SeiiNumbers.spCost(t)),
                             String.valueOf(SeiiNumbers.affixCount(t))},
-                    "", unlocked ? COLOR_UP : 0xFF9E9E9E, -1F, unlocked ? Boolean.TRUE : Boolean.FALSE));
+                    "", unlocked ? COLOR_NEUTRAL : 0xFF9E9E9E, -1F, unlocked ? Boolean.TRUE : Boolean.FALSE));
         }
     }
 
@@ -236,7 +239,8 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
      * <p>对比按 id 对齐两侧；只在一侧出现的 id 显示为"新增/移除"。玩家属性 id 复用
      * {@code CONTROL_ATTR}（客户端本地化属性名），武器专有 id 用 {@code affix.gensokyou.*}。
      */
-    private static void appendReview(List<InfoLine> lines, @Nullable SeiiSession.Pending pending) {
+    private static void appendReview(List<InfoLine> lines, @Nullable SeiiSession.Pending pending,
+                                     @Nullable ServerPlayer viewer) {
         if (pending == null) {
             return;
         }
@@ -260,24 +264,39 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
                 ids.add(id);
             }
         }
+        boolean anyClamped = false;
         for (String id : ids) {
             Float oldValue = before.get(id);
             Float newValue = after.get(id);
             AttributeKey key = AttributeKey.byId(id);
             String label = key != null ? key.langKey() : "affix.gensokyou." + id;
-            String text = format(key, oldValue == null ? 0F : oldValue) + " → "
-                    + format(key, newValue == null ? 0F : newValue);
-            int color = newValue == null ? 0xFF9E9E9E
-                    : oldValue == null ? COLOR_UP
-                    : newValue >= oldValue ? COLOR_UP : 0xFFE57373;
+            float oldV = oldValue == null ? 0F : oldValue;
+            float newV = newValue == null ? 0F : newValue;
+            String text = format(key, oldV) + " → " + format(key, newV);
+            if (key != null && viewer != null && key != AttributeKey.DANMAKU_REDUCE) {
+                // 生效差值（同单位、带符号）：total 已含旧核贡献，替换为新核后的钳制结果差
+                float effBefore = com.bitsson.gensokyou.spirit.attr.PlayerAttributes
+                        .finalValue(viewer, key);
+                float effAfter = com.bitsson.gensokyou.spirit.attr.PlayerAttributes
+                        .finalValueWithAffixDelta(viewer, key, oldV, newV);
+                float delta = effAfter - effBefore;
+                text += " (" + format(key, delta) + ")"; // format 自带符号；负值直接输出 "-x%"
+                if (Math.abs(delta) < 1e-6F && Float.compare(oldV, newV) != 0) {
+                    anyClamped = true; // 换核对该键无任何可见效果 = 已触及上限或无增减空间
+                }
+            }
+            int color = newValue == null ? COLOR_DECREASE
+                    : oldValue == null ? COLOR_INCREASE
+                    : Float.compare(newValue, oldValue) > 0 ? COLOR_INCREASE
+                    : Float.compare(newValue, oldValue) < 0 ? COLOR_DECREASE
+                    : COLOR_NEUTRAL;
             lines.add(new InfoLine(label, new String[]{text}, "", color, -1F, null,
                     0, InfoLine.CONTROL_ATTR, InfoLine.LINK_NONE, "", new String[0]));
         }
-        RuneSummary oldSum = RuneSummary.of(pending.before());
-        RuneSummary newSum = RuneSummary.of(pending.after());
-        lines.add(new InfoLine("gui.gensokyou.ritual.seii.review_dps",
-                new String[]{dpsHint(oldSum), dpsHint(newSum)}, "", 0xFFB0BEC5, -1F, null,
-                0, InfoLine.CONTROL_ATTR, InfoLine.LINK_NONE, "", new String[0]));
+        if (anyClamped) {
+            lines.add(new InfoLine("gui.gensokyou.ritual.seii.review_capped",
+                    new String[0], "", COLOR_NEUTRAL, -1F, null));
+        }
     }
 
     private static Map<String, Float> sum(List<RuneAffix> affixes) {
@@ -286,13 +305,6 @@ public class SeiiBehavior implements RitualBehavior, RitualExtraSlots {
             out.merge(a.affixId(), a.value(), Float::sum);
         }
         return out;
-    }
-
-    /** 武器专有四键的有效 DPS 粗估（玩家属性域不进此式，其收益在属性面板可见）。 */
-    private static String dpsHint(RuneSummary summary) {
-        float damage = 1F + summary.damagePct();
-        float rate = 1F / Math.max(0.2F, 1F - Math.min(0.8F, summary.attackRatePct()));
-        return String.format(java.util.Locale.ROOT, "x%.2f", damage * rate);
     }
 
     /** 值格式化：护壁为无量纲指数的等效倍数、flat 键一位小数、其余百分比。 */

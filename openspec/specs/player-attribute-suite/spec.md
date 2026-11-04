@@ -60,40 +60,19 @@ TBD - created by archiving change player-attribute-suite. Update Purpose after a
 - **THEN** 最终值为三者与基准的**平的和**再封顶，不做任何逐来源相乘
 
 ### Requirement: 分层结算公式
+玩家属性 SHALL 按基准与持久/临时各来源贡献的平和计算，再应用属性及当前阶有效上下界；同一属性不同来源 MUST NOT 相乘。阶级贡献 SHALL 仍以grace_tier_N分组；最大灵力、灵力强度 SHALL 保持池字段与阶级台账单一事实来源，不在属性持久层双写。装备来源 SHALL 只提供临时贡献，MUST NOT 改写池台账。百分比与护壁指数 SHALL 使用各自单位；护壁 MUST NOT 钳为0～1百分比。实际边界与原始值 SHALL 可查询，临时来源删除 MUST 只撤销其自身贡献。
 
-玩家某属性的最终值 SHALL 按公式计算：`final = min(基准 + Σ全部加区贡献平值, 硬上限)`。加区贡献为**平的和**，跨持久层与临时层、跨同一层内的多个 `sourceId` 均只做加法。基准值从配置读取；与玩家成长挂钩的键（最大灵力、灵力恢复速率、灵力强度、弹幕护壁等）其阶级驱动部分 SHALL 来自超人类阶级指数属性表的 roll 贡献（加区层，`sourceId = "grace_tier_N"`），MUST NOT 再以"随淬炼层级线性放大"公式结算。独立乘区仅存在于消费点，SHALL NOT 引入到加区容器内。**百分比类**加区贡献 SHALL 受该键硬上限封顶；**弹幕护壁键为无量纲指数（非百分比），MUST NOT 套用百分比封顶语义**。灵力强度 MUST 以既有 `playerSpiritDamage` 字段为单一事实来源（经套件读取合并，不双写）。
+#### Scenario: 同属性来源平加
+- **WHEN** 基准0、持久10、变身6、装备4，且边界允许20
+- **THEN** 原始和与生效值均为20，不逐来源连乘
 
-**装备来源 MUST NOT 写入灵力池台账**：主手武器提供的 `spirit_power` / `max_spirit` 类词条 SHALL 走临时层加区，MUST NOT 改写 `ModAttachments` 的池字段或阶级贡献组——否则会出现"戴上武器属性变高、摘下武器属性变低"的假永久属性，并与 `GraceService.applyRefine` 的整组替换互相覆盖。
+#### Scenario: 装备不写台账
+- **WHEN** 装卸带灵力强度词条的武器
+- **THEN** 池台账保持不变，最终值通过临时来源增减
 
-#### Scenario: 百分比封顶
-
-- **WHEN** 玩家擦弹率各来源贡献累加超过配置硬上限（如上限 50%、来源累加到 70%）
-- **THEN** 最终擦弹率取 50%
-
-#### Scenario: 灵力强度单一来源
-
-- **WHEN** 伤害公式经套件读取灵力强度
-- **THEN** 返回值等于既有 `playerSpiritDamage` 字段与各层贡献的合并，无第二处副本
-
-#### Scenario: 阶级贡献入加区
-
-- **WHEN** 3 阶玩家结算弹幕护壁最终值
-- **THEN** grace_tier_1/2/3 三组贡献与基准合并得到护壁指数 P，不按百分比封顶
-
-#### Scenario: 护壁非百分比
-
-- **WHEN** 玩家护壁指数累计为 8.6
-- **THEN** 属性容器原样保留 8.6（不被钳制到 0.9 一类百分比上限）
-
-#### Scenario: 装备词条不改台账
-
-- **WHEN** 玩家主手武器的增幅核带 `spirit_power` 词条
-- **THEN** 灵力强度的 `playerSpiritDamage` 字段值不变，增量只体现在临时层装备来源；卸下武器后最终值回到卸下前
-
-#### Scenario: 多来源不相乘
-
-- **WHEN** 某键的持久来源 +10、变身来源 +6、装备来源 +4，基准 0
-- **THEN** 最终值为 20（平的和），而非 10×1.6×1.4 一类连乘结果
+#### Scenario: 护壁使用指数边界
+- **WHEN** 高阶护壁值超过1但处于该阶允许范围
+- **THEN** 原值作为指数保留，不被百分比工具钳到1
 
 ### Requirement: 阶级 roll 贡献源规约
 超人类进阶写入属性容器的贡献 SHALL 统一使用命名空间 `grace_tier_N`（N=1..5），每阶级一组；洗练重掷 SHALL 整组替换对应 sourceId 且 MUST NOT 触碰其他组。`sourceId` 为 `command` 的调试写入与 `grace_tier_N` 组 MUST NOT 互相覆盖。最大灵力与灵力强度按单写规约走池字段+阶级台账，属性容器内 MUST NOT 存在其持久副本。
@@ -151,3 +130,4 @@ TBD - created by archiving change player-attribute-suite. Update Purpose after a
 
 - **WHEN** 改造后的写入入口收到一个变身来源的写入请求
 - **THEN** 白名单校验照旧生效，降神变身的可改写键集合与改造前完全一致
+

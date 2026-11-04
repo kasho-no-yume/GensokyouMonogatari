@@ -28,10 +28,9 @@ import java.util.List;
 /**
  * 数值测试台服务（add-balance-test-harness）：标准数值配置、无限灵力、测试 BOSS 生成/清理。
  *
- * <p>"标准数值" = grace 表 base 中点（不做 roll）；非池键写独立 sourceId {@code test_standard}
- * （与 {@code grace_tier_N}/command 隔离）。池两键受单写规约约束，只能经阶级台账写入——
- * 故本命令会覆盖 1..N 阶台账份额（以 {@code test_standard} 之外的方式）；{@code reset}
- * 与 {@code player 0}（取消神恩）时清空。
+ * <p>"标准数值" = grace 表每阶 base（不做 roll）；非池键写入各阶 <code>grace_tier_N</code>
+ * 来源（与正式 advance() 同路径），池两键经阶级台账份额写入。遗留的 {@code test_standard}
+ * 来源仍用于清空历史测试存档；{@code reset} 与 {@code player 0}（取消神恩）时清空。
  */
 @EventBusSubscriber(modid = com.bitsson.gensokyou.Gensokyou.MODID)
 public final class BalanceTestService {
@@ -55,33 +54,40 @@ public final class BalanceTestService {
 
         SpiritPowerData data = ModAttachments.get(player);
         SpiritPowerData next = new SpiritPowerData(0F, 0F, 0, 0F, 0F, List.of(), 0F, data.flightInertia());
-        java.util.Map<AttributeKey, Double> totals = new java.util.EnumMap<>(AttributeKey.class);
+        // 逐阶写入 grace_tier_N 来源（与正式 advance() 同一路径、同一份额）：
+        // 写的是每阶固定 base（新键按增量均值），不走 roll 随机——面板/属性台与实机一致。
         for (int t = 1; t <= tier; t++) {
             float maxGain = 0F;
             float powerGain = 0F;
+            java.util.Map<AttributeKey, Float> increments = new java.util.EnumMap<>(AttributeKey.class);
             for (AttributeKey key : AttributeKey.values()) {
                 GraceNumbers.Entry entry = GraceNumbers.entry(t, key);
-                if (entry == null) {
+                boolean newKey = key == AttributeKey.SPELL_EFFECT_AMP
+                        || key == AttributeKey.SPELL_DURATION || key == AttributeKey.SPELL_COST_REDUCTION;
+                float value = 0F;
+                if (entry != null) {
+                    switch (key) {
+                        case MAX_SPIRIT -> { maxGain = (float) entry.base(); continue; }
+                        case SPIRIT_POWER -> { powerGain = (float) entry.base(); continue; }
+                        default -> value = (float) entry.base();
+                    }
+                } else if (newKey) {
+                    // 新键无旧行表：用增量均值望远镜和（= innateMaximum(t)/4 累加）
+                    double meanNow = BuildNumbers.innateMean(key.id(), t);
+                    double meanPrev = t > 1 ? BuildNumbers.innateMean(key.id(), t - 1) : 0D;
+                    value = (float) (meanNow - meanPrev);
+                } else {
                     continue;
                 }
-                float value = (float) entry.base();
-                switch (key) {
-                    case MAX_SPIRIT -> maxGain = value;
-                    case SPIRIT_POWER -> powerGain = value;
-                    default -> totals.merge(key, (double) value, Double::sum);
+                if (value != 0F) {
+                    increments.put(key, value);
                 }
             }
+            for (java.util.Map.Entry<AttributeKey, Float> entry : increments.entrySet()) {
+                PlayerAttributes.setPermanent(player, entry.getKey(), GraceService.sourceId(t),
+                        entry.getValue());
+            }
             next = next.withLedgerTier(t, maxGain, powerGain);
-        }
-        for (java.util.Map.Entry<AttributeKey, Double> entry : totals.entrySet()) {
-            double value = BuildNumbers.standardAttribute(entry.getKey().id(), tier, entry.getValue());
-            if (entry.getKey() == AttributeKey.CRIT_DAMAGE) value -= BalanceNumbers.ATTR_BASE_CRIT_DAMAGE;
-            PlayerAttributes.setPermanent(player, entry.getKey(), TEST_SOURCE, (float) value);
-        }
-        for (AttributeKey key : List.of(AttributeKey.SPELL_DAMAGE_AMP, AttributeKey.SPELL_HEAL_AMP,
-                AttributeKey.SPELL_DURATION, AttributeKey.SPELL_COST_REDUCTION)) {
-            PlayerAttributes.setPermanent(player, key, TEST_SOURCE,
-                    (float) BuildNumbers.standardAttribute(key.id(), tier, 0D));
         }
         next = next.withTemper(tier);
         ModAttachments.set(player, next.withCurrent(next.max()));

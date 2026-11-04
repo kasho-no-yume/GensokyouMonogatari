@@ -21,7 +21,7 @@ class BuildBudgetLoadoutTest {
             {"damage_pct", "crit_damage", "spirit_cost_pct"},
             {"crit_chance", "crit_damage", "spirit_cost_pct"},
             {"attack_rate_pct", "spirit_cost_pct", "damage_pct"},
-            {"spell_damage_amp", "spirit_regen_rate", "spell_cost_reduction"},
+            {"spell_effect_amp", "spirit_regen_rate", "spell_cost_reduction"},
             {"danmaku_reduce", "spirit_regen_rate", "damage_pct"},
             {"damage_pct", "attack_rate_pct", "spirit_cost_pct"}
     };
@@ -190,7 +190,7 @@ class BuildBudgetLoadoutTest {
             double duration = BuildNumbers.foxDuration(tier)
                     * (1D + stat("spell_duration", tier, values));
             double perSecond = Math.min(100000D, BuildNumbers.foxDamagePerSecond(tier)
-                    * (1D + stat("spell_damage_amp", tier, values)));
+                    * (1D + stat("spell_effect_amp", tier, values)));
             double cooldown = 20D * (1D - stat("spell_cdr", tier, values));
             assertTrue(duration > 0D && perSecond > 0D);
             for (double t = 0D; t < window; t += cooldown) {

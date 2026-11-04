@@ -1,6 +1,6 @@
 ## Context
 
-**2026-11-02暂停交接**：用户明确暂不实施本change，核方案可能另有修改。先读`../rework-player-stat-build-budgets/HANDOFF.md`，不要自动按当前核候选表继续。前一change已部分接入新属性/频率/符卡消费，但本change生成器和槽扩容未实施；核新版ID应为spell_damage_amp，旧spell_amp只legacy；逐卡增幅清单取代早期独立防御属性设想。
+**2026-11-04 已获授权、按「先定架构、数值后审」实施**（此前 2026-11-02 暂停交接已解除）：用户确认两个 change 代码侧一起做；核方案架构（单池、3/4/5 条、同 ID 唯一、低位密集抽样、组合预算、有限回退、软保底、旧核版本化迁移）先定，**候选数值表（带宽/权重/预算上限/回退策略）落地为待审初轮值，1.6 关卡与两个 change 的通过/归档均由用户审核裁定**，不得自行宣布校准通过。前一change已部分接入新属性/频率/符卡消费，但本change生成器和槽扩容未实施；核新版ID应为spell_effect_amp（2026-11-04 统一，替代旧文中的 spell_damage_amp/spell_heal_amp），旧spell_amp只legacy；逐卡增幅清单取代早期独立防御属性设想。**2026-11-04 补充：统一符卡效果加成（spec 要求：一个属性 + 逐参数系数/上限），见 rework-player-stat-build-budgets 的 spell-consumption-matrix.md 顶部与 balance-review-table.md F 区。**
 
 当前默认数量1/3/5，RuneGenerator首次只抽4种武器词条；SeiiNumbers洗练引入玩家池但tunables固定使用affixCount(1)，需要回归测试复现再修。属性范围常为标准值1～8%，不足构筑。当前SkillStateData已容纳5格，但解锁和正式学习上限共用tier-2。
 
@@ -39,6 +39,22 @@ T1/T2/T3每枚分别3/4/5条，ID唯一。首次池大小必须足够；定义�
 槽数clamp(tier,0,5)，服务端、HUD、按键统一。保留按住修饰键+数字键交互。只改容量；已学、冷却、灵力不足校验保留，空槽不自动授予卡。为了避免本次无意放宽旧学习数量，旧正式学习资格独立保留为遗留策略，不能再读取新槽数计算学习上限；后续符卡change移除旧限制并按幻想乡进度开放学习。后续方向明确为学习总数不限、一二阶固定卡、三阶后自由配装，本次不实现该流程。
 
 原有卡不因扩容被删除、复制或自动重新配装；新增槽默认空。测试换槽不会重置既有冷却；若发现原有漏洞则记录必要修复，不把槽扩容当作冷却豁免。
+
+## Implementation Notes (2026-11-04)
+
+落地实现与本文档 D1–D5 的差异/细化（均为 spec 强制或实施必需，非临时取舍）：
+
+1. **词条带改为绝对贡献**（D2 细化）：spec 明文概率属性绝对百分点、MUST NOT 用 1~8% 小额比例。实现：`CoreAffixCatalog.ATTR_ABS_BAND`（18×3，全部候选待审）；RUNE_ATTR_BAND config 改绝对语义。灵力强度为绝对点数（参考阶派生档位，实际生效时由 `PlayerAttributes.finalValue` 钳制在「该阶最小基础 ×3%」额度内）；护壁 = 目标减伤 pct roll 时换算绝对 ΔP；丹maku_reduce 进出一致。
+2. **软保底改为指数压平**（D4 细化）：k(t)=3−2t（t=1→均匀），不平移带宽、不抬上沿、不改类型权重。
+3. **组合预算在生成阶段拒绝**（D3 落地）：复用 `BuildNumbers.legalCore`（评分+最坏先天武器乘数 2.5/4/6+符卡吞吐 4/8/16）；64 次有界拒绝；确定性回退取权重最高 count 种、全部缩放向 0 收敛（条数不减、不补极品、可低于带下沿）；100k 样本回退率 0.00%。
+4. **回退语义文档化**：回退值 ≤ 带下沿且向 0 收敛；MUST NOT 视为 bug；条数恒等于 affixCount。
+5. **版本组件拆分**：`RUNE_VALUE_VERSION`=攻速语义（旧 r→1/(1−r)−1 兼容）；`CORE_RULE_VERSION`=规则表（缺失/0=legacy，1=新表）。星移预览 `Pending.ruleVersion` 随 NBT 持久化；「旧档预览采纳=身份转换（保持 legacy 语义）」；「未知/更高版本=明确作废保留原核」（`acceptAction` 纯函数 + 单测锁定）。
+6. **诊断入口**：`SeiiNumbers.rollDiagnostic`（attempts/fallbackUsed/affixes）仅供报表与测试；游戏逻辑走普通入口。
+7. **`BuildNumbers.coreMaximum`** 改为「生成带上沿」口径（原 cap×0.3 占位表废弃）；`legalCore` 主体不动；stats 报告见 `build/reports/build-budget/core-generation.md`。
+8. **技能槽**（D5 落地）：`clamp(tier,0,5)`；学习资格 `legacyLearnLimit=max(0,tier−2)` 与槽数彻底解耦；换槽不重置冷却（单测锁定）；旧学习进度方向记于 `SkillStateData` javadoc 与 design D5。
+9. **星移预览展示**：逐条「原值 → roll 值 (生效差值)」（同单位带符号；danmaku_reduce 不显示差值）；任一词条换核后**无任何可见效果**=已触顶/无增减空间，列表末尾补本地化提示 `gui.gensokyou.ritual.seii.review_capped`；生效值不写回、不沉淀（只读推演 `PlayerAttributes.finalValueWithAffixDelta`）。
+10. **指导书**：seii_circle p1/p2 改写（3/4/5 条 + 旧核不重掷；zh/en）；`docs/acceptance-rework-amp-core-rolls-and-skill-slots.md` 新增联合验收步骤。
+11. **未做**：归档、实机验收、git commit —— 均等用户。
 
 ## Risks / Trade-offs
 

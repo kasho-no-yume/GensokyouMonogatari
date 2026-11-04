@@ -29,9 +29,14 @@ public final class SeiiSession extends RitualBehaviorState {
      *
      * <p>核在核心 GUI 的专用目标槽里，故无需记台位坐标；采纳时按"槽内仍是同一枚核且
      * {@code rune_affixes} 仍等于 {@link #before()} 快照"复验。
+     *
+     * <p>{@code ruleVersion}：生成该预览时的核规则版本（缺失/0 = legacy 表）。
+     * 跨版本采纳时据此决定：legacy 预览做身份转换（保留旧语义、不写新版本章），
+     * 未知（更高）版本明确作废、保留原核。
      */
     public record Pending(int coreTier, int ritualLevel,
-                          List<RuneAffix> before, List<RuneAffix> after, int pityBefore) {
+                          List<RuneAffix> before, List<RuneAffix> after, int pityBefore,
+                          int ruleVersion) {
     }
 
     private Phase phase = Phase.IDLE;
@@ -160,6 +165,7 @@ public final class SeiiSession extends RitualBehaviorState {
             p.putInt("coreTier", pending.coreTier());
             p.putInt("ritualLevel", pending.ritualLevel());
             p.putInt("pityBefore", pending.pityBefore());
+            p.putInt("ruleVersion", pending.ruleVersion());
             p.put("before", writeAffixes(pending.before()));
             p.put("after", writeAffixes(pending.after()));
             tag.put("SeiiPending", p);
@@ -198,10 +204,13 @@ public final class SeiiSession extends RitualBehaviorState {
         pending = null;
         if (phase == Phase.REVIEW && tag.contains("SeiiPending", Tag.TAG_COMPOUND)) {
             CompoundTag p = tag.getCompound("SeiiPending");
+            // 旧档预览无 ruleVersion：视为 legacy 表（身份转换，保留旧语义）
+            int ruleVersion = p.contains("ruleVersion", Tag.TAG_INT)
+                    ? p.getInt("ruleVersion") : 0;
             pending = new Pending(p.getInt("coreTier"), p.getInt("ritualLevel"),
                     readAffixes(p.getList("before", Tag.TAG_COMPOUND)),
                     readAffixes(p.getList("after", Tag.TAG_COMPOUND)),
-                    p.getInt("pityBefore"));
+                    p.getInt("pityBefore"), ruleVersion);
         } else if (phase == Phase.REVIEW) {
             // 旧档/数据损坏：无法复现暂存 → 清退（材料已沉没，核心原样）
             clear();

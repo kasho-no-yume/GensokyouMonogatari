@@ -40,8 +40,8 @@ public final class ModDataComponents {
                     .build());
 
     /**
-     * 洗练度（星移之仪软保底）：保留 +1、采纳减半，驱动 {@code SeiiNumbers.pityBand}
-     * 把采样带向好的一侧平移。刻意挂在核上而非 BE 会话上 —— 跟物走，换仪式/拆结构/换地图都不丢。
+     * 洗练度（星移之仪软保底）：保留 +1、采纳减半，驱动 {@code SeiiNumbers.pityExponent}
+     * 把低位偏置指数 k 压向 1（不平移带、不抬法定上沿）。刻意挂在核上而非 BE 会话上 —— 跟物走，换仪式/拆结构/换地图都不丢。
      */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> RUNE_REROLLS =
             DATA_COMPONENTS.register("rune_rerolls", () -> DataComponentType.<Integer>builder()
@@ -52,6 +52,17 @@ public final class ModDataComponents {
     /** Missing/zero means legacy interval-reduction values; one means frequency bonuses. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> RUNE_VALUE_VERSION =
             DATA_COMPONENTS.register("rune_value_version", () -> DataComponentType.<Integer>builder()
+                    .persistent(Codec.INT)
+                    .networkSynchronized(ByteBufCodecs.VAR_INT)
+                    .build());
+
+    /**
+     * 核生成语义版本：缺失/0 = legacy 规则表（旧条数、旧带宽），1 = 新版统一池
+     * （3/4/5 条、低位偏置、组合预算；星移洗练采纳/首次生成时写入）。
+     * 与 {@link #RUNE_VALUE_VERSION}（仅攻速词条语义）相互独立。
+     */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Integer>> CORE_RULE_VERSION =
+            DATA_COMPONENTS.register("core_rule_version", () -> DataComponentType.<Integer>builder()
                     .persistent(Codec.INT)
                     .networkSynchronized(ByteBufCodecs.VAR_INT)
                     .build());

@@ -10,8 +10,8 @@ import java.util.List;
 /**
  * 符卡技能状态（skill-slots-hud v2）：抽象槽模型——槽位与卡牌解绑。
  *
- * <p>槽位数量 = 玩家超人类阶级（0-5），本记录只存 5 格容量；
- * learned=已学卡池（正式途径受阶级上限，调试命令豁免），
+ * <p>槽位数量 = clamp(玩家超人类阶级, 0, 5)，本记录只存 5 格容量；
+ * learned=已学卡池（正式途径受<b>旧遗留学习上限</b>约束，与槽数解耦，调试命令豁免），
  * equipped[i]=槽 i 配装的卡 id（空串=未配装），cooldownUntil[i]=槽冷却。
  *
  * <p>旧档（cd0/cd1/cd2 + 槽位=固定卡）迁移：equipped 按旧 {@link SpellCardEffects#SLOT_ORDER}
@@ -25,10 +25,25 @@ public record SkillStateData(List<String> learned, List<Long> cooldownUntil, Lis
     public static final String EMPTY = "";
 
     /**
-     * 阶级 → 可解锁槽数（单一事实来源）：{@code max(0, 阶级 − 2)}。
-     * 阶级 0/1/2/3/4/5 → 0/0/0/1/2/3 槽。HUD 显示槽数、学卡上限、施放校验三处共用。
+     * 阶级 → 可用槽数（单一事实来源）：{@code clamp(阶级, 0, 5)}。
+     * 阶级 0/1/2/3/4/5 → 0/1/2/3/4/5 槽。HUD 显示槽数、施放校验两处共用。
+     *
+     * <p>注意：<b>不参与学习资格判定</b>——旧正式学习数量策略已隔离为
+     * {@link #legacyLearnLimit(int)}，不随本函数扩大。
      */
     public static int slotCountForTier(int tier) {
+        return Math.max(0, Math.min(MAX_SLOTS, tier));
+    }
+
+    /**
+     * 旧正式学习数量上限（遗留策略，2026-11 隔离）：{@code max(0, 阶级 − 2)}。
+     * 阶级 0..5 → 0/0/0/1/2/3。仅供 {@link #canLearn(String, int)} 使用，
+     * 防止槽数扩容顺带放开旧学习进度。
+     *
+     * <p>后续方向（未实现）：学习总数不限、一/二阶固定卡、三阶后自由配装；
+     * 该流程落地时本函数与 {@link #canLearn(String, int)} 的资格门一并移除。
+     */
+    public static int legacyLearnLimit(int tier) {
         return Math.max(0, Math.min(MAX_SLOTS, tier - 2));
     }
 
@@ -135,10 +150,11 @@ public record SkillStateData(List<String> learned, List<Long> cooldownUntil, Lis
         return learned.contains(cardId);
     }
 
-    /** 正式学卡判据：已学数受可解锁槽数上限（调试命令走 {@link #withLearned} 豁免）。 */
+    /** 正式学卡判据：已学数受<b>旧遗留学习上限</b>约束（与槽数解耦；调试命令走 {@link #withLearned} 豁免）。 */
     public boolean canLearn(String cardId, int tier) {
-        return !hasLearned(cardId) && slotCountForTier(tier) > 0
-                && learned.size() < slotCountForTier(tier)
+        int limit = legacyLearnLimit(tier);
+        return !hasLearned(cardId) && limit > 0
+                && learned.size() < limit
                 && SpellCardEffects.get(cardId) != null;
     }
 

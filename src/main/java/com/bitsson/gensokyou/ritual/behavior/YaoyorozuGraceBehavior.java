@@ -250,9 +250,11 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
         lines.add(new InfoLine("gui.gensokyou.ritual.grace.refine_permanent",
                 new String[0], "", 0xFFB39DDB, -1F, null));
         lines.add(attrLine(AttributeKey.MAX_SPIRIT.langKey(),
-                trim(current.maxGain()) + " → " + trim(preview.maxGain()), 0xFFA5D6A7));
+                trim(current.maxGain()) + " → " + trim(preview.maxGain()),
+                directionColor(preview.maxGain() - current.maxGain())));
         lines.add(attrLine(AttributeKey.SPIRIT_POWER.langKey(),
-                trim(current.powerGain()) + " → " + trim(preview.powerGain()), 0xFFA5D6A7));
+                trim(current.powerGain()) + " → " + trim(preview.powerGain()),
+                directionColor(preview.powerGain() - current.powerGain())));
         for (AttributeKey key : AttributeKey.values()) {
             if (key == AttributeKey.MAX_SPIRIT || key == AttributeKey.SPIRIT_POWER) {
                 continue;
@@ -262,9 +264,11 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
             if (newValue == null && oldValue == null) {
                 continue; // 表外键不显示
             }
+            float delta = (newValue == null ? 0F : newValue) - (oldValue == null ? 0F : oldValue);
             lines.add(attrLine(key.langKey(),
                     format(key, oldValue == null ? 0F : oldValue) + " → "
-                            + format(key, newValue == null ? 0F : newValue), 0xFFA5D6A7));
+                            + format(key, newValue == null ? 0F : newValue),
+                    directionColor(delta)));
         }
     }
 
@@ -272,6 +276,21 @@ public class YaoyorozuGraceBehavior implements RitualBehavior {
 
     private static final int COLOR_OK_ACTION = 0xFF66BB6A;
     private static final int COLOR_KEEP_ACTION = 0xFFFFB74D;
+
+    /** 增减方向色：红=增加，绿=减少，0=持平（中式盘面：涨红跌绿）；不表达强弱好坏。 */
+    private static final int COLOR_INCREASE = 0xFFE57373;
+    private static final int COLOR_DECREASE = 0xFF81C784;
+    private static final int COLOR_NEUTRAL = 0xFFB0BEC5;
+
+    private static int directionColor(float delta) {
+        if (delta > 0F) {
+            return COLOR_INCREASE;
+        }
+        if (delta < 0F) {
+            return COLOR_DECREASE;
+        }
+        return COLOR_NEUTRAL;
+    }
 
     private static InfoLine attrLine(String textKey, String value, int color) {
         return new InfoLine(textKey, new String[]{value}, "", color, -1F, null,
