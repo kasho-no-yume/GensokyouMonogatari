@@ -1,11 +1,15 @@
 package com.bitsson.gensokyou.audio;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.audio.bossbgm.BgmFade;
+import com.bitsson.gensokyou.audio.bossbgm.BgmTrack;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -33,6 +37,7 @@ public final class Audio {
 
     private static final AudioRateLimiter LIMITER = new AudioRateLimiter();
     private static final Set<AudioCue> REPORTED_FAILURES = EnumSet.noneOf(AudioCue.class);
+    private static final Set<ResourceLocation> REPORTED_MUSIC_FAILURES = new LinkedHashSet<>();
 
     private static volatile AudioSink sink = AudioSink.NONE;
 
@@ -104,10 +109,63 @@ public final class Audio {
     public static void reset() {
         LIMITER.reset();
         REPORTED_FAILURES.clear();
+        REPORTED_MUSIC_FAILURES.clear();
         try {
             sink.reset();
         } catch (RuntimeException ignored) {
             // 清理由表现层自己负责，不得影响断开连接。
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // 背景音乐（boss-bgm）：与一次性 cue 完全分开
+    // ------------------------------------------------------------------
+
+    /**
+     * 启动一首背景音乐。
+     *
+     * <p>与 {@link #play(AudioCue)} 的差别是刻意的：音乐<b>不进</b> cue 注册表、
+     * <b>不受</b>限流与音高抖动、<b>不做</b>占位降级（缺曲时静音 + 日志）。
+     * 淡变状态保存在返回的句柄里，调用方每 tick keepAlive、结束时 stop。
+     */
+    public static MusicHandle startMusic(ResourceLocation eventId, BgmTrack track) {
+        BgmFade fade = new BgmFade();
+        MusicHandle handle = new MusicHandle(fade);
+        if (eventId == null || track == null) {
+            return handle;
+        }
+        try {
+            sink.startMusic(eventId, track, handle);
+        } catch (RuntimeException failure) {
+            if (REPORTED_MUSIC_FAILURES.add(eventId)) {
+                Gensokyou.LOGGER.error("[audio] 背景音乐启动失败（{}），已吞掉以免外溢", eventId, failure);
+            }
+        }
+        return handle;
+    }
+
+    /** 请求淡出（2.5 秒）。重复调用幂等；句柄为 {@code null} 时无操作。 */
+    public static void stopMusic(MusicHandle handle) {
+        if (handle == null) {
+            return;
+        }
+        handle.stop();
+        try {
+            sink.stopMusic(handle);
+        } catch (RuntimeException ignored) {
+            // 表现层清理失败不得外溢。
+        }
+    }
+
+    /** 该音乐是否仍被声音引擎持有（资源重载后为 {@code false}）。 */
+    public static boolean isMusicActive(MusicHandle handle) {
+        if (handle == null) {
+            return false;
+        }
+        try {
+            return sink.isMusicActive(handle);
+        } catch (RuntimeException ignored) {
+            return true;
         }
     }
 

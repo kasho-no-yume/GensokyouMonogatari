@@ -93,8 +93,9 @@ public final class AudioCues {
             validateEntry(cue, key, json.get(key), problems);
         }
 
+        Set<String> music = new LinkedHashSet<>(SoundIds.MUSIC_NAMES);
         for (String key : json.keySet()) {
-            if (!declared.contains(key)) {
+            if (!declared.contains(key) && !music.contains(key)) {
                 problems.add("sounds.json 存在孤儿条目（注册表未声明）: " + key);
             }
         }

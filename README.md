@@ -15,6 +15,11 @@
 - **代码组织**：Java 位于 `com.bitsson.gensokyou`，按域分包（`ritual` / `entity` / `item` / `spirit` / `network` / `client` …）；数据与资源在 `src/main/resources/{data,assets}/gensokyou`
 - **开发约定**：需求基准 `openspec/project.md`；设计与数值规范 `docs/*.md`；数据生成/校验脚本 `tools/`；AI 开发手册 `.opencode/skills/`
 - **许可证**：All Rights Reserved
+- **音乐**：BOSS 战 BGM 的 5 首东方改编曲由 **柚子人修改大师** 制作，
+  著作权归作者，作者授权本模组使用（**含商业性使用**；第三方不得单独提取或商用）。
+  署名、原曲对照与完整条款见
+  `src/main/resources/assets/gensokyou/sounds/bgm/NOTICE.txt`。
+  想换成自己的音乐：见 `docs/boss-bgm-pack.md`（普通资源包即可，无需改模组）。
 
 ---
 

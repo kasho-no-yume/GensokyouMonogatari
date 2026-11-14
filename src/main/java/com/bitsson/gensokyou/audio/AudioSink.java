@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.audio;
 
+import com.bitsson.gensokyou.audio.bossbgm.BgmTrack;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
@@ -26,6 +28,31 @@ public interface AudioSink {
 
     /** 启动一条持续音；音量/音高由 {@code envelope} 每 tick 推进。 */
     void startBeam(AudioCue cue, Vec3 pos, BeamEnvelope envelope);
+
+    /**
+     * 启动一首背景音乐（循环、非定位）。
+     *
+     * @param eventId 实际播放的事件 id（可能是单只 BOSS 的事件，指向阶音频文件）
+     * @param track   曲目参数（音量、淡变）
+     * @param handle  句柄；淡变状态在句柄里，实现只需按它取值
+     */
+    default void startMusic(ResourceLocation eventId, BgmTrack track, MusicHandle handle) {
+        // 无操作后端：音乐是纯客户端表现
+    }
+
+    /** 立即释放一首音乐（正常淡出由 {@link MusicHandle#stop()} 完成）。 */
+    default void stopMusic(MusicHandle handle) {
+        // 无操作后端
+    }
+
+    /**
+     * 该音乐实例是否仍被声音引擎持有。
+     *
+     * <p>缺省返回 {@code true}：无后端时 director 不该误判为「被丢弃」而反复重起。
+     */
+    default boolean isMusicActive(MusicHandle handle) {
+        return true;
+    }
 
     /** 客户端卸载/断线：清空后端内部状态（停掉仍在播的持续音）。 */
     default void reset() {

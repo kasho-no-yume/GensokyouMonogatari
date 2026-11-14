@@ -1,6 +1,8 @@
 package com.bitsson.gensokyou.audio;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.audio.AudioCues;
+import com.bitsson.gensokyou.audio.bossbgm.BossBgms;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -22,6 +24,9 @@ public final class AudioBootstrap {
     public static void onCommonSetup(FMLCommonSetupEvent event) {
         for (String problem : AudioCues.validate()) {
             Gensokyou.LOGGER.error("[audio] {}", problem);
+        }
+        for (String problem : BossBgms.validate()) {
+            Gensokyou.LOGGER.error("[audio/bgm] {}", problem);
         }
     }
 }

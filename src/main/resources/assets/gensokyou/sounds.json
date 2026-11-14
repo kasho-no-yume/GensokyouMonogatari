@@ -46,5 +46,38 @@
     "sounds": [
       { "name": "gensokyou:spellcard_switch" }
     ]
+  },
+  "bgm/tier1": {
+    "sounds": [ { "name": "gensokyou:bgm/tier1", "stream": true } ]
+  },
+  "bgm/tier2": {
+    "sounds": [ { "name": "gensokyou:bgm/tier2", "stream": true } ]
+  },
+  "bgm/tier3": {
+    "sounds": [ { "name": "gensokyou:bgm/tier3", "stream": true } ]
+  },
+  "bgm/tier4": {
+    "sounds": [ { "name": "gensokyou:bgm/tier4", "stream": true } ]
+  },
+  "bgm/tier5": {
+    "sounds": [ { "name": "gensokyou:bgm/tier5", "stream": true } ]
+  },
+  "bgm/boss/big_fairy": {
+    "sounds": [ { "name": "gensokyou:bgm/tier1", "stream": true } ]
+  },
+  "bgm/boss/rumia": {
+    "sounds": [ { "name": "gensokyou:bgm/tier1", "stream": true } ]
+  },
+  "bgm/boss/yamame": {
+    "sounds": [ { "name": "gensokyou:bgm/tier1", "stream": true } ]
+  },
+  "bgm/boss/yakumo_ran": {
+    "sounds": [ { "name": "gensokyou:bgm/tier2", "stream": true } ]
+  },
+  "bgm/boss/flandre": {
+    "sounds": [ { "name": "gensokyou:bgm/tier5", "stream": true } ]
+  },
+  "bgm/boss/fake_flandre": {
+    "sounds": [ { "name": "gensokyou:bgm/tier5", "stream": true } ]
   }
 }

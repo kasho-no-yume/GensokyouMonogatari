@@ -1,5 +1,7 @@
 package com.bitsson.gensokyou.audio;
 
+import com.bitsson.gensokyou.audio.bossbgm.BgmTrack;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
@@ -17,8 +19,13 @@ final class RecordingAudioSink implements AudioSink {
     record BeamStart(AudioCue cue, Vec3 pos, BeamEnvelope envelope) {
     }
 
+    record MusicStart(ResourceLocation eventId, BgmTrack track, MusicHandle handle) {
+    }
+
     final List<Play> plays = new ArrayList<>();
     final List<BeamStart> beams = new ArrayList<>();
+    final List<MusicStart> musics = new ArrayList<>();
+    final List<MusicHandle> stoppedMusic = new ArrayList<>();
 
     boolean failNext;
     int resets;
@@ -43,9 +50,25 @@ final class RecordingAudioSink implements AudioSink {
     }
 
     @Override
+    public void startMusic(ResourceLocation eventId, BgmTrack track, MusicHandle handle) {
+        if (failNext) {
+            failNext = false;
+            throw new IllegalStateException("simulated sink failure");
+        }
+        musics.add(new MusicStart(eventId, track, handle));
+    }
+
+    @Override
+    public void stopMusic(MusicHandle handle) {
+        stoppedMusic.add(handle);
+    }
+
+    @Override
     public void reset() {
         resets++;
         plays.clear();
         beams.clear();
+        musics.clear();
+        stoppedMusic.clear();
     }
 }

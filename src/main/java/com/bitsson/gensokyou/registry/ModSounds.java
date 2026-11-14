@@ -37,6 +37,10 @@ public final class ModSounds {
             holders.put(name, SOUNDS.register(name,
                     () -> SoundEvent.createVariableRangeEvent(Gensokyou.id(name))));
         }
+        for (String name : SoundIds.MUSIC_NAMES) {
+            holders.put(name, SOUNDS.register(name,
+                    () -> SoundEvent.createVariableRangeEvent(Gensokyou.id(name))));
+        }
         ALL = Collections.unmodifiableMap(holders);
     }
 

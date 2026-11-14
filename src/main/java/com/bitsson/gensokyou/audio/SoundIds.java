@@ -26,6 +26,28 @@ public final class SoundIds {
             "warn_shift",
             "spellcard_switch");
 
+    /**
+     * 背景音乐事件（注册名 = 事件 id 的 path）。
+     *
+     * <p>与 {@link #NAMES} 分开维护是硬要求：一次性音效的清单要与 {@code AudioCues}
+     * 的事件 id 集合<b>相等</b>，音乐一旦混进去，那条断言就会变成"音乐也算 cue"。
+     *
+     * <p>内容必须与 {@code BossBgms.musicEventPaths()} 逐项一致（由
+     * {@code BossBgms.validate()} 与 {@code BossBgmCatalogTest} 双向断言）。
+     */
+    public static final List<String> MUSIC_NAMES = List.of(
+            "bgm/tier1",
+            "bgm/tier2",
+            "bgm/tier3",
+            "bgm/tier4",
+            "bgm/tier5",
+            "bgm/boss/big_fairy",
+            "bgm/boss/rumia",
+            "bgm/boss/yamame",
+            "bgm/boss/yakumo_ran",
+            "bgm/boss/flandre",
+            "bgm/boss/fake_flandre");
+
     private SoundIds() {
     }
 }
