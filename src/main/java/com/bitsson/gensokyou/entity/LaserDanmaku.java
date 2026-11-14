@@ -1,5 +1,9 @@
 package com.bitsson.gensokyou.entity;
 
+import com.bitsson.gensokyou.audio.Audio;
+import com.bitsson.gensokyou.audio.AudioCue;
+import com.bitsson.gensokyou.audio.BeamHandle;
+import com.bitsson.gensokyou.audio.WeaponShotCue;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.motion.DanmakuSpeedProfile;
 import com.bitsson.gensokyou.danmaku.motion.FormationFrame;
@@ -80,6 +84,10 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
     private double renderCacheLength = -1.0D;
     private int renderCacheTick = -1;
     private Vec3 renderCacheOrigin = Vec3.ZERO;
+    /** 客户端：玩家武器激光的持续音句柄；BOSS 激光与无 cue 的激光始终为 null。 */
+    private BeamHandle clientBeam;
+    /** 客户端：一次性开火音是否已在 ACTIVE 起点播放。 */
+    private boolean clientLaserShotPlayed;
 
     public enum Phase {
         /** 延迟期：只显示指示线，不判伤。 */
@@ -181,6 +189,10 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
         // 姿态先于判伤：本 tick 的位置与方向 MUST 是最新的，否则判伤用的是上一 tick 的射线。
         this.applyLaserPose();
 
+        if (this.level().isClientSide) {
+            this.tickClientSound();
+        }
+
         // 隐藏态仅免除实体判伤（延迟期预警线与方块裁剪不受影响）。
         if (this.getPhase() == Phase.ACTIVE
                 && !this.isActiveHidden()
@@ -198,6 +210,51 @@ public class LaserDanmaku extends AbstractDanmakuProjectile {
     @Override
     protected int absoluteLifetimeTicks() {
         return this.getDelayTicks() + this.getDurationTicks();
+    }
+
+    /**
+     * 客户端声音：激光枪在 ACTIVE 起点播放一次性开火音；激光炮使用长、低沉的
+     * 循环音（{@link AudioCue#LASER_BEAM}）作为开火反馈，MUST NOT 再叠加短促的
+     * {@link AudioCue#LASER_SHOOT}。
+     *
+     * <p>延迟期保持安静，让声音与光束出现同拍。
+     */
+    private void tickClientSound() {
+        WeaponShotCue cue = this.shotCue();
+        if (cue == null || !cue.laser()) {
+            return;
+        }
+        int activeStart = this.getDelayTicks();
+        if (this.age() < activeStart) {
+            return;
+        }
+        int activeEnd = activeStart + this.getDurationTicks();
+        if (!this.clientLaserShotPlayed) {
+            this.clientLaserShotPlayed = true;
+            if (cue.sustained()) {
+                this.clientBeam = Audio.startBeam(cue.cue(), this.position());
+            } else {
+                Audio.playAt(cue.cue(), this.position());
+            }
+        }
+        if (this.clientBeam == null) {
+            return;
+        }
+        if (this.age() < activeEnd) {
+            this.clientBeam.keepAlive();
+        } else {
+            this.clientBeam.stop();
+            this.clientBeam = null;
+        }
+    }
+
+    @Override
+    public void remove(Entity.RemovalReason reason) {
+        if (this.level().isClientSide && this.clientBeam != null) {
+            this.clientBeam.stop();
+            this.clientBeam = null;
+        }
+        super.remove(reason);
     }
 
     /** 对当前射线覆盖范围内的实体判伤，离开射线的实体不再受伤。 */

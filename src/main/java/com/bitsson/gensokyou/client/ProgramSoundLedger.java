@@ -12,7 +12,7 @@ public final class ProgramSoundLedger {
 
     public boolean accept(long encounterEpoch,ProgramRenderView.Sound sound) {
         if (encounterEpoch!=epoch) { epoch=encounterEpoch; played.clear(); }
-        return played.add(sound.group()+"/"+sound.batch()+"/"+sound.deduplicationKey());
+        return played.add(sound.scopeKey()+"/"+sound.deduplicationKey());
     }
 
     public int size() { return played.size(); }

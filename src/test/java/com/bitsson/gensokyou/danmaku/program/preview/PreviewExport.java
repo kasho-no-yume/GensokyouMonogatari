@@ -513,7 +513,7 @@ public final class PreviewExport {
                 sb.append("\n    {\"g\": ").append(warning.group).append(", \"b\": ").append(warning.batch);
                 sb.append(", \"src\": ").append(vec(warning.from)).append(", \"dir\": ").append(vec(warning.dir));
                 sb.append(", \"from\": ").append(warning.since);
-                sb.append(", \"until\": ").append(warning.until).append(", \"style\": ").append(warning.style);
+                sb.append(", \"until\": ").append(warning.until).append(", \"style\": ").append(remap[warning.style]);
                 sb.append(", \"laser\": ").append(warning.laser);
                 if (warning.laser) { sb.append(", \"beam\": "); fixed(sb, warning.beam); }
                 sb.append('}');

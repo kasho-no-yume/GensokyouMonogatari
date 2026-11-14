@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.entity;
 import com.bitsson.gensokyou.balance.BalanceNumbers;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.audio.WeaponShotCue;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget;
 import com.bitsson.gensokyou.danmaku.DanmakuBudget.RemovalCause;
 import com.bitsson.gensokyou.danmaku.DanmakuHitScan;
@@ -552,6 +553,13 @@ import java.util.Set;
     /** 行为开关位。0 = 全关（默认）。 */
     private static final EntityDataAccessor<Byte> DATA_FLAGS =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.BYTE);
+    /**
+     * 玩家武器开火 cue（{@link WeaponShotCue#id()}，0 = 无）。
+     *
+     * <p>只用于客户端表现，不参与判定；散弹/扇射只由第一颗弹携带，保证一次扳机一声。
+     */
+    private static final EntityDataAccessor<Byte> DATA_SHOT_CUE =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.BYTE);
     /** 悬停 tick：到达该 tick 速度归零。0 = 不悬停。 */
     private static final EntityDataAccessor<Integer> DATA_HOVER_TICK =
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
@@ -828,6 +836,7 @@ import java.util.Set;
         builder.define(DATA_FACTION, 0);
         builder.define(DATA_PIERCE_BLOCKS, false);
         builder.define(DATA_FLAGS, (byte) 0);
+        builder.define(DATA_SHOT_CUE, (byte) 0);
         builder.define(DATA_HOVER_TICK, 0);
         builder.define(DATA_SPLIT_TICK, -1);
         builder.define(DATA_SPLIT_COUNT, 0);
@@ -2457,6 +2466,16 @@ import java.util.Set;
 
     public void setFromWeapon(boolean fromWeapon) {
         this.fromWeapon = fromWeapon;
+    }
+
+    /** 客户端可读的开火 cue；{@code null} = 不播放（BOSS / 玩家符卡弹保持空）。 */
+    @Nullable
+    public WeaponShotCue shotCue() {
+        return WeaponShotCue.byId(this.entityData.get(DATA_SHOT_CUE) & 0xFF);
+    }
+
+    public void setShotCue(@Nullable WeaponShotCue cue) {
+        this.entityData.set(DATA_SHOT_CUE, (byte) (cue == null ? 0 : cue.id()));
     }
 
     public void setLifetimeTicks(int ticks) {

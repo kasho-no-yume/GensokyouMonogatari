@@ -1,6 +1,8 @@
 package com.bitsson.gensokyou.danmaku.program.content;
 
+import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.danmaku.program.TailPolicy;
+import com.bitsson.gensokyou.danmaku.program.TimeDomain;
 import com.bitsson.gensokyou.danmaku.program.author.CardProgram;
 import com.bitsson.gensokyou.danmaku.program.author.MemberProgram;
 import com.bitsson.gensokyou.danmaku.program.math.Vec3;
@@ -33,6 +35,23 @@ public final class YamamePrograms {
     private static final int TRAIL_PERIOD = 4;
     private static final int TRAIL_COUNT = 24;
 
+    /**
+     * 螺旋的轮级音效：每波一次。
+     *
+     * <p>同波会按目标槽（热病再乘左/右臂）建多组，但它们共享 `cycle` 锚点；
+     * ledger 按 scope=CYCLE 合并，所以这里可以在每个成员程序上都挂同一组 cue。
+     */
+    private static Presentation.Profile spiralProfile(int lifetime, int waves, int step) {
+        List<Presentation.SoundCue> cues = new ArrayList<>();
+        for (int wave = 0; wave < waves; wave++) {
+            cues.add(new Presentation.SoundCue(TimeDomain.CYCLE, wave * step,
+                    Gensokyou.id("boss_burst").toString(), "spiral-wave-" + wave));
+        }
+        return new Presentation.Profile(
+                List.of(new Presentation.Window(TimeDomain.MEMBER_AGE, 0, lifetime)), null, null,
+                List.of(), cues);
+    }
+
     private static String hex(int index) { return BossProgramCards.hex(BossCards.YAMAME_PALETTE.at(index)); }
 
     private static Actions.ChildProgram pearl() {
@@ -52,6 +71,12 @@ public final class YamamePrograms {
         return MemberProgram.attack(name, styled, new Paths.Linear(Vec3.Z, speed), SPINNER_LIFETIME)
                 .templateDirections().piercing()
                 .emit(new Selection.Tag("carrier"), TRAIL_PERIOD, TRAIL_PERIOD, TRAIL_COUNT, pearl())
+                // 会留尾珠的蛛丝母弹：每批一声；不是每根母弹、更不是每颗尾珠一声。
+                .presentation(new Presentation.Profile(
+                        List.of(new Presentation.Window(TimeDomain.MEMBER_AGE, 0, SPINNER_LIFETIME)), null, null,
+                        List.of(),
+                        List.of(new Presentation.SoundCue(TimeDomain.MEMBER_AGE, 0,
+                                Gensokyou.id("boss_burst").toString(), "web-throw"))))
                 .build();
     }
 
@@ -62,7 +87,14 @@ public final class YamamePrograms {
         var pattern = MemberProgram.styled(new Patterns.Fan(3, Math.toRadians(55), 0),
                 "sphere", hex(0), 0.275, 1, 0.55, "web");
         var bullets = MemberProgram.attack("web", pattern, new Paths.Linear(Vec3.Z, 0.35), 1200)
-                .templateDirections().build();
+                .templateDirections()
+                // 普攻蛛丝扇：每组一声玩家普通弹的「啵」，不按扇内弹数重复。
+                .presentation(new Presentation.Profile(
+                        List.of(new Presentation.Window(TimeDomain.MEMBER_AGE, 0, 1200)), null, null,
+                        List.of(),
+                        List.of(new Presentation.SoundCue(TimeDomain.MEMBER_AGE, 0,
+                                Gensokyou.id("shot_normal").toString(), "background-web-throw"))))
+                .build();
         card.at(0, c -> c.fire(gun, bullets, 0, 43));
         return card.loop(80, TailPolicy.END_AT_BOUNDARY);
     }
@@ -108,6 +140,7 @@ public final class YamamePrograms {
                 .fixedDirection().piercing()
                 .transform(new Transforms.Compose(List.of(new Transforms.Breathe(1, 0.4D, 80, 0),
                         new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.36D)))))
+                .presentation(spiralProfile(400, 5, 60))
                 .build();
         var mists = MemberProgram.attack("mist", MemberProgram.styled(new Patterns.ConeScatter(7, Math.PI, 3),
                         "sphere", hex(3), 0.25, 1, 0.5, "mist"), new Paths.Linear(Vec3.Z, 0.12), 400)
@@ -172,18 +205,21 @@ public final class YamamePrograms {
                 .fixedDirection().piercing()
                 .transform(new Transforms.Compose(List.of(new Transforms.Breathe(1, 0.45D, 70, 0),
                         new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.40D)))))
+                .presentation(spiralProfile(400, 6, 50))
                 .build();
         var leftArm = MemberProgram.attack("feverLeft", MemberProgram.styled(new Patterns.Spiral(6, 1, 1.5, 4, 1, 0),
                         "sphere", hex(4), 0.225, 1.25, 0.45, "left"), new Paths.Hold(), 400)
                 .fixedDirection().piercing()
                 .transform(new Transforms.Compose(List.of(new Transforms.Breathe(1, 0.4D, 60, 0),
                         new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.44D)))))
+                .presentation(spiralProfile(400, 6, 50))
                 .build();
         var rightArm = MemberProgram.attack("feverRight", MemberProgram.styled(new Patterns.Spiral(6, 1, 1.5, 4, -1, 0),
                         "sphere", hex(3), 0.225, 1.25, 0.45, "right"), new Paths.Hold(), 400)
                 .fixedDirection().piercing()
                 .transform(new Transforms.Compose(List.of(new Transforms.Breathe(1, 0.4D, 60, 0),
                         new Transforms.Translate(new Paths.Linear(Vec3.Z, 0.44D)))))
+                .presentation(spiralProfile(400, 6, 50))
                 .build();
         var mists = MemberProgram.attack("feverMist", MemberProgram.styled(new Patterns.ConeScatter(7, Math.PI, 7),
                         "sphere", hex(5), 0.25, 1.25, 0.5, "mist"), new Paths.Linear(Vec3.Z, 0.12), 400)

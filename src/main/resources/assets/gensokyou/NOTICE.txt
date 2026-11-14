@@ -1,0 +1,117 @@
+Gensokyou — 自制音效素材来源与复现记录
+========================================
+
+本文件的目的不是合规强制（当前用法无附加义务），而是**可追溯**：
+将来换模型、重出素材或需要证明来源时，能从这里把任意一条素材重新做出来。
+
+生成工具
+--------
+- 模型：Stable Audio 3 small-sfx
+  （ComfyUI checkpoint `stable_audio_3_small_sfx.safetensors`，
+   文本编码器 `t5gemma_b_b_ul2.safetensors`）
+- 采样：8 steps / cfg 1.0 / sampler `lcm` / scheduler `simple` / denoise 1.0
+  （见 `F:\Comfy-Desktop\sfx-lab\sa3_lab.py` 的 `build_workflow`）
+- 许可：Stability AI Community License。
+  按该协议，模型输出不属于 Derivative Work，输出归生成者所有。
+
+输出格式
+--------
+全部 8 条均为：**Ogg Vorbis，44.1 kHz，单声道**，ffmpeg `libvorbis -q:a 6`，
+峰值归一到 **-3 dBFS（0.708）**。仓库内文件与
+`F:\Comfy-Desktop\sfx-lab\final\` 逐字节相同（该目录由 `assemble.py` 直接拷贝选中 take，
+不重新编码）。
+
+逐条记录
+--------
+路径均为 `F:\Comfy-Desktop\sfx-lab\` 下相对路径。
+「生成 → 选取 → 重处理」三段分开写，因为某些素材的**重处理**比生成更决定听感。
+
+1) shot_normal.ogg  (0.12 s)  ← sfx/shot_normal_2.ogg
+   生成脚本: make_sfx.py（SPECS "shot_normal"）
+   prompt : "short soft pop, small round plop, mouth pop with tiny low thump, dry, close-mic"
+   negative: music, melody, rhythm, speech, vocals, reverb, echo, crowd, harsh, piercing,
+             distorted, clipping, noise floor
+   参数   : 生成 2.0 s；trim 上限 0.22 s；末尾 8 ms 淡出；峰值 -3 dBFS
+   备注   : v2 take（脚本内 3 个变体之一），由 assemble.py 选用。
+
+2) shot_fast.ogg  (0.35 s)  ← sfx/knife_throw_1.ogg
+   生成脚本: make_sfx.py（SPECS "knife_throw"）
+   prompt : "quick soft knife throw whoosh, air slicing past, short swish with fast smooth
+             decay, dry, close-mic"
+   negative: 同 shot_normal
+   参数   : 生成 2.0 s；trim 上限 0.35 s；末尾 8 ms 淡出；峰值 -3 dBFS
+   备注   : 刻意复用 knife_throw 的 v1 take 作「高速弹幕」音（assemble.py COPIES 表）。
+
+3) knife_throw.ogg  (0.17 s)  ← sfx/round2/knife_whoosh_3.ogg
+   生成脚本: make_sfx2.py（SPECS "knife_whoosh"）
+   prompt : "fast blade slicing through air, smooth clean air swipe whoosh, one quick swish,
+             dry, close-mic"
+   negative: rustle, rustling, paper, static, granular, crackle, sand + DRY
+   重处理 : 对称 sin^1.10 包络（压掉颗粒感）+ 单极点低通 11000 Hz
+   参数   : trim 上限 0.32 s；峰值 -3 dBFS
+
+4) laser_shot.ogg  (0.31 s)  ← sfx/round4/laser_p1_down_3.ogg
+   生成脚本: make_sfx3.py（SOURCES "p1"），由 make_sfx4.py 重处理
+   prompt : "single short high pitched electronic ping, glassy energy tone, one note, dry,
+             close-mic"
+   negative: low rumble, bass, boom, thump, muffled + DRY
+   重处理 : 高通 600 Hz；滑音 1.45 → 0.75（下行「啾」）；
+            末段 45% 时长做 power=1.6 的衰减尾巴
+   参数   : trim 上限 0.34 s；峰值 -3 dBFS
+
+5) laser_beam.ogg  (4.00 s)  ← loops/hum_machine_4s.ogg
+   生成脚本: make_loop.py（从一段「机器嗡鸣」长生成里自动挑最平稳的 4.0 s 窗口，
+             0.15 s 交叉淡化拼接）
+   重处理 : 窗口 RMS 归一到 -18 dBFS，峰值上限 -3 dBFS；无首尾淡变（游戏内由
+            BeamEnvelope 推进）
+   ⚠ 缺口: 该「机器嗡鸣」原始生成的 prompt/seed 未写入脚本，无法从仓库内文件精确复现。
+           已知可复现部分：`make_loop.py IN.flac loops/hum_machine_4s.ogg --length 4.0
+           --crossfade 0.15`，以及窗口挑选与归一规则。
+
+6) boss_burst.ogg  (0.36 s)  ← sfx/boss/boss_burst_125.ogg
+   生成脚本: boss_mix.py（在噪声爆发上叠一声「叮」）
+   叮的来源: sfx/round3 系的 `ding_*.flac`
+   prompt （ding，make_sfx3.py "ding"）:
+             "single short high bell ding, soft struck glass, rounded and muted, one note
+              only, no sharp attack, dry, close-mic"
+   重处理 : 噪声 trim 0.40 s；叮 trim 0.15 s 后做 60 ms power=1.5 衰减；
+            叮以 -10 dB 档（`d10`）与噪声同起点叠加；峰值归一到 -3 dBFS
+   ⚠ 缺口: 噪声底 `boss_burst_125.ogg` 的原始生成 prompt/seed 未写入脚本。
+           文件名中的 `125` 是原始 take 的标签，不是处理参数。
+           已知可复现部分：`boss_mix.py` 的叠加链与 -10 dB 档。
+
+7) warn_shift.ogg  (0.70 s)  ← sfx/round4/warn_ding_b3_2.ogg
+   生成脚本: make_sfx4.py 的 blur 家族（源为 make_sfx3.py 的 `ding_*.flac`）
+   重处理 : 起音淡入（attack ramp）+ 多抽头扩散（把瞬态在时间上抹开，不改音高）
+            + 轻度低通 + 220 ms power=1.3 衰减尾
+   ⚠ 缺口: 脚本只固化了 `b1`（attack 25 ms, taps 3, lp 4200）与
+           `b2`（attack 35 ms, taps 5, lp 3600）；交付的 `b3` 是同一链路下的
+           第三组参数，未写入脚本。已知可复现部分：上述处理链与源 take。
+
+8) spellcard_switch.ogg  (2.60 s)  ← sfx/round2/spellcard_mid_3.ogg
+   生成脚本: make_sfx2.py 的 spellcard 家族
+   prompt （"spellcard_solemn"，同源）:
+             "deep solemn magic activation, low resonant bell with slow warm swell, dark
+              heavy tone, ceremonial, spacious hall reverb"
+   negative: high pitched, bright, shrill, sharp, piercing + DRY
+   重处理 : 同族脚本里 `spellcard_solemn` 用 pitch 0.80 + 低通 4200 Hz；
+            `spellcard_mid` 是更轻的中间档
+   ⚠ 缺口: `spellcard_mid` 的具体 pitch/低通值未写入脚本（同族已知：
+           `spellcard_solemn` = pitch 0.80 / lp 4200）。
+
+交付文件校验（SHA-256）
+-----------------------
+boss_burst.ogg        b18f9b236afcf390b79d955ad48cbb3cdf65d6d91be813883cc2ee6950d96908
+knife_throw.ogg       8c3c76838f5417dbff018156c4a4e09c86cd52decbd8cc7f9164c61a8a5f1a51
+laser_loop.ogg        e2b043eb14bf26c9f52e70d79d82239dc6e0e23bf18b62029490716815acc1b2
+laser_shot.ogg        d7206735cb06ac1e42df1ca274ece872b21235a5e918172cedb2c74c79f61b71
+shot_fast.ogg         8cfc1ca0760b2c7318495fb43045597279e555edcc738eab490b5abc4b564a93
+shot_normal.ogg       ce9959d343a826128b4bb039842eebfbf47676a1b15f6f7294b464d271a6582f
+spellcard_switch.ogg  f5f9617157e2f73188a1b2277f0dc92ac147c807c6f843242b8c4c1958529b60
+warn_shift.ogg        057e2666a1c8c7f5d0f8afa789570b4a7f878da2b9df7c14fb5f50f37b471482
+
+迁移路径
+--------
+若将来定位变为商用且年收入可能突破 1M 美元，需要换 Apache-2.0 许可的音效模型
+（如 MOSS-SoundEffect-v2.0），届时全部 8 条需重新生成并重走调音；
+本文件的 per-cue 音量表（design D7）与上述处理链是重走时的基线。

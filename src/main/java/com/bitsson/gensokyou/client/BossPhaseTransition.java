@@ -1,6 +1,8 @@
 package com.bitsson.gensokyou.client;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.audio.Audio;
+import com.bitsson.gensokyou.audio.AudioCue;
 import com.bitsson.gensokyou.entity.TouhouBoss;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -13,8 +15,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -70,14 +70,6 @@ public final class BossPhaseTransition {
             Gensokyou.id("textures/fx/magic_circle.png");
     private static final int MAGIC_CIRCLE_TEX = 16;
 
-    /**
-     * 声明音效。<b>原版占位</b>：项目尚无自制音效资源，先用末影龙的吼叫顶
-     * （1.21.1 的 {@code SoundEvents} 里没有专门的「复活」音效，这条吼叫就是
-     * 「龙出现/咆哮」那一声）。后续换自制素材时只改这一处。
-     */
-    private static final ResourceLocation DECLARE_SOUND =
-            ResourceLocation.parse("minecraft:entity.ender_dragon.growl");
-
     private record Declaration(int cardIndex, long startedNanos) {}
 
     private static final Map<Integer, Declaration> DECLARATIONS = new LinkedHashMap<>();
@@ -87,7 +79,7 @@ public final class BossPhaseTransition {
     /** 符卡下标变化时播一次宣言。返回 true 表示这是一次真正的切换（而非状态补发）。 */
     public static boolean declare(int entityId, int cardIndex) {
         DECLARATIONS.put(entityId, new Declaration(cardIndex, System.nanoTime()));
-        playDeclareSound();
+        Audio.play(AudioCue.SPELLCARD_SWITCH);
         return true;
     }
 
@@ -96,15 +88,6 @@ public final class BossPhaseTransition {
 
     /** 断线重连 / 切世界：全部清空。 */
     public static void clear() { DECLARATIONS.clear(); }
-
-    private static void playDeclareSound() {
-        try {
-            BuiltInRegistries.SOUND_EVENT.getOptional(DECLARE_SOUND).ifPresent(event ->
-                    Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(event, 0.85F)));
-        } catch (RuntimeException ignored) {
-            // 表现层的音效缺失 MUST NOT 打断演出。
-        }
-    }
 
     @SubscribeEvent
     public static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {

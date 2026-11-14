@@ -17,8 +17,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -41,7 +39,7 @@ public final class ProgramDanmakuRenderer {
     public static com.bitsson.gensokyou.danmaku.program.gameplay.ProgramTimingWindow.Snapshot projectionTiming() { return PROJECTION_TIMING.snapshot(); }
     public static com.bitsson.gensokyou.danmaku.program.gameplay.ProgramTimingWindow.Snapshot renderTiming() { return RENDER_TIMING.snapshot(); }
     private ProgramDanmakuRenderer() {}
-    public static void clearSounds() { SOUNDS.clear(); PROJECTION_TIMING.clear(); RENDER_TIMING.clear(); }
+    public static void clearSounds() { SOUNDS.clear(); ProgramSoundPlayer.clearDiagnostics(); PROJECTION_TIMING.clear(); RENDER_TIMING.clear(); }
 
     @SubscribeEvent
     public static void render(net.neoforged.neoforge.client.event.RenderLevelStageEvent event) {
@@ -85,12 +83,7 @@ public final class ProgramDanmakuRenderer {
             }
             for (ProgramRenderView.Sound sound:snapshot.sounds()) {
                 if (!SOUNDS.accept(snapshot.epoch(),sound)) continue;
-                try {
-                    BuiltInRegistries.SOUND_EVENT.getOptional(ResourceLocation.parse(sound.sound()))
-                            .ifPresent(soundEvent -> minecraft.getSoundManager().play(SimpleSoundInstance.forUI(soundEvent,1.0F)));
-                } catch (RuntimeException ignored) {
-                    // Optional presentation sounds must not break the render loop.
-                }
+                ProgramSoundPlayer.play(sound);
             }
             for (ProgramRenderView.Member member:snapshot.members()) {
                 if (!member.visible()) continue;

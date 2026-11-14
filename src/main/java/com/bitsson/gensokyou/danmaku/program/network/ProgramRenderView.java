@@ -26,7 +26,15 @@ public final class ProgramRenderView {
                           CollisionProfile collisionProfile, double age,double beamLength,long lifetime) {}
     public record Warning(long group, long batch, Vec3 source, Vec3 direction,
                           long birthTick, Pattern.Style style, CollisionProfile collisionProfile) {}
-    public record Sound(long group, long batch, String sound, String deduplicationKey) {}
+    /**
+     * 客户端投影里的一条声音事件。
+     *
+     * <p>{@code scopeKey} 是去重作用域，由 cue 的时钟域决定：批次级 cue 落在批次上，
+     * 轮级 cue 落在 {@code cycle} 锚点上，卡级 cue 落在 {@code card} 锚点上。
+     * 这样同一条 cue 被多个批次同时求值时，轮级/卡级只派发一次。
+     */
+    public record Sound(long group, long batch, String sound, String deduplicationKey,
+                        String scopeKey, Vec3 position) {}
     public record Guide(List<Vec3> points) { public Guide { points=List.copyOf(points); } }
     public record Billboard(Vec3 position,Vec3 worldDirection,Presentation.Billboard presentation,double age) {}
     public record Snapshot(long tick, long revision, long epoch, List<Member> members, List<Warning> warnings,List<Sound> sounds,List<Guide> guides,List<Billboard> billboards) {
@@ -114,7 +122,14 @@ public final class ProgramRenderView {
             Presentation.Clocks currentClocks=new Presentation.Clocks(tick-clocks.card(),tick-clocks.cycle(),tick-clocks.group(),tick-batch.birth());
             for (Presentation.SoundCue cue:batch.warning() || tick<batch.birth() ? List.<Presentation.SoundCue>of() : program.presentation().soundCues()) {
                 if (cue.due(previousClocks.time(cue.clock()),currentClocks.time(cue.clock()))) {
-                    sounds.add(new Sound(batch.group(),batch.ordinal(),cue.sound(),cue.deduplicationKey()));
+                    String scope=switch (cue.clock()) {
+                        case MEMBER_AGE -> "b:"+batch.group()+"/"+batch.ordinal();
+                        case GROUP -> "g:"+batch.group();
+                        case CYCLE -> "c:"+clocks.cycle();
+                        case CARD -> "k:"+clocks.card();
+                    };
+                    sounds.add(new Sound(batch.group(),batch.ordinal(),cue.sound(),cue.deduplicationKey(),
+                            scope+":"+cue.clock().name()+":"+cue.tick(),batch.source().frame().origin()));
                 }
             }
             if (batch.warning()) for (Pattern.Member template:batch.templates()) {

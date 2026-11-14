@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.item.weapon;
 
+import com.bitsson.gensokyou.audio.WeaponShotCue;
 import com.bitsson.gensokyou.entity.AbstractDanmakuProjectile;
 import com.bitsson.gensokyou.entity.LaserDanmaku;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
@@ -134,6 +135,7 @@ public final class WeaponFiring {
         Level level = player.level();
         Vec3 look = player.getLookAngle();
         Set<EntityType<?>> whitelist = Set.of();
+        WeaponShotCue shotCue = cueFor(pattern);
 
         if (pattern.isLaser()) {
             Vec3 origin = player.getEyePosition().add(look.scale(0.5D));
@@ -145,6 +147,7 @@ public final class WeaponFiring {
                     player, whitelist);
             laser.setCritMult(critMult);
             laser.setFromWeapon(true);
+            laser.setShotCue(shotCue);
             level.addFreshEntity(laser);
             return;
         }
@@ -155,6 +158,7 @@ public final class WeaponFiring {
                     pattern.talismanSensitivity().getAsDouble(), whitelist);
             talisman.setCritMult(critMult);
             talisman.setFromWeapon(true);
+            talisman.setShotCue(shotCue);
             aimFromEye(talisman, player);
             talisman.shoot(look.x, look.y, look.z,
                     (float) pattern.projectileSpeed().getAsDouble(), 0F);
@@ -182,11 +186,20 @@ public final class WeaponFiring {
             AbstractDanmakuProjectile projectile = pattern.factory().create(level, player, damage);
             projectile.setCritMult(critMult);
             projectile.setFromWeapon(true);
+            // 一次扳机一声：散弹/扇射只由第一颗弹携带 cue；限流是第二道保险，不是语义。
+            if (i == 0) {
+                projectile.setShotCue(shotCue);
+            }
             aimFromEye(projectile, player);
             projectile.setLifetimeTicks(effectiveTicks);
             projectile.shoot(direction.x, direction.y, direction.z, (float) speed, 0F);
             level.addFreshEntity(projectile);
         }
+    }
+
+    private static WeaponShotCue cueFor(FirePattern pattern) {
+        return WeaponShotCue.forKind(pattern.kind(), pattern.isLaser(),
+                pattern.laserDurationSeconds().getAsDouble());
     }
 
     private static void aimFromEye(AbstractDanmakuProjectile projectile, Player player) {

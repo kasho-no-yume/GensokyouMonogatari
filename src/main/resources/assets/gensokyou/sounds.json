@@ -1,0 +1,50 @@
+{
+  "shot_normal": {
+    "subtitle": "subtitles.gensokyou.shot_normal",
+    "sounds": [
+      { "name": "gensokyou:shot_normal" }
+    ]
+  },
+  "shot_fast": {
+    "subtitle": "subtitles.gensokyou.shot_fast",
+    "sounds": [
+      { "name": "gensokyou:shot_fast" }
+    ]
+  },
+  "knife_throw": {
+    "subtitle": "subtitles.gensokyou.knife_throw",
+    "sounds": [
+      { "name": "gensokyou:knife_throw" }
+    ]
+  },
+  "laser_shoot": {
+    "subtitle": "subtitles.gensokyou.laser_shoot",
+    "sounds": [
+      { "name": "gensokyou:laser_shot" }
+    ]
+  },
+  "laser_beam": {
+    "subtitle": "subtitles.gensokyou.laser_beam",
+    "sounds": [
+      { "name": "gensokyou:laser_loop" }
+    ]
+  },
+  "boss_burst": {
+    "subtitle": "subtitles.gensokyou.boss_burst",
+    "sounds": [
+      { "name": "gensokyou:boss_burst" }
+    ]
+  },
+  "warn_shift": {
+    "subtitle": "subtitles.gensokyou.warn_shift",
+    "sounds": [
+      { "name": "gensokyou:warn_shift" }
+    ]
+  },
+  "spellcard_switch": {
+    "subtitle": "subtitles.gensokyou.spellcard_switch",
+    "sounds": [
+      { "name": "gensokyou:spellcard_switch" }
+    ]
+  }
+}

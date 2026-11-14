@@ -29,7 +29,7 @@ public final class BossProgramManifest {
         public Entry { notes = List.copyOf(notes); }
     }
 
-    /** 全部正式条目：BOSS 的底噪（如有）+ 19 张符卡。 */
+    /** 全部正式条目：BOSS 的底噪（如有）+ 20 张符卡。 */
     public static List<Entry> entries() {
         List<Entry> rows = new ArrayList<>();
         for (var deck : BossProgramCards.all()) {

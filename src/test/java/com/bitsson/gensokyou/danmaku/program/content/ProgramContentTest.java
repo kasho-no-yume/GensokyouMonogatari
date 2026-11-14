@@ -1,7 +1,9 @@
 package com.bitsson.gensokyou.danmaku.program.content;
 
+import com.bitsson.gensokyou.client.ProgramSoundLedger;
 import com.bitsson.gensokyou.danmaku.program.ClockAnchors;
 import com.bitsson.gensokyou.danmaku.program.author.BossProgramController;
+import com.bitsson.gensokyou.danmaku.program.author.CardProgram;
 import com.bitsson.gensokyou.danmaku.program.author.MemberProgram;
 import com.bitsson.gensokyou.danmaku.program.author.StandardProgramOperations;
 import com.bitsson.gensokyou.danmaku.program.math.Deterministic;
@@ -81,12 +83,13 @@ class ProgramContentTest {
                 ran.cards().stream().map(BossProgramCards.Card::hpFraction).toList());
 
         var rumia = BossProgramCards.forOwner("rumia").orElseThrow();
-        assertEquals(4, rumia.cards().size());
+        assertEquals(5, rumia.cards().size());
         assertNull(rumia.background(), "露米娅 v1 不设独立底噪");
-        assertEquals(List.of(1.00D, 0.75D, 0.50D, 0.25D),
+        assertEquals(List.of(1.00D, 0.80D, 0.60D, 0.40D, 0.20D),
                 rumia.cards().stream().map(BossProgramCards.Card::hpFraction).toList());
         assertEquals(List.of("spellcard.gensokyou.rumia.1", "spellcard.gensokyou.rumia.2",
-                        "spellcard.gensokyou.rumia.3", "spellcard.gensokyou.rumia.4"),
+                        "spellcard.gensokyou.rumia.3", "spellcard.gensokyou.rumia.4",
+                        "spellcard.gensokyou.rumia.5"),
                 rumia.cards().stream().map(BossProgramCards.Card::nameKey).toList());
 
         for (var deck : decks) {
@@ -98,9 +101,9 @@ class ProgramContentTest {
         }
     }
 
-    @Test void formalManifestCoversTheAuthorizedNineteen() {
+    @Test void formalManifestCoversTheAuthorizedTwenty() {
         int migrated = BossProgramCards.all().stream().mapToInt(d -> d.cards().size()).sum();
-        assertEquals(19, migrated, "大妖精3 + 山女4 + 蓝8 + 露米娅4");
+        assertEquals(20, migrated, "大妖精3 + 山女4 + 蓝8 + 露米娅5");
     }
 
     @Test void selectionUsesLastReachedThresholdLikeLegacyRunner() {
@@ -424,6 +427,95 @@ class ProgramContentTest {
         assertTrue(heard, "card5 age-30 flash sound cue reaches the render projection");
         assertEquals(0, replica.failures());
         controller.close();
+    }
+
+    // ------------------------------------------------------------------
+    // 本次消费变更：花海 16+1、山女蛛丝 10/13、螺旋 5/6
+    // ------------------------------------------------------------------
+    private static final String BOSS_BURST = "gensokyou:boss_burst";
+    private static final String WARN_SHIFT = "gensokyou:warn_shift";
+    private static final String SHOT_NORMAL = "gensokyou:shot_normal";
+
+    @Test void bigFairyFlowerSoundsAreSixteenThrowsAndOneBurstPerCycle() {
+        var counts = soundCounts("big_fairy", 2, 239, new World(1));
+        assertEquals(16, counts.getOrDefault(BOSS_BURST, 0), counts.toString());
+        assertEquals(1, counts.getOrDefault(WARN_SHIFT, 0), counts.toString());
+    }
+
+    @Test void bigFairyNonFlowerCardsStaySilentAndDefaultWallUsesNormalShot() {
+        var deck = BossProgramCards.forOwner("big_fairy").orElseThrow();
+        for (int card : new int[]{1, 3}) {
+            var counts = soundCounts("big_fairy", card, 239, new SurfaceWorld(1));
+            assertTrue(counts.isEmpty(), "card " + card + " should stay silent: " + counts);
+        }
+        var wall = soundCounts(deck.background(), 239, new SurfaceWorld(1));
+        assertEquals(4, wall.getOrDefault(SHOT_NORMAL, 0), wall.toString());
+        assertTrue(wall.keySet().equals(Set.of(SHOT_NORMAL)),
+                "default wall should only use shot.normal: " + wall);
+    }
+
+    @Test void yamameSilkSoundsOncePerCarrierBatch() {
+        assertEquals(10, soundCounts("yamame", 1, 199, new World(1)).getOrDefault(BOSS_BURST, 0));
+        assertEquals(13, soundCounts("yamame", 3, 259, new World(1)).getOrDefault(BOSS_BURST, 0));
+    }
+
+    @Test void yamameSpiralsSoundOncePerWave() {
+        assertEquals(5, soundCounts("yamame", 2, 259, new World(1)).getOrDefault(BOSS_BURST, 0));
+        assertEquals(6, soundCounts("yamame", 4, 259, new World(1)).getOrDefault(BOSS_BURST, 0));
+    }
+
+    @Test void yamameNonContractEmissionsStaySilentAndDefaultFanUsesNormalShot() {
+        var deck = BossProgramCards.forOwner("yamame").orElseThrow();
+        var background = soundCounts(deck.background(), 239, new World(1));
+        assertEquals(3, background.getOrDefault(SHOT_NORMAL, 0), background.toString());
+        assertTrue(background.keySet().equals(Set.of(SHOT_NORMAL)),
+                "background fan should only use shot.normal: " + background);
+    }
+
+    /**
+     * 跑一轮真实 session + replica，按客户端 ledger 统计实际会播放的 cue。
+     *
+     * <p>这里刻意把 ledger 也算进来：投影仍会为每个 batch 产出 Sound，
+     * 真正决定“一声还是十六声”的是 scope-aware 去重。
+     */
+    private static Map<String, Integer> soundCounts(String owner, int cardIndex, int lastTick, DecisionProvider world) {
+        return soundCounts(BossProgramCards.forOwner(owner).orElseThrow().card(cardIndex).program(), lastTick, world);
+    }
+
+    private static Map<String, Integer> soundCounts(CardProgram.Compiled program, int lastTick, DecisionProvider world) {
+        var wire = new com.bitsson.gensokyou.danmaku.program.network.ProgramWire(
+                com.bitsson.gensokyou.danmaku.program.network.NetworkLimits.defaults());
+        var runtime = new DanmakuWorldRuntime("test:sound-count",
+                new DanmakuWorldRuntime.Limits(16384, 2048, 2048, 2048, 100000), world);
+        var session = new ProgramSession(runtime, StandardProgramOperations.execution());
+        var controller = new BossProgramController(session, OWNER);
+        controller.card(program, 0);
+        var replica = new com.bitsson.gensokyou.danmaku.program.network.ProgramReplica(wire,
+                StandardProgramOperations.registry(), StandardProgramOperations.limits());
+        var packets = new ArrayList<byte[]>();
+        var sync = new com.bitsson.gensokyou.danmaku.program.network.ProgramSyncServer(wire, packets::add, 20);
+        var ledger = new ProgramSoundLedger();
+        Map<String, Integer> counts = new TreeMap<>();
+        for (int tick = 0; tick <= lastTick; tick++) {
+            session.advance(tick, 65536);
+            runtime.drainEvents();
+            var projection = com.bitsson.gensokyou.danmaku.program.network.ReplicaState.capture(session.checkpoint(), wire);
+            sync.publishSpatial(projection,
+                    com.bitsson.gensokyou.danmaku.program.gameplay.ProgramMotionBounds.groups(projection),
+                    com.bitsson.gensokyou.danmaku.program.gameplay.ProgramMotionBounds.members(projection),
+                    new Vec3(0, 1, 18), 64, 256, 2048);
+            for (byte[] packet : packets) replica.receive(packet, tick);
+            packets.clear();
+            for (var view : replica.renderViews("test:sound-count", tick)) {
+                for (var sound : view.sounds()) {
+                    if (ledger.accept(view.epoch(), sound)) {
+                        counts.merge(sound.sound(), 1, Integer::sum);
+                    }
+                }
+            }
+        }
+        controller.close();
+        return counts;
     }
 
     // ------------------------------------------------------------------

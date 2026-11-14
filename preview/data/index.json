@@ -15,9 +15,10 @@
     {"owner": "yakumo_ran", "index": 6, "card": "spellcard.gensokyou.yakumo_ran.6", "ticks": 602, "members": 288, "samples": 2220, "bytes": 198721, "file": "yakumo_ran_6.json"},
     {"owner": "yakumo_ran", "index": 7, "card": "spellcard.gensokyou.yakumo_ran.7", "ticks": 602, "members": 411, "samples": 2355, "bytes": 146830, "file": "yakumo_ran_7.json"},
     {"owner": "yakumo_ran", "index": 8, "card": "spellcard.gensokyou.yakumo_ran.8", "ticks": 602, "members": 456, "samples": 2670, "bytes": 166731, "file": "yakumo_ran_8.json"},
-    {"owner": "rumia", "index": 1, "card": "spellcard.gensokyou.rumia.1", "ticks": 602, "members": 3, "samples": 21, "bytes": 2106, "file": "rumia_1.json"},
-    {"owner": "rumia", "index": 2, "card": "spellcard.gensokyou.rumia.2", "ticks": 602, "members": 3, "samples": 21, "bytes": 2106, "file": "rumia_2.json"},
-    {"owner": "rumia", "index": 3, "card": "spellcard.gensokyou.rumia.3", "ticks": 602, "members": 3, "samples": 21, "bytes": 2106, "file": "rumia_3.json"},
-    {"owner": "rumia", "index": 4, "card": "spellcard.gensokyou.rumia.4", "ticks": 602, "members": 3, "samples": 21, "bytes": 2106, "file": "rumia_4.json"}
+    {"owner": "rumia", "index": 1, "card": "spellcard.gensokyou.rumia.1", "ticks": 492, "members": 202, "samples": 1046, "bytes": 69295, "file": "rumia_1.json"},
+    {"owner": "rumia", "index": 2, "card": "spellcard.gensokyou.rumia.2", "ticks": 472, "members": 194, "samples": 1140, "bytes": 72294, "file": "rumia_2.json"},
+    {"owner": "rumia", "index": 3, "card": "spellcard.gensokyou.rumia.3", "ticks": 582, "members": 498, "samples": 2736, "bytes": 171458, "file": "rumia_3.json"},
+    {"owner": "rumia", "index": 4, "card": "spellcard.gensokyou.rumia.4", "ticks": 722, "members": 185, "samples": 2266, "bytes": 121120, "file": "rumia_4.json"},
+    {"owner": "rumia", "index": 5, "card": "spellcard.gensokyou.rumia.5", "ticks": 522, "members": 442, "samples": 2078, "bytes": 138170, "file": "rumia_5.json"}
   ]
 }

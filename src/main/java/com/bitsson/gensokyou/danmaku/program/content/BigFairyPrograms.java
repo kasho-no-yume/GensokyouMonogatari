@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.danmaku.program.content;
 
+import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.balance.BalanceNumbers;
 
 import com.bitsson.gensokyou.danmaku.program.TailPolicy;
@@ -58,7 +59,14 @@ public final class BigFairyPrograms {
                 "sphere", hex(0), size * 0.5, 1, size, "wall");
         var bullets = MemberProgram.attack("wall", pattern,
                         new Paths.Linear(Vec3.Z, BalanceNumbers.BIG_FAIRY_WALL_SPEED), 1200)
-                .templateDirections().build();
+                .templateDirections()
+                // 普攻弹墙：每组一声玩家普通弹的「啵」，不按 25 颗弹重复。
+                .presentation(new Presentation.Profile(
+                        List.of(new Presentation.Window(TimeDomain.MEMBER_AGE, 0, 1200)), null, null,
+                        List.of(),
+                        List.of(new Presentation.SoundCue(TimeDomain.MEMBER_AGE, 0,
+                                Gensokyou.id("shot_normal").toString(), "wall-throw"))))
+                .build();
         int interval = Math.max(5, BalanceNumbers.BIG_FAIRY_WALL_INTERVAL);
         card.at(0, c -> c.fire(gun, bullets, 0, 31));
         // 底噪永不结束；循环边界清旧轮顶层计划，新轮重新采样。
@@ -154,7 +162,15 @@ public final class BigFairyPrograms {
             var members = MemberProgram.attack("flower" + index, pattern, new Paths.Hold(), FLOWER_LIFETIME)
                     .fixedDirection().transform(motion)
                     .presentation(new Presentation.Profile(
-                            List.of(new Presentation.Window(TimeDomain.MEMBER_AGE, FLOWER_BURST_AGE, FLOWER_LIFETIME)), null, null, List.of()))
+                            List.of(new Presentation.Window(TimeDomain.MEMBER_AGE, FLOWER_BURST_AGE, FLOWER_LIFETIME)), null, null,
+                            List.of(),
+                            List.of(
+                                    // 每朵花甩出：一批一声（scope=MEMBER_AGE）。
+                                    new Presentation.SoundCue(TimeDomain.MEMBER_AGE, 0,
+                                            Gensokyou.id("boss_burst").toString(), "flower-throw"),
+                                    // 整轮爆裂：16 个批次共享 scope=CYCLE，ledger 合并为一声。
+                                    new Presentation.SoundCue(TimeDomain.CYCLE, FLOWER_BURST_AGE,
+                                            Gensokyou.id("warn_shift").toString(), "flower-burst"))))
                     .build();
             var targets = card.targets("flowerT" + index, 64, 5);
             var group = card.arena("flower" + index, targets);
