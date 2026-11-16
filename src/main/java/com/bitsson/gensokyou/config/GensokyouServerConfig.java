@@ -125,6 +125,7 @@ public final class GensokyouServerConfig {
     public static final ModConfigSpec.ConfigValue<List<? extends Double>> BOUSEN_CAPACITY;
     public static final ModConfigSpec.ConfigValue<List<? extends Double>> BOUSEN_OUT_RATE_PER_SECOND;
     public static final ModConfigSpec.ConfigValue<List<? extends Double>> BOUSEN_EXTINGUISH_CHANCE;
+    public static final ModConfigSpec.DoubleValue BOUSEN_DECAY_EXPONENT;
     public static final ModConfigSpec.IntValue ZAOHUA_CRAFT_DURATION_TICKS;
     public static final ModConfigSpec.IntValue ZAOHUA_SPIRIT_IN_RATE_BASE;
     public static final ModConfigSpec.IntValue ZAOHUA_SPIRIT_IN_RATE_MULT;
@@ -351,6 +352,12 @@ public final class GensokyouServerConfig {
                 + " ~62.5s to the first loss at every tier). Keep the product n*p constant when editing, otherwise higher"
                 + " tiers become mathematically impossible to keep lit")
                 .defineListAllowEmpty("extinguishChance", List.of(0.01D, 0.005D, 0.0025D), o -> o instanceof Double);
+        BOUSEN_DECAY_EXPONENT = BUILDER.comment("Bousen: decay exponent gamma for the accelerating production curve"
+                + " rate=R*[1-(d/h)^gamma], d=extinguished, h=half the candles. Default 2.0 is the smallest"
+                + " accelerating exponent (gamma=1 is linear). This is a single shared Double across all tiers;"
+                + " non-positive or non-finite values are clamped to 2.0 in code. Does NOT affect the tier rate"
+                + " tables (produce/capacity/out) or the extinguish mechanism.")
+                .defineInRange("decayExponent", 2.0D, 0.0D, 100.0D);
         BUILDER.pop();
         BUILDER.push("ritual");
         ZAOHUA_CRAFT_DURATION_TICKS = BUILDER.comment("Zaohua rite: flight/convergence animation length in ticks (100 = 5s)").defineInRange("zaohuaCraftDurationTicks", 100, 20, 2400);

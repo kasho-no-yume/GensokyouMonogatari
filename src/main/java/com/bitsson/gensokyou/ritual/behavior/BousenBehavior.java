@@ -27,11 +27,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 忘川灯坛：全亮门控的产灵仪式。
+ * 忘川灯坛：加速衰减产灵的仪式。
  *
- * <p><b>产灵判据 = 核心已启动 ∧ 结构内全部蜡烛点亮。</b>缺一不产；"灭一根"与"灭 64 根"完全同义，
- * 不存在按点亮比例缩放的中间态。熄灭时清缓存、扣费、落物一律不做，缓存是已挣到的钱。
- * 熄灭也<b>不</b>触发停机（{@code enabled} 保持不变），故玩家补完灯即自动恢复产灵，无须再点启动。
+ * <p><b>产灵判据 = 核心已启动 ∧ 当前产灵速率 rate > 0。</b>速率随熄灭根数 {@code d} 按
+ * {@code rate = R·[1 − (d/h)^γ]} 加速衰减（{@code h} = 蜡烛数一半，γ 默认为 2）：满亮产满速 R，
+ * 熄灭越多掉得越快，到 {@code d ≥ h} 归零停产。"灭一根"与"灭到阈值"不再同义。
+ * 熄灭时清缓存、扣费、落物一律不做，缓存是已挣到的钱。
+ * rate 归零也<b>不</b>触发停机（{@code enabled} 保持不变），故玩家补灯使能 rate>0 即自动恢复，
+ * 无须再点启动。
+ *
+ * <h2>阈值停机与自动恢复</h2>
+ * 熄灭结算与产灵同样以 {@code rate > 0} 为前置。故点亮数降到半阈值即停产并停止掷骰，点亮数冻结；
+ * 玩家补灯使 rate>0 后两者自动恢复。这给玩家 11~46 分钟的自主运行余裕，而非"灭一根就全停"。
  *
  * <h2>熄灭模型：只模拟「根数」，不逐根 tick</h2>
  * 朴素实现是"每根蜡烛一个倒计时，到点掷一次 p 的骰子"。本实现改为每次结算抽
@@ -47,10 +54,6 @@ import java.util.List;
  * （{@link #pickLitIndices}）。稳态每结算帧 ≈ 1 次采样 + 0.16~0.64 次 {@code setBlock}。
  *
  * <p>⚠️ 顺序不可简化为单步：均匀抽 k 个只在<b>条件于 k</b> 时才等价于伯努利乘积律。
- *
- * <h2>自我冻结</h2>
- * 熄灭结算与产灵同样以"全亮"为前置。故一旦有灯灭着，点亮数即冻结在当前值，仪式静默停产——
- * 它不是"灯越点越少"的衰减曲线，而是二元状态机。玩家永远面对"补上那几根就恢复"的确定性。
  *
  * <h2>蜡烛 vs 结构</h2>
  * 熄灭（{@code LIT=false}）<b>不</b>影响结构：pattern 谓词是纯方块 id、不带状态后缀，两种状态
@@ -84,6 +87,7 @@ public class BousenBehavior implements RitualBehavior {
     /** 全亮色 / 缺灯色（信息行用；与屏障仪式同色系）。 */
     private static final int COLOR_OK = 0xFF2E8B57;
     private static final int COLOR_WARN = 0xFFE8912A;
+    private static final int COLOR_HALT = 0xFFD32F2F;
     private static final int COLOR_PURPLE = 0xFFB39DDB;
 
     private static final String LANG = "gui.gensokyou.ritual.bousen.";
@@ -103,6 +107,63 @@ public class BousenBehavior implements RitualBehavior {
             return 0L;
         }
         return candleCount >= Long.SIZE ? -1L : (1L << candleCount) - 1L;
+    }
+
+    /** 默认衰减曲率（配置非法值回落）。γ=1 为线性，γ=2 为默认加速曲率。 */
+    public static final double DEFAULT_DECAY_EXPONENT = 2.0D;
+
+    /**
+     * 归零阈值：蜡烛总数的一半（1/2/3 阶为 8/16/32）。
+     *
+     * <p>产灵与熄灭结算共用本方法推导阈值，MUST NOT 在各处重复写 {@code total / 2}。
+     */
+    public static int halfThreshold(int total) {
+        return Math.max(0, total) / 2;
+    }
+
+    /** 是否仍有产出：点亮数严格大于半阈值（等价于 {@code rate > 0}）。 */
+    public static boolean isProducing(int lit, int total) {
+        return lit > halfThreshold(total);
+    }
+
+    /**
+     * 加速衰减产灵速率（世界无关纯函数，接受显式参数便于无游戏环境自检）。
+     *
+     * <pre>
+     *     h    = total / 2
+     *     d    = total - lit
+     *     rate = 0                          若 d >= h
+     *          = R · [1 - (d/h)^gamma]      否则
+     * </pre>
+     *
+     * <p>{@code gamma} 非正或非有限值时钳到 {@link #DEFAULT_DECAY_EXPONENT}；返回值恒非负。
+     * {@code level} 仅为签名一致性保留，速率本身由 {@code baseRate} 直接给出。
+     */
+    public static long rate(int level, int lit, int total, double gamma, double baseRate) {
+        int h = halfThreshold(total);
+        int d = Math.max(0, total - lit);
+        if (h <= 0 || d >= h || !(baseRate > 0.0D)) {
+            return 0L;
+        }
+        if (!(gamma > 0.0D) || !Double.isFinite(gamma)) {
+            gamma = DEFAULT_DECAY_EXPONENT;
+        }
+        double factor = 1.0D - Math.pow((double) d / (double) h, gamma);
+        if (factor <= 0.0D) {
+            return 0L;
+        }
+        return Math.round(baseRate * factor);
+    }
+
+    /** 读 config 的包装：分阶满速 R × 配置曲率 γ。 */
+    public static long currentRate(int level, int lit, int total) {
+        return rate(level, lit, total, decayExponent(), produceRatePerSecond(level));
+    }
+
+    /** 读取并钳制曲率配置：非正或非有限值回落默认值。 */
+    public static double decayExponent() {
+        double g = GensokyouServerConfig.BOUSEN_DECAY_EXPONENT.get();
+        return (g > 0.0D && Double.isFinite(g)) ? g : DEFAULT_DECAY_EXPONENT;
     }
 
     /**
@@ -257,21 +318,22 @@ public class BousenBehavior implements RitualBehavior {
         }
     }
 
-    /** 启动通道（仅 enabled）：逐秒产灵 + 定期熄灭结算，两者均以全亮为前置。 */
+    /**
+     * 启动通道（仅 enabled）：逐秒按衰减速率产灵 + 定期熄灭结算，两者均以 {@code rate > 0} 为前置。
+     *
+     * <p>产灵不再要求全亮：点亮数越多速率越高，到半阈值归零即停产并停掷。先产后熄的时序不变。
+     */
     @Override
     public void serverTick(ServerLevel level, BlockPos corePos, RitualMatch match,
                            SpiritPowerAccess core) {
-        if (!allLit(core)) {
-            return;
-        }
-        if (core.ageTicks() % 20L == 0L) {
-            long produced = produceRatePerSecond(match.level());
-            if (produced > 0L) {
-                deposit(core, produced);
-            }
+        int lit = bousen(core).litCount();
+        int total = bousen(core).lanternTotal();
+        long produced = currentRate(match.level(), lit, total);
+        if (core.ageTicks() % 20L == 0L && produced > 0L) {
+            deposit(core, produced);
         }
         int period = extinguishPeriodTicks();
-        if (period > 0 && core.ageTicks() % period == 0L) {
+        if (period > 0 && core.ageTicks() % period == 0L && produced > 0L) {
             rollExtinguish(level, match, core);
         }
     }
@@ -394,6 +456,9 @@ public class BousenBehavior implements RitualBehavior {
 
     // ================================================================= GUI
 
+    /**
+     * 全亮判定。衰减产灵后仅用于 GUI 灯火行分色（全亮绿）与 debug 探针，MUST NOT 再作为产灵前置。
+     */
     private static boolean allLit(SpiritPowerAccess core) {
         return bousen(core).lanternTotal() > 0 && bousen(core).litCount() == bousen(core).lanternTotal();
     }
@@ -407,17 +472,21 @@ public class BousenBehavior implements RitualBehavior {
                                  SpiritPowerAccess core) {
         int lit = bousen(core).litCount();
         int total = bousen(core).lanternTotal();
+        int h = halfThreshold(total);
         boolean full = allLit(core);
-        long rate = produceRatePerSecond(match.level());
+        long rate = currentRate(match.level(), lit, total);
+        boolean producing = rate > 0L;
+        int lanternColor = full ? COLOR_OK : (producing ? COLOR_WARN : COLOR_HALT);
         long outRate = outRateOf(match.level());
         double p = extinguishChance(match.level());
         int period = extinguishPeriodTicks();
+        double gamma = decayExponent();
 
         List<InfoLine> lines = new ArrayList<>();
-        // 灯火行：可见只放 N/M，明细全进 tip（宽度红线）
+        // 灯火行：可见只放 N/M，明细全进 tip（宽度红线）；rate=0 标红（区别于缺灯橙）
         lines.add(InfoLine.tipped(LANG + "lanterns",
                 new String[]{InfoLine.compact(lit), InfoLine.compact(total)},
-                full ? COLOR_OK : COLOR_WARN,
+                lanternColor,
                 LANG + "lanterns.tip",
                 new String[]{
                         String.valueOf(lit), String.valueOf(total),
@@ -425,14 +494,17 @@ public class BousenBehavior implements RitualBehavior {
                         trimPercent(p) + "%",
                         String.valueOf(period),
                         expectedGapSeconds(total, p, period),
-                        String.valueOf(full)}));
-        // 产灵行：缺灯时给独立停产文案，玩家读作设计而非故障
-        lines.add(full
+                        String.valueOf(full),
+                        InfoLine.compact(rate),
+                        String.valueOf(h),
+                        String.valueOf(gamma)}));
+        // 产灵行：显示实时速率；仅 rate=0 时给独立停产文案，玩家读作设计而非故障
+        lines.add(producing
                 ? InfoLine.tipped(LANG + "producing", new String[]{InfoLine.compact(rate)},
                     COLOR_OK, LANG + "producing.tip",
                     new String[]{String.valueOf(rate), InfoLine.compact(core.getStored()),
                         InfoLine.compact(core.getCapacity())})
-                : new InfoLine(LANG + "halted", new String[0], "", COLOR_WARN, -1F, null));
+                : new InfoLine(LANG + "halted", new String[0], "", COLOR_HALT, -1F, null));
         // 供灵行
         lines.add(InfoLine.tipped(LANG + "supply", new String[]{InfoLine.compact(outRate)},
                 COLOR_PURPLE, LANG + "supply.tip", new String[]{String.valueOf(outRate)}));
@@ -472,13 +544,18 @@ public class BousenBehavior implements RitualBehavior {
     /** 机读单行（供外部 harness 解析）。 */
     public static String debugSummary(ServerLevel level, BlockPos corePos, RitualMatch match,
                                       SpiritPowerAccess core) {
+        int lit = bousen(core).litCount();
+        int total = bousen(core).lanternTotal();
         return "BOUSEN level=" + match.level()
                 + " enabled=" + core.isEnabled()
-                + " candles=" + bousen(core).lanternTotal()
-                + " lit=" + bousen(core).litCount()
+                + " candles=" + total
+                + " lit=" + lit
+                + " d=" + (total - lit)
+                + " h=" + halfThreshold(total)
                 + " allLit=" + allLit(core)
                 + " mask=0x" + Long.toHexString(bousen(core).litMask())
-                + " rate=" + produceRatePerSecond(match.level())
+                + " rate=" + currentRate(match.level(), lit, total)
+                + " gamma=" + decayExponent()
                 + " capacity=" + capacityOf(match.level())
                 + " stored=" + core.getStored()
                 + " outRate=" + outRateOf(match.level())
@@ -587,6 +664,43 @@ public class BousenBehavior implements RitualBehavior {
         if (Math.abs(lowShare - 0.5D) > 0.02D) {
             failures.add("pickLitIndices NOT uniform: bit3 share=" + lowShare
                     + " (want 0.5; 2^(-j-1) bias gives ~0.667)");
+        }
+        // 7) 加速衰减曲线：边界（满亮取满速 / 半阈值归零 / 越过阈值恒零）
+        long r0 = rate(1, 16, 16, 2.0D, 100.0D);
+        long rh = rate(1, 8, 16, 2.0D, 100.0D);
+        long rOver = rate(1, 0, 16, 2.0D, 100.0D);
+        if (r0 != 100L || rh != 0L || rOver != 0L) {
+            failures.add("rate boundary: rate(0)=" + r0 + " rate(h)=" + rh
+                    + " rate(d>h)=" + rOver + " (want 100/0/0)");
+        }
+        // 8) 严格单调递减（d=0..h，逐点比较）
+        boolean monotone = true;
+        for (int d = 0; d < 8; d++) {
+            long cur = rate(1, 16 - d, 16, 2.0D, 100.0D);
+            long next = rate(1, 16 - (d + 1), 16, 2.0D, 100.0D);
+            if (cur <= next) {
+                monotone = false;
+                break;
+            }
+        }
+        if (!monotone) {
+            failures.add("rate not strictly decreasing over d=0..h");
+        }
+        // 9) 中间值采样（确认加速形状，容差 ±1）
+        int[] at = {1, 4, 7};
+        long[] want = {98L, 75L, 23L};
+        for (int i = 0; i < at.length; i++) {
+            long got = rate(1, 16 - at[i], 16, 2.0D, 100.0D);
+            if (Math.abs(got - want[i]) > 1L) {
+                failures.add("rate(d=" + at[i] + ")=" + got + " want " + want[i] + " +/-1");
+            }
+        }
+        // 10) 曲率非法值钳到默认
+        long clampZero = rate(1, 15, 16, 0.0D, 100.0D);
+        long clampNaN = rate(1, 15, 16, Double.NaN, 100.0D);
+        long clampDefault = rate(1, 15, 16, DEFAULT_DECAY_EXPONENT, 100.0D);
+        if (clampZero != clampDefault || clampNaN != clampDefault) {
+            failures.add("rate gamma clamp (<=0 / NaN must fall back to " + DEFAULT_DECAY_EXPONENT + ")");
         }
         return failures;
     }

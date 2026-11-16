@@ -2234,9 +2234,10 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
         }
         long mask = state.movingMask();
         long full = BousenBehavior.fullMask(total);
-        boolean allLit = mask == full;
-        // 坛面铺光（第三段）：只认「已启动 ∧ 全亮」，停机/缺灯一律不画
-        if (state.enabled() && allLit) {
+        // 坛面铺光（第三段）：只认「已启动 ∧ 点亮过半（服务端 rate>0）」，停机/半灭以下不画。
+        // 客户端仅凭掩码置位数判定，与服务端产灵 gate 同判据（lit > total/2），无需新渲染态字段。
+        boolean producing = Long.bitCount(mask) > total / 2;
+        if (state.enabled() && producing) {
             float goldAlpha = BalanceNumbers.BOUSEN_FX_GOLD_ALPHA.floatValue();
             if (goldAlpha > 0.001F) {
                 float breathe = 0.88F + 0.12F * Mth.sin((float) (now * 0.09D));
