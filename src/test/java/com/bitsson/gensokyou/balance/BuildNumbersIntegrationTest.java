@@ -49,7 +49,9 @@ class BuildNumbersIntegrationTest {
     @Test
     void finalPoliciesProtectShieldCountsButAllowLifetimeAndLimitCooldown() {
         var shield = SpellParameterPolicies.card("flower_armor");
-        assertEquals(2D, shield.parameter("petals").apply(1D, 5D, 3D));
+        // 参数策略不再封顶；花瓣门禁由施放器按阶用 FLOWER_ARMOR_CAP 钳制。
+        assertEquals(6D, shield.parameter("petals").apply(1D, 5D, 3D));
+        assertEquals(java.util.List.of(2D, 4D, 5D, 7D, 9D), BalanceNumbers.FLOWER_ARMOR_CAP);
         assertEquals(1600D, shield.parameter("duration").apply(400D, 5D, 3D));
         assertEquals(2400L, SpellAttributeMath.cooldown(300L, .6D, shield.minimumCooldownTicks()));
         assertEquals(1200L, SpellParameterPolicies.card("healing_garden").minimumCooldownTicks());

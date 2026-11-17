@@ -130,11 +130,11 @@ public final class BuildNumbers {
 
     // ---- 符卡效果加成（2026-11-04 统一，rework-player-stat-build-budgets） ----
     // 统一 amp 属性 SPELL_EFFECT_AMP：伤害类系数 1.0；治疗类系数 HEAL_COEF=0.5，
-    // 且治疗类增幅上限 HEAL_CAP=1.5 ⇒ 治疗总量封顶 ×2.5（伤害翻倍与治疗翻倍刻意不等值）。
+    // 且治疗类增幅上限 HEAL_CAP=1.0 ⇒ 治疗总量封顶 ×2（伤害翻倍与治疗翻倍刻意不等值）。
     /** 统一符卡效果加成：治疗类效果量系数（同属性值 ×0.5）。 */
     public static final double SPELL_EFFECT_AMP_HEAL_COEF = .5D;
-    /** 统一符卡效果加成：治疗类增幅上限（1.5 ⇒ 治疗总量封顶 ×2.5）。 */
-    public static final double SPELL_EFFECT_AMP_HEAL_CAP = 1.5D;
+    /** 统一符卡效果加成：治疗类增幅上限（1.0 ⇒ 治疗总量封顶 ×2）。 */
+    public static final double SPELL_EFFECT_AMP_HEAL_CAP = 1.0D;
 
     public static double leechCapPerSecond(int tier) {
         return pool(tier) * .0003D;
@@ -248,8 +248,12 @@ public final class BuildNumbers {
 
     /** Fixed lifecycle output budget, never derived from actual gear or current pool. */
     public static double foxDamagePerSecond(int tier) {
+        // 前两阶按实机手感定基准；高阶仍走每阶预算公式。
+        if (tier <= 2) {
+            return tier == 1 ? 5D : 21D;
+        }
         double referenceDps = BuildBudgetMath.referenceDps(power(tier),
-                tier <= 2 ? 1D : tier <= 4 ? 2D : 4D, 2D, 2.5D);
+                tier <= 4 ? 2D : 4D, 2D, 2.5D);
         return referenceDps * .4D * 20D / foxDuration(tier);
     }
 

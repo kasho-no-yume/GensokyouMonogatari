@@ -41,7 +41,8 @@ class BuildControlCoverageTest {
         report.append("冷却取「CDR 折减后」与「卡片专属最短冷却」的较大者；不列资源充分性与命中损失。\n");
         report.append("覆盖率 = 最大持续 / 有效冷却；≥ 100% = 可无缝常驻。\n\n");
         List<Case> cases = List.of(
-                new Case("demarcation", "黑暗结界", "控制", BalanceNumbers.DEMARCATION_DURATION_SECONDS, false,
+                new Case("demarcation", "黑暗结界", "控制",
+                        BalanceNumbers.DEMARCATION_DURATION_SECONDS.get(4), false,
                         BalanceNumbers.DEMARCATION_COOLDOWN),
                 new Case("spider_web", "蛛网", "控制", BalanceNumbers.SPIDER_WEB_DURATION_SECONDS.get(4), false,
                         BalanceNumbers.SPIDER_WEB_COOLDOWN),
@@ -72,7 +73,7 @@ class BuildControlCoverageTest {
         report.append("\n按阶明细（黑暗结界 / 蛛网 / 疫符；满品时长、该阶 CDR 封顶、无专属最短冷却）：\n\n");
         report.append("| 阶 | 黑暗结界 覆盖率 | 蛛网 覆盖率 | 疫符 覆盖率 |\n|---|---|---|---|\n");
         for (int tier = 1; tier <= 5; tier++) {
-            double dem = coverage(c( BalanceNumbers.DEMARCATION_DURATION_SECONDS, false,
+            double dem = coverage(c(BalanceNumbers.DEMARCATION_DURATION_SECONDS.get(tier - 1), false,
                     BalanceNumbers.DEMARCATION_COOLDOWN, tier), tier);
             double spider = coverage(c(BalanceNumbers.SPIDER_WEB_DURATION_SECONDS.get(tier - 1), false,
                     BalanceNumbers.SPIDER_WEB_COOLDOWN, tier), tier);

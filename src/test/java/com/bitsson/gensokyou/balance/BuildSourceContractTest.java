@@ -20,7 +20,7 @@ class BuildSourceContractTest {
         assertTrue(weapon.contains("SpiritPayments.pay(player, cost)"));
         assertFalse(weapon.contains("Math.round(stats.spiritCost()"));
         assertTrue(spells.contains("SpellParameterPolicies.card(card)"));
-        assertTrue(spells.contains("BuildNumbers.gardenHealingPerSecond"));
+        assertTrue(spells.contains("BalanceNumbers.HEALING_GARDEN_HEAL_PER_SECOND"));
         assertTrue(spells.contains("BuildNumbers.foxDamagePerSecond"));
     }
 

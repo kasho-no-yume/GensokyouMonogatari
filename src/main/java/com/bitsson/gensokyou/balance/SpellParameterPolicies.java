@@ -28,12 +28,13 @@ public final class SpellParameterPolicies {
             "icicle_fall", new Card(Map.of("damage", MAGNITUDE), -1L),
             "light_reflect", new Card(Map.of(), -1L),
             "healing_garden", new Card(Map.of("healing_per_second", MAGNITUDE, "duration", DURATION), 1200L),
-            // Candidate low-hit safety limits: at most two complete blocks and >=120s between casts.
+            // 花瓣吃符卡效果加成，最终门禁由施放器按阶钳制（FLOWER_ARMOR_CAP）；最短冷却 120s。
             "flower_armor", new Card(Map.of("petals",
-                    new SpellAttributeMath.ParameterPolicy(true, false, 1D, 2D),
+                    new SpellAttributeMath.ParameterPolicy(true, false, 1D, -1D),
                     "duration", DURATION), 2400L),
             "demarcation", new Card(Map.of(), -1L),
-            "spider_web", new Card(Map.of(), -1L),
+            // 蛛网边长吃符卡效果加成，最终上限由施放器钳制为基准的 2 倍。
+            "spider_web", new Card(Map.of("edge", MAGNITUDE), -1L),
             "plague_repay", new Card(Map.of(), -1L),
             "fox_servant", new Card(Map.of("damage", MAGNITUDE, "duration", DURATION), -1L));
 

@@ -58,7 +58,7 @@ public enum AttributeKey {
     /**
      * 符卡效果加成（2026-11-04 统一，rework-player-stat-build-budgets）：
      * 玩家符卡「效果量」一门放大通道。伤害类系数 1.0；治疗类系数 0.5 并以
-     * {@code BuildNumbers.SPELL_EFFECT_AMP_HEAL_CAP}=1.5 封顶（翻倍 ≤ 2.5 倍）；
+     * {@code BuildNumbers.SPELL_EFFECT_AMP_HEAL_CAP}=1.0 封顶（翻倍 ≤ 2 倍）；
      * 时间/频率轴（duration / cdr / cost）不在此属性内。
      * 旧 spell_damage_amp / spell_heal_amp 键已废弃（未发布变更，不保留迁移）。
      */

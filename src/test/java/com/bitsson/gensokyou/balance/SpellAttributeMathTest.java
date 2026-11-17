@@ -67,7 +67,8 @@ class SpellAttributeMathTest {
     void parameterListMakesMagnitudeDurationAndFixedFieldsUnambiguous() {
         assertEquals(9, SpellParameterPolicies.all().size());
         var shield = SpellParameterPolicies.card("flower_armor");
-        assertEquals(2D, shield.parameter("petals").apply(1D, 5D, 3D));
+        // 花瓣门禁已移到施放器的逐阶表，参数侧不封顶。
+        assertEquals(6D, shield.parameter("petals").apply(1D, 5D, 3D));
         assertEquals(80D, shield.parameter("duration").apply(20D, 5D, 3D));
         assertEquals(4D, SpellParameterPolicies.card("healing_garden")
                 .parameter("radius").apply(4D, 5D, 3D));

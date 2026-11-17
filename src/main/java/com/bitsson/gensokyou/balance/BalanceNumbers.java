@@ -515,6 +515,8 @@ public final class BalanceNumbers {
     public static final Double SPELLCARD_SCALE_MIN_FACTOR = 0D;
     /** 由原 COMMON 配置迁移（键名 SPELLCARD_SCALE_MAX_FACTOR）。 */
     public static final Double SPELLCARD_SCALE_MAX_FACTOR = 100000D;
+    /** 疗愈花园逐阶基准回血（HP/s）；取代随阶级递减的低生命适配公式。 */
+    public static final List<Double> HEALING_GARDEN_HEAL_PER_SECOND = List.of(1D, 1.5D, 2D, 2.5D, 3D);
     /** 由原 COMMON 配置迁移（键名 HEALING_GARDEN_BASE）。 */
     public static final Double HEALING_GARDEN_BASE = 0.6D;
     /** 由原 COMMON 配置迁移（键名 HEALING_GARDEN_ALPHA）。 */
@@ -529,8 +531,10 @@ public final class BalanceNumbers {
     public static final Integer HEALING_GARDEN_SP_COST = 80;
     /** 由原 COMMON 配置迁移（键名 HEALING_GARDEN_COOLDOWN）。 */
     public static final Integer HEALING_GARDEN_COOLDOWN = 240;
-    /** 由原 COMMON 配置迁移（键名 FLOWER_ARMOR_BLOCKS）。 */
-    public static final List<Double> FLOWER_ARMOR_BLOCKS = List.of(3D, 5D, 7D, 10D, 15D);
+    /** 鲜花之铠逐阶基准花瓣数。 */
+    public static final List<Double> FLOWER_ARMOR_BLOCKS = List.of(1D, 2D, 3D, 4D, 5D);
+    /** 鲜花之铠逐阶花瓣门禁（符卡效果加成后的上限）。 */
+    public static final List<Double> FLOWER_ARMOR_CAP = List.of(2D, 4D, 5D, 7D, 9D);
     /** 由原 COMMON 配置迁移（键名 FLOWER_ARMOR_DURATION_SECONDS）。 */
     public static final Double FLOWER_ARMOR_DURATION_SECONDS = 20D;
     /** 由原 COMMON 配置迁移（键名 FLOWER_ARMOR_SP_COST）。 */
@@ -539,10 +543,12 @@ public final class BalanceNumbers {
     public static final Integer FLOWER_ARMOR_COOLDOWN = 300;
     /** 由原 COMMON 配置迁移（键名 DEMARCATION_ALPHA）。 */
     public static final Double DEMARCATION_ALPHA = 0.12D;
-    /** 由原 COMMON 配置迁移（键名 DEMARCATION_RADIUS）。 */
-    public static final List<Double> DEMARCATION_RADIUS = List.of(8D, 10D, 12D, 14D, 16D);
-    /** 由原 COMMON 配置迁移（键名 DEMARCATION_DURATION_SECONDS）。 */
-    public static final Double DEMARCATION_DURATION_SECONDS = 10D;
+    /** 黑暗结界半径（格）：固定为原版怪物寻敌距离 FOLLOW_RANGE=32。 */
+    public static final Double DEMARCATION_RADIUS = 32D;
+    /** 主动攻击后脱离黑暗结界；这么久没有再次攻击即重新生效（秒）。 */
+    public static final Double DEMARCATION_REENTER_DELAY_SECONDS = 3D;
+    /** 黑暗结界逐阶基准持续（秒）；不吃任何符卡效果加成。 */
+    public static final List<Double> DEMARCATION_DURATION_SECONDS = List.of(20D, 30D, 40D, 50D, 60D);
     /** 由原 COMMON 配置迁移（键名 DEMARCATION_SP_COST）。 */
     public static final Integer DEMARCATION_SP_COST = 100;
     /** 由原 COMMON 配置迁移（键名 DEMARCATION_COOLDOWN）。 */
@@ -551,8 +557,8 @@ public final class BalanceNumbers {
     public static final Double SPIDER_WEB_ALPHA = 0.15D;
     /** 由原 COMMON 配置迁移（键名 SPIDER_WEB_EDGE）。 */
     public static final List<Double> SPIDER_WEB_EDGE = List.of(6D, 8D, 10D, 12D, 14D);
-    /** 由原 COMMON 配置迁移（键名 SPIDER_WEB_DURATION_SECONDS）。 */
-    public static final List<Double> SPIDER_WEB_DURATION_SECONDS = List.of(10D, 15D, 20D, 25D, 30D);
+    /** 蛛网逐阶基准持续（秒）。 */
+    public static final List<Double> SPIDER_WEB_DURATION_SECONDS = List.of(20D, 30D, 40D, 50D, 60D);
     /** 由原 COMMON 配置迁移（键名 SPIDER_WEB_SPEED_MULT）。 */
     public static final Double SPIDER_WEB_SPEED_MULT = 0.2D;
     /** 由原 COMMON 配置迁移（键名 SPIDER_WEB_SP_COST）。 */

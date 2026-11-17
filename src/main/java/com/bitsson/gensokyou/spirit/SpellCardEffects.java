@@ -291,7 +291,8 @@ public final class SpellCardEffects {
         if (!(ctx.level() instanceof ServerLevel level)) {
             return;
         }
-        double baseHealing = com.bitsson.gensokyou.balance.BuildNumbers.gardenHealingPerSecond(ctx.quality());
+        double baseHealing = SpellCardScaling.tableEntry(
+                BalanceNumbers.HEALING_GARDEN_HEAL_PER_SECOND, ctx.quality());
         double perSecond = parameter(ctx, HEALING_GARDEN, "healing_per_second", baseHealing, true, true);
         float radius = (float) SpellCardScaling.tableEntry(
                 BalanceNumbers.HEALING_GARDEN_RADIUS, ctx.quality());
@@ -307,7 +308,10 @@ public final class SpellCardEffects {
         if (!(ctx.player() instanceof ServerPlayer player)) {
             return;
         }
-        int petals = (int) Math.round(parameter(ctx, FLOWER_ARMOR, "petals", 1D, false, false));
+        double basePetals = SpellCardScaling.tableEntry(BalanceNumbers.FLOWER_ARMOR_BLOCKS, ctx.quality());
+        double petalCap = SpellCardScaling.tableEntry(BalanceNumbers.FLOWER_ARMOR_CAP, ctx.quality());
+        int petals = (int) Math.round(Math.min(
+                parameter(ctx, FLOWER_ARMOR, "petals", basePetals, false, false), petalCap));
         int duration = (int) Math.round(parameter(ctx, FLOWER_ARMOR, "duration",
                 secondsToTicks(BalanceNumbers.FLOWER_ARMOR_DURATION_SECONDS), false, false));
         ModAttachments.setSpellBuffs(player, ModAttachments.spellBuffs(player)
@@ -316,14 +320,13 @@ public final class SpellCardEffects {
                 Component.translatable("msg.gensokyou.flower_armor_cast", petals), true);
     }
 
-    /** 闇符『ディマーケイション』：黑暗结界（对 BOSS 生效，主动攻击即终止）。 */
+    /** 闇符『ディマーケイション』：黑暗结界（对 BOSS 生效，主动攻击脱离、停攻 3 秒后重新生效）。 */
     private static void performDemarcation(CastContext ctx) {
         if (!(ctx.level() instanceof ServerLevel level)) {
             return;
         }
-        float radius = (float) SpellCardScaling.tableEntry(
-                BalanceNumbers.DEMARCATION_RADIUS, ctx.quality());
-        int duration = secondsToTicks(BalanceNumbers.DEMARCATION_DURATION_SECONDS);
+        float radius = BalanceNumbers.DEMARCATION_RADIUS.floatValue();
+        int duration = durationTicks(ctx, BalanceNumbers.DEMARCATION_DURATION_SECONDS);
         level.addFreshEntity(new DarknessFieldEntity(level, ctx.player(), radius, duration));
     }
 
@@ -332,8 +335,9 @@ public final class SpellCardEffects {
         if (!(ctx.level() instanceof ServerLevel level)) {
             return;
         }
-        float edge = (float) SpellCardScaling.tableEntry(
-                BalanceNumbers.SPIDER_WEB_EDGE, ctx.quality());
+        double baseEdge = SpellCardScaling.tableEntry(BalanceNumbers.SPIDER_WEB_EDGE, ctx.quality());
+        float edge = (float) Math.min(
+                parameter(ctx, SPIDER_WEB, "edge", baseEdge, false, false), baseEdge * 2D);
         int duration = durationTicks(ctx, BalanceNumbers.SPIDER_WEB_DURATION_SECONDS);
         double mult = BalanceNumbers.SPIDER_WEB_SPEED_MULT;
         double distance = edge; // 生成距离 = 边长
@@ -370,6 +374,10 @@ public final class SpellCardEffects {
         int duration = (int) Math.round(parameter(ctx, FOX_SERVANT, "duration",
                 durationTicks(ctx, BalanceNumbers.FOX_SERVANT_DURATION_SECONDS), false, false));
         int interval = BalanceNumbers.FOX_SERVANT_INTERVAL_TICKS;
-        level.addFreshEntity(new FoxServantEntity(level, ctx.player(), range, duration, damage, interval));
+        int count = ctx.quality(); // 每升 1 阶多一只狐火
+        for (int i = 0; i < count; i++) {
+            level.addFreshEntity(new FoxServantEntity(level, ctx.player(), range, duration,
+                    damage, interval, i * (Math.PI * 2D / count)));
+        }
     }
 }

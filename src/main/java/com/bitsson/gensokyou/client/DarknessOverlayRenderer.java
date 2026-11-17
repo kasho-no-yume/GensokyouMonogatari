@@ -53,7 +53,8 @@ public final class DarknessOverlayRenderer {
         List<DarknessFieldEntity> fields = mc.level.getEntitiesOfClass(
                 DarknessFieldEntity.class, mc.player.getBoundingBox().inflate(64D));
         for (DarknessFieldEntity field : fields) {
-            if (mc.player.position().distanceTo(field.position()) <= field.radius()) {
+            if (!field.suspended()
+                    && mc.player.position().distanceTo(field.position()) <= field.radius()) {
                 return MAX_DARKNESS;
             }
         }

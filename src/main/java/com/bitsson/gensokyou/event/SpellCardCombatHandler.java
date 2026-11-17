@@ -68,10 +68,10 @@ public final class SpellCardCombatHandler {
                 }
             }
         }
-        // 黑暗结界：玩家主动造成伤害即终止
+        // 黑暗结界：玩家主动造成伤害 → 脱离；停手 3 秒后自动重新生效
         Entity attacker = event.getSource().getEntity();
         if (attacker instanceof ServerPlayer caster && event.getEntity() != caster) {
-            DarknessFieldEntity.terminateFor(caster);
+            DarknessFieldEntity.suspendFor(caster);
         }
     }
 

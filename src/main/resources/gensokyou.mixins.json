@@ -4,7 +4,9 @@
   "package": "com.bitsson.gensokyou.mixin.client",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "LevelRendererShakeMixin"
+    "LevelRendererShakeMixin",
+    "SoulBurnFireAnimationMixin",
+    "SoulBurnFlameMixin"
   ],
   "injectors": {
     "defaultRequire": 1

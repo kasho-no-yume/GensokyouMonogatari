@@ -33,6 +33,7 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
 
     private static final String TAG_RANGE = "Range";
     private static final String TAG_DAMAGE = "Damage";
+    private static final String TAG_ORBIT_PHASE = "OrbitPhase";
 
     public static final int STATE_ORBIT = 0;
     public static final int STATE_CHARGING = 1;
@@ -47,11 +48,15 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
     private static final double ORBIT_SPEED = 0.09D;
     private static final double HOVER = 1.4D;
     private static final double CHARGE_SPEED = 0.9D;
+    /** 返航/环绕的移动速度：所有位移都是逐步趋近，绝不把坐标直接设到目标点。 */
+    private static final double RETURN_SPEED = 0.75D;
 
     private double searchRange = 8D;
     private double damage = 3D;
     private int intervalTicks = 30;
     private int damageCooldown;
+    /** 同阶多只狐火的环绕相位偏移（弧度），避免重叠。 */
+    private double orbitPhase = 0D;
 
     public FoxServantEntity(EntityType<? extends FoxServantEntity> type, Level level) {
         super(type, level);
@@ -59,6 +64,11 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
 
     public FoxServantEntity(Level level, Player host, double searchRange, int durationTicks,
                             double damage, int intervalTicks) {
+        this(level, host, searchRange, durationTicks, damage, intervalTicks, 0D);
+    }
+
+    public FoxServantEntity(Level level, Player host, double searchRange, int durationTicks,
+                            double damage, int intervalTicks, double orbitPhase) {
         this(ModEntityTypes.FOX_SERVANT.get(), level);
         setHost(host);
         setRadius((float) searchRange);
@@ -66,6 +76,7 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
         this.searchRange = searchRange;
         this.damage = damage;
         this.intervalTicks = Math.max(1, intervalTicks);
+        this.orbitPhase = orbitPhase;
         setPos(host.getX() + ORBIT_RADIUS, host.getY() + HOVER, host.getZ());
     }
 
@@ -97,6 +108,8 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
             discard();
             return;
         }
+        // 让服务端每 tick 都发位置包（否则隔几 tick 才发一次，客户端插值会一顿一顿）。
+        this.hasImpulse = true;
         int state = state();
         switch (state) {
             case STATE_CHARGING -> tickCharging(level, host);
@@ -105,11 +118,26 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
         }
     }
 
+    /**
+     * 朝宿主的环绕轨道点移动，每 tick 最多走 {@link #RETURN_SPEED} 格——
+     * 从附身/冲锋状态脱离时是"飞回来"而不是瞬移回来。
+     */
+    private void orbitAround(Player host) {
+        double angle = tickCount * ORBIT_SPEED + orbitPhase;
+        double tx = host.getX() + Math.cos(angle) * ORBIT_RADIUS;
+        double ty = host.getY() + HOVER + Math.sin(tickCount * 0.1D) * 0.12D;
+        double tz = host.getZ() + Math.sin(angle) * ORBIT_RADIUS;
+        Vec3 delta = new Vec3(tx, ty, tz).subtract(position());
+        double dist = delta.length();
+        if (dist <= 1.0E-4D) {
+            return;
+        }
+        Vec3 step = delta.scale(Math.min(RETURN_SPEED, dist) / dist);
+        setPos(getX() + step.x, getY() + step.y, getZ() + step.z);
+    }
+
     private void tickOrbit(ServerLevel level, Player host) {
-        double angle = tickCount * ORBIT_SPEED;
-        setPos(host.getX() + Math.cos(angle) * ORBIT_RADIUS,
-                host.getY() + HOVER + Math.sin(tickCount * 0.1D) * 0.12D,
-                host.getZ() + Math.sin(angle) * ORBIT_RADIUS);
+        orbitAround(host);
         LivingEntity target = findTarget(level, host);
         if (target != null) {
             setState(STATE_CHARGING, target.getId());
@@ -126,9 +154,8 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
         Vec3 delta = to.subtract(position());
         double dist = delta.length();
         if (dist <= 1.2D) {
-            // 命中即附身：结算一次伤害，本体隐去到目标身上
+            // 命中即附身：结算一次伤害；蓝火由目标生物自己显示，本体不挪到目标坐标
             target.hurt(ModDamageTypes.danmaku(this, host), (float) damage);
-            setPos(target.getX(), target.getY() + target.getBbHeight() * 0.5D, target.getZ());
             setState(STATE_POSSESSING, target.getId());
             damageCooldown = intervalTicks;
             return;
@@ -140,7 +167,7 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
     private void tickPossessing(ServerLevel level, Player host) {
         LivingEntity target = resolveTarget(level);
         if (target == null || !target.isAlive() || host.distanceToSqr(target) > searchRange * searchRange) {
-            // 脱离附身：找下一个目标，否则飞回玩家
+            // 脱离附身：找下一个目标或飞回玩家（客户端由狐火实体状态判定，无需清理目标）
             LivingEntity next = findTargetOtherThan(level, host, target);
             if (next != null) {
                 setState(STATE_CHARGING, next.getId());
@@ -149,8 +176,9 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
             }
             return;
         }
-        setPos(target.getX(), target.getY() + target.getBbHeight() * 0.5D, target.getZ());
-        // 附身期间持续灼烧：按间隔反复结算伤害
+        // 附身态本体保持静止（停在命中点，既不设成目标坐标，也不偷偷飞回宿主）。
+        // 蓝火由目标自己显示；脱离后本体从命中点"可见地"逐步飞回宿主，
+        // 而不是在附身期间隐形飞回、脱离瞬间直接出现在宿主身边（那看起来像瞬移）。
         if (damageCooldown > 0) {
             damageCooldown--;
         }
@@ -173,9 +201,24 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
     }
 
     private LivingEntity findTargetOtherThan(ServerLevel level, Player host, LivingEntity exclude) {
-        AABB box = getBoundingBox().inflate(searchRange);
+        // 同一宿主的多只狐火不得锁定同一目标：收集同伴已占用的目标 id。
+        java.util.Set<Integer> claimed = new java.util.HashSet<>();
+        if (hostId().isPresent()) {
+            java.util.UUID hostUuid = hostId().get();
+            for (FoxServantEntity other : level.getEntitiesOfClass(FoxServantEntity.class,
+                    host.getBoundingBox().inflate(searchRange * 2D),
+                    f -> f != this && f.hostId().isPresent() && f.hostId().get().equals(hostUuid))) {
+                int id = other.targetId();
+                if (id != 0) {
+                    claimed.add(id);
+                }
+            }
+        }
+        // 以宿主为中心搜敌：附身态本体停在命中点，可能离宿主很远，用本体包围盒会漏怪。
+        AABB box = host.getBoundingBox().inflate(searchRange);
         List<LivingEntity> found = level.getEntitiesOfClass(LivingEntity.class, box,
                 e -> e != host && e != exclude && e.isAlive() && e instanceof Enemy
+                        && !claimed.contains(e.getId())
                         && host.distanceToSqr(e) <= searchRange * searchRange);
         found.sort(Comparator.comparingDouble(host::distanceToSqr));
         return found.isEmpty() ? null : found.get(0);
@@ -187,50 +230,21 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
 
     @Override
     protected void clientTick() {
-        // 位置完全由客户端本地推导（不消费服务端位置包）→ 平滑无跳位。
-        // 状态/目标由服务端同步决定，客户端只负责把它渲染成连续运动。
-        int state = state();
-        if (state == STATE_POSSESSING) {
-            Entity target = level().getEntity(targetId());
-            if (target != null) {
-                setPos(target.getX(), target.getY() + target.getBbHeight() * 0.5D, target.getZ());
-                emitPossessFire(target);
-            }
-        } else if (state == STATE_CHARGING) {
-            Entity target = level().getEntity(targetId());
-            if (target != null) {
-                Vec3 to = target.position().add(0D, target.getBbHeight() * 0.5D, 0D);
-                Vec3 delta = to.subtract(position());
-                double dist = delta.length();
-                if (dist > 1.0E-3D) {
-                    Vec3 step = delta.normalize().scale(Math.min(CHARGE_SPEED, dist));
-                    setPos(getX() + step.x, getY() + step.y, getZ() + step.z);
-                }
-            }
-            emitSelfFire();
-        } else {
-            Player host = host();
-            if (host != null) {
-                double angle = tickCount * ORBIT_SPEED;
-                setPos(host.getX() + Math.cos(angle) * ORBIT_RADIUS,
-                        host.getY() + HOVER + Math.sin(tickCount * 0.1D) * 0.12D,
-                        host.getZ() + Math.sin(angle) * ORBIT_RADIUS);
-            }
+        // 位置完全交给服务端同步：服务端每 tick 逐步移动，原版渲染插值负责平滑。
+        // 客户端绝不能本地 setPos——增量式起点与服务端不一致，再叠加位置包来回覆盖，会"抽插"。
+        if (state() != STATE_POSSESSING) {
             emitSelfFire();
         }
     }
 
+    /** 复用原版灵魂火焰粒子，团成一簇向上飘的蓝色火苗（不再用零散火星）。 */
     private void emitSelfFire() {
-        level().addParticle(ParticleTypes.SOUL_FIRE_FLAME, getX(), getY(), getZ(), 0D, 0.01D, 0D);
-        level().addParticle(ParticleTypes.SOUL_FIRE_FLAME, getX(), getY() + 0.4D, getZ(), 0D, 0.01D, 0D);
-    }
-
-    private void emitPossessFire(Entity target) {
-        for (int i = 0; i < 6; i++) {
-            double px = target.getX() + (random.nextDouble() - 0.5D) * target.getBbWidth() * 1.2D;
-            double py = target.getY() + random.nextDouble() * target.getBbHeight();
-            double pz = target.getZ() + (random.nextDouble() - 0.5D) * target.getBbWidth() * 1.2D;
-            level().addParticle(ParticleTypes.SOUL_FIRE_FLAME, px, py, pz, 0D, 0.01D, 0D);
+        for (int i = 0; i < 5; i++) {
+            double dx = (random.nextDouble() - 0.5D) * 0.3D;
+            double dz = (random.nextDouble() - 0.5D) * 0.3D;
+            level().addParticle(ParticleTypes.SOUL_FIRE_FLAME,
+                    getX() + dx, getY() + random.nextDouble() * 0.45D, getZ() + dz,
+                    0D, 0.02D + random.nextDouble() * 0.02D, 0D);
         }
     }
 
@@ -239,6 +253,7 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
         super.addAdditionalSaveData(tag);
         tag.putDouble(TAG_RANGE, searchRange);
         tag.putDouble(TAG_DAMAGE, damage);
+        tag.putDouble(TAG_ORBIT_PHASE, orbitPhase);
         tag.putInt("State", state());
         tag.putInt("TargetId", targetId());
     }
@@ -248,6 +263,7 @@ public class FoxServantEntity extends AbstractSpellFieldEntity {
         super.readAdditionalSaveData(tag);
         this.searchRange = tag.getDouble(TAG_RANGE);
         this.damage = tag.getDouble(TAG_DAMAGE);
+        this.orbitPhase = tag.getDouble(TAG_ORBIT_PHASE);
         entityData.set(DATA_STATE, tag.getInt("State"));
         entityData.set(DATA_TARGET, tag.getInt("TargetId"));
     }
