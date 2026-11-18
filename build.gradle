@@ -293,6 +293,27 @@ tasks.named('check') {
     dependsOn 'verifyNoTestContent'
 }
 
+// 发布包依赖收集：从真实 runtime classpath 里挑出第三方 mod 本体，
+// 按硬/软依赖分目录，供 build_release.bat 拷进 release/。
+// 按 group 过滤，避免把 -api / -sources / -javadoc 分类器或普通库带进来。
+tasks.register('copyReleaseDeps', Copy) {
+    group = 'gensokyou'
+    description = 'Collect third-party mod jars for release (required / optional).'
+
+    def modsFrom = { Collection<String> groups ->
+        configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts
+                .findAll { groups.contains(it.moduleVersion.id.group) }
+                .collect { it.file }
+    }
+    from({ modsFrom(['software.bernie.geckolib', 'vazkii.patchouli']) }) {
+        into 'required'
+    }
+    from({ modsFrom(['mezz.jei']) }) {
+        into 'optional'
+    }
+    into layout.buildDirectory.dir('release-deps')
+}
+
 // 符卡预览导出（openspec: add-danmaku-preview-site）。
 // 跑在 test classpath 上：导出器只在 src/test，永不进 jar；这条链不需要 Minecraft，
 // 但它消费的正是客户端渲染投影，所以必须跑真实 runtime 与真实 wire/replica。

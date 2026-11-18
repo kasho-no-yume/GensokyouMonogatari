@@ -1,4 +1,4 @@
-[1711月2026 16:23:32.411] [Test worker/ERROR] [com.bitsson.gensokyou.Gensokyou/]: [audio] 播放请求内部失败（cue gensokyou:shot_normal），已吞掉以免外溢到玩法逻辑
+[1811月2026 13:56:39.623] [Test worker/ERROR] [com.bitsson.gensokyou.Gensokyou/]: [audio] 播放请求内部失败（cue gensokyou:shot_normal），已吞掉以免外溢到玩法逻辑
 java.lang.IllegalStateException: simulated sink failure
 	at com.bitsson.gensokyou.audio.RecordingAudioSink.play(RecordingAudioSink.java:38) ~[test/:?]
 	at com.bitsson.gensokyou.audio.Audio.request(Audio.java:180) ~[main/:?]
@@ -90,30 +90,30 @@ java.lang.IllegalStateException: simulated sink failure
 	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72) [gradle-worker-main-9.2.1.jar:9.2.1]
 	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69) [gradle-worker.jar:?]
 	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74) [gradle-worker.jar:?]
-[1711月2026 16:23:32.453] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [audio] program sound cue id is not registered: minecraft:entity.blaze.shoot
-[1711月2026 16:23:47.512] [Test worker/DEBUG] [io.netty.util.internal.logging.InternalLoggerFactory/]: Using SLF4J as the default logging framework
-[1711月2026 16:23:47.515] [Test worker/DEBUG] [io.netty.util.ResourceLeakDetector/]: -Dio.netty.leakDetection.level: simple
-[1711月2026 16:23:47.515] [Test worker/DEBUG] [io.netty.util.ResourceLeakDetector/]: -Dio.netty.leakDetection.targetRecords: 4
-[1711月2026 16:23:49.502] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: -Dio.netty.noUnsafe: false
-[1711月2026 16:23:49.502] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: Java version: 21
-[1711月2026 16:23:49.504] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.theUnsafe: available
-[1711月2026 16:23:49.504] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.copyMemory: available
-[1711月2026 16:23:49.505] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.storeFence: available
-[1711月2026 16:23:49.505] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.Buffer.address: available
-[1711月2026 16:23:49.506] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.Bits.unaligned: available, true
-[1711月2026 16:23:49.508] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.DirectByteBuffer.<init>(long, {int,long}): unavailable
-[1711月2026 16:23:49.508] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: sun.misc.Unsafe: available
-[1711月2026 16:23:49.509] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: maxDirectMemory: 536870912 bytes (maybe)
-[1711月2026 16:23:49.509] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.tmpdir: C:\Users\SPDIMD~1\AppData\Local\Temp (java.io.tmpdir)
-[1711月2026 16:23:49.509] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.bitMode: 64 (sun.arch.data.model)
-[1711月2026 16:23:49.510] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: Platform: Windows
-[1711月2026 16:23:49.510] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.maxDirectMemory: -1 bytes
-[1711月2026 16:23:49.510] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.uninitializedArrayAllocationThreshold: -1
-[1711月2026 16:23:49.512] [Test worker/DEBUG] [io.netty.util.internal.CleanerJava9/]: java.nio.ByteBuffer.cleaner(): available
-[1711月2026 16:23:49.512] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.noPreferDirect: false
-[1711月2026 16:25:51.649] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[1711月2026 16:25:51.650] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[1711月2026 16:25:51.650] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[1711月2026 16:25:51.650] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[1711月2026 16:25:51.651] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[1711月2026 16:25:51.651] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1811月2026 13:56:39.663] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [audio] program sound cue id is not registered: minecraft:entity.blaze.shoot
+[1811月2026 13:56:48.816] [Test worker/DEBUG] [io.netty.util.internal.logging.InternalLoggerFactory/]: Using SLF4J as the default logging framework
+[1811月2026 13:56:48.817] [Test worker/DEBUG] [io.netty.util.ResourceLeakDetector/]: -Dio.netty.leakDetection.level: simple
+[1811月2026 13:56:48.817] [Test worker/DEBUG] [io.netty.util.ResourceLeakDetector/]: -Dio.netty.leakDetection.targetRecords: 4
+[1811月2026 13:56:50.094] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: -Dio.netty.noUnsafe: false
+[1811月2026 13:56:50.094] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: Java version: 21
+[1811月2026 13:56:50.095] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.theUnsafe: available
+[1811月2026 13:56:50.095] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.copyMemory: available
+[1811月2026 13:56:50.096] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: sun.misc.Unsafe.storeFence: available
+[1811月2026 13:56:50.096] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.Buffer.address: available
+[1811月2026 13:56:50.096] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.Bits.unaligned: available, true
+[1811月2026 13:56:50.098] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent0/]: java.nio.DirectByteBuffer.<init>(long, {int,long}): unavailable
+[1811月2026 13:56:50.099] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: sun.misc.Unsafe: available
+[1811月2026 13:56:50.099] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: maxDirectMemory: 536870912 bytes (maybe)
+[1811月2026 13:56:50.099] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.tmpdir: C:\Users\SPDIMD~1\AppData\Local\Temp (java.io.tmpdir)
+[1811月2026 13:56:50.099] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.bitMode: 64 (sun.arch.data.model)
+[1811月2026 13:56:50.099] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: Platform: Windows
+[1811月2026 13:56:50.101] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.maxDirectMemory: -1 bytes
+[1811月2026 13:56:50.101] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.uninitializedArrayAllocationThreshold: -1
+[1811月2026 13:56:50.102] [Test worker/DEBUG] [io.netty.util.internal.CleanerJava9/]: java.nio.ByteBuffer.cleaner(): available
+[1811月2026 13:56:50.103] [Test worker/DEBUG] [io.netty.util.internal.PlatformDependent/]: -Dio.netty.noPreferDirect: false
+[1811月2026 13:58:17.965] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1811月2026 13:58:17.967] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1811月2026 13:58:17.967] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1811月2026 13:58:17.968] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1811月2026 13:58:17.969] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1811月2026 13:58:17.969] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
