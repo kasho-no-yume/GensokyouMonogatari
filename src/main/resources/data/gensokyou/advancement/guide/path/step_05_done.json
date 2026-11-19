@@ -1,0 +1,14 @@
+{
+
+  "parent": "gensokyou:guide/path/step_04_done",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "items": ["gensokyou:cinnabar","gensokyou:rough_cinnabar_ore","gensokyou:refined_cinnabar","gensokyou:spirit_iron_ore","gensokyou:rough_spirit_iron_ore","gensokyou:spirit_iron","gensokyou:star_silver_ore","gensokyou:rough_star_silver_ore","gensokyou:star_silver","gensokyou:oni_stone","gensokyou:spirit_soil","gensokyou:porcelain_clay","gensokyou:porcelain","gensokyou:higan_soil","gensokyou:moon_sand","gensokyou:sacred_wood","gensokyou:magic_wood","gensokyou:eternal_wood","gensokyou:sanzu_flask","gensokyou:spirit_fish","gensokyou:mermaid_scale","gensokyou:tide_crystal","gensokyou:dragon_scale","gensokyou:spirit_herb","gensokyou:gentian","gensokyou:higanbana","gensokyou:magic_mushroom"] }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+
+  "parent": "gensokyou:guide/path/step_09_done",
+  "criteria": {
+    "done": {
+      "trigger": "minecraft:impossible"
+    }
+  }
+}

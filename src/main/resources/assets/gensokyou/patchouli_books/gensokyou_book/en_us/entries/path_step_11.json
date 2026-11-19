@@ -1,0 +1,14 @@
+{
+  "name": "gensokyou.book.entry.path.step_11",
+  "category": "gensokyou:path",
+  "icon": "gensokyou:sukima_fragment",
+  "sortnum": 11,
+  "advancement": "gensokyou:guide/path/step_10_done",
+  "turnin": "gensokyou:guide/path/step_11_done",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.path.step_11.p1"
+    }
+  ]
+}

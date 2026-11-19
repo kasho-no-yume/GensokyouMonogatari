@@ -235,6 +235,7 @@ public class RitualBuilderItem extends Item {
         } else {
             player.displayClientMessage(Component.translatable(
                     "msg.gensokyou.builder_placed", result.placed(), result.total()), false);
+            com.bitsson.gensokyou.event.GuidePathProgress.onRitualBuilt(player, selection.patternId());
             if (result.placed() < result.total()) {
                 player.displayClientMessage(
                         Component.translatable("msg.gensokyou.builder_incomplete"), true);

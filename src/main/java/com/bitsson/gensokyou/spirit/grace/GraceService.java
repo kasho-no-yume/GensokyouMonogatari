@@ -72,6 +72,7 @@ public final class GraceService {
         if (newTier >= 1) {
             com.bitsson.gensokyou.event.AchievementAwards.award(player, "divine_grace");
         }
+        com.bitsson.gensokyou.event.GuidePathProgress.onGraceAdvanced(player, newTier);
         return ModAttachments.get(player);
     }
 

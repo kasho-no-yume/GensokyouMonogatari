@@ -1,0 +1,13 @@
+{
+  "name": "gensokyou.book.entry.path.step_01",
+  "category": "gensokyou:path",
+  "icon": "gensokyou:ritual_builder",
+  "sortnum": 1,
+  "turnin": "gensokyou:guide/path/step_01_done",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.path.step_01.p1"
+    }
+  ]
+}

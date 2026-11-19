@@ -1,0 +1,19 @@
+{
+  "name": "gensokyou.book.entry.path.step_08",
+  "category": "gensokyou:path",
+  "icon": "gensokyou:danmaku_weapon",
+  "sortnum": 8,
+  "advancement": "gensokyou:guide/path/step_07_done",
+  "turnin": "gensokyou:guide/path/step_08_done",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.path.step_08.p1"
+    },
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:danmaku_weapon",
+      "text": "gensokyou.book.entry.path.step_08.spotlight"
+    }
+  ]
+}

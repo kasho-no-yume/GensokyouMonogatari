@@ -1,0 +1,14 @@
+{
+  "name": "gensokyou.book.entry.path.step_12",
+  "category": "gensokyou:path",
+  "icon": "minecraft:ender_eye",
+  "sortnum": 12,
+  "advancement": "gensokyou:guide/path/step_11_done",
+  "turnin": "gensokyou:guide/path/step_12_done",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.path.step_12.p1"
+    }
+  ]
+}

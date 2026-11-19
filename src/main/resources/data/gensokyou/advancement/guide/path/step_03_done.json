@@ -1,0 +1,14 @@
+{
+
+  "parent": "gensokyou:guide/path/step_02_done",
+  "criteria": {
+    "has_item": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          { "items": "gensokyou:spirit_core_0" }
+        ]
+      }
+    }
+  }
+}

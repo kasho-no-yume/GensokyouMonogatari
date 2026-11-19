@@ -63,6 +63,8 @@ public class FairyEntity extends FlyingMob implements Enemy, TouhouMonster, GeoE
 
     private final AnimatableInstanceCache geoCache = GeckoLibUtil.createInstanceCache(this);
     private boolean statsApplied = false;
+    /** 个体悬停高度偏移；NaN 表示尚未 roll（兼容旧存档与非自然刷新路径）。 */
+    private double hoverOffsetY = Double.NaN;
 
     public FairyEntity(EntityType<? extends FairyEntity> type, Level level) {
         super(type, level);
@@ -114,6 +116,18 @@ public class FairyEntity extends FlyingMob implements Enemy, TouhouMonster, GeoE
         this.entityData.set(DATA_VARIANT, variant.ordinal());
     }
 
+    /**
+     * 每只妖精固定的悬停高度偏移，懒 roll（±{@link BalanceNumbers#FAIRY_HOVER_HEIGHT_JITTER}）。
+     * 仅供 AI 计算目标高度，无外观差异，故不同步客户端。
+     */
+    public double getHoverOffsetY() {
+        if (Double.isNaN(this.hoverOffsetY)) {
+            this.hoverOffsetY = (this.getRandom().nextDouble() * 2.0D - 1.0D)
+                    * BalanceNumbers.FAIRY_HOVER_HEIGHT_JITTER;
+        }
+        return this.hoverOffsetY;
+    }
+
     @Override
     public SpawnGroupData finalizeSpawn(ServerLevelAccessor level, DifficultyInstance difficulty,
                                         MobSpawnType spawnType, @Nullable SpawnGroupData spawnGroupData) {
@@ -131,6 +145,9 @@ public class FairyEntity extends FlyingMob implements Enemy, TouhouMonster, GeoE
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putInt("FairyVariant", this.entityData.get(DATA_VARIANT));
+        if (!Double.isNaN(this.hoverOffsetY)) {
+            tag.putDouble("FairyHoverOffsetY", this.hoverOffsetY);
+        }
     }
 
     @Override
@@ -138,6 +155,9 @@ public class FairyEntity extends FlyingMob implements Enemy, TouhouMonster, GeoE
         super.readAdditionalSaveData(tag);
         if (tag.contains("FairyVariant")) {
             this.entityData.set(DATA_VARIANT, tag.getInt("FairyVariant"));
+        }
+        if (tag.contains("FairyHoverOffsetY")) {
+            this.hoverOffsetY = tag.getDouble("FairyHoverOffsetY");
         }
     }
 

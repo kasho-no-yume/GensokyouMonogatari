@@ -31,11 +31,11 @@
 - **THEN** 打开落地页（书名 + 章节列表），不再自动翻到序言
 
 ### Requirement: 六大章节骨架
-书 SHALL 提供六个顶级章节：术语解释、符卡列表、敌对生物列表、NPC 列表、仪式列表、武器系统。`book.json` SHALL 位于 `data/gensokyou/patchouli_books/gensokyou_book/` 并设置 `use_resource_pack: true`；章节与条目 SHALL 位于 `assets/gensokyou/patchouli_books/gensokyou_book/en_us/`（`en_us` 为 Patchouli 基准目录，中文正文可直写其中），`zh_cn/` SHALL 作为可选覆盖。中英文环境 MUST NOT 出现裸 id。本 change SHALL 交付各章至少一个样例条目与序言条目。
+书 SHALL 提供六个主题顶级章节：术语解释、符卡列表、敌对生物列表、NPC 列表、仪式列表、武器系统，并额外提供第七个进度章节「成神之路」（`gensokyou:path`，见 `guide-progression-chapter`）。`book.json` SHALL 位于 `data/gensokyou/patchouli_books/gensokyou_book/` 并设置 `use_resource_pack: true`；章节与条目 SHALL 位于 `assets/gensokyou/patchouli_books/gensokyou_book/en_us/`（`en_us` 为 Patchouli 基准目录，中文正文可直写其中），`zh_cn/` SHALL 作为可选覆盖。中英文环境 MUST NOT 出现裸 id。本 change SHALL 交付各章至少一个样例条目与序言条目。
 
 #### Scenario: 章节列表
 - **WHEN** 打开落地页
-- **THEN** 章节宫格呈现六个章节，标题经 lang 键本地化
+- **THEN** 章节宫格呈现六个主题章节与「成神之路」，标题经 lang 键本地化
 
 #### Scenario: 样例条目可读
 - **WHEN** 打开任一章
@@ -43,7 +43,7 @@
 
 ### Requirement: 进度解锁机制
 
-书 SHALL 提供隐形引导 advancement：`guide/nether_unlock`（进入下界）、`guide/end_unlock`（进入末地）、`guide/gensokyo_unlock`（进入幻想乡维度），均为 `changed_dimension` 触发器、无 display。需要门槛的内容条目 SHALL 以 `"advancement"` + `"secret": true` 声明：解锁前条目在书中**完全不显示**（非灰色锁定态），解锁时弹出 toast。
+书 SHALL 提供隐形引导 advancement：`guide/nether_unlock`（进入下界）、`guide/end_unlock`（进入末地）、`guide/gensokyo_unlock`（进入幻想乡维度），均为 `changed_dimension` 触发器、无 display。除「成神之路」进度章节外，需要门槛的内容条目 SHALL 以 `"advancement"` + `"secret": true` 声明：解锁前条目在书中**完全不显示**（非灰色锁定态），解锁时弹出 toast。「成神之路」的进度条目 MUST NOT 使用此规则，SHALL 以非 secret 的锁 + `turnin` 呈现（见 `guide-progression-chapter`）。
 
 内容门槛 SHALL 按**内容所属的轴**选择，MUST NOT 一律按结构阶挂：
 
@@ -84,6 +84,9 @@
 - **WHEN** 新建世界、玩家尚未进入下界
 - **THEN** 0 阶石/0 阶仪式/材料带总览等无 advancement 条目正常可见
 
+#### Scenario: 进度条目不走隐藏门槛
+- **WHEN** 玩家在前序步骤未完成时查看「成神之路」章节
+- **THEN** 后续条目显示为可见的锁态而非完全隐藏，且不出现空白章节
 ### Requirement: 仪式章节配方卡与结构展示
 仪式列表章节 SHALL 以自定义页面模板渲染配方卡（输入物品×数量、产物或本地化效果名、spCost、minTier），展示字段与语言键 SHALL 与 `jei-ritual-display` 共用同一数据模型（`RitualRecipe`）。仪式结构 SHALL 以 Patchouli 原生 `patchouli:multiblock` 页呈现 3D 投影（支持在世界上幽灵投影照搭），其多重方块 SHALL 由构建期生成器从 `rituals` v5 数据内联生成（谓词映射 EXACT→方块 id、TAG→`#tag`、AIR→空格、IGNORE→`_`、锚点→`0`），MUST NOT 依赖运行期 `multiblock_id` 注册。结构与「本阶参数」SHALL **按阶级分页**并各挂对应阶级门槛（见「进度解锁机制」），显示以玩家当前世界进度为上限（锁住的页完全隐藏）；分阶页 MUST NOT 渲染「搭建材料」段；页内文本 SHALL 自动换行以适应页宽（`Font.split`），MUST NOT 因超宽裁切。配方 SHALL 一配方一页，但**满足以下任一条件的仪式 MUST NOT 补配方页**：配方数 > 12；作者显式指认为开放式配方或极多配方。客户端 SHALL 在玩家登录与 datapack 重载时从服务端同步配方数据并写入本地缓存；数据未到达时配方卡 SHALL 呈现占位，离线时读缓存。Patchouli 页列表为静态，无法运行时增页，故长文本 SHALL 在生成期拆分为多张 `patchouli:text` 页。
 

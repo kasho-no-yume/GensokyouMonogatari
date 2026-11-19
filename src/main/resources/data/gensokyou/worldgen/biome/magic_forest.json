@@ -11,7 +11,7 @@
   },
   "spawners": {
     "monster": [
-      { "type": "gensokyou:fairy", "weight": 12, "minCount": 1, "maxCount": 2 },
+      { "type": "gensokyou:fairy", "weight": 18, "minCount": 1, "maxCount": 1 },
       { "type": "gensokyou:big_fairy", "weight": 1, "minCount": 1, "maxCount": 1 }
     ],
     "creature": [],

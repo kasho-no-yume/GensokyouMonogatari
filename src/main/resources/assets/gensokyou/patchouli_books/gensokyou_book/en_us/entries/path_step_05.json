@@ -1,0 +1,14 @@
+{
+  "name": "gensokyou.book.entry.path.step_05",
+  "category": "gensokyou:path",
+  "icon": "gensokyou:cinnabar",
+  "sortnum": 5,
+  "advancement": "gensokyou:guide/path/step_04_done",
+  "turnin": "gensokyou:guide/path/step_05_done",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.path.step_05.p1"
+    }
+  ]
+}

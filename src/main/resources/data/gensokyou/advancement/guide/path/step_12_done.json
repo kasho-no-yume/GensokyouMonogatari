@@ -1,0 +1,10 @@
+{
+
+  "parent": "gensokyou:guide/path/step_11_done",
+  "criteria": {
+    "entered": {
+      "trigger": "minecraft:changed_dimension",
+      "conditions": { "to": "gensokyou:gensokyo" }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "gensokyou.book.entry.path.step_03",
+  "category": "gensokyou:path",
+  "icon": "gensokyou:spirit_core_0",
+  "sortnum": 3,
+  "advancement": "gensokyou:guide/path/step_02_done",
+  "turnin": "gensokyou:guide/path/step_03_done",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.path.step_03.p1"
+    }
+  ]
+}

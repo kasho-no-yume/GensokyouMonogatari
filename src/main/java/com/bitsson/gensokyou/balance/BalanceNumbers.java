@@ -127,10 +127,8 @@ public final class BalanceNumbers {
     public static final Double YAMAME_WEB_SPEED = 0.35D;
     /** 由原 COMMON 配置迁移（键名 YAMAME_WEB_SIZE）。 */
     public static final Double YAMAME_WEB_SIZE = 0.55D;
-    /** 由原 COMMON 配置迁移（键名 FAIRY_PPOINT_CHANCE）。 */
-    public static final Double FAIRY_PPOINT_CHANCE = 0.10D;
-    /** 由原 COMMON 配置迁移（键名 FAIRY_BPOINT_CHANCE）。 */
-    public static final Double FAIRY_BPOINT_CHANCE = 0.10D;
+    /** 原版怪物死亡时掉落 P 点的独立概率（1 个 ppoint）。 */
+    public static final Double VANILLA_MOB_PPOINT_CHANCE = 0.10D;
     /** 由原 COMMON 配置迁移（键名 FAIRY_VARIANT_SINGLE_WEIGHT）。 */
     public static final Integer FAIRY_VARIANT_SINGLE_WEIGHT = 60;
     /** 由原 COMMON 配置迁移（键名 FAIRY_VARIANT_NET_WEIGHT）。 */
@@ -165,6 +163,8 @@ public final class BalanceNumbers {
     public static final Double FAIRY_LASER_DURATION_SECONDS = 2.0D;
     /** 由原 COMMON 配置迁移（键名 FAIRY_HOVER_HEIGHT）。 */
     public static final Double FAIRY_HOVER_HEIGHT = 3.0D;
+    /** 个体悬停高度相对基准的偏移上限（正负各这么多格）。 */
+    public static final Double FAIRY_HOVER_HEIGHT_JITTER = 0.5D;
     /** 由原 COMMON 配置迁移（键名 FAIRY_HOVER_MIN_DIST）。 */
     public static final Double FAIRY_HOVER_MIN_DIST = 1.0D;
     /** 由原 COMMON 配置迁移（键名 FAIRY_HOVER_MAX_DIST）。 */

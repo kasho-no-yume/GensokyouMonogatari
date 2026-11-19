@@ -1,0 +1,19 @@
+{
+  "name": "gensokyou.book.entry.path.step_04",
+  "category": "gensokyou:path",
+  "icon": "minecraft:blaze_powder",
+  "sortnum": 4,
+  "advancement": "gensokyou:guide/path/step_03_done",
+  "turnin": "gensokyou:guide/path/step_04_done",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.path.step_04.p1"
+    },
+    {
+      "type": "patchouli:spotlight",
+      "item": "minecraft:blaze_powder",
+      "text": "gensokyou.book.entry.path.step_04.spotlight"
+    }
+  ]
+}

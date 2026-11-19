@@ -222,8 +222,8 @@ class EarlyProgressionRecipeResourceTest {
                 names.add(entry.getAsJsonObject().get("name").getAsString());
             }
         }
-        assertEquals(Set.of("gensokyou:memory_fragment", "gensokyou:ppoint", "gensokyou:bpoint"),
-                names, "妖精战利品表必须是记忆残页 + P 点 + B 点");
+        assertEquals(Set.of("gensokyou:memory_fragment", "gensokyou:ppoint"),
+                names, "妖精战利品表必须是记忆残页 + P 点（不掉 B 点）");
     }
 
     /**

@@ -1,0 +1,14 @@
+{
+  "name": "gensokyou.book.entry.path.step_09",
+  "category": "gensokyou:path",
+  "icon": "gensokyou:fairy_nectar",
+  "sortnum": 9,
+  "advancement": "gensokyou:guide/path/step_08_done",
+  "turnin": "gensokyou:guide/path/step_09_done",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.path.step_09.p1"
+    }
+  ]
+}
