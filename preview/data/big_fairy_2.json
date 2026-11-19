@@ -3,6 +3,7 @@
   "owner": "big_fairy",
   "index": 2,
   "card": "spellcard.gensokyou.big_fairy.2",
+  "notes": ["每轮 16 朵 × 46 成员；核心 4 倍伤害/直径 1.1，花瓣直径 .55。","爆散：花瓣沿径向 .2 脱离，核心采样随机有效目标 .3（reaim slot=-1）。","随机轴/随机花平面用 build 期确定性种子烘焙，契约与旧实现一致。"],
   "cycleTicks": 240,
   "ticks": 882,
   "stride": 2,

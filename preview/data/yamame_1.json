@@ -3,6 +3,7 @@
   "owner": "yamame",
   "index": 1,
   "card": "spellcard.gensokyou.yamame.1",
+  "notes": ["子拍 0/20/40 每 60 tick：10 拍/轮（0..180），60 根/轮，符合内容映射。"],
   "cycleTicks": 200,
   "ticks": 802,
   "stride": 2,

@@ -3,6 +3,7 @@
   "owner": "big_fairy",
   "index": 3,
   "card": "spellcard.gensokyou.big_fairy.3",
+  "notes": ["雨：每拍在半径30、BOSS上方60格重新随机取24点，每点一弹，FIRST_AIR_BELOW解析后竖直下落。","光柱：DOWNWARD_SOLID_TOP 解析地面点后竖直向上；每第 5 拍（index 4/9）改为逐玩家脚下（PLAYER_GROUND 等价）。","每次 surfaceFire 只建 1 个普通组（解析点作为显式成员表），与 legacy 一样跨轮保留到自身寿命。"],
   "cycleTicks": 200,
   "ticks": 802,
   "stride": 2,

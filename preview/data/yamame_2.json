@@ -3,6 +3,7 @@
   "owner": "yamame",
   "index": 2,
   "card": "spellcard.gensokyou.yamame.2",
+  "notes": ["螺旋每 60 tick 按目标槽各建一个 AIMED 组：多人时每人一份，方向精确取 BOSS 眼位→该玩家。","推进 0.36 格/tick；每波重建组，已生成的波保持出生时快照，新波才按当时位置/方向采样。","毒雾仍为公共 arena 组（本次不改）；前 130 tick 锁位。"],
   "cycleTicks": 260,
   "ticks": 922,
   "stride": 2,

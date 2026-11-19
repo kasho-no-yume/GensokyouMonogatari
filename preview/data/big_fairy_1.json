@@ -3,6 +3,7 @@
   "owner": "big_fairy",
   "index": 1,
   "card": "spellcard.gensokyou.big_fairy.1",
+  "notes": ["48 颗逐颗出现（每 2 tick 一颗，4.8s），再等 1s 后逐颗按当时目标位置射出（每 2 tick 一颗）。","出现/发射由不可见载体绕组帧 Z 轴旋转扫描，组帧在 t=0 锁定，因此 48 颗仍严格共圆。","每颗攻击弹 AIM_LOCAL 在出生 tick 采样目标；伤害窗口 [0,400)，寿命 400。"],
   "cycleTicks": 240,
   "ticks": 882,
   "stride": 2,

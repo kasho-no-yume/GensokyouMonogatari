@@ -1,5 +1,9 @@
 # 符卡预览站
 
+露米娅五卡重设计见 [谱面 v3](../docs/danmaku-program/rumia-score.md)。
+可直接打开 `index.html?card=rumia:1`（到 `rumia:5`）；左上说明随真实投影一同导出，
+关键拍点按钮会跳转并暂停。`python tools/check_rumia_score.py` 核对导出中的实际出生时刻/数量及拒绝事件。
+
 把**真实 runtime 算出来的客户端渲染投影**导成一个静态站，用来在不开游戏的情况下看符卡的整体表现。
 
 ```

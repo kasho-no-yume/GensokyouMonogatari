@@ -3,6 +3,7 @@
   "owner": "yakumo_ran",
   "index": 2,
   "card": "spellcard.gensokyou.yakumo_ran.2",
+  "notes": ["出生：左 20/60/100/140、右 40/80/120/160，共 8×18=144 公共；锁至 160。","面板预警以每批逐成员的 age-zero 姿态（render warning）表达，无需额外轮廓原语。"],
   "cycleTicks": 240,
   "ticks": 602,
   "stride": 2,

@@ -3,6 +3,7 @@
   "owner": "yakumo_ran",
   "index": 6,
   "card": "spellcard.gensokyou.yakumo_ran.6",
+  "notes": ["出生：左 20/44/68/92、右 32/56/80/104，共 8×12=96；锁至 104。","age20 弧线预告由路径含 Arc 段触发（渲染投影已实现）。","转向轴取本地 Y（= 锁定帧 U，F/R 平面），保证末端回 F；Paths 的 Vec3.Y 是局部 Y 而非世界 Y。"],
   "cycleTicks": 240,
   "ticks": 602,
   "stride": 2,

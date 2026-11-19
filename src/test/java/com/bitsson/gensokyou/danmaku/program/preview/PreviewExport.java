@@ -430,6 +430,23 @@ public final class PreviewExport {
             sb.append("  \"owner\": \"").append(deck.ownerId()).append("\",\n");
             sb.append("  \"index\": ").append(card.index()).append(",\n");
             sb.append("  \"card\": \"").append(card.nameKey()).append("\",\n");
+            sb.append("  \"notes\": [");
+            for (int i = 0; i < card.notes().size(); i++) {
+                if (i > 0) sb.append(',');
+                sb.append('\"').append(json(card.notes().get(i))).append('\"');
+            }
+            sb.append("],\n");
+            if (deck.ownerId().equals("rumia")) {
+                sb.append("  \"checkpoints\": [");
+                boolean firstCheckpoint = true;
+                for (var point : new TreeMap<>(com.bitsson.gensokyou.danmaku.program.content.RumiaPrograms.checkpoints(card.index())).entrySet()) {
+                    if (!firstCheckpoint) sb.append(',');
+                    firstCheckpoint = false;
+                    sb.append("{\"tick\":").append(point.getKey()).append(",\"label\":\"")
+                            .append(json(point.getValue())).append("\"}");
+                }
+                sb.append("],\n");
+            }
             sb.append("  \"cycleTicks\": ").append(card.cycleTicks()).append(",\n");
             sb.append("  \"ticks\": ").append(ticks).append(",\n");
             sb.append("  \"stride\": ").append(stride).append(",\n");
@@ -680,6 +697,11 @@ public final class PreviewExport {
         fixed(sb, value.z());
         sb.append(']');
         return sb.toString();
+    }
+
+    private static String json(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\r", "\\r").replace("\n", "\\n");
     }
 
     private static String fixedKey(double[][] points) {

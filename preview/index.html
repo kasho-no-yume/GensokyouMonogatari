@@ -37,6 +37,13 @@
                        border-radius: 6px; padding: 4px 6px; }
   #note { right: 12px; bottom: 62px; max-width: 330px; color: var(--dim); font-size: 11.5px; line-height: 1.55; }
   #note b { color: #ffb3d6; font-weight: 600; }
+  #brief { left: 12px; top: 118px; max-width: 390px; max-height: 42vh; overflow: auto;
+           color: #d9def5; font-size: 11.5px; line-height: 1.55; }
+  #brief b { color: #ffb3d6; font-weight: 600; }
+  #brief ol { margin: 5px 0 0 18px; padding: 0; }
+  #checkpoints { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  #checkpoints button { background: #232b42; color: var(--ink); border: 1px solid #586285;
+                        border-radius: 5px; padding: 4px 7px; cursor: pointer; }
   #error { display: none; top: 50%; left: 50%; transform: translate(-50%,-50%); max-width: 560px; }
   #error code { color: #9fe6ff; }
 </style>
@@ -49,6 +56,10 @@
   <div id="meta">加载中…</div>
   <select id="card-select"></select>
 </div>
+
+<details id="brief" class="panel" open><summary><b>谱面说明（点击折叠）</b></summary>
+  <ol id="brief-list"></ol><div id="checkpoints"></div>
+</details>
 
 <div id="cams" class="panel">
   <button data-preset="eyes">① 玩家眼位</button>

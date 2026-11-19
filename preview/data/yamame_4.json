@@ -3,6 +3,7 @@
   "owner": "yamame",
   "index": 4,
   "card": "spellcard.gensokyou.yamame.4",
+  "notes": ["每波、每目标槽各建 base + 左右偏移组：多人时每人一份三重螺旋，不互相叠五份。","推进 0.40 / 左右 0.44 格/tick；四轨伤害 1.25 倍；每波重建组，旧波保持出生快照。"],
   "cycleTicks": 260,
   "ticks": 922,
   "stride": 2,

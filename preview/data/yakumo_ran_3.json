@@ -3,6 +3,7 @@
   "owner": "yakumo_ran",
   "index": 3,
   "card": "spellcard.gensokyou.yakumo_ran.3",
+  "notes": ["出生：左 20..120 步 20、右 30..130 步 20，公共 108；白点名出生 90/150、逐槽 3 发 = 每人 6。","方向 normalize(F±.22R) 用显式逐弹方向表达（左 F−.22R、右 F+.22R）。"],
   "cycleTicks": 240,
   "ticks": 602,
   "stride": 2,

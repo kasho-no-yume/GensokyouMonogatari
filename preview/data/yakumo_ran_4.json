@@ -3,6 +3,7 @@
   "owner": "yakumo_ran",
   "index": 4,
   "card": "spellcard.gensokyou.yakumo_ran.4",
+  "notes": ["球出生 b+20/28/36（54）；激光预警 b+40、激活 b+70、结束 b+90（8 道，AxisNodes 6/10 ×±X、内缩 1.5 ⇒ 净宽 2.64）。","激活时用 corridor 检查中心走廊方块净空与净宽，失败撤该激光批（本地坐标，通用 op）。"],
   "cycleTicks": 240,
   "ticks": 552,
   "stride": 2,
