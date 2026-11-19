@@ -151,7 +151,7 @@
   "gensokyou.book.entry.path.step_02": "二 · 仪式之核",
   "gensokyou.book.entry.path.step_02.p1": "石阵只是骨架，尚须一处中枢统摄全局，这便是仪式核心。每座法阵有且仅有一枚。$(br2)石阵可拆可重摆，核心则须亲手打造：它主持灵力的进出，也收验祭品台上的供品。",
   "gensokyou.book.entry.path.step_03": "三 · 蓄灵之器",
-  "gensokyou.book.entry.path.step_03.p1": "灵力自石阵取出，须有容器盛放。最朴素的法子是备一枚灵力核心：哪座法阵要用，便将它放进哪座仪式核心里，灵力随之迁移。$(br2)头一枚核心造得再粗浅也不妨事，容量虽小，供起第一座法阵已绰绰有余。",
+  "gensokyou.book.entry.path.step_03.p1": "灵力自石阵取出，须有容器盛放。最朴素的法子是备一枚$(l:gensokyou:item_spirit_core_0)灵力核心$(/l)：哪座法阵要用，便将它放进哪座仪式核心里，灵力随之迁移。$(br2)头一枚核心造得再粗浅也不妨事，容量虽小，供起第一座法阵已绰绰有余。",
   "gensokyou.book.entry.path.step_04": "四 · 迦具土之焰",
   "gensokyou.book.entry.path.step_04.p1": "聚灵之阵各有脾性：日轮与月影看天时行事，梦渡之座只收夜梦；唯独迦具土炎祭不择昼夜，炉中薪火不断，灵力便能长久积蓄，最宜作起手的第一座产灵阵。$(br2)持构建器择定「迦具土炎祭」一阶图纸，依投影铺设石阵、安放核心，再于祭品台添入燃料，法阵即可自行运转。",
   "gensokyou.book.entry.path.step_04.spotlight": "$(l:gensokyou:ritual_kagutsuchi_flame_circle)迦具土炎祭$(/l)是诸产灵阵中最省燃料的一座。$(br)此外亦可参看$(l:gensokyou:ritual_nichirin_circle)日轮天台$(/l)、$(l:gensokyou:ritual_tsukikage_circle)月影水镜$(/l)与$(l:gensokyou:ritual_yumewatari_circle)梦渡之座$(/l)。",

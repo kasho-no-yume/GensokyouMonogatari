@@ -167,12 +167,20 @@ public abstract class AbstractDanmakuRenderer<T extends AbstractDanmakuProjectil
      * <p>武器弹丸生成在<b>眼睛</b>位置 = 相机位置，第一帧就在镜头上；一发锥形弹幕
      * 叠上 1.7 倍的加法外发光就是一次整屏白闪，10 发/秒即 10 Hz 频闪。
      *
+     * <p><b>只对玩家武器弹生效</b>（{@code isFromWeapon()}）。敌方弹幕（小妖精 / BOSS）
+     * 从远处飞向玩家，若也套用本淡出，会在距相机 1~2.6 格内渐隐到完全不可见——
+     * 判定还在、视觉却没了，表现为「弹幕射出来一秒就渐隐消失」。故非武器弹一律返回 1。
+     *
      * <p>本方法<b>只影响渲染</b>：判定、轨迹、生成点一个都不动，故对玩法与准度零影响。
      * 第三人称相机在身后数格，天然不触发。
      *
      * @return 0（完全不可见）~ 1（完全可见）
      */
     protected float nearCameraFade(T entity, float partialTick) {
+        // 只有生成在相机处的玩家武器弹需要淡出；敌方弹幕全程保持可见。
+        if (!entity.isFromWeapon()) {
+            return 1.0F;
+        }
         Vec3 camera = net.minecraft.client.Minecraft.getInstance()
                 .gameRenderer.getMainCamera().getPosition();
         double distSq = camera.distanceToSqr(this.renderPosition(entity, partialTick));
