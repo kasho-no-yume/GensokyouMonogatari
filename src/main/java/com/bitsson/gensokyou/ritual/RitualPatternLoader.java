@@ -339,6 +339,26 @@ public class RitualPatternLoader extends SimpleJsonResourceReloadListener {
         return new RitualPattern.Predicate(RitualPattern.Kind.EXACT, block, null);
     }
 
+    /**
+     * 客户端快照回填：{@code AddReloadListenerEvent} 只在逻辑服务端触发，
+     * 专用服/多人游戏的客户端上本 loader 恒为空；收到服务端全量快照后由
+     * {@code ClientRitualData} 调本法回填，使所有读本 loader 的客户端 UI
+     * （构建杖选择/预览渲染/编辑杖）都能拿到图案数据。
+     * <p>单人世界逻辑服务端与客户端同 JVM、静态字段本就共享，回填为等价数据，无副作用。
+     */
+    public static void installClientPatterns(Map<ResourceLocation, RitualPattern> parsed,
+                                             Map<ResourceLocation, JsonObject> raws) {
+        List<RitualPattern> sorted = new ArrayList<>(parsed.values());
+        // 与 apply() 同规则：约束越多越具体越优先匹配
+        sorted.sort(java.util.Comparator.comparingInt(RitualPatternLoader::specificity).reversed());
+        synchronized (PATTERNS) {
+            PATTERNS.clear();
+            PATTERNS.addAll(sorted);
+            RAWS.clear();
+            RAWS.putAll(raws);
+        }
+    }
+
     public static List<RitualPattern> all() {
         synchronized (PATTERNS) {
             return List.copyOf(PATTERNS);

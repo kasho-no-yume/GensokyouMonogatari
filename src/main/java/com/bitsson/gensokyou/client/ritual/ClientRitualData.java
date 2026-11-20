@@ -133,6 +133,7 @@ public final class ClientRitualData {
      */
     public static boolean applyJson(String snapshotJson) {
         Map<ResourceLocation, RitualPattern> parsedPatterns = new LinkedHashMap<>();
+        Map<ResourceLocation, JsonObject> rawPatterns = new LinkedHashMap<>();
         List<RitualRecipe> parsedRecipes = new ArrayList<>();
         List<RitualSmeltRule> parsedSmelts = new ArrayList<>();
         List<RitualBrewRule> parsedBrews = new ArrayList<>();
@@ -148,8 +149,9 @@ public final class ClientRitualData {
                         continue;
                     }
                     try {
-                        parsedPatterns.put(id, RitualPatternLoader.parseForEdit(
-                                id, entry.getValue().getAsJsonObject()));
+                        JsonObject raw = entry.getValue().getAsJsonObject();
+                        parsedPatterns.put(id, RitualPatternLoader.parseForEdit(id, raw));
+                        rawPatterns.put(id, raw.deepCopy().getAsJsonObject());
                     } catch (Exception ex) {
                         Gensokyou.LOGGER.warn("Client rejected ritual pattern {}: {}",
                                 id, ex.getMessage());
@@ -240,6 +242,9 @@ public final class ClientRitualData {
             return false;
         }
         patterns = Map.copyOf(parsedPatterns);
+        // 回填到 loader：构建杖选择界面/预览渲染/编辑杖仍读 RitualPatternLoader，
+        // 该 loader 在专用服客户端不随 reload listener 加载，缺此步则列表恒空。
+        RitualPatternLoader.installClientPatterns(parsedPatterns, rawPatterns);
         recipes = List.copyOf(parsedRecipes);
         smeltRules = List.copyOf(parsedSmelts);
         brewRules = List.copyOf(parsedBrews);

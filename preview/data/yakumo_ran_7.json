@@ -3,6 +3,7 @@
   "owner": "yakumo_ran",
   "index": 7,
   "card": "spellcard.gensokyou.yakumo_ran.7",
+  "notes": ["面板出生 20..160 步 20，8×18=144；白点名出生 80/140、逐槽 3 发 = 每人 6。","复用卡 2 的共享帧面板几何与卡 5 的点名节奏。"],
   "cycleTicks": 240,
   "ticks": 602,
   "stride": 2,

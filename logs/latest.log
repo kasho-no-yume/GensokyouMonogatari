@@ -1,4 +1,4 @@
-[1911月2026 14:03:23.875] [Test worker/ERROR] [com.bitsson.gensokyou.Gensokyou/]: [audio] 播放请求内部失败（cue gensokyou:shot_normal），已吞掉以免外溢到玩法逻辑
+[1911月2026 20:19:36.678] [Test worker/ERROR] [com.bitsson.gensokyou.Gensokyou/]: [audio] 播放请求内部失败（cue gensokyou:shot_normal），已吞掉以免外溢到玩法逻辑
 java.lang.IllegalStateException: simulated sink failure
 	at com.bitsson.gensokyou.audio.RecordingAudioSink.play(RecordingAudioSink.java:38) ~[test/:?]
 	at com.bitsson.gensokyou.audio.Audio.request(Audio.java:180) ~[main/:?]
@@ -90,10 +90,10 @@ java.lang.IllegalStateException: simulated sink failure
 	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72) [gradle-worker-main-9.2.1.jar:9.2.1]
 	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69) [gradle-worker.jar:?]
 	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74) [gradle-worker.jar:?]
-[1911月2026 14:03:23.916] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [audio] program sound cue id is not registered: minecraft:entity.blaze.shoot
-[1911月2026 14:05:46.531] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[1911月2026 14:05:46.532] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[1911月2026 14:05:46.532] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[1911月2026 14:05:46.533] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[1911月2026 14:05:46.533] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
-[1911月2026 14:05:46.533] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1911月2026 20:19:38.785] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [audio] program sound cue id is not registered: minecraft:entity.blaze.shoot
+[1911月2026 20:22:10.779] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1911月2026 20:22:10.780] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1911月2026 20:22:10.780] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_chance_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1911月2026 20:22:10.780] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1911月2026 20:22:10.781] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config
+[1911月2026 20:22:10.781] [Test worker/WARN] [com.bitsson.gensokyou.Gensokyou/]: [danmaku-weapon] retired affix id 'crit_damage_pct' in config is ignored (moved to the player-attribute domain as crit_chance/crit_damage); delete that line from your config

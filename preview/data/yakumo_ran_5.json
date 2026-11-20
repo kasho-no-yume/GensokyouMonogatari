@@ -3,6 +3,7 @@
   "owner": "yakumo_ran",
   "index": 5,
   "card": "spellcard.gensokyou.yakumo_ran.5",
+  "notes": ["SpeedCurve 停批后再出发；出生 b+20/32/44，共 6×18=108 公共；锁至 134。","age30 闪亮用 Flash、声音用 SoundCue（须在预警结束后才派发，渲染投影已实现）。"],
   "cycleTicks": 240,
   "ticks": 602,
   "stride": 2,

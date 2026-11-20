@@ -18,6 +18,7 @@ const playhead = document.getElementById('playhead');
 const speedEl = document.getElementById('speed');
 const loopEl = document.getElementById('loop');
 const errorEl = document.getElementById('error');
+const briefList = document.getElementById('brief-list');
 
 const renderer = new PreviewRenderer(canvas);
 const camera = renderer.camera;
@@ -193,6 +194,27 @@ async function loadCard(entry) {
   const ownerName = lang[`entity.gensokyou.${card.owner}`] || card.owner;
   metaEl.textContent = `${ownerName} · 第 ${card.index} 张 · ${(card.ticks / TPS).toFixed(1)}s · `
     + `${card.members.length} 成员 · stride ${card.stride}`;
+  briefList.replaceChildren();
+  for (const note of (card.notes || [])) {
+    const item = document.createElement('li');
+    item.textContent = note;
+    briefList.appendChild(item);
+  }
+  const checkpoints = document.getElementById('checkpoints');
+  checkpoints.replaceChildren();
+  for (const point of (card.checkpoints || [])) {
+    const button = document.createElement('button');
+    button.textContent = `${(point.tick / TPS).toFixed(2)}s · ${point.label}`;
+    button.addEventListener('click', () => {
+      // Export installs the card at world tick 1; score times start at cycle tick 0.
+      tick = point.tick + 1;
+      range.value = String(tick);
+      playing = false;
+      playBtn.textContent = '▶';
+    });
+    checkpoints.appendChild(button);
+  }
+  history.replaceState(null, '', `?card=${card.owner}:${card.index}`);
   preset('eyes');
 }
 
@@ -269,7 +291,8 @@ async function main() {
       const entry = currentCard();
       if (entry) loadCard(entry).catch(showError);
     });
-    const first = index.cards[0];
+    const requested = new URLSearchParams(location.search).get('card');
+    const first = index.cards.find(entry => `${entry.owner}:${entry.index}` === requested) || index.cards[0];
     select.value = `${first.owner}:${first.index}`;
     await loadCard(first);
   } catch (error) {

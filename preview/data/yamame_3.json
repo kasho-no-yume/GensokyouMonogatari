@@ -3,6 +3,7 @@
   "owner": "yamame",
   "index": 3,
   "card": "spellcard.gensokyou.yamame.3",
+  "notes": ["子拍 13 拍/轮（0..240），91 根/轮；登记相较旧「只放周期 0 相位」的实际密度上升。","尾珠寿命 400 tick（保留原始内容）；性能归因通过开局/持续采样确认，不用寿命收束掩盖问题。","石窟吐丝用 120° 锥（spread=120 ⇒ 半角 60°）。"],
   "cycleTicks": 260,
   "ticks": 922,
   "stride": 2,

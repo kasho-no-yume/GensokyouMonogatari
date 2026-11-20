@@ -64,6 +64,8 @@ public final class ProgramPreviewHost {
             case "formal_yamame" -> formalCard("yamame");
             case "formal_yakumo_ran" -> formalCard("yakumo_ran");
             case "formal_rumia" -> formalCard("rumia");
+            case "rumia_1", "rumia_2", "rumia_3", "rumia_4", "rumia_5" ->
+                    formalCard("rumia", Integer.parseInt(card.substring(6)));
             default -> throw new IllegalArgumentException("unknown program preview");
         };
         // Blue4 places a node ten blocks towards the viewer; 12 blocks violates its six-block birth clearance.
@@ -85,9 +87,12 @@ public final class ProgramPreviewHost {
     }
     /** First formal card of a migrated deck, on the same runtime the live battle uses. */
     private static ProgramPreviewPrograms.Installed formalCard(String owner) {
+        return formalCard(owner, 1);
+    }
+    private static ProgramPreviewPrograms.Installed formalCard(String owner, int index) {
         var deck = com.bitsson.gensokyou.danmaku.program.content.BossProgramCards.forOwner(owner)
                 .orElseThrow(() -> new IllegalArgumentException("no formal content for " + owner));
-        var compiled = deck.card(1).program();
+        var compiled = deck.card(index).program();
         return new ProgramPreviewPrograms.Installed(compiled.definition(), compiled.execution());
     }
     public static boolean stop(ServerLevel level,String reason) {        Preview preview=PREVIEWS.remove(level); if (preview==null) return false;

@@ -3,6 +3,7 @@
   "owner": "yakumo_ran",
   "index": 1,
   "card": "spellcard.gensokyou.yakumo_ran.1",
+  "notes": ["出生 0/60/120 基点 + 20/28/36/44 交替左右；108/人/轮；锁至 164。","逐弹朝本拍真实采样目标点飞（aimAtTarget：源→Ti 真实距离与倾斜；客户端随批次收到同一点）。"],
   "cycleTicks": 240,
   "ticks": 602,
   "stride": 2,

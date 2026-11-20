@@ -26,6 +26,15 @@ PAGE = "/preview/index.html"
 class Handler(http.server.SimpleHTTPRequestHandler):
     """No caching: a fresh bake must show up on reload."""
 
+    def do_GET(self):
+        if self.path.split("?", 1)[0] in ("/preview/index", "/"):
+            query = "?" + self.path.split("?", 1)[1] if "?" in self.path else ""
+            self.send_response(302)
+            self.send_header("Location", PAGE + query)
+            self.end_headers()
+            return
+        super().do_GET()
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
