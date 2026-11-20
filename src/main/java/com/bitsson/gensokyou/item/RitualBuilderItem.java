@@ -148,7 +148,8 @@ public class RitualBuilderItem extends Item {
 
     /**
      * 两段式确认（服务端权威）：成型核心先过升级分发（他仪式/阶级不足提示让位不开 GUI），
-     * 预览态与"此核心 + 手上选择 + 当前维度"全等 → 执行 {@link #doBuild} 并清态（成功/失败均清）；
+     * 预览态与"此核心 + 手上选择 + 当前维度"全等 → 执行 {@link #doBuild}；仅目标仪式阶级成型后清态，
+     * 尚未成型时保留预览，便于补料或排除冲突后继续搭建。
      * 否则置入/替换预览态并 S2C 下发，不放置任何方块、不消耗材料。
      */
     private InteractionResult handleBuild(ServerPlayer player, InteractionHand hand, BlockPos corePos) {
@@ -190,9 +191,15 @@ public class RitualBuilderItem extends Item {
         }
         RitualPreviewState preview = player.getData(ModAttachments.RITUAL_PREVIEW.get());
         if (preview != null && preview.matches(corePos, selection, player.level().dimension())) {
-            player.removeData(ModAttachments.RITUAL_PREVIEW.get());
-            ModNetworking.sendRitualPreview(player, Optional.empty());
-            return doBuild(player, hand, corePos);
+            InteractionResult result = doBuild(player, hand, corePos);
+            if (isSelectionFormed(player.level(), corePos, selection)) {
+                player.removeData(ModAttachments.RITUAL_PREVIEW.get());
+                ModNetworking.sendRitualPreview(player, Optional.empty());
+            } else {
+                // 部分放置或冲突中止时保留“建筑模式”，使缺口/冲突投影继续可见。
+                ModNetworking.sendRitualPreview(player, Optional.of(preview));
+            }
+            return result;
         }
         RitualPreviewState next = new RitualPreviewState(
                 selection.patternId(), selection.tier(), corePos, player.level().dimension());
@@ -235,13 +242,23 @@ public class RitualBuilderItem extends Item {
         } else {
             player.displayClientMessage(Component.translatable(
                     "msg.gensokyou.builder_placed", result.placed(), result.total()), false);
-            com.bitsson.gensokyou.event.GuidePathProgress.onRitualBuilt(player, selection.patternId());
             if (result.placed() < result.total()) {
                 player.displayClientMessage(
                         Component.translatable("msg.gensokyou.builder_incomplete"), true);
             }
+            if (isSelectionFormed(player.level(), corePos, selection)) {
+                com.bitsson.gensokyou.event.GuidePathProgress.onRitualBuilt(player, selection.patternId());
+            }
         }
         return InteractionResult.SUCCESS;
+    }
+
+    /** 目标图案至少达到所选阶级时，搭建才算完成。 */
+    private static boolean isSelectionFormed(Level level, BlockPos corePos, BuilderSelection selection) {
+        return RitualMatcher.matchAt(level, corePos)
+                .filter(match -> match.patternId().equals(selection.patternId())
+                        && match.level() >= selection.tier())
+                .isPresent();
     }
 
     @Override

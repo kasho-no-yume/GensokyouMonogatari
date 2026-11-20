@@ -4,15 +4,23 @@
 TBD - created by archiving change ritual-builder-preview. Update Purpose after archive.
 ## Requirements
 ### Requirement: 两段式预览确认流
-手持已选仪式的构建器非潜行右键**未成型核心，或已通过升级分发校验的成型核心**（成型核心分支见 `ritual-builder-upgrade`）：当服务端预览态与"该核心坐标 + 当前选择（图案+品阶即目标阶级）"**全等**时 SHALL 执行实际搭建并清除预览态；否则 SHALL 仅置入/替换预览态并经 S2C 下发，SHALL NOT 放置任何方块、SHALL NOT 消耗任何材料。菜单内更改选择 SHALL NOT 影响已存在的预览态。预览态为服务端 per-player 会话级状态（transient），登出/换维度即失效。
+手持已选仪式的构建器非潜行右键**未成型核心，或已通过升级分发校验的成型核心**（成型核心分支见 `ritual-builder-upgrade`）：当服务端预览态与"该核心坐标 + 当前选择（图案+品阶即目标阶级）"**全等**时 SHALL 执行实际搭建。若目标图案已达到所选阶级，SHALL 清除预览态；若因缺料、冲突或其它放置不完整原因尚未成型，SHALL 保留并重新同步预览态，使玩家可继续补料/排除冲突后直接再次右键。否则 SHALL 仅置入/替换预览态并经 S2C 下发，SHALL NOT 放置任何方块、SHALL NOT 消耗任何材料。菜单内更改选择 SHALL NOT 影响已存在的预览态。预览态为服务端 per-player 会话级状态（transient），登出/换维度即失效。
 
 #### Scenario: 第一击只出预览
 - **WHEN** 玩家持选中仪式的构建器首次右键裸核心
 - **THEN** 无任何方块被放置，核心周围出现该仪式对应阶级切片的半透明投影，回显"再次右键确认建造"
 
-#### Scenario: 同核心同选择第二击建造
+#### Scenario: 同核心同选择第二击建造并成型
 - **WHEN** 预览中，玩家对同一核心再次右键且选择未变
-- **THEN** 执行实际搭建，预览清除
+- **THEN** 执行实际搭建；目标阶级成型后预览清除
+
+#### Scenario: 缺料时保持建筑模式
+- **WHEN** 玩家确认搭建后因材料不足仅放置部分结构，目标阶级尚未成型
+- **THEN** 预览态保留并同步，已满足格不再显示、缺失格继续显示；补充材料后可直接再次右键继续搭建
+
+#### Scenario: 冲突中止后保持建筑模式
+- **WHEN** 玩家确认搭建时发现目标格冲突，搭建整体中止且仪式未成型
+- **THEN** 预览态保留并同步，冲突位置仍可见；移除冲突后可直接再次右键搭建
 
 #### Scenario: 换选择后右键是替换而非建造
 - **WHEN** 核心 A 预览中，玩家开菜单改选另一仪式后右键核心 A
@@ -50,4 +58,3 @@ TBD - created by archiving change ritual-builder-preview. Update Purpose after a
 #### Scenario: 规则不漂移
 - **WHEN** 冲突判定规则未来修改（如允许替换草方块）
 - **THEN** 仅需改动共用分类函数，搭建与投影行为同步变化
-

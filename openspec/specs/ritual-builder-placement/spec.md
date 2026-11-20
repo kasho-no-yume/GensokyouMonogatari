@@ -20,7 +20,7 @@ TBD - created by archiving change ritual-builder. Update Purpose after archive.
 
 #### Scenario: 第二击时出现新冲突
 - **WHEN** 预览后、第二击前有玩家往目标格塞了方块
-- **THEN** 搭建按冲突零容忍中止并下发红框（现有链路），预览清除
+- **THEN** 搭建按冲突零容忍中止并下发红框，仪式未成型时预览保留；移除冲突后可直接再次右键重试
 
 #### Scenario: 所选阶级无对应层级
 - **WHEN** 图案 `levels` 仅含 0..3，构建器选中阶级 5 右键核心
@@ -45,7 +45,7 @@ TBD - created by archiving change ritual-builder. Update Purpose after archive.
 
 #### Scenario: 半路缺料
 - **WHEN** 需 8 个仪式石_2 但背包仅 3 个，且未绑定可用无尽藏，无冲突
-- **THEN** 规范序前 3 个仪式石格被放置并扣 3 个，其余格跳过，提示放置 3/N
+- **THEN** 规范序前 3 个仪式石格被放置并扣 3 个，其余格跳过，提示放置 3/N，且未成型的仪式继续保留预览以便补料续建
 
 #### Scenario: 背包优先仓储兜底
 - **WHEN** 需 8 个仪式石_2，背包 3 个，绑定无尽藏仓储 10 个（同维度、已成型、已启动），无冲突
@@ -99,4 +99,3 @@ TBD - created by archiving change ritual-builder. Update Purpose after archive.
 #### Scenario: 无朝向条目行为不变
 - **WHEN** 搭建既有 7 图案（全部条目无 `orientation`）
 - **THEN** 放置结果与变更前逐格一致
-
