@@ -69,6 +69,7 @@ public class RitualCoreBlockEntity extends BlockEntity
     private static final String TAG_RESO_IN = "ResoInLinks";
     private static final String TAG_RESO_OUT = "ResoOutLinks";
     private static final String TAG_RENDER_STATE = "Rendu";
+    private static final String TAG_CRYSTAL_AWAKE = "CrystalAwake";
     private static final String TAG_LINK_POS = "P";
     private static final String TAG_LINK_PATTERN = "I";
     private static final String TAG_ENABLED = "Enabled";
@@ -124,6 +125,7 @@ public class RitualCoreBlockEntity extends BlockEntity
     /** 渲染态：服务端=上次已推送态（变化比较基准），客户端=已接收态（只读绘制）。 */
     private @Nullable RitualRenderState lastSentRenderState;
     private RitualRenderState renderState = RitualRenderState.EMPTY;
+    private boolean crystalAwake;
     /** 万象共鸣：当前结构的 Y 包围盒（仅内存，重扫刷新；驱动螺旋高度）。 */
     private int boundsMinY;
     private int boundsMaxY;
@@ -1242,16 +1244,16 @@ public class RitualCoreBlockEntity extends BlockEntity
             return;
         }
         RitualRenderState desired = buildRenderState();
-        if (desired == null) {
-            if (lastSentRenderState == null) {
-                return;
-            }
-            desired = RitualRenderState.EMPTY;
-        }
-        if (desired.equals(lastSentRenderState)) {
+        if (desired == null) desired = RitualRenderState.EMPTY;
+        // The core jewel wakes when the multiblock forms, independent of whether
+        // this particular ritual has an enabled/running state at all.
+        boolean awake = activeMatch != null;
+        RitualRenderState previous = lastSentRenderState == null ? RitualRenderState.EMPTY : lastSentRenderState;
+        if (desired.equals(previous) && awake == crystalAwake) {
             return;
         }
         lastSentRenderState = desired;
+        crystalAwake = awake;
         level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
     }
 
@@ -1284,7 +1286,12 @@ public class RitualCoreBlockEntity extends BlockEntity
         CompoundTag tag = new CompoundTag();
         RitualRenderState state = lastSentRenderState != null ? lastSentRenderState : renderState;
         tag.put(TAG_RENDER_STATE, state.toTag());
+        if (crystalAwake) tag.putBoolean(TAG_CRYSTAL_AWAKE, true);
         return tag;
+    }
+
+    public boolean isCrystalAwake() {
+        return crystalAwake;
     }
 
     @Override
@@ -1805,6 +1812,7 @@ public class RitualCoreBlockEntity extends BlockEntity
         cacheFillCarry.setCarry(tag.getLong("WujinzangCacheCarry"));
         if (tag.contains(TAG_RENDER_STATE)) {
             renderState = RitualRenderState.fromTag(tag.getCompound(TAG_RENDER_STATE));
+            crystalAwake = tag.getBoolean(TAG_CRYSTAL_AWAKE);
         }
     }
 }

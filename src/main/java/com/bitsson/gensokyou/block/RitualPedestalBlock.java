@@ -9,6 +9,7 @@ import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -17,6 +18,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
  * 祭品台：单一注册方块，`tier`（0-5）BlockState 属性驱动变体模型。
@@ -27,6 +31,10 @@ public class RitualPedestalBlock extends Block implements EntityBlock {
 
     /** 仪式等级驱动的品阶视觉属性（与 RitualCoreBlock.TIER 同源同值）。 */
     public static final IntegerProperty TIER = IntegerProperty.create("tier", 0, 5);
+    private static final VoxelShape SHAPE = Shapes.or(box(3, 0, 3, 13, 2, 13),
+            box(4, 2, 4, 12, 3, 12), box(6, 3, 6, 10, 8, 10), box(5, 8, 5, 11, 10, 11),
+            box(4, 10, 4, 12, 12, 12), box(2, 12, 2, 14, 16, 14), box(1, 13, 2, 15, 16, 14),
+            box(2, 13, 1, 14, 16, 15));
 
     public RitualPedestalBlock(Properties properties) {
         super(properties);
@@ -41,6 +49,11 @@ public class RitualPedestalBlock extends Block implements EntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new RitualPedestalBlockEntity(pos, state);
+    }
+
+    @Override
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return SHAPE;
     }
 
     @Override

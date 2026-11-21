@@ -4,6 +4,8 @@ import com.bitsson.gensokyou.balance.BalanceNumbers;
 import com.bitsson.gensokyou.config.GensokyouServerConfig;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.block.RitualCoreBlock;
+import com.bitsson.gensokyou.registry.TierPalette;
 import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.client.ritual.ClientRitualData;
@@ -25,6 +27,7 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -32,6 +35,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import java.util.List;
 import java.util.Map;
@@ -48,6 +52,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * 启停带淡入淡出包络（ramp ticks 配置），MUST NOT 单帧硬切。
  */
 public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEntity> {
+
+    // Neutral, opaque material: both gemstone facets and aura get their hue only
+    // from TierPalette. Coloured fire/crystal sprites would contaminate the hue.
+    private static final ResourceLocation CORE_WHITE = ResourceLocation.fromNamespaceAndPath(
+            Gensokyou.MODID, "textures/ran/white.png");
 
     // ---- fx 贴图 ----
     private static final ResourceLocation FIRE_TONGUE_TEXTURE =
@@ -114,6 +123,15 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
      * camera-facing 面片（球 / 冲击环 / 碎片）全靠它，故不可省。
      */
     private final BlockEntityRenderDispatcher dispatcher;
+    private final Map<RitualCoreBlockEntity, CrystalPose> crystalPoses = new WeakHashMap<>();
+
+    private static final class CrystalPose {
+        double lastFrame;
+        double progress;
+        double spin;
+        double bob;
+        long lastParticle = Long.MIN_VALUE;
+    }
 
     private static final int MIST_R = 199, MIST_G = 92, MIST_B = 250;
     private static final int MIST_DIM_R = 120, MIST_DIM_G = 52, MIST_DIM_B = 160;
@@ -209,9 +227,12 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
     public void render(RitualCoreBlockEntity blockEntity, float partialTick, PoseStack poseStack,
                        MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
         Level level = blockEntity.getLevel();
-        if (level == null || !VisualPreferences.enabled()) {
+        if (level == null) {
             return;
         }
+        boolean effects = VisualPreferences.enabled();
+        renderCrystal(blockEntity, level, partialTick, poseStack, bufferSource, packedLight, packedOverlay, effects);
+        if (!effects) return;
         RitualRenderState state = blockEntity.renderState();
         double now = level.getGameTime() + partialTick;
         // ⚠️ camRot MUST 在**分发之前**每帧设一次。camera-facing billboard（灵浴灵气、
@@ -248,6 +269,203 @@ public class RitualCoreRenderer implements BlockEntityRenderer<RitualCoreBlockEn
                     renderTsukumogami(blockEntity, state, now, poseStack, bufferSource);
             default -> {
             }
+        }
+    }
+
+    private void renderCrystal(RitualCoreBlockEntity core, Level level, float partialTick, PoseStack pose,
+                               MultiBufferSource buffers, int light, int overlay, boolean effects) {
+        long tick = level.getGameTime();
+        double now = tick + (double) partialTick;
+        // Formation is a visual state, not an enabled/running state. Keep the
+        // crystal animation and its aura visible for passive rituals too.
+        boolean awake = core.isCrystalAwake();
+        CrystalPose motion = crystalPoses.computeIfAbsent(core, ignored -> {
+            CrystalPose initial = new CrystalPose();
+            initial.lastFrame = now;
+            initial.progress = awake ? 1.0 : 0.0;
+            return initial;
+        });
+        double dt = Mth.clamp(now - motion.lastFrame, 0.0, 2.0);
+        motion.lastFrame = now;
+        motion.progress = Mth.clamp(motion.progress + (awake ? dt : -dt) / 14.0, 0.0, 1.0);
+        double p = motion.progress;
+        double blend = p * p * (3.0 - 2.0 * p);
+        motion.spin = (motion.spin + 1.8 * dt * blend) % 360.0;
+        motion.bob = (motion.bob + 0.12 * dt * blend) % (2.0 * Math.PI);
+        double lift = blend * (0.19 + 0.035 * Math.sin(motion.bob));
+        int tier = core.getBlockState().getValue(RitualCoreBlock.TIER);
+        if (blend > 0.001) {
+            renderCoreAura(pose, buffers, now, tier, (float) blend);
+        }
+        pose.pushPose();
+        pose.translate(0.5, 0.4375 + lift, 0.5);
+        pose.mulPose(Axis.YP.rotationDegrees((float) motion.spin));
+        renderFacetedJewel(pose, buffers, tier, now, motion.spin,
+                net.minecraft.client.renderer.LightTexture.FULL_BRIGHT, overlay);
+        pose.popPose();
+
+        BlockPos pos = core.getBlockPos();
+        if (awake && blend > 0.35 && motion.lastParticle != tick && Math.floorMod(tick + pos.hashCode(), 2L) == 0L) {
+            motion.lastParticle = tick;
+            int rgb = TierPalette.rgb(tier);
+            Vector3f color = new Vector3f((rgb >> 16 & 255) / 255f, (rgb >> 8 & 255) / 255f, (rgb & 255) / 255f);
+            for (int i = 0; i < 2; i++) {
+                double angle = level.getRandom().nextDouble() * Math.PI * 2.0;
+                double radius = 0.12 + level.getRandom().nextDouble() * 0.34;
+                double x = Math.cos(angle), z = Math.sin(angle);
+                double y = level.getRandom().nextDouble() * 0.18;
+                float size = 0.72f + level.getRandom().nextFloat() * 0.30f;
+                level.addParticle(new DustParticleOptions(color, size), pos.getX() + 0.5 + x * radius,
+                        pos.getY() + y, pos.getZ() + 0.5 + z * radius,
+                        -x * 0.012, 0.13 + level.getRandom().nextDouble() * 0.07, -z * 0.012);
+            }
+        }
+    }
+
+    /** Table, crown, thin girdle and deep pavilion, with individually lit facets. */
+    private static void renderFacetedJewel(PoseStack pose, MultiBufferSource buffers, int tier,
+                                           double now, double spin,
+                                           int light, int overlay) {
+        VertexConsumer out = buffers.getBuffer(
+                net.minecraft.client.renderer.RenderType.entityTranslucent(CORE_WHITE));
+        int rgb = TierPalette.rgb(tier) & 0xFFFFFF;
+        // Darker, denser body under the shell gives the crystal optical depth.
+        // Keep it in the same translucent batch so the renderer can sort all
+        // gemstone quads together back-to-front.
+        renderGemBody(out, pose.last(), rgb, light, overlay);
+        float[][] table = gemRing(0.105F, 0.47F);
+        float[][] shoulder = gemRing(0.245F, 0.30F);
+        float[][] girdle = gemRing(0.245F, 0.275F);
+        float[] center = {0, 0.47F, 0};
+        float[] bottom = {0, 0.015F, 0};
+        for (int i = 0; i < 8; i++) {
+            int next = (i + 1) & 7;
+            double facing = i * Math.PI / 4 + Math.toRadians(spin);
+            float reflection = (float) Math.pow(Math.max(0, Math.cos(facing - 0.8)), 18);
+            int crown = gemColor(rgb, 0.67F + 0.22F * (float) Math.cos(facing),
+                    0.12F + reflection * 0.65F);
+            int pavilion = gemColor(rgb, (i & 1) == 0 ? 0.48F : 0.70F, reflection * 0.32F);
+            emitGemTriangle(out, pose.last(), table[i], center, table[next],
+                    gemColor(rgb, 0.82F, 0.48F), 132, light, overlay);
+            emitGemTriangle(out, pose.last(), shoulder[i], table[i], table[next], crown, 105, light, overlay);
+            emitGemTriangle(out, pose.last(), shoulder[i], table[next], shoulder[next],
+                    gemColor(rgb, 0.72F, reflection * 0.72F), 85, light, overlay);
+            emitGemTriangle(out, pose.last(), girdle[i], shoulder[i], shoulder[next], crown, 150, light, overlay);
+            emitGemTriangle(out, pose.last(), girdle[i], shoulder[next], girdle[next], crown, 150, light, overlay);
+            emitGemTriangle(out, pose.last(), girdle[next], bottom, girdle[i], pavilion, 115, light, overlay);
+            if (reflection > 0.58F) {
+                int glint = gemColor(0xFFFFFF, 0.95F, 0.0F);
+                emitGemTriangle(out, pose.last(), gemGlintPoint(shoulder[i], table[i], 0.20F),
+                        gemGlintPoint(shoulder[i], table[i], 0.96F),
+                        gemGlintPoint(shoulder[i], table[next], 0.84F), glint,
+                        (int) (reflection * 210), light, overlay);
+            }
+        }
+    }
+
+    private static float[] gemGlintPoint(float[] a, float[] b, float t) {
+        // Lift the narrow reflection off the shell to avoid coplanar flicker.
+        return new float[]{Mth.lerp(t, a[0], b[0]) * 1.004F,
+                Mth.lerp(t, a[1], b[1]) + 0.001F,
+                Mth.lerp(t, a[2], b[2]) * 1.004F};
+    }
+
+    private static void renderGemBody(VertexConsumer out, PoseStack.Pose pose, int rgb, int light, int overlay) {
+        float[][] ring = gemRing(0.16F, 0.31F);
+        float[] crown = {0, 0.43F, 0};
+        float[] pavilion = {0, 0.04F, 0};
+        int body = gemColor(rgb, 0.54F, 0.05F);
+        for (int i = 0; i < 8; i++) {
+            int next = (i + 1) & 7;
+            emitGemTriangle(out, pose, ring[i], crown, ring[next], body, 150, light, overlay);
+            emitGemTriangle(out, pose, ring[next], pavilion, ring[i], body, 150, light, overlay);
+        }
+    }
+
+    private static float[][] gemRing(float radius, float y) {
+        float[][] ring = new float[8][3];
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4 + Math.PI / 8;
+            ring[i] = new float[]{(float) Math.cos(angle) * radius, y, (float) Math.sin(angle) * radius};
+        }
+        return ring;
+    }
+
+    private static int gemColor(int color, float shade, float highlight) {
+        int result = 0;
+        for (int shift : new int[]{16, 8, 0}) {
+            float channel = (color >> shift & 255) * shade;
+            result |= Mth.clamp((int) (channel + (255 - channel) * highlight), 0, 255) << shift;
+        }
+        return result;
+    }
+
+    /** Stable local geometry, independent of the user's particle-count setting. */
+    private static void renderCoreAura(PoseStack pose, MultiBufferSource buffers, double now,
+                                       int tier, float envelope) {
+        int color = TierPalette.rgb(tier);
+        int r = color >> 16 & 255, g = color >> 8 & 255, b = color & 255;
+        // Alpha blending preserves saturated tier hues; stacked additive planes
+        // previously bleached gold into a solid yellow-white pillar.
+        VertexConsumer flame = buffers.getBuffer(DanmakuRenderTypes.translucent(CORE_WHITE));
+        for (int i = 0; i < 9; i++) {
+            double angle = i * Math.PI * 2.0 / 9;
+            float cycle = (float) ((now / (34.0 + i * 2) + i * 0.317) % 1.0);
+            float life = Mth.sin(cycle * (float) Math.PI);
+            float height = 0.65F + 1.35F * life;
+            pose.pushPose();
+            pose.translate(0.5 + Math.cos(angle) * 0.29, 0.38 + cycle * 0.12,
+                    0.5 + Math.sin(angle) * 0.29);
+            pose.mulPose(Axis.YP.rotationDegrees(i * 137.5F));
+            for (int plane = 0; plane < 2; plane++) {
+                pose.pushPose();
+                pose.mulPose(Axis.YP.rotationDegrees(plane * 90));
+                for (int segment = 0; segment < 10; segment++) {
+                    float t0 = segment / 10F, t1 = (segment + 1) / 10F;
+                    float x0 = auraSway(t0, now, i), x1 = auraSway(t1, now, i);
+                    float w0 = 0.115F * (1 - t0) * (0.7F + life * 0.3F);
+                    float w1 = 0.115F * (1 - t1) * (0.7F + life * 0.3F);
+                    int a0 = (int) (105 * envelope * life * (1 - t0));
+                    int a1 = (int) (105 * envelope * life * (1 - t1));
+                    // Soft edges are separate narrow strips, not a textured rectangle.
+                    for (int strip = 0; strip < 4; strip++) {
+                        float l = strip / 2F - 1, rr = (strip + 1) / 2F - 1;
+                        float al = strip == 0 ? 0 : strip == 3 ? 0.5F : 1;
+                        float ar = strip == 3 ? 0 : strip == 0 ? 0.5F : 1;
+                        FxGeometry.vertex(flame, pose.last(), x0 + w0*l, t0*height, 0, 0.5F, 0.5F, r,g,b,(int)(a0*al));
+                        FxGeometry.vertex(flame, pose.last(), x0 + w0*rr, t0*height, 0, 0.5F, 0.5F, r,g,b,(int)(a0*ar));
+                        FxGeometry.vertex(flame, pose.last(), x1 + w1*rr, t1*height, 0, 0.5F, 0.5F, r,g,b,(int)(a1*ar));
+                        FxGeometry.vertex(flame, pose.last(), x1 + w1*l, t1*height, 0, 0.5F, 0.5F, r,g,b,(int)(a1*al));
+                    }
+                }
+                pose.popPose();
+            }
+            pose.popPose();
+        }
+    }
+
+    private static float auraSway(float t, double now, int tongue) {
+        return t * (0.12F * Mth.sin((float) (t * 5.5 - now * 0.12 + tongue * 1.7))
+                + 0.045F * Mth.sin((float) (t * 12 - now * 0.19 + tongue)));
+    }
+
+    private static void emitGemTriangle(VertexConsumer out, PoseStack.Pose pose,
+                                        float[] a, float[] b, float[] c, int rgb, int alpha,
+                                        int light, int overlay) {
+        float ax = b[0] - a[0], ay = b[1] - a[1], az = b[2] - a[2];
+        float bx = c[0] - a[0], by = c[1] - a[1], bz = c[2] - a[2];
+        float nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+        float length = Mth.sqrt(nx * nx + ny * ny + nz * nz);
+        if (length > 1.0E-5F) { nx /= length; ny /= length; nz /= length; }
+        int red = rgb >> 16 & 255;
+        int green = rgb >> 8 & 255;
+        int blue = rgb & 255;
+        for (int i = 0; i < 4; i++) {
+            float[] v = i == 3 ? c : i == 0 ? a : i == 1 ? b : c;
+            float u = i == 1 ? 1.0F : i == 2 ? 0.5F : 0.0F;
+            float vUv = i == 0 || i == 1 ? 1.0F : 0.0F;
+            out.addVertex(pose.pose(), v[0], v[1], v[2]).setColor(red, green, blue, alpha)
+                    .setUv(u, vUv).setOverlay(overlay).setLight(light).setNormal(pose, nx, ny, nz);
         }
     }
 

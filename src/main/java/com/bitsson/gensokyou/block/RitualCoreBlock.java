@@ -16,6 +16,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -26,6 +27,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -49,6 +53,23 @@ public class RitualCoreBlock extends Block implements EntityBlock {
 
     /** 仪式等级驱动的品阶视觉属性。 */
     public static final IntegerProperty TIER = IntegerProperty.create("tier", 0, 5);
+    private static final VoxelShape FRAME = frameShape();
+    private static final VoxelShape OUTLINE = Shapes.or(FRAME, box(5, 7, 5, 11, 14, 11));
+
+    private static VoxelShape frameShape() {
+        VoxelShape result = Shapes.or(box(1, 0, 1, 15, 3, 15), box(2, 3, 2, 14, 5, 14),
+                box(3, 5, 3, 13, 6, 13), box(4, 6, 4, 12, 7, 12));
+        for (int x : new int[]{2, 11}) {
+            for (int z : new int[]{2, 11}) {
+                result = Shapes.or(result, box(x, 5, z, x + 3, 8, z + 3),
+                        box(x == 2 ? 2.5 : 11, 8, z == 2 ? 2.5 : 11,
+                                x == 2 ? 5 : 13.5, 13.25, z == 2 ? 5 : 13.5),
+                        box(x == 2 ? 3.75 : 10, 13.25, z == 2 ? 3.75 : 10,
+                                x == 2 ? 6 : 12.25, 14.25, z == 2 ? 6 : 12.25));
+            }
+        }
+        return result;
+    }
 
     public RitualCoreBlock(Properties properties) {
         super(properties);
@@ -63,6 +84,16 @@ public class RitualCoreBlock extends Block implements EntityBlock {
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new RitualCoreBlockEntity(pos, state);
+    }
+
+    @Override
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return OUTLINE;
+    }
+
+    @Override
+    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return FRAME;
     }
 
     @Nullable

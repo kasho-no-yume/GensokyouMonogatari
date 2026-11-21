@@ -41,7 +41,7 @@ public final class ModBlocks {
     public static final List<DeferredBlock<TieredBlock>> RITUAL_STONES = new ArrayList<>();
     /** 祭品台：单一方块，tier BlockState 属性驱动变色（品阶视觉由核心重扫写入）。 */
     public static final DeferredBlock<RitualPedestalBlock> RITUAL_PEDESTAL =
-            BLOCKS.registerBlock("ritual_pedestal", RitualPedestalBlock::new, stoneProperties());
+            BLOCKS.registerBlock("ritual_pedestal", RitualPedestalBlock::new, stoneProperties().noOcclusion());
     /** 仪式石台阶：装饰变种，按品阶独立注册 ritual_stone_slab_0..5。 */
     public static final List<DeferredBlock<SlabBlock>> RITUAL_STONE_SLABS = new ArrayList<>();
     /** 仪式石楼梯：装饰变种，按品阶独立注册 ritual_stone_stairs_0..5。 */
@@ -77,7 +77,7 @@ public final class ModBlocks {
     /** 全 mod 唯一的主仪式方块：不同仪式由多方块结构区分，品阶视觉由 tier 属性驱动。 */
     public static final DeferredBlock<RitualCoreBlock> RITUAL_CORE =
             BLOCKS.registerBlock("ritual_core", RitualCoreBlock::new,
-                    BlockBehaviour.Properties.of().mapColor(MapColor.DIAMOND).strength(3F, 1200F));
+                    BlockBehaviour.Properties.of().mapColor(MapColor.DIAMOND).strength(3F, 1200F).noOcclusion());
 
     /** 隙间传送门：由结界仪式行为管理，不可摧毁、可穿行（接触即传送）、无物品形态。 */
     public static final DeferredBlock<SukimaBlock> SUKIMA =

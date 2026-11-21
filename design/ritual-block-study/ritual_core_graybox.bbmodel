@@ -1,0 +1,1934 @@
+{
+ "meta": {
+  "format_version": "4.10",
+  "model_format": "java_block",
+  "box_uv": false
+ },
+ "name": "ritual_core_graybox",
+ "model_identifier": "ritual_core_graybox",
+ "resolution": {
+  "width": 16,
+  "height": 16
+ },
+ "elements": [
+  {
+   "name": "Heavy plinth",
+   "from": [
+    1,
+    0,
+    1
+   ],
+   "to": [
+    15,
+    3,
+    15
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 0,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000001"
+  },
+  {
+   "name": "Plinth shoulder",
+   "from": [
+    2,
+    3,
+    2
+   ],
+   "to": [
+    14,
+    5,
+    14
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 1,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000002"
+  },
+  {
+   "name": "Binding band",
+   "from": [
+    3,
+    5,
+    3
+   ],
+   "to": [
+    13,
+    6,
+    13
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000003"
+  },
+  {
+   "name": "Crown platform",
+   "from": [
+    4,
+    6,
+    4
+   ],
+   "to": [
+    12,
+    7,
+    12
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 0,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000004"
+  },
+  {
+   "name": "Jewel lower cut",
+   "from": [
+    5.8,
+    7,
+    5.8
+   ],
+   "to": [
+    10.2,
+    8.25,
+    10.2
+   ],
+   "origin": [
+    8,
+    8,
+    8
+   ],
+   "rotation": [
+    0,
+    45,
+    0
+   ],
+   "color": 3,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000005"
+  },
+  {
+   "name": "Jewel body",
+   "from": [
+    5,
+    8.25,
+    5
+   ],
+   "to": [
+    11,
+    13.5,
+    11
+   ],
+   "origin": [
+    8,
+    8,
+    8
+   ],
+   "rotation": [
+    0,
+    45,
+    0
+   ],
+   "color": 3,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000006"
+  },
+  {
+   "name": "Jewel crown",
+   "from": [
+    5.75,
+    13.5,
+    5.75
+   ],
+   "to": [
+    10.25,
+    15,
+    10.25
+   ],
+   "origin": [
+    8,
+    8,
+    8
+   ],
+   "rotation": [
+    0,
+    45,
+    0
+   ],
+   "color": 3,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000007"
+  },
+  {
+   "name": "Jewel table",
+   "from": [
+    6.75,
+    15,
+    6.75
+   ],
+   "to": [
+    9.25,
+    16,
+    9.25
+   ],
+   "origin": [
+    8,
+    8,
+    8
+   ],
+   "rotation": [
+    0,
+    45,
+    0
+   ],
+   "color": 3,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000008"
+  },
+  {
+   "name": "NW claw root",
+   "from": [
+    2,
+    5,
+    2
+   ],
+   "to": [
+    5,
+    8,
+    5
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 0,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000009"
+  },
+  {
+   "name": "NW claw riser",
+   "from": [
+    2.5,
+    8,
+    2.5
+   ],
+   "to": [
+    5,
+    12,
+    5
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000010"
+  },
+  {
+   "name": "NW claw cap",
+   "from": [
+    3,
+    12,
+    3
+   ],
+   "to": [
+    5,
+    13.25,
+    5
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000011"
+  },
+  {
+   "name": "NW inward hook",
+   "from": [
+    3.75,
+    13.25,
+    3.75
+   ],
+   "to": [
+    6,
+    14.25,
+    6
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000012"
+  },
+  {
+   "name": "NE claw root",
+   "from": [
+    11,
+    5,
+    2
+   ],
+   "to": [
+    14,
+    8,
+    5
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 0,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000013"
+  },
+  {
+   "name": "NE claw riser",
+   "from": [
+    11,
+    8,
+    2.5
+   ],
+   "to": [
+    13.5,
+    12,
+    5
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000014"
+  },
+  {
+   "name": "NE claw cap",
+   "from": [
+    11,
+    12,
+    3
+   ],
+   "to": [
+    13,
+    13.25,
+    5
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000015"
+  },
+  {
+   "name": "NE inward hook",
+   "from": [
+    10,
+    13.25,
+    3.75
+   ],
+   "to": [
+    12.25,
+    14.25,
+    6
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000016"
+  },
+  {
+   "name": "SW claw root",
+   "from": [
+    2,
+    5,
+    11
+   ],
+   "to": [
+    5,
+    8,
+    14
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 0,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000017"
+  },
+  {
+   "name": "SW claw riser",
+   "from": [
+    2.5,
+    8,
+    11
+   ],
+   "to": [
+    5,
+    12,
+    13.5
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000018"
+  },
+  {
+   "name": "SW claw cap",
+   "from": [
+    3,
+    12,
+    11
+   ],
+   "to": [
+    5,
+    13.25,
+    13
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000019"
+  },
+  {
+   "name": "SW inward hook",
+   "from": [
+    3.75,
+    13.25,
+    10
+   ],
+   "to": [
+    6,
+    14.25,
+    12.25
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000020"
+  },
+  {
+   "name": "SE claw root",
+   "from": [
+    11,
+    5,
+    11
+   ],
+   "to": [
+    14,
+    8,
+    14
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 0,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000021"
+  },
+  {
+   "name": "SE claw riser",
+   "from": [
+    11,
+    8,
+    11
+   ],
+   "to": [
+    13.5,
+    12,
+    13.5
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000022"
+  },
+  {
+   "name": "SE claw cap",
+   "from": [
+    11,
+    12,
+    11
+   ],
+   "to": [
+    13,
+    13.25,
+    13
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000023"
+  },
+  {
+   "name": "SE inward hook",
+   "from": [
+    10,
+    13.25,
+    10
+   ],
+   "to": [
+    12.25,
+    14.25,
+    12.25
+   ],
+   "origin": [
+    0,
+    0,
+    0
+   ],
+   "color": 2,
+   "box_uv": false,
+   "faces": {
+    "north": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "east": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "south": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "west": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "up": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    },
+    "down": {
+     "uv": [
+      0,
+      0,
+      16,
+      16
+     ],
+     "texture": false
+    }
+   },
+   "type": "cube",
+   "uuid": "a66e0002-0000-4000-8000-000000000024"
+  }
+ ],
+ "outliner": [
+  "a66e0002-0000-4000-8000-000000000001",
+  "a66e0002-0000-4000-8000-000000000002",
+  "a66e0002-0000-4000-8000-000000000003",
+  "a66e0002-0000-4000-8000-000000000004",
+  "a66e0002-0000-4000-8000-000000000005",
+  "a66e0002-0000-4000-8000-000000000006",
+  "a66e0002-0000-4000-8000-000000000007",
+  "a66e0002-0000-4000-8000-000000000008",
+  "a66e0002-0000-4000-8000-000000000009",
+  "a66e0002-0000-4000-8000-000000000010",
+  "a66e0002-0000-4000-8000-000000000011",
+  "a66e0002-0000-4000-8000-000000000012",
+  "a66e0002-0000-4000-8000-000000000013",
+  "a66e0002-0000-4000-8000-000000000014",
+  "a66e0002-0000-4000-8000-000000000015",
+  "a66e0002-0000-4000-8000-000000000016",
+  "a66e0002-0000-4000-8000-000000000017",
+  "a66e0002-0000-4000-8000-000000000018",
+  "a66e0002-0000-4000-8000-000000000019",
+  "a66e0002-0000-4000-8000-000000000020",
+  "a66e0002-0000-4000-8000-000000000021",
+  "a66e0002-0000-4000-8000-000000000022",
+  "a66e0002-0000-4000-8000-000000000023",
+  "a66e0002-0000-4000-8000-000000000024"
+ ],
+ "textures": []
+}
