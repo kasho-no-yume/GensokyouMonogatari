@@ -56,6 +56,8 @@ public final class GensokyouServerConfig {
     public static final ModConfigSpec.IntValue SACRIFICE_SKULLS_REQUIRED;
     public static final ModConfigSpec.IntValue SACRIFICE_DRAGON_HEADS_REQUIRED;
     public static final ModConfigSpec.IntValue SACRIFICE_BASE_CAPACITY;
+    public static final ModConfigSpec.IntValue OYAMATSUMI_STONE_COUNT_MULT;
+    public static final ModConfigSpec.IntValue OYAMATSUMI_MINERAL_COUNT_MULT;
     public static final ModConfigSpec.IntValue WATATSUMI_COUNT_MULT;
     public static final ModConfigSpec.IntValue WATATSUMI_BASE_COOLDOWN_TICKS;
     public static final ModConfigSpec.IntValue WATATSUMI_BONUS_COOLDOWN_TICKS;
@@ -208,6 +210,8 @@ public final class GensokyouServerConfig {
         SACRIFICE_SKULLS_REQUIRED = BUILDER.comment("Tool-sacrifice rites: wither skeleton skulls on pedestals required to unlock the nether pool (not consumed)").defineInRange("sacrificeSkullsRequired", 3, 0, 64);
         SACRIFICE_DRAGON_HEADS_REQUIRED = BUILDER.comment("Tool-sacrifice rites: dragon heads on pedestals required to unlock the end pool (not consumed)").defineInRange("sacrificeDragonHeadsRequired", 1, 0, 64);
         SACRIFICE_BASE_CAPACITY = BUILDER.comment("Tool-sacrifice rites: spirit buffer capacity at level 0 (level N multiplies by 4^N)").defineInRange("sacrificeBaseCapacity", 10000, 1, Integer.MAX_VALUE);
+        OYAMATSUMI_STONE_COUNT_MULT = BUILDER.comment("Oyamatsumi: guaranteed stone-output multiplier per structure level").defineInRange("oyamatsumiStoneCountMult", 4, 1, 1000);
+        OYAMATSUMI_MINERAL_COUNT_MULT = BUILDER.comment("Oyamatsumi: guaranteed mineral-output multiplier per structure level").defineInRange("oyamatsumiMineralCountMult", 2, 1, 1000);
         WATATSUMI_COUNT_MULT = BUILDER.comment("Watatsumi treasure rite: produced-count multiplier per level").defineInRange("watatsumiCountMult", 4, 1, 1000);
         WATATSUMI_BASE_COOLDOWN_TICKS = BUILDER.comment("Watatsumi treasure rite: forced cooldown in ticks after a normal settlement (1200 = 60s)").defineInRange("watatsumiBaseCooldownTicks", 1200, 0, 72000);
         WATATSUMI_BONUS_COOLDOWN_TICKS = BUILDER.comment("Watatsumi treasure rite: forced cooldown in ticks after the level-2 buried-treasure bonus triggers (12000 = 10min)").defineInRange("watatsumiBonusCooldownTicks", 12000, 0, 720000);

@@ -34,10 +34,9 @@ class NetherWeaponCoreRecipeResourceTest {
     void tierFilteringAndRecipeSelectionStayStable() throws Exception {
         JsonObject root = readJson(RITUAL_RECIPES);
         JsonArray recipes = root.getAsJsonArray("recipes");
-        // 计数哨兵：源初造化之仪 59 条（50 + 8 件人鱼鳞/龙鳞铠甲，add-early-material-uses
-        // ＋ 聚宝盆 zaohua_treasure_basin，add-treasure-basin）。
+        // 计数哨兵：原有 59 条，加上灵力氧化器和灵力冻结器各一条。
         // 有意增删配方时改这里。
-        assertEquals(59, recipes.size());
+        assertEquals(61, recipes.size());
         assertFalse(names(recipes).contains("zaohua_spirit_core_0"));
 
         List<JsonObject> jsonRecipes = new ArrayList<>();
@@ -49,6 +48,8 @@ class NetherWeaponCoreRecipeResourceTest {
         assertTrue(availableAt(jsonRecipes, 1).contains("zaohua_danmaku_weapon_frame"));
         assertFalse(availableAt(jsonRecipes, 1).contains("zaohua_spirit_core_2"));
         assertTrue(availableAt(jsonRecipes, 2).contains("zaohua_spirit_core_2"));
+        assertTrue(availableAt(jsonRecipes, 0).containsAll(
+                List.of("zaohua_spirit_oxidizer", "zaohua_spirit_freezer")));
 
         JsonObject frame = byName(jsonRecipes, "zaohua_danmaku_weapon_frame");
         assertEquals(1, frame.get("minTier").getAsInt());

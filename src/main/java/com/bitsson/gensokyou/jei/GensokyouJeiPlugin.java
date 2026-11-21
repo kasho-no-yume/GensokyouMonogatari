@@ -1,7 +1,9 @@
 package com.bitsson.gensokyou.jei;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.block.SpiritTreatmentRecipes;
 import com.bitsson.gensokyou.client.ritual.ClientRitualData;
+import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.ritual.brew.RitualBrewRule;
 import com.bitsson.gensokyou.registry.ModItems;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
@@ -17,11 +19,15 @@ import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
+import mezz.jei.api.registration.IRecipeCatalystRegistration;
+import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.WeatheringCopper;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -169,6 +175,33 @@ public class GensokyouJeiPlugin implements IModPlugin {
                             new ItemStack(Items.BREWING_STAND))));
         }
         registration.addRecipeCategories(brewCategories.toArray(new RitualBrewCategory[0]));
+        registration.addRecipeCategories(
+                new SpiritTreatmentCategory(guiHelper, SpiritTreatmentCategory.OXIDATION, ModBlocks.SPIRIT_OXIDIZER.get()),
+                new SpiritTreatmentCategory(guiHelper, SpiritTreatmentCategory.FREEZING, ModBlocks.SPIRIT_FREEZER.get()));
+    }
+
+    @Override
+    public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
+        registration.addRecipeCatalysts(SpiritTreatmentCategory.OXIDATION, ModBlocks.SPIRIT_OXIDIZER.get());
+        registration.addRecipeCatalysts(SpiritTreatmentCategory.FREEZING, ModBlocks.SPIRIT_FREEZER.get());
+    }
+
+    @Override
+    public void registerRecipes(IRecipeRegistration registration) {
+        var oxidation = WeatheringCopper.NEXT_BY_BLOCK.get().keySet().stream()
+                .sorted(java.util.Comparator.comparing(BuiltInRegistries.BLOCK::getKey))
+                .map(SpiritTreatmentRecipes::oxidation)
+                .map(rule -> new SpiritTreatmentCategory.Card(
+                        Gensokyou.id("spirit_oxidizer/" + BuiltInRegistries.BLOCK.getKey(rule.input()).getPath()),
+                        rule.input(), rule.output(), rule.minimumMode(), 3, rule.cost()))
+                .toList();
+        var freezing = SpiritTreatmentRecipes.FREEZING.stream()
+                .map(rule -> new SpiritTreatmentCategory.Card(
+                        Gensokyou.id("spirit_freezer/" + BuiltInRegistries.BLOCK.getKey(rule.output()).getPath()),
+                        rule.source(), rule.output(), rule.mode(), rule.mode(), rule.cost()))
+                .toList();
+        registration.addRecipes(SpiritTreatmentCategory.OXIDATION, oxidation);
+        registration.addRecipes(SpiritTreatmentCategory.FREEZING, freezing);
     }
 
     private static IDrawable tabIcon(IGuiHelper guiHelper, @Nullable ResourceLocation patternId) {

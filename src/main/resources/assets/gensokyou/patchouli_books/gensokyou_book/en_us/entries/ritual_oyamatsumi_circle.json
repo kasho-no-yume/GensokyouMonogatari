@@ -455,85 +455,85 @@
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:wooden_pickaxe",
       "tier": "wood",
-      "mode": "tool",
-      "entries": "minecraft:stone,62,0;minecraft:deepslate,12,0;minecraft:cobblestone,8.3,0;minecraft:granite,4.2,0;minecraft:diorite,4.2,0;minecraft:andesite,4.2,0;minecraft:tuff,2.1,0;minecraft:calcite,0.62,0;minecraft:dripstone_block,0.62,0;minecraft:amethyst_block,0.21,0;minecraft:coal,1.0,0;minecraft:netherrack,11,1;minecraft:magma_block,0.18,1;minecraft:end_stone,9.6,2;minecraft:purpur_block,0.16,2"
+      "mode": "oyamatsumi_stone",
+      "entries": "minecraft:stone,63,0;minecraft:deepslate,13,0;minecraft:cobblestone,8.4,0;minecraft:granite,4.2,0;minecraft:diorite,4.2,0;minecraft:andesite,4.2,0;minecraft:tuff,2.1,0;minecraft:calcite,0.63,0;minecraft:dripstone_block,0.63,0;minecraft:amethyst_block,0.21,0;minecraft:netherrack,10.0,1;minecraft:blackstone,3.3,1;minecraft:basalt,3.3,1;minecraft:magma_block,0.17,1;minecraft:end_stone,9.1,2;minecraft:purpur_block,0.15,2"
     },
     {
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:wooden_pickaxe",
       "tier": "wood",
-      "mode": "tool",
-      "entries": "gensokyou:cinnabar,0.98,3;gensokyou:spirit_iron_ore,0.98,3;gensokyou:star_silver_ore,0.30,4;gensokyou:oni_stone,0.30,4"
+      "mode": "oyamatsumi_mineral",
+      "entries": "minecraft:coal,100,0;gensokyou:cinnabar,33,3;gensokyou:spirit_iron_ore,33,3;gensokyou:star_silver_ore,19,4;gensokyou:oni_stone,19,4"
     },
     {
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:stone_pickaxe",
       "tier": "stone",
-      "mode": "tool",
-      "entries": "minecraft:stone,61,0;minecraft:deepslate,12,0;minecraft:cobblestone,8.1,0;minecraft:granite,4.0,0;minecraft:diorite,4.0,0;minecraft:andesite,4.0,0;minecraft:tuff,2.0,0;minecraft:calcite,0.61,0;minecraft:dripstone_block,0.61,0;minecraft:amethyst_block,0.20,0;minecraft:coal_ore,2.0,0;minecraft:iron_ore,0.50,0;minecraft:copper_ore,1.0,0;minecraft:netherrack,11,1;minecraft:magma_block,0.18,1;minecraft:end_stone,9.6,2;minecraft:purpur_block,0.16,2"
+      "mode": "oyamatsumi_stone",
+      "entries": "minecraft:stone,63,0;minecraft:deepslate,13,0;minecraft:cobblestone,8.4,0;minecraft:granite,4.2,0;minecraft:diorite,4.2,0;minecraft:andesite,4.2,0;minecraft:tuff,2.1,0;minecraft:calcite,0.63,0;minecraft:dripstone_block,0.63,0;minecraft:amethyst_block,0.21,0;minecraft:netherrack,10.0,1;minecraft:blackstone,3.3,1;minecraft:basalt,3.3,1;minecraft:magma_block,0.17,1;minecraft:end_stone,9.1,2;minecraft:purpur_block,0.15,2"
     },
     {
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:stone_pickaxe",
       "tier": "stone",
-      "mode": "tool",
-      "entries": "gensokyou:cinnabar,0.98,3;gensokyou:spirit_iron_ore,0.98,3;gensokyou:star_silver_ore,0.30,4;gensokyou:oni_stone,0.30,4"
+      "mode": "oyamatsumi_mineral",
+      "entries": "minecraft:coal_ore,57,0;minecraft:iron_ore,14,0;minecraft:copper_ore,29,0;gensokyou:cinnabar,18,3;gensokyou:spirit_iron_ore,18,3;gensokyou:star_silver_ore,7.3,4;gensokyou:oni_stone,7.3,4"
     },
     {
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:golden_pickaxe",
       "tier": "gold",
-      "mode": "tool",
-      "entries": "minecraft:stone,60,0;minecraft:deepslate,12,0;minecraft:cobblestone,8.1,0;minecraft:granite,4.0,0;minecraft:diorite,4.0,0;minecraft:andesite,4.0,0;minecraft:tuff,2.0,0;minecraft:calcite,0.60,0;minecraft:dripstone_block,0.60,0;minecraft:amethyst_block,0.20,0;minecraft:lapis_ore,1.00,0;minecraft:coal_ore,3.0,0;minecraft:netherrack,11,1;minecraft:magma_block,0.18,1;minecraft:nether_quartz_ore,0.88,1;minecraft:end_stone,9.6,2;minecraft:purpur_block,0.16,2"
+      "mode": "oyamatsumi_stone",
+      "entries": "minecraft:stone,63,0;minecraft:deepslate,13,0;minecraft:cobblestone,8.4,0;minecraft:granite,4.2,0;minecraft:diorite,4.2,0;minecraft:andesite,4.2,0;minecraft:tuff,2.1,0;minecraft:calcite,0.63,0;minecraft:dripstone_block,0.63,0;minecraft:amethyst_block,0.21,0;minecraft:netherrack,10.0,1;minecraft:blackstone,3.3,1;minecraft:basalt,3.3,1;minecraft:magma_block,0.17,1;minecraft:end_stone,9.1,2;minecraft:purpur_block,0.15,2"
     },
     {
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:golden_pickaxe",
       "tier": "gold",
-      "mode": "tool",
-      "entries": "gensokyou:cinnabar,0.98,3;gensokyou:spirit_iron_ore,0.98,3;gensokyou:star_silver_ore,0.30,4;gensokyou:oni_stone,0.30,4"
+      "mode": "oyamatsumi_mineral",
+      "entries": "minecraft:lapis_ore,25,0;minecraft:coal_ore,75,0;minecraft:nether_quartz_ore,20,1;gensokyou:cinnabar,17,3;gensokyou:spirit_iron_ore,17,3;gensokyou:star_silver_ore,6.5,4;gensokyou:oni_stone,6.5,4"
     },
     {
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:iron_pickaxe",
       "tier": "iron",
-      "mode": "tool",
-      "entries": "minecraft:stone,52,0;minecraft:deepslate,10,0;minecraft:cobblestone,7.0,0;minecraft:granite,3.5,0;minecraft:diorite,3.5,0;minecraft:andesite,3.5,0;minecraft:tuff,1.7,0;minecraft:calcite,0.52,0;minecraft:dripstone_block,0.52,0;minecraft:amethyst_block,0.17,0;minecraft:iron_ore,5.0,0;minecraft:gold_ore,1.00,0;minecraft:lapis_ore,3.0,0;minecraft:redstone_ore,3.0,0;minecraft:diamond_ore,0.10,0;minecraft:copper_ore,5.0,0;minecraft:netherrack,10,1;minecraft:magma_block,0.17,1;minecraft:nether_quartz_ore,2.6,1;minecraft:end_stone,9.4,2;minecraft:purpur_block,0.16,2"
+      "mode": "oyamatsumi_stone",
+      "entries": "minecraft:stone,63,0;minecraft:deepslate,13,0;minecraft:cobblestone,8.4,0;minecraft:granite,4.2,0;minecraft:diorite,4.2,0;minecraft:andesite,4.2,0;minecraft:tuff,2.1,0;minecraft:calcite,0.63,0;minecraft:dripstone_block,0.63,0;minecraft:amethyst_block,0.21,0;minecraft:netherrack,10.0,1;minecraft:blackstone,3.3,1;minecraft:basalt,3.3,1;minecraft:magma_block,0.17,1;minecraft:end_stone,9.1,2;minecraft:purpur_block,0.15,2"
     },
     {
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:iron_pickaxe",
       "tier": "iron",
-      "mode": "tool",
-      "entries": "gensokyou:cinnabar,0.98,3;gensokyou:spirit_iron_ore,0.98,3;gensokyou:star_silver_ore,0.30,4;gensokyou:oni_stone,0.30,4"
+      "mode": "oyamatsumi_mineral",
+      "entries": "minecraft:iron_ore,29,0;minecraft:gold_ore,5.8,0;minecraft:lapis_ore,18,0;minecraft:redstone_ore,18,0;minecraft:diamond_ore,0.58,0;minecraft:copper_ore,29,0;minecraft:nether_quartz_ore,15,1;gensokyou:cinnabar,5.2,3;gensokyou:spirit_iron_ore,5.2,3;gensokyou:star_silver_ore,1.7,4;gensokyou:oni_stone,1.7,4"
     },
     {
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:diamond_pickaxe",
       "tier": "diamond",
-      "mode": "tool",
-      "entries": "minecraft:stone,48,0;minecraft:deepslate,9.6,0;minecraft:cobblestone,6.4,0;minecraft:granite,3.2,0;minecraft:diorite,3.2,0;minecraft:andesite,3.2,0;minecraft:tuff,1.6,0;minecraft:calcite,0.48,0;minecraft:dripstone_block,0.48,0;minecraft:amethyst_block,0.16,0;minecraft:iron_ore,10,0;minecraft:gold_ore,3.0,0;minecraft:diamond_ore,1.0,0;minecraft:copper_ore,10,0;minecraft:netherrack,11,1;minecraft:magma_block,0.18,1;minecraft:ancient_debris,0.09,1;minecraft:end_stone,9.6,2;minecraft:purpur_block,0.16,2"
+      "mode": "oyamatsumi_stone",
+      "entries": "minecraft:stone,63,0;minecraft:deepslate,13,0;minecraft:cobblestone,8.4,0;minecraft:granite,4.2,0;minecraft:diorite,4.2,0;minecraft:andesite,4.2,0;minecraft:tuff,2.1,0;minecraft:calcite,0.63,0;minecraft:dripstone_block,0.63,0;minecraft:amethyst_block,0.21,0;minecraft:netherrack,10.0,1;minecraft:blackstone,3.3,1;minecraft:basalt,3.3,1;minecraft:magma_block,0.17,1;minecraft:end_stone,9.1,2;minecraft:purpur_block,0.15,2"
     },
     {
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:diamond_pickaxe",
       "tier": "diamond",
-      "mode": "tool",
-      "entries": "gensokyou:cinnabar,0.98,3;gensokyou:spirit_iron_ore,0.98,3;gensokyou:star_silver_ore,0.30,4;gensokyou:oni_stone,0.30,4"
+      "mode": "oyamatsumi_mineral",
+      "entries": "minecraft:iron_ore,42,0;minecraft:gold_ore,12,0;minecraft:diamond_ore,4.2,0;minecraft:copper_ore,42,0;minecraft:ancient_debris,0.41,1;gensokyou:cinnabar,3.8,3;gensokyou:spirit_iron_ore,3.8,3;gensokyou:star_silver_ore,1.2,4;gensokyou:oni_stone,1.2,4"
     },
     {
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:netherite_pickaxe",
       "tier": "netherite",
-      "mode": "tool",
-      "entries": "minecraft:diamond_ore,5.0,0;minecraft:iron_ore,20,0;minecraft:gold_ore,10,0;minecraft:lapis_ore,20,0;minecraft:redstone_ore,20,0;minecraft:copper_ore,25,0;minecraft:netherrack,8.4,1;minecraft:magma_block,0.14,1;minecraft:nether_quartz_ore,21,1;minecraft:ancient_debris,0.35,1;minecraft:end_stone,7.7,2;minecraft:purpur_block,0.13,2"
+      "mode": "oyamatsumi_stone",
+      "entries": "minecraft:stone,63,0;minecraft:deepslate,13,0;minecraft:cobblestone,8.4,0;minecraft:granite,4.2,0;minecraft:diorite,4.2,0;minecraft:andesite,4.2,0;minecraft:tuff,2.1,0;minecraft:calcite,0.63,0;minecraft:dripstone_block,0.63,0;minecraft:amethyst_block,0.21,0;minecraft:netherrack,10.0,1;minecraft:blackstone,3.3,1;minecraft:basalt,3.3,1;minecraft:magma_block,0.17,1;minecraft:end_stone,9.1,2;minecraft:purpur_block,0.15,2"
     },
     {
       "type": "gensokyou:loot_page",
       "tool_item": "minecraft:netherite_pickaxe",
       "tier": "netherite",
-      "mode": "tool",
-      "entries": "gensokyou:cinnabar,0.98,3;gensokyou:spirit_iron_ore,0.98,3;gensokyou:star_silver_ore,0.30,4;gensokyou:oni_stone,0.30,4"
+      "mode": "oyamatsumi_mineral",
+      "entries": "minecraft:diamond_ore,5.0,0;minecraft:iron_ore,20,0;minecraft:gold_ore,10,0;minecraft:lapis_ore,20,0;minecraft:redstone_ore,20,0;minecraft:copper_ore,25,0;minecraft:nether_quartz_ore,23,1;minecraft:ancient_debris,0.38,1;gensokyou:cinnabar,0.98,3;gensokyou:spirit_iron_ore,0.98,3;gensokyou:star_silver_ore,0.30,4;gensokyou:oni_stone,0.30,4"
     }
   ]
 }

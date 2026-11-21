@@ -124,6 +124,8 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.CRYSTAL_ITEM.get());
                         output.accept(ModItems.DANMAKU_ASSEMBLY_BENCH_ITEM.get());
                         output.accept(ModItems.TREASURE_BASIN_ITEM.get());
+                        output.accept(ModItems.SPIRIT_OXIDIZER_ITEM.get());
+                        output.accept(ModItems.SPIRIT_FREEZER_ITEM.get());
                         output.accept(ModItems.RITUAL_WAND.get());
                         output.accept(ModItems.RITUAL_BUILDER.get());
                         ModItems.SPIRIT_CORES.forEach(core -> output.accept(core.get()));

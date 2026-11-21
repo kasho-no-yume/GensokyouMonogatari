@@ -710,20 +710,44 @@ public final class DebugCommands {
                 if (tier == null) {
                     tier = "none";
                 }
-                var pool = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
-                        .debugPool(table, tier, nether, end, gkLow, gkHigh);
-                double total = 0D;
-                for (double w : pool.values()) {
-                    total += w;
-                }
                 StringBuilder sb = new StringBuilder();
-                for (var e : pool.entrySet()) {
-                    double pct = total > 0D ? e.getValue() / total * 100D : 0D;
-                    sb.append(e.getKey()).append('=')
-                            .append(String.format(java.util.Locale.ROOT, "%.2f", e.getValue()))
-                            .append("~")
-                            .append(String.format(java.util.Locale.ROOT, "%.2f", pct))
-                            .append("% ");
+                String countSummary;
+                if (!table.outputChannels().isEmpty()
+                        && am.patternId().getPath().equals("oyamatsumi_circle")) {
+                    var channelPools = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                            .debugOutputChannelPools(table, tier, nether, end, gkLow, gkHigh);
+                    for (var channel : channelPools.entrySet()) {
+                        double total = channel.getValue().values().stream().mapToDouble(Double::doubleValue).sum();
+                        sb.append(channel.getKey()).append('[');
+                        for (var entry : channel.getValue().entrySet()) {
+                            double pct = total > 0D ? entry.getValue() / total * 100D : 0D;
+                            sb.append(entry.getKey()).append('=')
+                                    .append(String.format(java.util.Locale.ROOT, "%.2f", entry.getValue()))
+                                    .append('~').append(String.format(java.util.Locale.ROOT, "%.2f", pct))
+                                    .append("% ");
+                        }
+                        sb.append("] ");
+                    }
+                    int stone = com.bitsson.gensokyou.ritual.behavior.OyamatsumiBehavior.stoneCount(am.level());
+                    int mineral = com.bitsson.gensokyou.ritual.behavior.OyamatsumiBehavior.mineralCount(am.level());
+                    countSummary = "count=" + com.bitsson.gensokyou.ritual.behavior.OyamatsumiBehavior
+                            .totalCount(am.level()) + " stone=" + stone + " mineral=" + mineral;
+                } else {
+                    var pool = com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                            .debugPool(table, tier, nether, end, gkLow, gkHigh);
+                    double total = 0D;
+                    for (double w : pool.values()) {
+                        total += w;
+                    }
+                    for (var entry : pool.entrySet()) {
+                        double pct = total > 0D ? entry.getValue() / total * 100D : 0D;
+                        sb.append(entry.getKey()).append('=')
+                                .append(String.format(java.util.Locale.ROOT, "%.2f", entry.getValue()))
+                                .append('~').append(String.format(java.util.Locale.ROOT, "%.2f", pct))
+                                .append("% ");
+                    }
+                    countSummary = "count=" + com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
+                            .producedCount(am.level());
                 }
                 msg = "[GS-AUTO] SACRIFICE pattern=" + am.patternId() + " level=" + am.level()
                         + " ped=" + com.bitsson.gensokyou.ritual.RitualPedestals.positions(am).size()
@@ -733,8 +757,7 @@ public final class DebugCommands {
                         + " nether=" + nether + " end=" + end
                         + " cost=" + com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
                                 .spiritCost(am.level())
-                        + " count=" + com.bitsson.gensokyou.ritual.behavior.ToolSacrificeBehavior
-                                .producedCount(am.level())
+                        + " " + countSummary
                         + " pool={" + sb.toString().trim() + "}";
             }
         } else {

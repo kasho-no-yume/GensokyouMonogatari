@@ -28,10 +28,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RitualLootCategory implements IRecipeCategory<RitualLootCardWrapper> {
 
     public static final int WIDTH = 170;
-    public static final int HEIGHT = 128;
+    public static final int HEIGHT = 176;
     private static final int TITLE_COLOR = 0xFF1F1F1F;
     private static final int SUBTLE_COLOR = 0xFF666666;
     private static final int SLOTS_PER_ROW = 9;
+    private static final int CHANNEL_COLS = 4;
     private static final int TOOL_X = WIDTH - 22;
     private static final int TOOL_Y = 10;
     private static final int GRID_X = 4;
@@ -98,12 +99,24 @@ public class RitualLootCategory implements IRecipeCategory<RitualLootCardWrapper
             double denom = recipe.denominatorFor(i);
             double percent = denom > 0.0D ? entry.weight() / denom * 100.0D : 0.0D;
             int section = recipe.sectionFor(i);
-            builder.addSlot(RecipeIngredientRole.OUTPUT, slotX(i), slotY(i))
+            int x = recipe.hasOutputChannels()
+                    ? GRID_X + recipe.channelIndexForEntry(i) * 86
+                            + (recipe.channelEntryIndex(i) % CHANNEL_COLS) * 18
+                    : slotX(i);
+            int y = recipe.hasOutputChannels()
+                    ? GRID_Y + (recipe.channelEntryIndex(i) / CHANNEL_COLS) * ROW_STEP
+                    : slotY(i);
+            builder.addSlot(RecipeIngredientRole.OUTPUT, x, y)
                     .addItemStack(new ItemStack(entry.item()))
                     .addRichTooltipCallback((view, tooltip) -> {
+                        if (recipe.hasOutputChannels()) {
+                            tooltip.add(Component.translatable("jei." + Gensokyou.MODID
+                                    + ".loot.oyamatsumi.channel." + recipe.channelForSection(section)));
+                        }
                         tooltip.add(Component.translatable("jei." + Gensokyou.MODID
                                 + ".loot.weight", formatPercent(percent)));
-                        switch (section) {
+                        int conditionSection = recipe.hasOutputChannels() ? section % 5 : section;
+                        switch (conditionSection) {
                             case 1 -> tooltip.add(Component.translatable(
                                     "jei." + Gensokyou.MODID + ".loot.nether"));
                             case 2 -> tooltip.add(Component.translatable(
@@ -128,6 +141,12 @@ public class RitualLootCategory implements IRecipeCategory<RitualLootCardWrapper
         graphics.drawString(font, tier, 4, 12, SUBTLE_COLOR, false);
         graphics.drawString(font, Component.translatable("jei." + Gensokyou.MODID + ".loot.hint"),
                 4, FOOTER_Y, SUBTLE_COLOR, false);
+        if (recipe.hasOutputChannels()) {
+            graphics.drawString(font, Component.translatable("jei." + Gensokyou.MODID
+                    + ".loot.oyamatsumi.channel.stone"), GRID_X, 24, SUBTLE_COLOR, false);
+            graphics.drawString(font, Component.translatable("jei." + Gensokyou.MODID
+                    + ".loot.oyamatsumi.channel.mineral"), GRID_X + 86, 24, SUBTLE_COLOR, false);
+        }
     }
 
     @Override

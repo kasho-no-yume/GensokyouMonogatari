@@ -1,0 +1,30 @@
+{
+  "name": "block.gensokyou.spirit_oxidizer",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:spirit_oxidizer",
+  "sortnum": 46,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:spirit_oxidizer",
+      "text": "gensokyou.book.entry.spirit_oxidizer.p1"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.spirit_treatment.operation"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.spirit_treatment.range"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.spirit_oxidizer.p2"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_spirit_oxidizer"
+    }
+  ]
+}

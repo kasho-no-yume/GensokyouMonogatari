@@ -155,13 +155,27 @@ public class RitualTierComponent implements ICustomComponent {
                 add(out, "输出上限", compact(GensokyouServerConfig.YUMEWATARI_OUT_RATE_PER_SECOND.get()) + " /秒");
                 add(out, "缓存", compact(GensokyouServerConfig.YUMEWATARI_BASE_CAPACITY.get() * pow(4, L)));
             }
-            case "haniyasu_circle", "kukunochi_circle", "kaya_no_hime_circle", "oyamatsumi_circle" -> {
+            case "haniyasu_circle", "kukunochi_circle", "kaya_no_hime_circle" -> {
                 add(out, "受灵上限", compact(GensokyouServerConfig.SACRIFICE_SPIRIT_IN_RATE.get()) + " /秒");
                 add(out, "缓存", compact(GensokyouServerConfig.SACRIFICE_BASE_CAPACITY.get() * pow(4, L)));
                 add(out, "每次结算", "耗灵 " + compact(GensokyouServerConfig.SACRIFICE_BASE_SP_COST.get()
                         * pow(GensokyouServerConfig.SACRIFICE_SP_COST_MULT.get(), L))
                         + "，产出 " + compact(BalanceNumbers.SACRIFICE_BASE_COUNT
                         * pow(GensokyouServerConfig.SACRIFICE_COUNT_MULT.get(), L)) + " 件");
+                add(out, "冷却", (GensokyouServerConfig.SACRIFICE_COOLDOWN_TICKS.get() / 20) + " 秒");
+            }
+            case "oyamatsumi_circle" -> {
+                add(out, "受灵上限", compact(GensokyouServerConfig.SACRIFICE_SPIRIT_IN_RATE.get()) + " /秒");
+                add(out, "缓存", compact(GensokyouServerConfig.SACRIFICE_BASE_CAPACITY.get() * pow(4, L)));
+                long cost = GensokyouServerConfig.SACRIFICE_BASE_SP_COST.get()
+                        * pow(GensokyouServerConfig.SACRIFICE_SP_COST_MULT.get(), L);
+                long stone = (long) BalanceNumbers.OYAMATSUMI_STONE_BASE_COUNT
+                        * pow(GensokyouServerConfig.OYAMATSUMI_STONE_COUNT_MULT.get(), L);
+                long mineral = (long) BalanceNumbers.OYAMATSUMI_MINERAL_BASE_COUNT
+                        * pow(GensokyouServerConfig.OYAMATSUMI_MINERAL_COUNT_MULT.get(), L);
+                long total = stone + mineral;
+                add(out, "每次结算", "耗灵 " + compact(cost) + "，石料 " + compact(stone)
+                        + " + 矿物 " + compact(mineral) + "，合计 " + compact(total) + " 件");
                 add(out, "冷却", (GensokyouServerConfig.SACRIFICE_COOLDOWN_TICKS.get() / 20) + " 秒");
             }
             case "watatsumi_circle" -> {

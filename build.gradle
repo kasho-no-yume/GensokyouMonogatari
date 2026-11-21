@@ -40,6 +40,7 @@ sourceSets.main.resources {
 // 故 dev 运行（专用服/客户端）仍能拿到这些类。
 tasks.named('jar', Jar).configure {
     exclude 'com/bitsson/gensokyou/testkit/**'
+    exclude 'data/gensokyou/structure/test/**'
 }
 
 repositories {
@@ -86,6 +87,11 @@ neoForge {
             client()
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            if (providers.gradleProperty('testSpiritTreatmentJei').isPresent()) {
+                gameDirectory = project.file('build/spirit-treatment-jei-run')
+                systemProperty 'gensokyou.testSpiritTreatmentJei', 'true'
+                programArguments.addAll '--quickPlaySingleplayer', 'world'
+            }
         }
 
         server {
@@ -121,6 +127,7 @@ neoForge {
         // The gametest system is also enabled by default for other run configs under the /test command.
         gameTestServer {
             type = "gameTestServer"
+            gameDirectory = project.file('build/gametest-run')
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
@@ -170,7 +177,9 @@ configurations {
 dependencies {
     compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
     compileOnly "mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}"
-    localRuntime "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
+    if (!providers.gradleProperty('withoutJei').isPresent()) {
+        localRuntime "mezz.jei:jei-${minecraft_version}-neoforge:${jei_version}"
+    }
 
     // GeckoLib — hard dependency (bundled by the player).
     implementation "software.bernie.geckolib:geckolib-neoforge-${minecraft_version}:${geckolib_version}"
@@ -260,7 +269,7 @@ tasks.register('verifyNoTestContent') {
         def jarPath = jarProvider.get().asFile
         def forbiddenPrefixes = ['data/gs_test/', 'data/gs_autotest/', 'data/gs_yume/',
                                  // 游戏内验收测试台（dev-only，src/main/java 但不进 jar）
-                                 'com/bitsson/gensokyou/testkit/']
+                                 'com/bitsson/gensokyou/testkit/', 'data/gensokyou/structure/test/']
         def forbiddenExact = [
                 'data/gensokyou/structure/haiden.nbt',
                 'data/gensokyou/structure/min_test.nbt',

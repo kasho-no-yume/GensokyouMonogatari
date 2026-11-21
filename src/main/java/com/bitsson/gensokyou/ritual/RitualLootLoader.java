@@ -27,6 +27,7 @@ import java.util.Set;
  * {@code commonsTotal}（桶总权重，缺省 100）、{@code skullsRequired}/{@code dragonHeadsRequired}、
  * {@code commons}（桶内相对权重）、可选顶层 {@code nether}/{@code end}（各材质缺省条件池）、
  * {@code tables[]}（每工具材质一条：{@code tier} + {@code special} + 可选 {@code nether}/{@code end} 覆盖）。
+ * 可选 {@code output_channels[]} 为互相独立的产量池，每个池有自己的 commons、条件池与材质表。
  *
  * <p>非法（未知物品 id / 负权重 / 空表 / 未知材质名）即拒载该文件并报因，不影响其他文件。
  */
@@ -78,11 +79,8 @@ public class RitualLootLoader extends SimpleJsonResourceReloadListener {
         int commonsTotal = GsonHelper.getAsInt(json, "commonsTotal", 100);
         int skulls = Math.max(0, GsonHelper.getAsInt(json, "skullsRequired", 3));
         int heads = Math.max(0, GsonHelper.getAsInt(json, "dragonHeadsRequired", 1));
-        List<RitualLootTable.Weighted> commons = parseWeighted(
-                GsonHelper.getAsJsonArray(json, "commons"), "commons");
-        if (commons.isEmpty()) {
-            throw new IllegalArgumentException("commons must not be empty");
-        }
+        List<RitualLootTable.Weighted> commons = json.has("commons")
+                ? parseWeighted(GsonHelper.getAsJsonArray(json, "commons"), "commons") : List.of();
         // 顶层条件池缺省：各材质未显式给 nether/end 时沿用
         List<RitualLootTable.Weighted> topNether = json.has("nether")
                 ? parseWeighted(GsonHelper.getAsJsonArray(json, "nether"), "nether") : List.of();
@@ -94,36 +92,103 @@ public class RitualLootLoader extends SimpleJsonResourceReloadListener {
         List<RitualLootTable.Weighted> gensokyouHigh = json.has("gensokyou_high")
                 ? parseWeighted(GsonHelper.getAsJsonArray(json, "gensokyou_high"), "gensokyou_high") : List.of();
 
+        List<RitualLootTable.TierTable> tables = json.has("tables")
+                ? parseTierTables(GsonHelper.getAsJsonArray(json, "tables"), topNether, topEnd, "tables")
+                : List.of();
+        List<RitualLootTable.OutputChannel> channels = json.has("output_channels")
+                ? parseOutputChannels(GsonHelper.getAsJsonArray(json, "output_channels")) : List.of();
+        if (commons.isEmpty() && channels.isEmpty()) {
+            throw new IllegalArgumentException("commons must not be empty unless output_channels are declared");
+        }
+        if (tables.isEmpty() && channels.isEmpty()) {
+            throw new IllegalArgumentException("tables must not be empty unless output_channels are declared");
+        }
+        boolean hasStoneChannel = channels.stream().anyMatch(channel -> channel.id().equals("stone"));
+        boolean hasMineralChannel = channels.stream().anyMatch(channel -> channel.id().equals("mineral"));
+        if (pattern.getPath().equals("oyamatsumi_circle") && !channels.isEmpty()
+                && (!hasStoneChannel || !hasMineralChannel)) {
+            throw new IllegalArgumentException("oyamatsumi_circle requires stone and mineral output_channels");
+        }
+        return new RitualLootTable(pattern, RitualLootTable.parseToolTag(toolTagRaw), commonsTotal,
+                skulls, heads, List.copyOf(commons), List.copyOf(gensokyouLow),
+                List.copyOf(gensokyouHigh), List.copyOf(tables), List.copyOf(channels));
+    }
+
+    private static List<RitualLootTable.OutputChannel> parseOutputChannels(JsonArray channelsJson) {
+        List<RitualLootTable.OutputChannel> channels = new ArrayList<>();
+        Set<String> seenIds = new HashSet<>();
+        for (JsonElement element : channelsJson) {
+            JsonObject channel = GsonHelper.convertToJsonObject(element, "output channel");
+            String id = GsonHelper.getAsString(channel, "id");
+            if (id.isBlank() || !seenIds.add(id)) {
+                throw new IllegalArgumentException("output channel id must be non-empty and unique: " + id);
+            }
+            int channelCommonsTotal = GsonHelper.getAsInt(channel, "commonsTotal", 100);
+            List<RitualLootTable.Weighted> channelCommons = channel.has("commons")
+                    ? parseWeighted(GsonHelper.getAsJsonArray(channel, "commons"), id + ".commons")
+                    : List.of();
+            List<RitualLootTable.Weighted> topNether = channel.has("nether")
+                    ? parseWeighted(GsonHelper.getAsJsonArray(channel, "nether"), id + ".nether")
+                    : List.of();
+            List<RitualLootTable.Weighted> topEnd = channel.has("end")
+                    ? parseWeighted(GsonHelper.getAsJsonArray(channel, "end"), id + ".end")
+                    : List.of();
+            List<RitualLootTable.Weighted> low = channel.has("gensokyou_low")
+                    ? parseWeighted(GsonHelper.getAsJsonArray(channel, "gensokyou_low"), id + ".gensokyou_low")
+                    : List.of();
+            List<RitualLootTable.Weighted> high = channel.has("gensokyou_high")
+                    ? parseWeighted(GsonHelper.getAsJsonArray(channel, "gensokyou_high"), id + ".gensokyou_high")
+                    : List.of();
+            List<RitualLootTable.TierTable> channelTables = parseTierTables(
+                    GsonHelper.getAsJsonArray(channel, "tables"), topNether, topEnd, id + ".tables");
+            RitualLootTable.OutputChannel parsed = new RitualLootTable.OutputChannel(id, channelCommonsTotal,
+                    List.copyOf(channelCommons), List.copyOf(low), List.copyOf(high), channelTables);
+            for (RitualLootTable.TierTable tier : channelTables) {
+                if (RitualLootTable.sumWeight(RitualLootTable.buildPool(parsed, tier.tier(),
+                        false, false, false, false)) <= 0.0D) {
+                    throw new IllegalArgumentException(id + "." + tier.tier()
+                            + " must have a positive base pool to guarantee its quota");
+                }
+            }
+            channels.add(parsed);
+        }
+        if (channels.isEmpty()) {
+            throw new IllegalArgumentException("output_channels must not be empty");
+        }
+        return channels;
+    }
+
+    private static List<RitualLootTable.TierTable> parseTierTables(JsonArray tablesJson,
+                                                                   List<RitualLootTable.Weighted> topNether,
+                                                                   List<RitualLootTable.Weighted> topEnd,
+                                                                   String where) {
         List<RitualLootTable.TierTable> tables = new ArrayList<>();
         Set<String> seenTiers = new HashSet<>();
-        JsonArray tablesJson = GsonHelper.getAsJsonArray(json, "tables");
         for (JsonElement element : tablesJson) {
             JsonObject entry = GsonHelper.convertToJsonObject(element, "tier table");
             String tier = GsonHelper.getAsString(entry, "tier");
             if (!RitualLootTable.TIER_KEYS.contains(tier)) {
-                throw new IllegalArgumentException("unknown tool tier: " + tier);
+                throw new IllegalArgumentException(where + ": unknown tool tier: " + tier);
             }
             if (!seenTiers.add(tier)) {
-                throw new IllegalArgumentException("duplicate tool tier: " + tier);
+                throw new IllegalArgumentException(where + ": duplicate tool tier: " + tier);
             }
             List<RitualLootTable.Weighted> special = entry.has("special")
-                    ? parseWeighted(GsonHelper.getAsJsonArray(entry, "special"), tier + ".special")
+                    ? parseWeighted(GsonHelper.getAsJsonArray(entry, "special"), where + "." + tier + ".special")
                     : List.of();
             List<RitualLootTable.Weighted> nether = entry.has("nether")
-                    ? parseWeighted(GsonHelper.getAsJsonArray(entry, "nether"), tier + ".nether")
+                    ? parseWeighted(GsonHelper.getAsJsonArray(entry, "nether"), where + "." + tier + ".nether")
                     : topNether;
             List<RitualLootTable.Weighted> end = entry.has("end")
-                    ? parseWeighted(GsonHelper.getAsJsonArray(entry, "end"), tier + ".end")
+                    ? parseWeighted(GsonHelper.getAsJsonArray(entry, "end"), where + "." + tier + ".end")
                     : topEnd;
             tables.add(new RitualLootTable.TierTable(tier, List.copyOf(special),
                     List.copyOf(nether), List.copyOf(end)));
         }
         if (tables.isEmpty()) {
-            throw new IllegalArgumentException("tables must not be empty");
+            throw new IllegalArgumentException(where + " must not be empty");
         }
-        return new RitualLootTable(pattern, RitualLootTable.parseToolTag(toolTagRaw), commonsTotal,
-                skulls, heads, List.copyOf(commons), List.copyOf(gensokyouLow),
-                List.copyOf(gensokyouHigh), List.copyOf(tables));
+        return List.copyOf(tables);
     }
 
     /** 解析 {@code [[itemId, weight], ...]}；未知物品 id / 负权重即抛。 */

@@ -196,6 +196,28 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
                 tierTable, nether, end, gensokyou);
     }
 
+    /** 本次结算的产物聚合；子类可将固定产量拆到多个独立池。 */
+    protected Map<Item, Integer> rollDrops(RitualLootTable table, String tier,
+                                           boolean nether, boolean end,
+                                           boolean gensokyouLow, boolean gensokyouHigh,
+                                           int level, net.minecraft.util.RandomSource random) {
+        return RitualLootTable.rollMany(poolFor(table, tier, nether, end,
+                gensokyouLow, gensokyouHigh), producedCount(level), random);
+    }
+
+    /** 基值 × multiplier^level，溢出时钳制到 int 最大值。 */
+    public static int scaledCount(int base, int multiplier, int level) {
+        long value = Math.max(0, base);
+        long mult = Math.max(0, multiplier);
+        for (int i = 0; i < Math.max(0, level); i++) {
+            if (mult > 0 && value > Integer.MAX_VALUE / mult) {
+                return Integer.MAX_VALUE;
+            }
+            value *= mult;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, value);
+    }
+
     /** 聚合产物空投：核心上 1 格、水平半径 R 圆盘内随机（统一落点工具），同类按最大堆叠拆叠。 */
     private static void dropAll(ServerLevel level, BlockPos corePos, Map<Item, Integer> agg) {
         if (agg.isEmpty()) {
@@ -259,9 +281,8 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
         consumeTool(level, chosen);
 
         // 掷骰 + 聚合 + 空投
-        List<RitualLootTable.Weighted> pool = poolFor(table, tier, nether, end, gkLow, gkHigh);
-        int count = producedCount(match.level());
-        Map<Item, Integer> agg = RitualLootTable.rollMany(pool, count, level.random);
+        Map<Item, Integer> agg = rollDrops(table, tier, nether, end, gkLow, gkHigh,
+                match.level(), level.random);
         dropAll(level, corePos, agg);
 
         core.setActionCooldown(GensokyouServerConfig.SACRIFICE_COOLDOWN_TICKS.get());
@@ -354,6 +375,23 @@ public abstract class ToolSacrificeBehavior implements RitualBehavior {
         for (RitualLootTable.Weighted w : poolFor(table, tier, nether, end, gensokyouLow, gensokyouHigh)) {
             String id = BuiltInRegistries.ITEM.getKey(w.item()).toString();
             out.merge(id, w.weight(), Double::sum);
+        }
+        return out;
+    }
+
+    /** 调试用：逐通道显示独立权重池，避免把不同保底配额误合并成一个概率池。 */
+    public static Map<String, Map<String, Double>> debugOutputChannelPools(
+            RitualLootTable table, String tier, boolean nether, boolean end,
+            boolean gensokyouLow, boolean gensokyouHigh) {
+        Map<String, Map<String, Double>> out = new LinkedHashMap<>();
+        for (RitualLootTable.OutputChannel channel : table.outputChannels()) {
+            Map<String, Double> entries = new LinkedHashMap<>();
+            for (RitualLootTable.Weighted w : RitualLootTable.buildPool(channel, tier,
+                    nether, end, gensokyouLow, gensokyouHigh)) {
+                String id = BuiltInRegistries.ITEM.getKey(w.item()).toString();
+                entries.merge(id, w.weight(), Double::sum);
+            }
+            out.put(channel.id(), entries);
         }
         return out;
     }

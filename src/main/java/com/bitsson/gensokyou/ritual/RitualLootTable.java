@@ -28,7 +28,17 @@ import java.util.Optional;
 public record RitualLootTable(ResourceLocation patternId, TagKey<Item> toolTag, int commonsTotal,
                               int skullsRequired, int dragonHeadsRequired,
                               List<Weighted> commons, List<Weighted> gensokyouLow,
-                              List<Weighted> gensokyouHigh, List<TierTable> tables) {
+                              List<Weighted> gensokyouHigh, List<TierTable> tables,
+                              List<OutputChannel> outputChannels) {
+
+    /** Backward-compatible constructor for the original single-pool format. */
+    public RitualLootTable(ResourceLocation patternId, TagKey<Item> toolTag, int commonsTotal,
+                           int skullsRequired, int dragonHeadsRequired,
+                           List<Weighted> commons, List<Weighted> gensokyouLow,
+                           List<Weighted> gensokyouHigh, List<TierTable> tables) {
+        this(patternId, toolTag, commonsTotal, skullsRequired, dragonHeadsRequired,
+                commons, gensokyouLow, gensokyouHigh, tables, List.of());
+    }
 
     /** 工具材质键（与 pattern/JSON 约定一致）。 */
     public static final List<String> TIER_KEYS =
@@ -41,6 +51,16 @@ public record RitualLootTable(ResourceLocation patternId, TagKey<Item> toolTag, 
     /** 单材质的权重表（nether/end 解析期已按顶层缺省合并完毕）。 */
     public record TierTable(String tier, List<Weighted> special,
                             List<Weighted> nether, List<Weighted> end) {
+    }
+
+    /** Independent guaranteed-yield pool (used by Oyamatsumi's stone/mineral split). */
+    public record OutputChannel(String id, int commonsTotal, List<Weighted> commons,
+                                List<Weighted> gensokyouLow, List<Weighted> gensokyouHigh,
+                                List<TierTable> tables) {
+
+        public Optional<TierTable> table(String tier) {
+            return tables.stream().filter(t -> t.tier().equals(tier)).findFirst();
+        }
     }
 
     /** 工具类别标签（如 {@code #minecraft:pickaxes}）。 */
@@ -152,6 +172,22 @@ public record RitualLootTable(ResourceLocation patternId, TagKey<Item> toolTag, 
         }
         appendPositive(pool, gensokyou);
         return pool;
+    }
+
+    /** 组装独立产出通道的池；每个通道拥有自己的基础权重和条件池。 */
+    public static List<Weighted> buildPool(OutputChannel channel, String tier,
+                                           boolean nether, boolean end,
+                                           boolean gensokyouLow, boolean gensokyouHigh) {
+        TierTable tierTable = channel.table(tier).orElseGet(() -> channel.tables().get(0));
+        List<Weighted> gensokyou = new ArrayList<>();
+        if (gensokyouLow) {
+            gensokyou.addAll(channel.gensokyouLow());
+        }
+        if (gensokyouHigh) {
+            gensokyou.addAll(channel.gensokyouHigh());
+        }
+        return buildPool(channel.commons(), channel.commonsTotal(), tierTable,
+                nether, end, gensokyou);
     }
 
     private static void appendPositive(List<Weighted> pool, List<Weighted> source) {

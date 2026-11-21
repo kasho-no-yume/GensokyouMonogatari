@@ -9,6 +9,7 @@
     "description": {
       "translate": "advancement.gensokyou.achievement.root.description"
     },
+    "background": "gensokyou:textures/gui/advancement_background.png",
     "frame": "task",
     "show_toast": false,
     "announce_to_chat": false

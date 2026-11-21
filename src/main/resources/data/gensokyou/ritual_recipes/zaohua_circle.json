@@ -95,6 +95,32 @@
       "result": { "item": "gensokyou:treasure_basin", "count": 1 }
     },
     {
+      "name": "zaohua_spirit_oxidizer",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 0,
+      "spCost": 2000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_0", "count": 1 },
+        { "item": "minecraft:copper_block", "count": 1 },
+        { "item": "minecraft:quartz", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:spirit_oxidizer", "count": 1 }
+    },
+    {
+      "name": "zaohua_spirit_freezer",
+      "mode": "activation",
+      "match": "max",
+      "minTier": 0,
+      "spCost": 2000,
+      "ingredients": [
+        { "item": "gensokyou:ritual_stone_0", "count": 1 },
+        { "item": "minecraft:snow_block", "count": 1 },
+        { "item": "minecraft:amethyst_shard", "count": 1 }
+      ],
+      "result": { "item": "gensokyou:spirit_freezer", "count": 1 }
+    },
+    {
       "name": "zaohua_spirit_bomb",
       "mode": "activation",
       "match": "max",

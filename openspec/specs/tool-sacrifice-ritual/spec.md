@@ -45,7 +45,7 @@ TBD - created by archiving change add-tool-sacrifice-rituals. Update Purpose aft
 - **THEN** 本次结算仅随机消耗其中一把（恰好 1 件），其余原地留守供后续结算
 
 ### Requirement: 总权重表模型
-权重 SHALL 为**相对总权重**而非写死概率。某材质的实际抽取池 SHALL 由「commons 桶 + 该材质 special + 条件池」构成：commons 桶权重 = `max(0, commonsTotal − Σspecial)`（`commonsTotal` 默认 100），桶内按 commons 相对权重分配；条件池（nether / end / gensokyou）为额外加权。每次抽取 MUST 按各条目权重归一化选取 1 件。有材质 Σspecial 达到 `commonsTotal` 时其 commons 桶 SHALL 为空（对应「不出基础块」）。
+除大山祇神之座采用的独立保底产出通道外，权重 SHALL 为**相对总权重**而非写死概率。某材质的实际抽取池 SHALL 由「commons 桶 + 该材质 special + 条件池」构成：commons 桶权重 = `max(0, commonsTotal − Σspecial)`（`commonsTotal` 默认 100），桶内按 commons 相对权重分配；条件池（nether / end / gensokyou）为额外加权。每次抽取 MUST 按各条目权重归一化选取 1 件。有材质 Σspecial 达到 `commonsTotal` 时其 commons 桶 SHALL 为空（对应「不出基础块」）。
 
 #### Scenario: 基础块占比
 - **WHEN** 木镐 special 为 `coal` 权重 0.5、commonsTotal 为 100
@@ -64,7 +64,7 @@ TBD - created by archiving change add-tool-sacrifice-rituals. Update Purpose aft
 - **THEN** gensokyou 列表条目与既有条目一起按总权重抽取
 
 ### Requirement: 数据驱动的权重表加载
-权重表 SHALL 存放于 `data/gensokyou/ritual_loot/*.json`（一仪式一文件）并经服务端数据重载监听器加载。加载器 SHALL 校验物品 id 存在性与权重非负性，非法文件 MUST 被拒载并报因、MUST NOT 影响其他文件。文件内容 SHALL 支持顶层 `commons` 与按工具材质的 `special` / `nether` / `end` 列表，并 SHALL 支持顶层 `gensokyou_low` / `gensokyou_high` 幻想乡信物带列表（不按工具材质），并 SHALL 支持每材质可选覆盖 commons。
+权重表 SHALL 存放于 `data/gensokyou/ritual_loot/*.json`（一仪式一文件）并经服务端数据重载监听器加载。加载器 SHALL 校验物品 id 存在性与权重非负性，非法文件 MUST 被拒载并报因、MUST NOT 影响其他文件。文件内容 SHALL 支持顶层 `commons` 与按工具材质的 `special` / `nether` / `end` 列表，并 SHALL 支持顶层 `gensokyou_low` / `gensokyou_high` 幻想乡信物带列表（不按工具材质），并 SHALL 支持每材质可选覆盖 commons。可选 `output_channels` SHALL 定义多个互相独立的权重池，每池可有自己的基础 commons、工具材质表及条件池；声明该字段时允许省略传统顶层 commons 池。
 
 #### Scenario: 热重载生效
 - **WHEN** 修改某 ritual_loot JSON 后执行重载
@@ -78,16 +78,57 @@ TBD - created by archiving change add-tool-sacrifice-rituals. Update Purpose aft
 - **WHEN** 某 ritual_loot 文件在顶层声明 `gensokyou_low` / `gensokyou_high` 列表
 - **THEN** 加载成功，条目在对应信物条件满足时参与抽取
 
+#### Scenario: 多个独立产出通道
+- **WHEN** 大山祇掉落文件声明 `output_channels` 并为石料、矿物分别定义池
+- **THEN** 加载器分别解析各池的材质及条件条目，行为可在每个通道中独立按配额抽取
+
 ### Requirement: 逐件独立加权掷骰与产出聚合
-每次结算 SHALL 掷 `BASE_COUNT × 4^level` 次（默认 20×4^L），**每次独立**从抽取池选取 1 件。产出 SHALL 按物品种类聚合后拆为不超过最大堆叠数的若干叠，以控制生成实体数量。
+久久能智、埴山姬、草野姬每次结算 SHALL 掷 `BASE_COUNT × 4^level` 次（默认 20×4^L），**每次独立**从抽取池选取 1 件。产出 SHALL 按物品种类聚合后拆为不超过最大堆叠数的若干叠，以控制生成实体数量。大山祇的产量与结算见「大山祇独立保底产出通道」。
 
 #### Scenario: 产出总数与阶级
-- **WHEN** 仪式为 0 阶完成一次结算
+- **WHEN** 久久能智、埴山姬或草野姬为 0 阶完成一次结算
 - **THEN** 产出物品总件数为 20；1 阶为 80、2 阶为 320
 
 #### Scenario: 同类聚合
 - **WHEN** 一次结算掷出 20 件同种物品
 - **THEN** 按最大堆叠数聚合为尽量少的物品叠，而非 20 个独立实体
+
+### Requirement: 大山祇独立保底产出通道
+
+大山祇神之座 SHALL 将每次结算分为互不稀释的「石料」与「矿物」两个产出通道。石料 0 阶基数 SHALL 为 30，服务端配置 `oyamatsumiStoneCountMult` SHALL 为每阶倍率，默认 ×4；矿物 0 阶基数 SHALL 为 10，服务端配置 `oyamatsumiMineralCountMult` SHALL 为每阶倍率，默认 ×2。每个通道在本次结算 MUST 独立抽取其应产数量，通道内按相对权重逐件加权；一个通道的材质特殊项、地狱/末地池或幻想乡信物池 MUST NOT 减少另一通道的件数。
+
+石料通道 SHALL 按矿层类建材池抽取；矿物通道 SHALL 按工具材质选择矿物池。矿物通道中的地狱、末地及幻想乡信物解锁项 MUST 仅改变矿物池内的分布，不影响矿物保底数。各通道输出 SHALL 在最终投递前合并同物品数量，并沿用既有堆叠拆分与空投规则。
+
+| 结构阶 | 石料保底 | 矿物保底 | 总件数 |
+|---|---:|---:|---:|
+| 0 | 30 | 10 | 40 |
+| 1 | 120 | 20 | 140 |
+| 2 | 480 | 40 | 520 |
+
+#### Scenario: 0 阶两类保底不互相稀释
+
+- **WHEN** 0 阶大山祇使用任意有效镐结算
+- **THEN** 恰好抽取 30 件石料与 10 件矿物，不论各自池内抽取结果如何
+
+#### Scenario: 按不同倍率随阶增长
+
+- **WHEN** 大山祇升至 1 阶或 2 阶
+- **THEN** 1 阶分别产出 120 石料 + 20 矿物；2 阶分别产出 480 石料 + 40 矿物
+
+#### Scenario: 材质提升矿物品质但不改变配额
+
+- **WHEN** 同阶大山祇分别献祭木镐、铁镐或下界合金镐
+- **THEN** 矿物保底件数相同，矿物池可用产物按工具材质表变化
+
+#### Scenario: 条件解锁不稀释矿物保底
+
+- **WHEN** 祭品台上满足地狱、末地或幻想乡信物解锁条件
+- **THEN** 相应条件产物仅加入矿物池的独立加权抽取，石料与矿物应产件数均保持不变
+
+#### Scenario: 输出文档显示分池概率
+
+- **WHEN** 玩家在 JEI 或指导书查阅大山祇某一镐材质
+- **THEN** JEI 分别显示石料池、矿物池的产物与池内概率；指导书按池分别列出产物，并由阶级页显示该阶两类保底数与合计
 
 ### Requirement: 产物空投落点
 产出 SHALL 以物品实体形式空投在**核心上方第 1 格、水平半径 3（`RITUAL_OUTPUT_DROP_RADIUS`）的圆盘区域**内：水平落点在该圆盘内均匀随机，高度固定为核心 Y + 1（与被动配方产物同口径）。当随机落点所在列在核心上 1 格处被实心方块占用时，SHALL 在圆盘内重掷（至多 8 次）；仍失败时 SHALL 回退核心正上方。落点 MUST 始终位于该"核心上 1 格、半径 3"区域内，MUST NOT 依赖结构上方空间的遮挡高度抬升。产物 MUST NOT 设置拾取前无敌或防护（可被环境销毁）。
@@ -219,4 +260,3 @@ TBD - created by archiving change add-tool-sacrifice-rituals. Update Purpose aft
 
 - **WHEN** 大山祇神之座、久久能智神庭、埴山姬神之壤结算
 - **THEN** 三者的 `gensokyou_low` / `gensokyou_high` 带条目与本变更前一致
-

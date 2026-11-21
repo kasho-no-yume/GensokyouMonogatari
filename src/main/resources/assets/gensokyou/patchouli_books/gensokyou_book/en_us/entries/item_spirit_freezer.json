@@ -1,0 +1,34 @@
+{
+  "name": "block.gensokyou.spirit_freezer",
+  "category": "gensokyou:items",
+  "icon": "gensokyou:spirit_freezer",
+  "sortnum": 47,
+  "pages": [
+    {
+      "type": "patchouli:spotlight",
+      "item": "gensokyou:spirit_freezer",
+      "text": "gensokyou.book.entry.spirit_freezer.p1"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.spirit_treatment.operation"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.spirit_treatment.range"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.spirit_freezer.p2"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "gensokyou.book.entry.spirit_freezer.p3"
+    },
+    {
+      "type": "gensokyou:ritual_page",
+      "ritual": "gensokyou:zaohua_circle",
+      "recipe": "gensokyou:zaohua_spirit_freezer"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import com.bitsson.gensokyou.client.renderer.YakumoRanGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.RumiaGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.SkinMobRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualPedestalRenderer;
+import com.bitsson.gensokyou.client.renderer.SpiritTreatmentRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualCoreRenderer;
 import com.bitsson.gensokyou.client.renderer.SphereDanmakuRenderer;
 import com.bitsson.gensokyou.client.renderer.DanmakuBulletTextures;
@@ -125,6 +126,7 @@ public final class GensokyouClient {
         event.registerEntityRenderer(ModEntityTypes.DANMAKU_TELEGRAPH.get(),
                 context -> new BillboardRenderer<>(context, 1.1F, GensokyouTextures.ORBIT_ORB));
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_PEDESTAL.get(), RitualPedestalRenderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.SPIRIT_TREATMENT.get(), SpiritTreatmentRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.RITUAL_CORE.get(), RitualCoreRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.SUKIMA.get(), SukimaPortalRenderer::new);
         event.registerBlockEntityRenderer(ModBlockEntities.CRYSTAL.get(), CrystalRenderer::new);

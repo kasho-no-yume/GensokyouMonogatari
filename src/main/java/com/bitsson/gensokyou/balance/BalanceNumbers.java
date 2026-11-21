@@ -299,6 +299,10 @@ public final class BalanceNumbers {
     public static final Boolean TSUKIKAGE_MOON_PHASE_SCALING = false;
     /** 由原 COMMON 配置迁移（键名 SACRIFICE_BASE_COUNT）。 */
     public static final Integer SACRIFICE_BASE_COUNT = 20;
+    /** 大山祇每次结算的 0 阶石料保底数量；每阶倍率由 SERVER 配置控制。 */
+    public static final Integer OYAMATSUMI_STONE_BASE_COUNT = 30;
+    /** 大山祇每次结算的 0 阶矿物保底数量；每阶倍率由 SERVER 配置控制。 */
+    public static final Integer OYAMATSUMI_MINERAL_BASE_COUNT = 10;
     /** 由原 COMMON 配置迁移（键名 FX_PILLAR_HEIGHT）。 */
     public static final Double FX_PILLAR_HEIGHT = 48.0D;
     /** 由原 COMMON 配置迁移（键名 FX_PILLAR_TICKS）。 */

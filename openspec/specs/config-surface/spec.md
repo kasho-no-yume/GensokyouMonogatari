@@ -85,6 +85,11 @@ TBD - created by archiving change restructure-config-surface. Update Purpose aft
 - **WHEN** 玩家修改仪式产出倍率
 - **THEN** 各阶产出按新倍率缩放，而 1 阶基线保持不变（无对应配置键）
 
+#### Scenario: 大山祇石料与矿物倍率独立
+
+- **WHEN** 服主单独修改 `oyamatsumiStoneCountMult` 或 `oyamatsumiMineralCountMult`
+- **THEN** 只有对应保底产出通道随阶变化；0 阶基数 30 石料与 10 矿物仍由代码常量锁定
+
 #### Scenario: 区间型产出仍可调
 
 - **WHEN** 玩家修改镇魂返照的信物产出上界

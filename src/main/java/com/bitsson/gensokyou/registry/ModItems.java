@@ -428,6 +428,10 @@ public final class ModItems {
     /** 聚宝盆：可放置方块物品，吸附 7×7×7 范围内的掉落物（9 格容量）。 */
     public static final DeferredItem<BlockItem> TREASURE_BASIN_ITEM =
             ITEMS.registerSimpleBlockItem("treasure_basin", ModBlocks.TREASURE_BASIN);
+    public static final DeferredItem<BlockItem> SPIRIT_OXIDIZER_ITEM =
+            ITEMS.registerSimpleBlockItem("spirit_oxidizer", ModBlocks.SPIRIT_OXIDIZER);
+    public static final DeferredItem<BlockItem> SPIRIT_FREEZER_ITEM =
+            ITEMS.registerSimpleBlockItem("spirit_freezer", ModBlocks.SPIRIT_FREEZER);
 
     private static List<DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem>> registerSpiritCores() {
         List<DeferredItem<com.bitsson.gensokyou.spirit.SpiritCoreItem>> cores = new ArrayList<>();

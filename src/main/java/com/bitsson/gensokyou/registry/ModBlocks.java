@@ -8,6 +8,7 @@ import com.bitsson.gensokyou.block.RitualPedestalBlock;
 import com.bitsson.gensokyou.block.SukimaBlock;
 import com.bitsson.gensokyou.block.LandscapingBlock;
 import com.bitsson.gensokyou.block.SpiritBombBlock;
+import com.bitsson.gensokyou.block.SpiritTreatmentBlock;
 import com.bitsson.gensokyou.block.SpiritCropBlock;
 import com.bitsson.gensokyou.block.SpiritPlantBlock;
 import com.bitsson.gensokyou.block.SpiritSaplingBlock;
@@ -42,6 +43,14 @@ public final class ModBlocks {
     /** 祭品台：单一方块，tier BlockState 属性驱动变色（品阶视觉由核心重扫写入）。 */
     public static final DeferredBlock<RitualPedestalBlock> RITUAL_PEDESTAL =
             BLOCKS.registerBlock("ritual_pedestal", RitualPedestalBlock::new, stoneProperties().noOcclusion());
+    public static final DeferredBlock<SpiritTreatmentBlock> SPIRIT_OXIDIZER =
+            BLOCKS.registerBlock("spirit_oxidizer", SpiritTreatmentBlock::new, treatmentProperties());
+    public static final DeferredBlock<SpiritTreatmentBlock> SPIRIT_FREEZER =
+            BLOCKS.registerBlock("spirit_freezer", SpiritTreatmentBlock::new, treatmentProperties());
+
+    private static BlockBehaviour.Properties treatmentProperties() {
+        return stoneProperties().noOcclusion().pushReaction(PushReaction.BLOCK);
+    }
     /** 仪式石台阶：装饰变种，按品阶独立注册 ritual_stone_slab_0..5。 */
     public static final List<DeferredBlock<SlabBlock>> RITUAL_STONE_SLABS = new ArrayList<>();
     /** 仪式石楼梯：装饰变种，按品阶独立注册 ritual_stone_stairs_0..5。 */

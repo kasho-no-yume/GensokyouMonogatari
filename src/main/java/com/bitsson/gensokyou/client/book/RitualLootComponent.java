@@ -87,6 +87,8 @@ public class RitualLootComponent implements ICustomComponent {
         int y = 6;
 
         boolean watatsumi = "watatsumi".equals(mode);
+        boolean oyamatsumiStone = "oyamatsumi_stone".equals(mode);
+        boolean oyamatsumiMineral = "oyamatsumi_mineral".equals(mode);
         if (watatsumi) {
             y = drawWrapped(graphics, mc,
                     Component.translatable("gensokyou.book.loot.level", tier, count), x, y, HEADER_COLOR);
@@ -106,7 +108,27 @@ public class RitualLootComponent implements ICustomComponent {
                 list.add(entry);
             }
         }
-        if (watatsumi) {
+        if (oyamatsumiStone || oyamatsumiMineral) {
+            String key = oyamatsumiStone
+                    ? "gensokyou.book.loot.oyamatsumi.stone_pool"
+                    : "gensokyou.book.loot.oyamatsumi.mineral_pool";
+            y = drawWrapped(graphics, mc, Component.translatable(key), x, y, HEADER_COLOR);
+            for (int section = 0; section <= 4; section++) {
+                List<Entry> sec = new ArrayList<>();
+                for (Entry entry : list) {
+                    if (entry.section() == section) {
+                        sec.add(entry);
+                    }
+                }
+                if (sec.isEmpty()) {
+                    continue;
+                }
+                if (section != 0) {
+                    y = drawWrapped(graphics, mc, sectionLabel(section), x, y, SUBTLE_COLOR);
+                }
+                y = renderGrid(graphics, context, sec, x, y, mouseX, mouseY) + 3;
+            }
+        } else if (watatsumi) {
             // 海产：所有产物混在一起单网格显示（不分池，避免超框）。
             renderGrid(graphics, context, list, x, y, mouseX, mouseY);
         } else {

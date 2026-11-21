@@ -7,6 +7,7 @@ import com.bitsson.gensokyou.block.entity.RitualCoreBlockEntity;
 import com.bitsson.gensokyou.block.entity.RitualPedestalBlockEntity;
 import com.bitsson.gensokyou.block.entity.SukimaBlockEntity;
 import com.bitsson.gensokyou.block.entity.SpiritBombBlockEntity;
+import com.bitsson.gensokyou.block.entity.SpiritTreatmentBlockEntity;
 import com.bitsson.gensokyou.block.entity.TreasureBasinBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -32,6 +33,10 @@ public final class ModBlockEntities {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SukimaBlockEntity>> SUKIMA =
             BLOCK_ENTITIES.register("sukima", () -> new BlockEntityType<>(
                     SukimaBlockEntity::new, Set.of(ModBlocks.SUKIMA.get()), null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SpiritTreatmentBlockEntity>> SPIRIT_TREATMENT =
+            BLOCK_ENTITIES.register("spirit_treatment", () -> new BlockEntityType<>(
+                    SpiritTreatmentBlockEntity::new, Set.of(ModBlocks.SPIRIT_OXIDIZER.get(), ModBlocks.SPIRIT_FREEZER.get()), null));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<CrystalBlockEntity>> CRYSTAL =
             BLOCK_ENTITIES.register("crystal", () -> new BlockEntityType<>(

@@ -142,6 +142,8 @@ ITEM_RECIPE_ENTRIES = [
     ("gensokyou:ritual_pedestal", "crafting", "ritual_pedestal", "items", 43),
     ("gensokyou:danmaku_assembly_bench", "crafting", "danmaku_assembly_bench", "weapons", 44),
     ("gensokyou:boss_residual_codex", "crafting", "boss_residual_codex_big_fairy", "items", 45),
+    ("gensokyou:spirit_oxidizer", "ritual", "zaohua_spirit_oxidizer", "items", 46),
+    ("gensokyou:spirit_freezer", "ritual", "zaohua_spirit_freezer", "items", 47),
 ]
 
 ITEM_RECIPE_TEXT_OVERRIDES = {
@@ -149,6 +151,22 @@ ITEM_RECIPE_TEXT_OVERRIDES = {
     "gensokyou:danmaku_weapon": "gensokyou.book.entry.item_danmaku_weapon.p1",
     "gensokyou:danmaku_assembly_bench": "gensokyou.book.entry.item_danmaku_assembly_bench.p1",
     "gensokyou:boss_residual_codex": "gensokyou.book.entry.item_recipe.boss_residual_codex.p1",
+    "gensokyou:spirit_oxidizer": "gensokyou.book.entry.spirit_oxidizer.p1",
+    "gensokyou:spirit_freezer": "gensokyou.book.entry.spirit_freezer.p1",
+}
+
+ITEM_RECIPE_EXTRA_TEXT = {
+    "gensokyou:spirit_oxidizer": [
+        "gensokyou.book.entry.spirit_treatment.operation",
+        "gensokyou.book.entry.spirit_treatment.range",
+        "gensokyou.book.entry.spirit_oxidizer.p2",
+    ],
+    "gensokyou:spirit_freezer": [
+        "gensokyou.book.entry.spirit_treatment.operation",
+        "gensokyou.book.entry.spirit_treatment.range",
+        "gensokyou.book.entry.spirit_freezer.p2",
+        "gensokyou.book.entry.spirit_freezer.p3",
+    ],
 }
 
 
@@ -207,6 +225,39 @@ def tool_loot_entries(path, tier):
     for i, w in gk_high:
         out.append((i, w / gk_high_total * 100 if gk_high_total > 0 else 0.0, 4))
     return out
+
+
+def tool_channel_entries(path, channel, tier):
+    """按独立 output channel 归一化概率，section 与 RitualLootComponent 一致。"""
+    with open(os.path.join(LOOT_DIR, path + ".json"), encoding="utf-8") as handle:
+        loot = json.load(handle)
+    data = next(c for c in loot["output_channels"] if c["id"] == channel)
+    table = next(t for t in data["tables"] if t["tier"] == tier)
+    commons = data.get("commons", [])
+    commons_total = data.get("commonsTotal", 100)
+    special = table.get("special", [])
+    special_sum = sum(w for _, w in special if w > 0)
+    bucket = max(0.0, commons_total - special_sum)
+    commons_rel = sum(w for _, w in commons if w > 0)
+    base = []
+    if bucket > 0.0 and commons_rel > 0.0:
+        base += [(item, weight * bucket / commons_rel) for item, weight in commons if weight > 0]
+    base += [(item, weight) for item, weight in special if weight > 0]
+    nether = [(item, weight) for item, weight in table.get("nether", data.get("nether", [])) if weight > 0]
+    end = [(item, weight) for item, weight in table.get("end", data.get("end", [])) if weight > 0]
+    low = [(item, weight) for item, weight in data.get("gensokyou_low", []) if weight > 0]
+    high = [(item, weight) for item, weight in data.get("gensokyou_high", []) if weight > 0]
+
+    def scaled(entries, denominator, section):
+        return [(item, weight / denominator * 100 if denominator > 0 else 0.0, section)
+                for item, weight in entries]
+
+    base_total = sum(weight for _, weight in base)
+    return (scaled(base, base_total, 0)
+            + scaled(nether, base_total + sum(weight for _, weight in nether), 1)
+            + scaled(end, base_total + sum(weight for _, weight in nether + end), 2)
+            + scaled(low, base_total + sum(weight for _, weight in low), 3)
+            + scaled(high, base_total + sum(weight for _, weight in high), 4))
 
 
 def _scale_into(src, category_weight):
@@ -330,28 +381,40 @@ def build_entry(path, icon, no_recipes, sortnum):
             loot = json.load(handle)
         tool_tag = loot["toolTag"]
         for table in loot["tables"]:
-            entries = tool_loot_entries(path, table["tier"])
-            base = [e for e in entries if e[2] <= 2]
-            gk = [e for e in entries if e[2] >= 3]
             tool_item = tool_item_for(tool_tag, table["tier"])
-            pages.append({
-                "type": "gensokyou:loot_page",
-                "tool_item": tool_item,
-                "tier": table["tier"],
-                "mode": "tool",
-                "entries": _enc(base),
-            })
-            loot_pages += 1
-            # 信物带（低/中）单开一页，避免与基础池同页超框。
-            if gk:
+            if loot.get("output_channels"):
+                for channel in loot["output_channels"]:
+                    entries = tool_channel_entries(path, channel["id"], table["tier"])
+                    pages.append({
+                        "type": "gensokyou:loot_page",
+                        "tool_item": tool_item,
+                        "tier": table["tier"],
+                        "mode": f"oyamatsumi_{channel['id']}",
+                        "entries": _enc(entries),
+                    })
+                    loot_pages += 1
+            else:
+                entries = tool_loot_entries(path, table["tier"])
+                base = [e for e in entries if e[2] <= 2]
+                gk = [e for e in entries if e[2] >= 3]
                 pages.append({
                     "type": "gensokyou:loot_page",
                     "tool_item": tool_item,
                     "tier": table["tier"],
                     "mode": "tool",
-                    "entries": _enc(gk),
+                    "entries": _enc(base),
                 })
                 loot_pages += 1
+                # 信物带（低/中）单开一页，避免与基础池同页超框。
+                if gk:
+                    pages.append({
+                        "type": "gensokyou:loot_page",
+                        "tool_item": tool_item,
+                        "tier": table["tier"],
+                        "mode": "tool",
+                        "entries": _enc(gk),
+                    })
+                    loot_pages += 1
     elif path == "watatsumi_circle":
         for level in (0, 1, 2):
             pages.append({
@@ -410,7 +473,7 @@ def build_item_entry(item_id, source, recipe_name, category, sortnum):
         raise ValueError(f"unknown item recipe source: {source}")
     description_key = ITEM_RECIPE_TEXT_OVERRIDES.get(item_id, description_key)
     entry = {
-        "name": f"item.{namespace}.{path}",
+        "name": f"{'block' if item_id in ITEM_RECIPE_EXTRA_TEXT else 'item'}.{namespace}.{path}",
         "category": f"gensokyou:{category}",
         "icon": item_id,
         "sortnum": sortnum,
@@ -420,6 +483,8 @@ def build_item_entry(item_id, source, recipe_name, category, sortnum):
                 "item": item_id,
                 "text": description_key,
             },
+            *({"type": "patchouli:text", "text": key}
+              for key in ITEM_RECIPE_EXTRA_TEXT.get(item_id, [])),
             recipe_page,
         ],
     }
