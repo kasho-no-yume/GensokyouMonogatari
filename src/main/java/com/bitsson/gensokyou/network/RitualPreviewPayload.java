@@ -34,7 +34,7 @@ public record RitualPreviewPayload(Optional<RitualPreviewState> preview)
                     ResourceKey<Level> dimension = ResourceKey.create(
                             Registries.DIMENSION, ResourceLocation.STREAM_CODEC.decode(buf));
                     return new RitualPreviewPayload(
-                            Optional.of(new RitualPreviewState(patternId, tier, pos, dimension)));
+                            Optional.of(new RitualPreviewState(patternId, tier, pos, dimension, buf.readBoolean())));
                 }
 
                 @Override
@@ -49,6 +49,7 @@ public record RitualPreviewPayload(Optional<RitualPreviewState> preview)
                     buf.writeVarInt(state.tier());
                     BlockPos.STREAM_CODEC.encode(buf, state.corePos());
                     ResourceLocation.STREAM_CODEC.encode(buf, state.dimension().location());
+                    buf.writeBoolean(state.replaceBlocks());
                 }
             };
 

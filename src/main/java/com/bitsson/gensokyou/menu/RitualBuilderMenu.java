@@ -1,7 +1,10 @@
 package com.bitsson.gensokyou.menu;
 
+import com.bitsson.gensokyou.item.RitualBuilderItem;
+import com.bitsson.gensokyou.registry.ModDataComponents;
 import com.bitsson.gensokyou.registry.ModMenus;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -15,19 +18,22 @@ import net.minecraft.world.item.ItemStack;
  */
 public class RitualBuilderMenu extends AbstractContainerMenu {
 
-    private final Player player;
+    public static final int REPLACEMENT_OFF = 0;
+    public static final int REPLACEMENT_ON = 1;
+
     private final InteractionHand hand;
     /** 玩家世界进度上限（客户端经开屏握手数据获得；服务端直构默认 5，不参与渲染）。 */
     private int maxTier = 5;
+    private boolean replaceBlocks;
 
     public RitualBuilderMenu(int windowId, Inventory inventory, RegistryFriendlyByteBuf buf) {
         this(windowId, inventory, InteractionHand.values()[buf.readByte()]);
         this.maxTier = buf.readVarInt();
+        this.replaceBlocks = buf.readBoolean();
     }
 
     public RitualBuilderMenu(int windowId, Inventory inventory, InteractionHand hand) {
         super(ModMenus.RITUAL_BUILDER.get(), windowId);
-        this.player = inventory.player;
         this.hand = hand;
     }
 
@@ -40,6 +46,25 @@ public class RitualBuilderMenu extends AbstractContainerMenu {
         return this.maxTier;
     }
 
+    public boolean replaceBlocks() {
+        return this.replaceBlocks;
+    }
+
+    @Override
+    public boolean clickMenuButton(Player player, int id) {
+        if (!(player instanceof ServerPlayer) || !stillValid(player)
+                || (id != REPLACEMENT_OFF && id != REPLACEMENT_ON)) {
+            return false;
+        }
+        ItemStack stack = player.getItemInHand(this.hand);
+        if (id == REPLACEMENT_ON) {
+            stack.set(ModDataComponents.RITUAL_BUILDER_REPLACE_BLOCKS.get(), true);
+        } else {
+            stack.remove(ModDataComponents.RITUAL_BUILDER_REPLACE_BLOCKS.get());
+        }
+        return true;
+    }
+
     @Override
     public ItemStack quickMoveStack(Player player, int index) {
         return ItemStack.EMPTY;
@@ -48,8 +73,6 @@ public class RitualBuilderMenu extends AbstractContainerMenu {
     @Override
     public boolean stillValid(Player player) {
         // 构建器不离手：换手/丢弃/死亡即关闭
-        return player.isAlive() && !player.getItemInHand(this.hand).isEmpty()
-                && player.getItemInHand(this.hand).getItem()
-                        instanceof com.bitsson.gensokyou.item.RitualBuilderItem;
+        return player.isAlive() && player.getItemInHand(this.hand).getItem() instanceof RitualBuilderItem;
     }
 }

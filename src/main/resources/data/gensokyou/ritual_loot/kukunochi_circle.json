@@ -37,7 +37,7 @@
     ["gensokyou:eternal_wood", 0.3]
   ],
   "tables": [
-    { "tier": "wood", "special": [["minecraft:apple", 0.5]] },
+    { "tier": "wood", "special": [["minecraft:apple", 0.5], ["minecraft:honeycomb", 12]] },
     { "tier": "stone", "special": [["minecraft:apple", 1], ["minecraft:cocoa_beans", 0.5]] },
     { "tier": "gold", "special": [["minecraft:bamboo", 1], ["minecraft:apple", 2]] },
     { "tier": "iron", "special": [

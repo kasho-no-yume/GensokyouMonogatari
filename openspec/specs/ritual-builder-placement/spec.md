@@ -4,7 +4,7 @@
 TBD - created by archiving change ritual-builder. Update Purpose after archive.
 ## Requirements
 ### Requirement: 右键核心触发搭建
-手持已选仪式的构建器非潜行右键 `ritual_core` SHALL 走两段式确认（规则见 `ritual-builder-preview`）：与服务端预览态全等匹配的第二击才执行一键搭建，首击仅置入预览；右键成型核心的让位与分发规则见 `ritual-builder-upgrade`。构建/预览/材料计算的目标切片 SHALL 为图案中 `level ==` 所选阶级的累积切片（`sliceFor`），SHALL NOT 恒取最高阶切片；所选阶级在图案 `levels` 中无对应层级时 SHALL 回发非法选择提示，不置预览、不搭建、不崩溃。右键非核心方块 SHALL NOT 搭建。搭建算法本体（冲突零容忍、尽力放置、规范序）SHALL 保持不变。`RitualMatcher` 逻辑 SHALL NOT 改动；`RitualCoreBlock` 仅允许"成型核心对持杖右键让位"这一处改动（实现含 `useItemOn` 与主手补调的 `useWithoutItem` 两道守卫）。
+手持已选仪式的构建器非潜行右键 `ritual_core` SHALL 走两段式确认（规则见 `ritual-builder-preview`）：与服务端预览态全等匹配的第二击才执行一键搭建，首击仅置入预览；右键成型核心的让位与分发规则见 `ritual-builder-upgrade`。构建/预览/材料计算的目标切片 SHALL 为图案中 `level ==` 所选阶级的累积切片（`sliceFor`），SHALL NOT 恒取最高阶切片；所选阶级在图案 `levels` 中无对应层级时 SHALL 回发非法选择提示，不置预览、不搭建、不崩溃。右键非核心方块 SHALL NOT 搭建。`RitualMatcher` 逻辑 SHALL NOT 改动；`RitualCoreBlock` 仅允许"成型核心对持杖右键让位"这一处改动（实现含 `useItemOn` 与主手补调的 `useWithoutItem` 两道守卫）。
 
 #### Scenario: 材料齐全一次成型
 - **WHEN** 玩家背包材料充足，持构建器对裸核心完成两段式确认
@@ -18,16 +18,16 @@ TBD - created by archiving change ritual-builder. Update Purpose after archive.
 - **WHEN** 核心周围已有部分正确方块，玩家两段式确认后
 - **THEN** 已满足谓词的格位跳过不消耗，仅补齐缺口格
 
-#### Scenario: 第二击时出现新冲突
-- **WHEN** 预览后、第二击前有玩家往目标格塞了方块
+#### Scenario: 关闭替换时第二击出现新冲突
+- **WHEN** 替换关闭，预览后、第二击前有玩家往目标格塞了方块
 - **THEN** 搭建按冲突零容忍中止并下发红框，仪式未成型时预览保留；移除冲突后可直接再次右键重试
 
 #### Scenario: 所选阶级无对应层级
 - **WHEN** 图案 `levels` 仅含 0..3，构建器选中阶级 5 右键核心
 - **THEN** 回发非法选择提示，不放置任何方块
 
-### Requirement: 冲突零容忍全量中止
-搭建前 SHALL 对全部目标格做冲突预检：任一目标位被"不满足该格谓词"的方块占据时，SHALL 中止整个搭建、SHALL NOT 放置任何一格、SHALL NOT 消耗任何材料，并触发冲突红框提示。
+### Requirement: 关闭替换时冲突零容忍全量中止
+「允许替换方块」关闭时，搭建前 SHALL 对全部目标格做冲突预检。任一目标位被不满足该格谓词或朝向的方块占据时，SHALL 中止整个搭建且保留世界和材料，并触发冲突红框提示。
 
 #### Scenario: 一格被占即全停
 - **WHEN** 图案 8 格中仅 1 格被石头占据，其余全为空气且材料充足
@@ -37,9 +37,26 @@ TBD - created by archiving change ritual-builder. Update Purpose after archive.
 - **WHEN** 目标位已被满足该格谓词的方块占据（如已摆对的仪式石）
 - **THEN** 该格视为已满足、跳过，不计入冲突
 
+### Requirement: 开启替换时无掉落搭建
+「允许替换方块」开启时，确认搭建 SHALL 按规范序处理目标阶级累积切片中的空缺格与冲突格。可解析的 EXACT/TAG 冲突格 SHALL 直接替换为图案要求的方块与朝向，缺材料时 SHALL 保留该格原方块。被占据的 AIR 格 SHALL 清空且不消耗材料。旧方块、容器内物品与经验 SHALL 无掉落。SHALL 保留仪式核心、已满足谓词与朝向的方块和 IGNORE 格，并遵守世界边界及出生点保护。
+
+替换和清空 SHALL 跳过原版或模组声明为不可破坏（破坏硬度小于 0）或不可移动（活塞反应为 `BLOCK`）的方块，以及原版活塞明确禁止推动的黑曜石、哭泣的黑曜石、重生锚和强化深板岩。保护 SHALL 适用于生存和创造模式，在扣料及修改世界前检查。遇到受保护方块 SHALL 保留该格、继续处理其余格，并提示已跳过的受保护格数。
+
+#### Scenario: 保留不可破坏或不可移动的占位方块
+- **WHEN** 开启替换并确认搭建，EXACT/TAG 格或 AIR 格被基岩或标记为不可移动的模组方块占据
+- **THEN** 受保护方块保留原位且相应格位不消耗材料，其余格正常处理，并显示跳过提示
+
+#### Scenario: 替换与清空均无掉落
+- **WHEN** 开启替换并确认搭建，某 EXACT 目标格为装有物品的箱子且目标材料充足，另一个 AIR 格被石头占据
+- **THEN** 箱子格被替换为目标方块并扣除材料，石头格变成空气且免耗，两格均无物品或经验掉落
+
+#### Scenario: 缺料时保留占位方块
+- **WHEN** 开启替换并确认搭建，但某冲突格需要的目标方块在背包和可用绑定仓储里都没有
+- **THEN** 保留该格原方块，继续处理其余格
+
 ### Requirement: 材料不足尽力搭建
 
-无冲突但材料不足时，SHALL 按规范序（列表既有 (y,z,x) 排序）逐格尝试放置。每格的供应来源 SHALL 为**背包优先 + 绑定无尽藏仓储兜底**：背包有对应物品则扣 1 放置；背包没有但构建器已绑定**同维度、已成型且已启动**的无尽藏且其仓储含该方块时，SHALL 从该仓储真实扣除 1 个并放置；两者皆无则跳过该格继续后续格。SHALL NOT 降品阶、SHALL NOT 重排序补位。完成后 SHALL 回发"已放置 N/M 格"提示。绑定与补料闸门规则见 `ritual-builder-wujinzang-binding`。
+通过冲突预检或开启替换时，SHALL 按规范序（列表既有 (y,z,x) 排序）逐格尝试放置。每格的供应来源 SHALL 为**背包优先 + 绑定无尽藏仓储兜底**：背包有对应物品则扣 1 放置；背包没有但构建器已绑定**同维度、已成型且已启动**的无尽藏且其仓储含该方块时，SHALL 从该仓储真实扣除 1 个并放置；两者皆无则跳过该格继续后续格。SHALL NOT 降品阶、SHALL NOT 重排序补位。完成后 SHALL 回发搭建进度。绑定与补料闸门规则见 `ritual-builder-wujinzang-binding`。
 
 **无物品形态的方块**（`block.asItem() == Items.AIR`，如各类盆栽）SHALL 直接放置、SHALL NOT 参与扣料判定、SHALL NOT 因"无此物品"被跳过；扣料实现 SHALL NOT 以 `countItem(Items.AIR)`（恒为 0）作为供应判定。
 
@@ -86,7 +103,7 @@ TBD - created by archiving change ritual-builder. Update Purpose after archive.
 - **THEN** 不放置任何方块，回发失效提示
 
 ### Requirement: 带朝向格位的放置
-搭建时，图案条目声明了 `orientation` 的格位 SHALL 放置应用朝向后的 `BlockState`（种类解析规则不变：EXACT 用固定方块、TAG 按所选品阶实例化；朝向经 kind 映射写入对应方块属性）；冲突预检与"已满足"判定 SHALL 采用含朝向的同一谓词（朝向不符的已放置方块视为冲突格，走红框中止路径）。条目不带 `orientation` 时 SHALL 维持 `defaultBlockState()` 现状行为。格位方块不具备所声明 kind 的属性（TAG 运行期才可知）时 SHALL 跳过该格并计入"无法放置"，SHALL NOT 崩溃。
+搭建时，图案条目声明了 `orientation` 的格位 SHALL 放置应用朝向后的 `BlockState`（种类解析规则不变：EXACT 用固定方块、TAG 按所选品阶实例化；朝向经 kind 映射写入对应方块属性）；冲突预检与"已满足"判定 SHALL 采用含朝向的同一谓词，朝向不符的已放置方块视为冲突格。条目不带 `orientation` 时 SHALL 维持 `defaultBlockState()` 现状行为。格位方块不具备所声明 kind 的属性（TAG 运行期才可知）时 SHALL 跳过该格并计入"无法放置"，SHALL NOT 崩溃。
 
 #### Scenario: 楼梯按朝向放置
 - **WHEN** 图案某格第 5 位为 `5`（north_top），玩家背包有对应楼梯且该格为空气
@@ -94,7 +111,7 @@ TBD - created by archiving change ritual-builder. Update Purpose after archive.
 
 #### Scenario: 朝向错误视为冲突
 - **WHEN** 目标格已被同种但朝向不符的楼梯占据
-- **THEN** 计入冲突，整体中止并下发红框
+- **THEN** 计入冲突。关闭替换时整体中止并下发红框，开启且材料足够时按要求朝向替换且无掉落
 
 #### Scenario: 无朝向条目行为不变
 - **WHEN** 搭建既有 7 图案（全部条目无 `orientation`）

@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.client.screen;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.ClientBoundSupplyState;
 import com.bitsson.gensokyou.client.MaterialIcons;
+import com.bitsson.gensokyou.client.widget.SakuraButton;
 import com.bitsson.gensokyou.item.BuilderBind;
 import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.item.RitualBuilderItem;
@@ -14,9 +15,8 @@ import com.bitsson.gensokyou.ritual.BoundSupply;
 import com.bitsson.gensokyou.ritual.RitualBuilderPlacement;
 import com.bitsson.gensokyou.ritual.RitualPattern;
 import com.bitsson.gensokyou.ritual.RitualPatternLoader;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -42,13 +42,14 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
     private static final int ROW_H = 20;
     private static final int LIST_ROWS = 7;
     private static final int RIGHT_X = 132;
-    private static final int TIER_Y = 26;
+    private static final int TIER_Y = 29;
     private static final int TIER_SIZE = 18;
     private static final int MAT_Y = 60;
     /** 材料视口：MAT_Y .. 面板底-4；可视行数 = 视口高/18 向下取整。 */
     private static final int MAT_VIEW_H = PANEL_HEIGHT - 4 - MAT_Y;
     private static final int MAT_ROWS = MAT_VIEW_H / 18;
     private static final int MAT_BAR_X = PANEL_WIDTH - 10;
+    private static final int REPLACEMENT_WIDTH = 124;
     /**
      * 摆放规划区（建议离地高度 + 最大占地半径）：左列列表下方的空白条。
      * 列表止于 {@code LIST_Y + LIST_ROWS*ROW_H = 164}，面板高 196，故 164..196 空闲；
@@ -76,6 +77,7 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
      * 服务端仍是权威，关菜单后组件回同步，二者因点击目标恒为合法图案而必然收敛。
      */
     private BuilderSelection current;
+    private boolean replaceBlocks;
     /** 本帧被悬浮的材料方块名（renderLabels 写入，render 于最上层绘制 tooltip）。 */
     private Component hoveredMaterial;
     /** 本帧被悬浮的摆放规划区 tooltip（建议离地高度 / 最大占地半径）。 */
@@ -86,12 +88,30 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
         this.imageWidth = PANEL_WIDTH;
         this.imageHeight = PANEL_HEIGHT;
         this.inventoryLabelY = PANEL_HEIGHT + 100; // 隐藏"物品栏"标签（零槽菜单无物品栏区）
+        this.replaceBlocks = menu.replaceBlocks();
     }
 
     @Override
     protected void init() {
         super.init();
         this.current = readComponent();
+        SakuraButton replacement = SakuraButton.of(replacementLabel(), button -> {
+            if (this.minecraft == null || this.minecraft.gameMode == null) {
+                return;
+            }
+            this.replaceBlocks = !this.replaceBlocks;
+            button.setMessage(replacementLabel());
+            this.minecraft.gameMode.handleInventoryButtonClick(menu.containerId, this.replaceBlocks
+                    ? RitualBuilderMenu.REPLACEMENT_ON : RitualBuilderMenu.REPLACEMENT_OFF);
+        }, leftPos + RIGHT_X, topPos + 4, REPLACEMENT_WIDTH, 14);
+        replacement.setTooltip(Tooltip.create(Component.translatable("gui.gensokyou.builder.replacement_tip")));
+        addRenderableWidget(replacement);
+    }
+
+    private Component replacementLabel() {
+        return this.replaceBlocks
+                ? Component.translatable("gui.gensokyou.builder.replacement_on")
+                : Component.translatable("gui.gensokyou.builder.replacement_off");
     }
 
     private List<RitualPattern> patterns() {
@@ -198,7 +218,7 @@ public class RitualBuilderScreen extends AbstractContainerScreen<RitualBuilderMe
         // 品阶按钮：仅当图案含标签格位时显示，按图案声明的 tiers 渲染（不写死 0-5）
         if (selected.hasTieredSlots()) {
             graphics.drawString(this.font, Component.translatable("gui.gensokyou.builder.tier"),
-                    RIGHT_X, TIER_Y - 11, COLOR_TEXT, false);
+                    RIGHT_X, TIER_Y - 10, COLOR_TEXT, false);
             List<Integer> tiers = visibleTiers(selected);
             for (int idx = 0; idx < tiers.size(); idx++) {
                 int t = tiers.get(idx);

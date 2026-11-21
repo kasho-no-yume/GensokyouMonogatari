@@ -1,11 +1,14 @@
 package com.bitsson.gensokyou.ritual;
 
+import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.item.BuilderSelection;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderSet;
@@ -13,12 +16,20 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.PushReaction;
+import net.neoforged.bus.api.EventPriority;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,19 +37,22 @@ import java.util.Optional;
 
 /**
  * 仪式构建器的一键搭建算法（纯服务端）。
- * 流程：取所选阶级（level == 品阶）的累积切片 → 冲突预检（任一格被非目标方块占据即整体中止）→
+ * 流程：取所选阶级（level == 品阶）的累积切片 → 冲突预检（默认遇冲突整体中止）→
  * 规范序尽力放置（缺料跳过该格，不降品阶、不重排）。锚点即被点击的核心，
  * 图案加载期已按对称展开为全量，故旋转固定 0。
  */
+@EventBusSubscriber(modid = Gensokyou.MODID)
 public final class RitualBuilderPlacement {
+
+    private static final ThreadLocal<ServerLevel> SUPPRESS_REPLACEMENT_DROPS = new ThreadLocal<>();
 
     private RitualBuilderPlacement() {
     }
 
     /** 搭建结果：total 待放置格数、placed 实放格数、blocked 是否因冲突整体中止、conflicts 冲突坐标。 */
-    public record Result(int total, int placed, boolean blocked, List<BlockPos> conflicts) {
+    public record Result(int total, int placed, boolean blocked, List<BlockPos> conflicts, int protectedCount) {
         public static Result empty() {
-            return new Result(0, 0, false, List.of());
+            return new Result(0, 0, false, List.of(), 0);
         }
     }
 
@@ -57,7 +71,7 @@ public final class RitualBuilderPlacement {
 
     /**
      * 格位三分类：pending 待放置条目、conflicts 被非目标方块占据（含朝向不符）、
-     * airConflicts AIR 谓词格被占（投影画红框、搭建同样零容忍）。
+     * airConflicts AIR 谓词格被占（投影画红框，开启替换时清空）。
      */
     public record Classification(List<RitualPattern.BlockEntry> pending,
                                  List<Conflict> conflicts,
@@ -171,6 +185,13 @@ public final class RitualBuilderPlacement {
     public static Result build(ServerLevel level, BlockPos anchorPos, ServerPlayer player,
                                BuilderSelection selection,
                                @Nullable com.bitsson.gensokyou.item.BuilderBind bind) {
+        return build(level, anchorPos, player, selection, bind, false);
+    }
+
+    public static Result build(ServerLevel level, BlockPos anchorPos, ServerPlayer player,
+                               BuilderSelection selection,
+                               @Nullable com.bitsson.gensokyou.item.BuilderBind bind,
+                               boolean replaceBlocks) {
         Optional<RitualPattern> patternOpt = RitualPatternLoader.byId(selection.patternId());
         if (patternOpt.isEmpty()) {
             return Result.empty();
@@ -181,33 +202,113 @@ public final class RitualBuilderPlacement {
         // 1. 冲突预检（共用三分类；Result.conflicts 取并集，保持 AIR 占位格红框现状）
         Classification classification = classify(level, anchorPos, pattern, tier);
         List<RitualPattern.BlockEntry> pending = classification.pending();
-        List<BlockPos> conflicts = new ArrayList<>();
-        classification.conflicts().forEach(c -> conflicts.add(c.pos()));
-        classification.airConflicts().forEach(c -> conflicts.add(c.pos()));
-        if (!conflicts.isEmpty()) {
-            return new Result(pending.size(), 0, true, List.copyOf(conflicts));
+        if (!replaceBlocks && (!classification.conflicts().isEmpty() || !classification.airConflicts().isEmpty())) {
+            List<BlockPos> conflicts = new ArrayList<>();
+            classification.conflicts().forEach(c -> conflicts.add(c.pos()));
+            classification.airConflicts().forEach(c -> conflicts.add(c.pos()));
+            return new Result(pending.size(), 0, true, List.copyOf(conflicts), 0);
+        }
+        if (replaceBlocks) {
+            pending = new ArrayList<>(pending);
+            for (Conflict conflict : classification.conflicts()) {
+                pending.add(conflict.entry());
+            }
+            for (Conflict conflict : classification.airConflicts()) {
+                pending.add(conflict.entry());
+            }
+            pending.sort(Comparator.comparingInt(RitualPattern.BlockEntry::y)
+                    .thenComparingInt(RitualPattern.BlockEntry::z)
+                    .thenComparingInt(RitualPattern.BlockEntry::x));
         }
 
         // 2. 规范序尽力放置（slice.blocks() 已按 (y,z,x) 排序，pending 保序）
         boolean infinite = player.hasInfiniteMaterials();
         Inventory inventory = player.getInventory();
         int placed = 0;
+        int protectedCount = 0;
         for (RitualPattern.BlockEntry entry : pending) {
+            BlockPos target = anchorPos.offset(entry.x(), entry.y(), entry.z());
+            if (replaceBlocks && (target.equals(anchorPos) || !level.isInWorldBounds(target)
+                    || !level.mayInteract(player, target) || level.isDebug())) {
+                continue;
+            }
+            BlockState current = level.getBlockState(target);
+            if (replaceBlocks) {
+                RitualPattern.Predicate predicate = pattern.palette().get(entry.key());
+                if (predicate.test(current) && orientationSatisfied(entry, current)) {
+                    placed++;
+                    continue;
+                }
+                // 覆盖与清空共用保护判定，且须在任何扣料之前执行。
+                if (!current.isAir() && isProtectedFromReplacement(level, target, current)) {
+                    protectedCount++;
+                    continue;
+                }
+                if (predicate.kind() == RitualPattern.Kind.AIR) {
+                    if (replaceWithoutDrops(level, target, Blocks.AIR.defaultBlockState())) {
+                        placed++;
+                    }
+                    continue;
+                }
+            }
             BlockState desired = resolveState(pattern, entry, tier);
             if (desired == null) {
                 continue; // 无法实例化（非品阶标签或方块不支持朝向常量），跳过该格
             }
-            BlockPos target = anchorPos.offset(entry.x(), entry.y(), entry.z());
             if (!infinite && !consumeOne(inventory, desired.getBlock(), level, bind)) {
                 continue; // 缺料，跳过该格
             }
-            level.setBlockAndUpdate(target, desired);
+            if (replaceBlocks && !current.isAir()) {
+                if (!replaceWithoutDrops(level, target, desired)) {
+                    continue;
+                }
+            } else {
+                level.setBlockAndUpdate(target, desired);
+            }
             level.playSound(null, target, desired
                     .getSoundType()
                     .getPlaceSound(), SoundSource.BLOCKS, 1.0F, 1.0F);
             placed++;
         }
-        return new Result(pending.size(), placed, false, List.of());
+        return new Result(pending.size(), placed, false, List.of(), protectedCount);
+    }
+
+    static boolean isProtectedFromReplacement(BlockGetter level, BlockPos pos, BlockState state) {
+        // 除 BLOCK 反应外，原版活塞还有一组明确禁止推动的方块。
+        return state.getDestroySpeed(level, pos) < 0.0F
+                || state.getPistonPushReaction() == PushReaction.BLOCK
+                || state.is(Blocks.OBSIDIAN)
+                || state.is(Blocks.CRYING_OBSIDIAN)
+                || state.is(Blocks.RESPAWN_ANCHOR)
+                || state.is(Blocks.REINFORCED_DEEPSLATE);
+    }
+
+    private static boolean replaceWithoutDrops(ServerLevel level, BlockPos pos, BlockState desired) {
+        ServerLevel previous = SUPPRESS_REPLACEMENT_DROPS.get();
+        SUPPRESS_REPLACEMENT_DROPS.set(level);
+        try {
+            BlockState current = level.getBlockState(pos);
+            if (current.is(desired.getBlock()) && current.hasBlockEntity()) {
+                // 同种方块只改朝向时，原版会保留方块实体；强制替换应丢弃旧内容。
+                level.removeBlockEntity(pos);
+            }
+            return level.setBlock(pos, desired, Block.UPDATE_ALL | Block.UPDATE_SUPPRESS_DROPS);
+        } finally {
+            if (previous == null) {
+                SUPPRESS_REPLACEMENT_DROPS.remove();
+            } else {
+                SUPPRESS_REPLACEMENT_DROPS.set(previous);
+            }
+        }
+    }
+
+    /** 容器等会在 onRemove 直接生成掉落，单靠方块更新标志无法阻止。 */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onReplacementDrop(EntityJoinLevelEvent event) {
+        if ((event.getEntity() instanceof ItemEntity || event.getEntity() instanceof ExperienceOrb)
+                && event.getLevel() == SUPPRESS_REPLACEMENT_DROPS.get()) {
+            event.setCanceled(true);
+        }
     }
 
     /**

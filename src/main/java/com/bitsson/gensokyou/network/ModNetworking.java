@@ -41,7 +41,7 @@ public final class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("1");
+        PayloadRegistrar registrar = event.registrar("2");
         registrar.playToClient(ProgramDataPayload.TYPE, ProgramDataPayload.STREAM_CODEC,
                 com.bitsson.gensokyou.client.ProgramClientNetwork::handle);
         registrar.playToServer(ProgramResyncPayload.TYPE, ProgramResyncPayload.STREAM_CODEC,

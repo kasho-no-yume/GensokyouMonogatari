@@ -3,6 +3,16 @@
 ## Purpose
 TBD - created by archiving change ritual-builder. Update Purpose after archive.
 ## Requirements
+### Requirement: 允许替换方块开关
+仪式构建器菜单右上角 SHALL 始终显示「允许替换方块」开关和当前开关状态。该设置 SHALL 随打开菜单的那根杖持久化，由服务端写入对应手持物品，且独立于图案、品阶和绑定仓储。新杖及无此设置的旧杖 SHALL 默认为关闭。悬浮说明 SHALL 说明关闭时有冲突即中止，开启时确认建造会替换不符方块、清空指定空气格，原方块及容器内物品无掉落，缺替换材料时保留该格原方块。
+
+开关 SHALL 复用 `gui-art-system` 的樱符主题按钮皮肤，与建筑杖面板保持一致。
+悬浮说明 SHALL 提醒不可破坏或标记为不可移动的方块会保留原位。
+
+#### Scenario: 每根杖各自记住设置
+- **WHEN** 玩家开启一根构建杖的替换开关并重开菜单，再拿另一根从未配置的杖开菜单
+- **THEN** 第一根显示开启，第二根显示关闭
+
 ### Requirement: 图案列表来源
 仪式选择菜单 SHALL 列出 `RitualPatternLoader.all()` 的全部图案，每项以图案锚点（`C` 键）代表物品为图标、图案本地化名为文本；SHALL NOT 硬编码图案清单。
 
@@ -194,4 +204,3 @@ TBD - created by archiving change ritual-builder. Update Purpose after archive.
 #### Scenario: 不自动判定埋深
 - **WHEN** 玩家把核心放在地面而图案最低格位为 −7
 - **THEN** 界面不阻止该放置（`ritual-builder-placement` 的冲突判定在真正搭建时才生效），仅以建议值提示
-

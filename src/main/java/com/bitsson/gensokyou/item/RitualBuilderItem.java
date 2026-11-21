@@ -118,6 +118,10 @@ public class RitualBuilderItem extends Item {
         stack.remove(ModDataComponents.RITUAL_BUILDER_BIND.get());
     }
 
+    private static boolean replaceBlocks(ItemStack stack) {
+        return stack.getOrDefault(ModDataComponents.RITUAL_BUILDER_REPLACE_BLOCKS.get(), false);
+    }
+
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand usedHand) {
         if (level.isClientSide) {
@@ -137,18 +141,20 @@ public class RitualBuilderItem extends Item {
 
     private void openMenu(ServerPlayer player, InteractionHand hand) {
         int maxTier = com.bitsson.gensokyou.event.GuideTierProgress.worldTier(player);
+        boolean replace = replaceBlocks(player.getItemInHand(hand));
         player.openMenu(new SimpleMenuProvider(
                 (id, inventory, p) -> new RitualBuilderMenu(id, inventory, hand),
                 Component.translatable("gui.gensokyou.builder.title")),
                 buf -> {
                     buf.writeByte(hand.ordinal());
                     buf.writeVarInt(maxTier);
+                    buf.writeBoolean(replace);
                 });
     }
 
     /**
      * 两段式确认（服务端权威）：成型核心先过升级分发（他仪式/阶级不足提示让位不开 GUI），
-     * 预览态与"此核心 + 手上选择 + 当前维度"全等 → 执行 {@link #doBuild}；仅目标仪式阶级成型后清态，
+     * 预览态与"此核心 + 手上选择 + 当前维度 + 替换开关"全等 → 执行 {@link #doBuild}；仅目标仪式阶级成型后清态，
      * 尚未成型时保留预览，便于补料或排除冲突后继续搭建。
      * 否则置入/替换预览态并 S2C 下发，不放置任何方块、不消耗材料。
      */
@@ -189,8 +195,9 @@ public class RitualBuilderItem extends Item {
                     Component.translatable("msg.gensokyou.builder_level_missing"), true);
             return InteractionResult.FAIL;
         }
+        boolean replace = replaceBlocks(stack);
         RitualPreviewState preview = player.getData(ModAttachments.RITUAL_PREVIEW.get());
-        if (preview != null && preview.matches(corePos, selection, player.level().dimension())) {
+        if (preview != null && preview.matches(corePos, selection, player.level().dimension(), replace)) {
             InteractionResult result = doBuild(player, hand, corePos);
             if (isSelectionFormed(player.level(), corePos, selection)) {
                 player.removeData(ModAttachments.RITUAL_PREVIEW.get());
@@ -202,11 +209,12 @@ public class RitualBuilderItem extends Item {
             return result;
         }
         RitualPreviewState next = new RitualPreviewState(
-                selection.patternId(), selection.tier(), corePos, player.level().dimension());
+                selection.patternId(), selection.tier(), corePos, player.level().dimension(), replace);
         player.setData(ModAttachments.RITUAL_PREVIEW.get(), next);
         ModNetworking.sendRitualPreview(player, Optional.of(next));
         player.displayClientMessage(
-                Component.translatable("msg.gensokyou.builder_preview_confirm"), true);
+                replace ? Component.translatable("msg.gensokyou.builder_preview_confirm_replace")
+                        : Component.translatable("msg.gensokyou.builder_preview_confirm"), true);
         return InteractionResult.SUCCESS;
     }
 
@@ -229,7 +237,7 @@ public class RitualBuilderItem extends Item {
         }
         RitualBuilderPlacement.Result result =
                 RitualBuilderPlacement.build((ServerLevel) player.level(), corePos, player,
-                        selection, bind(stack));
+                         selection, bind(stack), replaceBlocks(stack));
         if (result.blocked()) {
             com.bitsson.gensokyou.network.ModNetworking.sendRitualConflicts(player, result.conflicts());
             player.displayClientMessage(
@@ -242,7 +250,10 @@ public class RitualBuilderItem extends Item {
         } else {
             player.displayClientMessage(Component.translatable(
                     "msg.gensokyou.builder_placed", result.placed(), result.total()), false);
-            if (result.placed() < result.total()) {
+            if (result.protectedCount() > 0) {
+                player.displayClientMessage(Component.translatable(
+                        "msg.gensokyou.builder_protected_skipped", result.protectedCount()), true);
+            } else if (result.placed() < result.total()) {
                 player.displayClientMessage(
                         Component.translatable("msg.gensokyou.builder_incomplete"), true);
             }

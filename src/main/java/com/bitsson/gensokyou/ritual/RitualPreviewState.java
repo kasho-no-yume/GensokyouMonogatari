@@ -12,14 +12,15 @@ import net.minecraft.world.level.Level;
  * {@code dimension} 兜底"服务端态随实体重建清空而客户端静态态残留"的同连接跨维不同步。
  */
 public record RitualPreviewState(ResourceLocation patternId, int tier,
-                                 BlockPos corePos, ResourceKey<Level> dimension) {
+                                  BlockPos corePos, ResourceKey<Level> dimension, boolean replaceBlocks) {
 
-    /** 与"点击的核心 + 手上选择 + 当前维度"全等比对（第二击建造判定，服务端权威）。 */
+    /** 与"点击的核心 + 手上选择 + 当前维度 + 替换开关"全等比对（第二击建造判定，服务端权威）。 */
     public boolean matches(BlockPos clickedPos, BuilderSelection selection,
-                           ResourceKey<Level> currentDimension) {
+                           ResourceKey<Level> currentDimension, boolean replace) {
         return corePos.equals(clickedPos)
                 && patternId.equals(selection.patternId())
                 && tier == selection.tier()
-                && dimension.equals(currentDimension);
+                && dimension.equals(currentDimension)
+                && replaceBlocks == replace;
     }
 }

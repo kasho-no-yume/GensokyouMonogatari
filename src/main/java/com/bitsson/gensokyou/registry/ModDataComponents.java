@@ -74,6 +74,13 @@ public final class ModDataComponents {
                     .networkSynchronized(BuilderSelection.STREAM_CODEC)
                     .build());
 
+    /** 仪式构建器是否允许替换冲突方块，缺失即关闭。 */
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<Boolean>> RITUAL_BUILDER_REPLACE_BLOCKS =
+            DATA_COMPONENTS.register("ritual_builder_replace_blocks", () -> DataComponentType.<Boolean>builder()
+                    .persistent(Codec.BOOL)
+                    .networkSynchronized(ByteBufCodecs.BOOL)
+                    .build());
+
     /** 仪式构建器绑定的无尽藏核心（维度 + 坐标），缺失即未绑定；随物品持久化并同步客户端。 */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<com.bitsson.gensokyou.item.BuilderBind>> RITUAL_BUILDER_BIND =
             DATA_COMPONENTS.register("ritual_builder_bind", () -> DataComponentType.<com.bitsson.gensokyou.item.BuilderBind>builder()

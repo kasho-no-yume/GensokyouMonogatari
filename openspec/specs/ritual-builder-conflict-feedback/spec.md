@@ -4,7 +4,7 @@
 TBD - created by archiving change ritual-builder. Update Purpose after archive.
 ## Requirements
 ### Requirement: 冲突坐标 S2C 下发
-搭建因冲突中止时，服务端 SHALL 通过 S2C 包下发全部冲突方块坐标列表；无冲突时 SHALL NOT 下发。
+关闭替换且搭建因冲突中止时，服务端 SHALL 通过 S2C 包下发全部冲突方块坐标列表。开启替换或无冲突时 SHALL NOT 下发该中止反馈。
 
 #### Scenario: 冲突触发下发
 - **WHEN** 搭建因目标位被占中止
