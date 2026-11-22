@@ -12,6 +12,7 @@ import com.bitsson.gensokyou.block.entity.SukimaBlockEntity;
 import com.bitsson.gensokyou.network.InfoLine;
 import com.bitsson.gensokyou.network.ModNetworking;
 import com.bitsson.gensokyou.registry.ModBlocks;
+import com.bitsson.gensokyou.worldgen.GensokyoLayout;
 import com.bitsson.gensokyou.ritual.RitualBehavior;
 import com.bitsson.gensokyou.ritual.RitualBehaviors;
 import com.bitsson.gensokyou.ritual.RitualCoreRegistry;
@@ -24,8 +25,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.block.state.BlockState;
@@ -77,10 +76,10 @@ public class BarrierBreakBehavior implements RitualBehavior {
     public static final int PORTAL_UP = 2;
 
     /** 幻想乡侧孪生门相对该维度地表落点的水平偏移。必须 &gt; 0，否则玩家一落地即被弹回。 */
-    public static final int TWIN_OFFSET = 4;
+    public static final int TWIN_OFFSET = GensokyoLayout.TWIN_GATE_X - GensokyoLayout.COURTYARD_X;
 
     /** 孪生门落点外扩搜索半径（格），用于避开水面/熔岩/深坑。 */
-    private static final int TWIN_SEARCH_RADIUS = 12;
+    public static final int TWIN_SEARCH_RADIUS = 12;
 
     /** 启动爆发的击退半径（1× 眼基准，实际乘以尺寸标量）与力度。 */
     private static final double BURST_KNOCKBACK_RADIUS = 4.0D;
@@ -352,13 +351,12 @@ public class BarrierBreakBehavior implements RitualBehavior {
     // ------------------------------------------------------------------ 开门 / 关门
 
     /**
-     * 闩锁开启：置闩锁 → <b>扣除祭品</b> → 放置主世界侧门与幻想乡侧孪生门 → 击退 + 音效 + 播报。
+     * 闩锁开启：置闩锁 → <b>扣除祭品</b> → 放置主世界侧门与幻想乡侧孪生门 → 播报。
      *
      * <p>祭品在开门这一刻被消耗（每类 4 件）。玩家把供品交出去了，传送门是唯一剩下的东西。
      * 闩锁既成后不再校验祭品，故日后拆结构重建也无需重新奉上。
      *
-     * <p>爆发粒子与眼睛动画均由门体自身的动画计时器在客户端驱动（{@code SukimaBlockEntity}），
-     * 故此处除一次音效广播外不产生任何网络包。
+     * <p>门位创建为静默瞬开，不重播传送门生成特效；开门行为本身不重复维护门体演出状态。
      */
     private static void open(ServerLevel level, BlockPos corePos, RitualMatch match,
                              SpiritPowerAccess core) {
@@ -366,14 +364,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
         consumeOfferings(level, offerings(level, match));
         placePortals(level, corePos, core);
         core.setPortalPos(mainPortalPos(corePos));
-        // 这里只播"门被召唤"的提示音。<b>击退不在此刻</b>——击退落在爆炸那一 tick，
-        // 由门体自身（SukimaBlockEntity#playShatterCues）依演出锚点触发：击退是玩法、
-        // 必须在服务端权威执行，而只有门体知道爆炸发生在第几 tick。
-        burstSound(level, corePos.getX() + 0.5D, corePos.getY() + PORTAL_UP, corePos.getZ() + 0.5D);
-        BlockPos twin = twinPortalPos(level, false);
-        if (twin != null) {
-            burstSound(level, twin.getX() + 0.5D, twin.getY() + 0.5D, twin.getZ() + 0.5D);
-        }
+        // 闩锁与门位已经持久化；门体静默瞬开，避免维护 tick 或玩家进出时重播召唤演出。
         ModNetworking.sendRitualInfoToViewers(level, corePos);
         // 戏剧性时刻：向附近玩家播报（不限于正在看界面的人）
         Component opened = Component.translatable("msg.gensokyou.barrier_latch");
@@ -454,22 +445,13 @@ public class BarrierBreakBehavior implements RitualBehavior {
         }
     }
 
-    /**
-     * 启动爆发音效。1.21.1 的 {@code Level} 没有带 minVolume 的 9 参重载，故用 8 参形态。
-     * 爆发粒子与眼睛动画都由门体自身的动画计时器在客户端驱动，此处只补一次音效广播。
-     */
-    private static void burstSound(ServerLevel level, double x, double y, double z) {
-        level.playSound(null, x, y, z,
-                SoundEvents.END_GATEWAY_SPAWN, SoundSource.BLOCKS, 4.0F, 0.35F);
-    }
-
     /** 主世界侧门位：核心正上方 2 格，落在 pattern 自带的裂口笼空气井内。 */
     public static BlockPos mainPortalPos(BlockPos corePos) {
         return corePos.above(PORTAL_UP);
     }
 
     /**
-     * 幻想乡侧孪生门位：维度地表落点 (0, 地表, 0) 外扩 {@link #TWIN_OFFSET} 格的水平偏移。
+     * 幻想乡侧孪生门位：博丽庭院中心向东 {@link #TWIN_OFFSET} 格的固定门位。
      * 返回 null 表示幻想乡维度未加载，或该处区块当前<b>未加载</b>。
      *
      * <p>刻意不强制加载：{@code getHeightmapPos} 会触发区块加载，而闩锁后的
@@ -482,18 +464,56 @@ public class BarrierBreakBehavior implements RitualBehavior {
         return twinPortalPos(overworld, false);
     }
 
+    /** Stable world-space anchor for the Hakurei courtyard twin gate. */
+    public static BlockPos twinPortalAnchor() {
+        return new BlockPos(GensokyoLayout.TWIN_GATE_X, GensokyoLayout.COURTYARD_Y,
+                GensokyoLayout.TWIN_GATE_Z);
+    }
+
     @Nullable
     private static BlockPos twinPortalPos(ServerLevel overworld, boolean allowChunkLoad) {
         ServerLevel gensokyo = gensokyoLevel(overworld);
         if (gensokyo == null) {
             return null;
         }
-        BlockPos landing = gensokyo.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, BlockPos.ZERO);
-        BlockPos probe = new BlockPos(landing.getX() + TWIN_OFFSET, landing.getY(), landing.getZ());
+        BlockPos probe = twinPortalAnchor();
         if (!allowChunkLoad && !gensokyo.isLoaded(probe)) {
             return null;
         }
+        BlockPos existing = existingTwinPortal(gensokyo, probe.getX(), probe.getZ());
+        if (existing != null) {
+            return existing;
+        }
         return safeSurfaceNear(gensokyo, probe.getX(), probe.getZ());
+    }
+
+    /** Reuse the existing singleton and clean up stacked duplicates from older placement loops. */
+    @Nullable
+    private static BlockPos existingTwinPortal(ServerLevel level, int x, int z) {
+        BlockPos keeper = null;
+        for (int[] offset : surfaceProbeOffsets(TWIN_SEARCH_RADIUS)) {
+            int px = x + offset[0];
+            int pz = z + offset[1];
+            BlockPos column = new BlockPos(px, GensokyoLayout.COURTYARD_Y, pz);
+            if (!level.isLoaded(column)) {
+                continue;
+            }
+            int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING, px, pz);
+            int lowY = Math.max(level.getMinBuildHeight(), surfaceY - 20);
+            int highY = Math.min(level.getMaxBuildHeight() - 1, surfaceY + 4);
+            for (int y = lowY; y <= highY; y++) {
+                BlockPos candidate = new BlockPos(px, y, pz);
+                if (!level.getBlockState(candidate).is(ModBlocks.SUKIMA.get())) {
+                    continue;
+                }
+                if (keeper == null) {
+                    keeper = candidate;
+                } else if (!keeper.equals(candidate)) {
+                    level.removeBlock(candidate, false);
+                }
+            }
+        }
+        return keeper;
     }
 
     /**
@@ -542,6 +562,9 @@ public class BarrierBreakBehavior implements RitualBehavior {
                 continue;
             }
             BlockPos pos = new BlockPos(px, y, pz);
+            if (level.getBlockState(pos).is(ModBlocks.SUKIMA.get())) {
+                return pos;
+            }
             if (isSafePortalSpot(level, pos)) {
                 return pos;
             }
@@ -576,7 +599,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
     /** 放置主世界侧门（必有）与幻想乡侧孪生门（冲突则跳过）。返回孪生门是否真的放下了。 */
     private static boolean placePortals(ServerLevel level, BlockPos corePos,
                                         SpiritPowerAccess core) {
-        placeAt(level, mainPortalPos(corePos));
+        placeAt(level, mainPortalPos(corePos), true);
         core.setPortalPos(mainPortalPos(corePos));
         // 开门这一刻允许付一次跨维度区块加载的代价
         BlockPos twin = twinPortalPos(level, true);
@@ -598,7 +621,7 @@ public class BarrierBreakBehavior implements RitualBehavior {
         if (gensokyo.getBlockState(twin).is(ModBlocks.SUKIMA.get())) {
             return false; // 先到先得：不覆盖既有孪生门
         }
-        placeAt(gensokyo, twin);
+        placeAt(gensokyo, twin, true);
         return true;
     }
 
@@ -625,18 +648,40 @@ public class BarrierBreakBehavior implements RitualBehavior {
     }
 
     /**
-     * 放置并写入尺寸标量、置为开启态。
+     * 放置门体，写入尺寸标量并置为开启态，有两种开启方式：
      *
-     * <p>传入 {@code BARRIER_PORTAL_BURST_TICKS} 作为<b>张眼前置延迟</b>：先播满一段「结界崩解」
-     * 演出，再让眼形张开。两个演出各占独立时间，玩家才既看得清爆炸、也看得清「隙间张开」。
+     * <ul>
+     *   <li>{@code playBurst = true}（仪式开门，{@link #placePortals}）：演出锚点从此刻起跑，
+     *       眼形闭合。先播满 {@code SUKIMA_PORTAL_BURST_TICKS} 的「结界崩解」——蓄能球与光柱、
+     *       地面冲击波、横向烟环与音效——之后眼形张开，双门同帧。两个演出各占独立时间，
+     *       玩家才既看得清爆炸、也看得清「隙间张开」。</li>
+     *   <li>{@code playBurst = false}（闩锁维护补门，{@link #ensurePortals}）：门体瞬开，
+     *       不重播任何演出——维护路径不触发投突、不触发击退，免得维护 tick 或玩家进出时
+     *       重播召唤演出。</li>
+     * </ul>
      */
-    private static void placeAt(ServerLevel level, BlockPos pos) {
-        level.setBlock(pos, ModBlocks.SUKIMA.get().defaultBlockState(), 3);
+    private static boolean placeAt(ServerLevel level, BlockPos pos) {
+        return placeAt(level, pos, false);
+    }
+
+    private static boolean placeAt(ServerLevel level, BlockPos pos, boolean playBurst) {
+        if (level.getBlockState(pos).is(ModBlocks.SUKIMA.get())) {
+            return false;
+        }
+        if (!level.setBlock(pos, ModBlocks.SUKIMA.get().defaultBlockState(), 3)) {
+            return false;
+        }
         if (level.getBlockEntity(pos)
                 instanceof SukimaBlockEntity portal) {
-            portal.requestOpen(BalanceNumbers.BARRIER_PORTAL_SCALE.floatValue(),
-                    BalanceNumbers.SUKIMA_PORTAL_BURST_TICKS);
+            if (playBurst) {
+                portal.requestOpen(BalanceNumbers.BARRIER_PORTAL_SCALE.floatValue(),
+                        BalanceNumbers.SUKIMA_PORTAL_BURST_TICKS);
+            } else {
+                portal.requestOpenSilently(BalanceNumbers.BARRIER_PORTAL_SCALE.floatValue(),
+                        BalanceNumbers.SUKIMA_PORTAL_OPEN_TICKS);
+            }
         }
+        return true;
     }
 
     /**

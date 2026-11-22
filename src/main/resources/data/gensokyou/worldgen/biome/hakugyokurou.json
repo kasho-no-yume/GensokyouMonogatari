@@ -1,0 +1,22 @@
+{
+  "has_precipitation": true,
+  "temperature": 0.2,
+  "downfall": 0.4,
+  "carvers": { "air": [] },
+  "effects": {
+    "fog_color": 15066597,
+    "sky_color": 9671577,
+    "water_color": 11449706,
+    "water_fog_color": 8290015
+  },
+  "spawners": {
+    "monster": [
+      { "type": "gensokyou:fairy", "weight": 18, "minCount": 1, "maxCount": 1 },
+      { "type": "gensokyou:big_fairy", "weight": 1, "minCount": 1, "maxCount": 1 }
+    ],
+    "creature": [], "ambient": [], "axolotls": [], "underground_water_creature": [],
+    "water_creature": [], "water_ambient": [], "misc": []
+  },
+  "spawn_costs": {},
+  "features": [[], [], [], [], [], [], [], [], [], ["gensokyou:sacred_tree", "minecraft:trees_taiga", "minecraft:patch_grass_taiga"], []]
+}

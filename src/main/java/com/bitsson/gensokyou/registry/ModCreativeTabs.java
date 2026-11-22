@@ -38,6 +38,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.BROKEN_SPELL_CARD_STAR.get());
                         output.accept(ModItems.YEN.get());
                         output.accept(ModItems.MEMORY_FRAGMENT.get());
+                        output.accept(ModItems.GENSOKYO_DEBUG_MAP.get());
                         // 幻想乡素材（按 矿产/土产/木材/海产/植物 排列）
                         output.accept(ModItems.CINNABAR.get());
                         output.accept(ModItems.ROUGH_CINNABAR_ORE.get());

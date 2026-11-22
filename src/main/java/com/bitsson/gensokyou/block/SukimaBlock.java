@@ -5,6 +5,7 @@ import com.bitsson.gensokyou.balance.BalanceNumbers;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.block.entity.SukimaBlockEntity;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
+import com.bitsson.gensokyou.worldgen.GensokyoLayout;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -78,9 +79,15 @@ public class SukimaBlock extends Block implements EntityBlock {
         if (target == null) {
             return;
         }
-        BlockPos landing = target.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, BlockPos.ZERO);
-        player.teleportTo(target, landing.getX() + 0.5D, landing.getY(),
-                landing.getZ() + 0.5D, player.getYRot(), player.getXRot());
+        if (playerInGensokyo(player)) {
+            BlockPos landing = target.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, BlockPos.ZERO);
+            player.teleportTo(target, landing.getX() + 0.5D, landing.getY(),
+                    landing.getZ() + 0.5D, player.getYRot(), player.getXRot());
+        } else {
+            player.teleportTo(target, GensokyoLayout.COURTYARD_X + 0.5D,
+                    GensokyoLayout.COURTYARD_Y, GensokyoLayout.COURTYARD_Z + 0.5D,
+                    90.0F, player.getXRot());
+        }
         entity.setPortalCooldown();
     }
 

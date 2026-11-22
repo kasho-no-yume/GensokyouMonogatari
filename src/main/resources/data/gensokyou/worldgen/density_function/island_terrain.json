@@ -1,0 +1,9 @@
+{
+  "type": "gensokyou:island_terrain",
+  "terrain_noise": {
+    "type": "minecraft:noise",
+    "noise": "gensokyou:island_height",
+    "xz_scale": 0.003,
+    "y_scale": 0.0
+  }
+}

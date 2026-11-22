@@ -24,7 +24,7 @@
   },
   "spawn_costs": {},
   "features": [
-    [], [], [], [], [], [], [], [], [],
+    [], [], [], [], [], [], ["gensokyou:star_silver_ore"], [], [],
     ["minecraft:trees_taiga", "minecraft:patch_grass_taiga"],
     []
   ]

@@ -24,8 +24,8 @@
   },
   "spawn_costs": {},
   "features": [
-    [], [], [], [], [], [], [], [], [],
-    ["minecraft:trees_jungle", "minecraft:mushroom_island_vegetation", "minecraft:red_mushroom_normal", "minecraft:brown_mushroom_normal"],
+    [], [], [], [], [], [], ["gensokyou:star_silver_ore"], [], [],
+    ["gensokyou:magic_tree", "minecraft:trees_jungle", "minecraft:mushroom_island_vegetation", "minecraft:red_mushroom_normal", "minecraft:brown_mushroom_normal"],
     []
   ]
 }

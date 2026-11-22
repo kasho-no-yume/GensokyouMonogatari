@@ -8,6 +8,7 @@ import com.bitsson.gensokyou.entity.KnifeDanmaku;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
 import com.bitsson.gensokyou.item.GuideBookItem;
+import com.bitsson.gensokyou.item.GensokyoDebugMapItem;
 import com.bitsson.gensokyou.item.BossResidualCodexItem;
 import com.bitsson.gensokyou.item.CodexOfBeingsItem;
 import com.bitsson.gensokyou.item.GensokyouTools;
@@ -73,6 +74,8 @@ public final class ModItems {
             ITEMS.registerSimpleItem("yen", new Item.Properties().stacksTo(64));
     public static final DeferredItem<Item> MEMORY_FRAGMENT =
             ITEMS.register("memory_fragment", () -> new MemoryFragmentItem(new Item.Properties().stacksTo(64)));
+    public static final DeferredItem<GensokyoDebugMapItem> GENSOKYO_DEBUG_MAP =
+            ITEMS.register("gensokyo_debug_map", () -> new GensokyoDebugMapItem(new Item.Properties()));
 
     // ---------------- 幻想乡素材（add-gensokyo-material-ladder，T1~T2）----------------
     // 矿产/土产/木材共 11 种为可放置方块；成品金属与粗矿仍为物品。

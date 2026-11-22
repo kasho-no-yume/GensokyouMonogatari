@@ -54,6 +54,7 @@ public class SukimaBlockEntity extends BlockEntity {
     private static final String TAG_CLOSING_TICKS = "ClosingTicks";
     private static final String TAG_FX_START = "FxStart";
     private static final String TAG_FX_CHARGE_END = "FxChargeEnd";
+    private static final String TAG_FX_SUPPRESSED = "FxSuppressed";
     /**
      * 旧键名（2026-09-27 之前）：{@code FxChargeEnd} 的前身，语义完全相同。
      *
@@ -105,6 +106,8 @@ public class SukimaBlockEntity extends BlockEntity {
      * 不同的值（一扇 60、一扇 1），分拍边界永久漂移。单一事实源 = 服务端下发的这个 int。
      */
     private int fxChargeEnd = 1;
+    /** True for maintenance-created gates that must not replay summon effects or cues. */
+    private boolean fxSuppressed;
 
     /** 上一次广播给客户端的三个可变状态，用于只在它们变化时发包。 */
     private float lastSentScale = Float.NaN;
@@ -112,6 +115,7 @@ public class SukimaBlockEntity extends BlockEntity {
     private int lastSentClosingTicks = -1;
     /** 上一次广播的演出锚点：旧档迁移会在服务端补上它，需要推一次让两侧收敛。 */
     private int lastSentFxStart = Integer.MIN_VALUE;
+    private boolean lastSentFxSuppressed;
 
     /**
      * 蓄能段里放提示音的相对节点。⚠️ MUST 是<b>若干固定节点</b>，MUST NOT 是「每 tick 触发」：
@@ -136,6 +140,10 @@ public class SukimaBlockEntity extends BlockEntity {
 
     public int closingTicks() {
         return closingTicks;
+    }
+
+    public boolean fxSuppressed() {
+        return fxSuppressed;
     }
 
     // ---------------------------------------------------------------- 客户端常驻粒子累加器
@@ -259,12 +267,27 @@ public class SukimaBlockEntity extends BlockEntity {
      */
     public void requestOpen(float newScale, int delayTicks) {
         this.scale = newScale <= 0.0F ? 1.0F : newScale;
+        this.fxSuppressed = false;
         this.openTicks = 0;
         this.closingTicks = 0;
         this.fxChargeEnd = Math.max(1, delayTicks);
         this.fxStartGameTime = level != null ? (int) level.getGameTime() : 0;
         setChanged();
         // 推一次：锚点与尺寸标量随之到达客户端，其后全靠本地时钟推进。
+        if (level != null && !level.isClientSide) {
+            level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+        }
+    }
+
+    /** Initializes a newly repaired portal fully open without replaying the summon presentation. */
+    public void requestOpenSilently(float newScale, int durationTicks) {
+        this.scale = newScale <= 0.0F ? 1.0F : newScale;
+        this.fxSuppressed = true;
+        this.openTicks = Math.max(1, durationTicks);
+        this.closingTicks = 0;
+        this.fxChargeEnd = 1;
+        this.fxStartGameTime = -1;
+        setChanged();
         if (level != null && !level.isClientSide) {
             level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
         }
@@ -305,7 +328,7 @@ public class SukimaBlockEntity extends BlockEntity {
         // 于是 (a) 递进音效的四个相对节点全塌成 tick 0 → 每 tick 叠 4 声永久噪音，
         //     (b) openTicks 永不增长 → 那扇门永远闭着。
         // 这里把锚点定在"整段演出早已过去"，效果是：眼立刻张开、演出不重播。
-        if (level != null && !level.isClientSide && fxStartGameTime < 0) {
+        if (level != null && !level.isClientSide && fxStartGameTime < 0 && !fxSuppressed) {
             this.fxChargeEnd = Math.max(1, BalanceNumbers.SUKIMA_PORTAL_BURST_TICKS);
             this.fxStartGameTime = (int) level.getGameTime() - this.fxChargeEnd - fxBurstTicks();
             changed = true;
@@ -346,7 +369,7 @@ public class SukimaBlockEntity extends BlockEntity {
      * （那会把玩家从祭坛上掀飞，且与既有调好的手感冲突）。
      */
     private void playShatterCues() {
-        if (level == null || !(level instanceof ServerLevel server)) {
+        if (fxSuppressed || level == null || !(level instanceof ServerLevel server)) {
             return;
         }
         int t = fxElapsed();
@@ -411,6 +434,7 @@ public class SukimaBlockEntity extends BlockEntity {
         tag.putInt(TAG_CLOSING_TICKS, closingTicks);
         tag.putInt(TAG_FX_START, fxStartGameTime);
         tag.putInt(TAG_FX_CHARGE_END, fxChargeEnd);
+        tag.putBoolean(TAG_FX_SUPPRESSED, fxSuppressed);
         return tag;
     }
 
@@ -441,6 +465,7 @@ public class SukimaBlockEntity extends BlockEntity {
      */
     private void readFxTag(CompoundTag tag) {
         fxStartGameTime = tag.contains(TAG_FX_START) ? tag.getInt(TAG_FX_START) : -1;
+        fxSuppressed = tag.getBoolean(TAG_FX_SUPPRESSED);
         int end = tag.contains(TAG_FX_CHARGE_END) ? tag.getInt(TAG_FX_CHARGE_END)
                 : tag.getInt(TAG_LEGACY_FX_CHARGE_END);
         fxChargeEnd = Math.max(1, end);
@@ -455,13 +480,15 @@ public class SukimaBlockEntity extends BlockEntity {
         // 锚点本身要进差分：旧档迁移会在服务端补上它，不推一次两侧就长期不一致。
         if (scale == lastSentScale && openTicks == lastSentOpenTicks
                 && closingTicks == lastSentClosingTicks
-                && fxStartGameTime == lastSentFxStart) {
+                && fxStartGameTime == lastSentFxStart
+                && fxSuppressed == lastSentFxSuppressed) {
             return;
         }
         lastSentScale = scale;
         lastSentOpenTicks = openTicks;
         lastSentClosingTicks = closingTicks;
         lastSentFxStart = fxStartGameTime;
+        lastSentFxSuppressed = fxSuppressed;
         level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
     }
 
@@ -475,6 +502,7 @@ public class SukimaBlockEntity extends BlockEntity {
         tag.putInt(TAG_CLOSING_TICKS, closingTicks);
         tag.putInt(TAG_FX_START, fxStartGameTime);
         tag.putInt(TAG_FX_CHARGE_END, fxChargeEnd);
+        tag.putBoolean(TAG_FX_SUPPRESSED, fxSuppressed);
     }
 
     @Override

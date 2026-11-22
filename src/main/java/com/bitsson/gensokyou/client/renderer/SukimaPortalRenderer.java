@@ -200,7 +200,7 @@ public class SukimaPortalRenderer implements BlockEntityRenderer<SukimaBlockEnti
         // 此刻姿态**只有平移、没有旋转**，所以在它里面画"水平"的东西就是世界水平的。
         // 烟环 MUST 留在这里：billboard 姿态的局部水平面正对相机，在那里面画环会得到
         // 一个跟着视线转的椭圆。
-        if (blockEntity.fxStartGameTime() >= 0) {
+        if (!blockEntity.fxSuppressed() && blockEntity.fxStartGameTime() >= 0) {
             int elapsed = blockEntity.fxElapsed();
             int chargeEnd = blockEntity.fxChargeEnd();
             // 上报给屏幕级导演（渐晕 / FOV / 晃动）。它自己按"到最近一扇门的距离"衰减，

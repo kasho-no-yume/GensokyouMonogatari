@@ -1,0 +1,20 @@
+package com.bitsson.gensokyou.worldgen;
+
+import com.bitsson.gensokyou.Gensokyou;
+import net.minecraft.core.registries.Registries;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.registries.RegisterEvent;
+
+@EventBusSubscriber(modid = Gensokyou.MODID)
+public final class GensokyoWorldgenCodecs {
+    private GensokyoWorldgenCodecs() {
+    }
+
+    @SubscribeEvent
+    public static void registerWorldgenCodecs(RegisterEvent event) {
+        event.register(Registries.BIOME_SOURCE, Gensokyou.id("layout"), () -> GensokyoBiomeSource.CODEC);
+        event.register(Registries.DENSITY_FUNCTION_TYPE, Gensokyou.id("island_terrain"),
+                () -> GensokyoIslandDensity.CODEC.codec());
+    }
+}

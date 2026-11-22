@@ -4,14 +4,17 @@
     "type": "minecraft:noise",
     "settings": "gensokyou:gensokyo",
     "biome_source": {
-      "type": "minecraft:multi_noise",
-      "biomes": [
-        { "biome": "gensokyou:sanzu_river", "parameters": { "offset": 0.0, "temperature": 0.0, "humidity": 0.0, "continentalness": [-1.0, -0.55], "erosion": 0.0, "weirdness": 0.0, "depth": 0.0 } },
-        { "biome": "gensokyou:misty_bamboo_grove", "parameters": { "offset": 0.0, "temperature": 0.0, "humidity": 0.0, "continentalness": [-0.55, -0.15], "erosion": 0.0, "weirdness": 0.0, "depth": 0.0 } },
-        { "biome": "gensokyou:misty_lake", "parameters": { "offset": 0.0, "temperature": 0.0, "humidity": 0.0, "continentalness": [-0.15, 0.2], "erosion": 0.0, "weirdness": 0.0, "depth": 0.0 } },
-        { "biome": "gensokyou:magic_forest", "parameters": { "offset": 0.0, "temperature": 0.0, "humidity": 0.0, "continentalness": [0.2, 0.55], "erosion": 0.0, "weirdness": 0.0, "depth": 0.0 } },
-        { "biome": "gensokyou:moriya_mountain", "parameters": { "offset": 0.0, "temperature": 0.0, "humidity": 0.0, "continentalness": [0.55, 1.0], "erosion": 0.0, "weirdness": 0.0, "depth": 0.0 } }
-      ]
+      "type": "gensokyou:layout",
+      "sanzu_river": "gensokyou:sanzu_river",
+      "hakurei_shrine": "gensokyou:hakurei_shrine",
+      "moriya_mountain": "gensokyou:moriya_mountain",
+      "magic_forest": "gensokyou:magic_forest",
+      "misty_bamboo_grove": "gensokyou:misty_bamboo_grove",
+      "hakugyokurou": "gensokyou:hakugyokurou",
+      "chireiden": "gensokyou:chireiden",
+      "scarlet_devil_mansion": "gensokyou:scarlet_devil_mansion",
+      "misty_lake": "gensokyou:misty_lake",
+      "human_village": "gensokyou:human_village"
     }
   }
 }

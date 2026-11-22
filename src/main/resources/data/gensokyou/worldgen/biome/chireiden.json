@@ -1,0 +1,22 @@
+{
+  "has_precipitation": false,
+  "temperature": 0.8,
+  "downfall": 0.0,
+  "carvers": { "air": [] },
+  "effects": {
+    "fog_color": 6974058,
+    "sky_color": 4537914,
+    "water_color": 5197647,
+    "water_fog_color": 2368548
+  },
+  "spawners": {
+    "monster": [
+      { "type": "gensokyou:fairy", "weight": 18, "minCount": 1, "maxCount": 1 },
+      { "type": "gensokyou:big_fairy", "weight": 1, "minCount": 1, "maxCount": 1 }
+    ],
+    "creature": [], "ambient": [], "axolotls": [], "underground_water_creature": [],
+    "water_creature": [], "water_ambient": [], "misc": []
+  },
+  "spawn_costs": {},
+  "features": [[], [], [], [], [], [], ["gensokyou:star_silver_ore"], [], [], [], []]
+}

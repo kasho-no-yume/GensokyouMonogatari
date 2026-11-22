@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.ritual;
 
 import com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior;
+import com.bitsson.gensokyou.worldgen.GensokyoLayout;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import org.junit.jupiter.api.Test;
@@ -66,15 +67,17 @@ class BarrierTwinGateDimensionTest {
     void twinIsPlacedThroughTheGensokyoLevel() {
         String src = readSource();
         assertTrue(src.contains("placeAt(gensokyo, twin)"),
-                "没有找到 placeAt(gensokyo, twin)：孪生门的放置路径被改动后本测试需同步更新");
+                "没有找到 placeAt(gensokyo, twin)：首次仪式开启应在幻想乡放置孪生门");
         assertTrue(src.contains("requestClose(gensokyo, twin)"),
                 "没有找到 requestClose(gensokyo, twin)：关闭路径一直是本 bug 的正确参照物");
     }
 
-    /** 孪生门在到达点 (0,地表,0) 外扩 4 格。既有设计常量，非本次引入。 */
+    /** 孪生门在博丽庭院落点以东 16 格，保证与初始落点留出空间。 */
     @Test
-    void twinOffsetIsFourBlocks() {
-        assertEquals(4, BarrierBreakBehavior.TWIN_OFFSET);
+    void twinOffsetMatchesTheFixedCourtyardGate() {
+        assertEquals(16, BarrierBreakBehavior.TWIN_OFFSET);
+        assertEquals(new BlockPos(GensokyoLayout.TWIN_GATE_X, GensokyoLayout.COURTYARD_Y,
+                        GensokyoLayout.TWIN_GATE_Z), BarrierBreakBehavior.twinPortalAnchor());
     }
 
     /** 主门在核心正上方 2 格（落在 pattern 自带的裂口笼空气井内）。 */
@@ -91,6 +94,43 @@ class BarrierTwinGateDimensionTest {
         Method m = BarrierBreakBehavior.class.getDeclaredMethod("twinPortalPos", ServerLevel.class);
         assertTrue(Modifier.isPublic(m.getModifiers()), "twinPortalPos 必须 public");
         assertTrue(Modifier.isStatic(m.getModifiers()), "twinPortalPos 必须 static");
+    }
+
+    @Test
+    void twinLookupReusesExistingGateAndRemovesLegacyDuplicates() {
+        String src = readSource();
+        assertTrue(src.contains("existingTwinPortal(gensokyo, probe.getX(), probe.getZ())"),
+                "维护孪生门前必须先查找既有门位");
+        assertTrue(src.contains("level.removeBlock(candidate, false)"),
+                "旧版本遗留的重复孪生门应清理掉");
+        assertTrue(src.contains("if (level.getBlockState(pos).is(ModBlocks.SUKIMA.get()))"),
+                "安全地表搜索必须把已存在的隙间视为可复用门位");
+    }
+
+    @Test
+    void portalRepairIsIdempotentAndDoesNotReplaySummonEffects() {
+        String src = readSource();
+        assertTrue(src.contains("placeAt(gensokyo, twin)"),
+                "闩锁维护补门必须静默放置");
+        assertTrue(src.contains("portal.requestOpenSilently("),
+                "修复门位不应重播召唤演出");
+        assertTrue(src.contains("if (level.getBlockState(pos).is(ModBlocks.SUKIMA.get()))"),
+                "已存在的传送门必须直接返回，不能重置动画");
+    }
+
+    /**
+     * 结界开门：仪式路径（{@code placePortals}）放置门位后，双门应走带演出的开启——
+     * 门体置为开启、锚点从此刻起跑，先播满「结界崩解」再让眼形张开。
+     */
+    @Test
+    void ritualOpenPlaysTheShatterStartupBurst() {
+        String src = readSource();
+        assertTrue(src.contains("placeAt(level, mainPortalPos(corePos), true)"),
+                "仪式开门的主门应走带演出的开启路径");
+        assertTrue(src.contains("placeAt(gensokyo, twin, true)"),
+                "仪式开门的孪生门应走带演出的开启路径");
+        assertTrue(src.contains("portal.requestOpen(BalanceNumbers.BARRIER_PORTAL_SCALE"),
+                "带演出的开启应走 requestOpen");
     }
 
     private static String readSource() {
