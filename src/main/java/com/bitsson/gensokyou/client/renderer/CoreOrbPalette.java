@@ -306,10 +306,13 @@ public final class CoreOrbPalette {
     public static int shade(Layer layer, Palette pal, CoreOrbGeometry.Vtx vtx, int face, int fixed,
                             float time, float flowScale) {
         if (fixed != 0) {
+            if (layer == Layer.ENERGY && flowScale == 0.0F) {
+                return fixed;
+            }
             // 固定结构色（符纸朱印等）：只让亮度随光带走，色相与饱和度保持不变。
             float[] hsb = Color.RGBtoHSB((fixed >> 16) & 0xFF,
                     (fixed >> 8) & 0xFF, fixed & 0xFF, null);
-            float bri = hsb[2] * band(vtx.s(), time);
+            float bri = hsb[2] * (layer == Layer.ENERGY ? arrayLight(vtx.s(), time) : band(vtx.s(), time));
             return compose(hsb[0], hsb[1], Math.min(1.0F, bri));
         }
         float s = vtx.s();
@@ -339,7 +342,7 @@ public final class CoreOrbPalette {
             case ENERGY -> {
                 hue = pal.rainbow() ? rainbowHue(s, time) : pal.baseHue();
                 sat = ENERGY_SATURATION;
-                bri = ENERGY_BRIGHTNESS;
+                bri = ENERGY_BRIGHTNESS * arrayLight(s, time);
             }
             case FLAME -> {
                 hue = shiftHue(0.0F, FLAME_WARM_DEG);
@@ -358,6 +361,12 @@ public final class CoreOrbPalette {
             }
         }
         return compose(hue, sat, bri);
+    }
+
+    /** 一束高光沿闭环走一圈，首尾亮度连续。 */
+    private static float arrayLight(float s, float time) {
+        float crest = (float) (0.5 + 0.5 * Math.cos(2.0 * Math.PI * (s - time / 5.0)));
+        return 0.46F + 0.54F * crest * crest * crest;
     }
 
     /** 全光谱流光的色相：沿流动坐标滚动 + 整体缓慢摆动。 */

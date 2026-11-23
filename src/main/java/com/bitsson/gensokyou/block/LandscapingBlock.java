@@ -35,10 +35,13 @@ import java.util.List;
  */
 public class LandscapingBlock extends Block implements EntityBlock {
 
-    /** 与 {@code models/block/landscaping_tool.json} 的 two elements 对齐。 */
+    /** 与 {@code models/block/landscaping_tool.json} 的镇地罗盘桩轮廓对齐。 */
     private static final VoxelShape SHAPE = Shapes.or(
-            Block.box(2.0, 0.0, 6.0, 14.0, 4.0, 10.0),
-            Block.box(7.0, 4.0, 7.0, 9.0, 15.0, 9.0));
+            Block.box(2.0, 0.0, 2.0, 14.0, 3.0, 14.0),
+            Block.box(4.0, 3.0, 4.0, 12.0, 5.0, 12.0),
+            Block.box(5.0, 5.0, 5.0, 11.0, 12.0, 11.0),
+            Block.box(3.0, 12.0, 3.0, 13.0, 15.0, 13.0),
+            Block.box(6.0, 15.0, 6.0, 10.0, 16.0, 10.0));
 
     public LandscapingBlock(Properties properties) {
         super(properties);

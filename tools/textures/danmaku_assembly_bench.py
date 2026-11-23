@@ -1,71 +1,78 @@
 # 弹幕方术装配台：工作台方块三面贴图（16x16，全不透明）
-# top    - 台面：浅木边 + 中央红色符纸（符纸环纹）
-# side   - 侧板：木纹 + 上下铁箍 + 中央抽屉（铁把手）
-# bottom - 底面：素木 + 铁框
+# 风格对齐：神木柜体（朱褐木理 1/2/3/4）+ 仪式族黄铜包角与阵箍（o/O/M/L）+ 朱红符纸印（d/r/y）+ 灵晶阵眼（c/C）
+#   top    - 台面：四角黄铜包角 + 神木拼板台面 + 八角黄铜罗盘核座（四角嵌朱砂符点，中心深槽透出青蓝灵晶微光）
+#   side   - 侧板：上沿黄铜压条与铆钉 + 左右黄铜包柱 + 中央双层抽屉（黄铜拉手）与两侧朱红垂挂御札 + 底座铜箍
+#   bottom - 底面：井字神木榫卯底架 + 四角黄铜垫脚 + 中央镇台铜印
+
 PAL = {
-    'o': (34, 24, 32),       # 深描边
-    'l': (176, 136, 92),     # 木高光（左上）
-    'w': (140, 102, 64),     # 木基色
-    'x': (104, 74, 46),      # 木暗部（右下）
-    'm': (120, 124, 130),    # 铁基色
-    'n': (172, 176, 182),    # 铁高光
-    'r': (196, 64, 64),      # 符纸红
-    'y': (232, 220, 196),    # 符纸浅纹
+    '1': (52, 32, 22),       # 深木缝 / 描边暗部
+    '2': (88, 56, 38),       # 神木暗面
+    '3': (126, 84, 54),      # 神木主色
+    '4': (162, 114, 74),     # 神木受光木理
+    'o': (47, 36, 24),       # 极深铜缝 / 凹槽底
+    'O': (92, 68, 40),       # 黄铜暗部
+    'M': (176, 132, 66),     # 黄铜主色
+    'L': (232, 198, 135),    # 黄铜高光 / 铆钉
+    'd': (128, 32, 34),      # 朱砂符暗红
+    'r': (196, 56, 52),      # 朱砂符正红
+    'y': (242, 224, 188),    # 符纸象牙白 / 金墨点
+    'c': (48, 132, 168),     # 核槽灵晶青蓝
+    'C': (152, 232, 250),    # 核槽灵晶高光
 }
 
 TEXES = {
     "block/danmaku_assembly_bench_top": [
-        "oooooooooooooooo",
-        "ollllllllllllllo",
-        "olwwwwwwwwwwwwlo",
-        "olwwwwwwwwwwwwlo",
-        "olwwrrrrrrrrwwlo",
-        "olwwrryyyyrrwwlo",
-        "olwwryyrryyrwwlo",
-        "olwwryrrrryrwwlo",
-        "olwwryrrrryrwwlo",
-        "olwwryyrryyrwwlo",
-        "olwwrryyyyrrwwlo",
-        "olwwrrrrrrrrwwlo",
-        "olwwwwwwwwwwwwlo",
-        "olwwwwwwwwwwwwlo",
-        "ollllllllllllllo",
-        "oooooooooooooooo",
+        "1111111111111111",
+        "1LM4433113344ML1",
+        "1M343323323343M1",
+        "14332rMMMMr23341",
+        "1432rMLLLLMr2341",
+        "133MM2oLLo2MM331",
+        "132MLo1cc1oLM231",
+        "113MLocCCcoLM311",
+        "113MLocCCcoLM311",
+        "132MLo1cc1oLM231",
+        "133MM2oLLo2MM331",
+        "1432rMLLLLMr2341",
+        "14332rMMMMr23341",
+        "1M343323323343M1",
+        "1LM4433113344ML1",
+        "1111111111111111",
     ],
     "block/danmaku_assembly_bench_side": [
-        "oooooooooooooooo",
-        "ollllllllllllllo",
-        "owwwwwwwwwwwwwwo",
-        "ommmmmmmmmmmmmmo",
-        "onnnnnnnnnnnnnno",
-        "owwwwwwwwwwwwwwo",
-        "oxxxxxxxxxxxxxxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwmmmmwwwwxo",
-        "oxwwwwmmmmwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxxxxxxxxxxxxxxo",
-        "owwwwwwwwwwwwwwo",
-        "ommmmmmmmmmmmmmo",
-        "oxxxxxxxxxxxxxxo",
-        "oooooooooooooooo",
+        "1111111111111111",
+        "1LMMMMMMMMMMMML1",
+        "1OOOOOOOOOOOOOO1",
+        "1M432111111234M1",
+        "1O321444444123O1",
+        "1M3r133LL331r3M1",
+        "1O2y122OO221y2O1",
+        "1M2r11111111r2M1",
+        "1O3d14444441d3O1",
+        "1M32133LL33123M1",
+        "1O22122OO22122O1",
+        "1M321111111123M1",
+        "1O332232232233O1",
+        "1LMMOMMMMMMOMML1",
+        "1OOOOOOOOOOOOOO1",
+        "1111111111111111",
     ],
     "block/danmaku_assembly_bench_bottom": [
-        "oooooooooooooooo",
-        "oxxxxxxxxxxxxxxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxwwwwwwwwwwwwxo",
-        "oxxxxxxxxxxxxxxo",
-        "oooooooooooooooo",
+        "1111111111111111",
+        "1LM2123333212ML1",
+        "1MO2123223212OM1",
+        "1222123223212221",
+        "1111111111111111",
+        "123321OOOO123321",
+        "132231OMMO132231",
+        "132231OMMO132231",
+        "132231OMMO132231",
+        "132231OMMO132231",
+        "123321OOOO123321",
+        "1111111111111111",
+        "1222123223212221",
+        "1MO2123223212OM1",
+        "1LM2123333212ML1",
+        "1111111111111111",
     ],
 }

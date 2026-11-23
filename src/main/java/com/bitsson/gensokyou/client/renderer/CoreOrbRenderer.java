@@ -29,8 +29,8 @@ import java.util.List;
  * <ol>
  *   <li><b>沉睡态</b>（未装核）——全彩流光球 + 火冠气焰 + 球心暗腔。它<b>没有品阶归属</b>
  *       （品阶随装入的核而来），故走全光谱流光，不受品阶配色环约束。</li>
- *   <li><b>显形态</b>（已装核）——外壳几何<b>即该核对应的武器本身</b>（三把飞刀 / 激光枪 / 符纸…），
- *       基色取该核的品阶色（{@link TierPalette}，品阶色单一色源）。</li>
+ *   <li><b>显形态</b>（已装核）——本体保持千机核心流光球形态，基色取该核的品阶色
+ *       （{@link TierPalette}，品阶色单一色源），球外浮现该弹幕核专属的灵阵与星轨。</li>
  * </ol>
  *
  * <p><b>层次（由内到外）</b>
@@ -89,8 +89,8 @@ public class CoreOrbRenderer extends net.minecraft.client.renderer.BlockEntityWi
     /** 沉睡态本体透明度（半透明，让气焰与腔体透出层次）。 */
     private static final int DREAM_BODY_ALPHA = 225;
 
-    /** 武器轮廓本体透明度（实心——武器就该是实的）。 */
-    private static final int WEAPON_BODY_ALPHA = 255;
+    /** 武装态本体透明度（略带通透感，与球心涡旋及外围法阵融合）。 */
+    private static final int WEAPON_BODY_ALPHA = 235;
 
     /** 腔体透明度。 */
     private static final int CAVITY_ALPHA = 240;
@@ -100,6 +100,8 @@ public class CoreOrbRenderer extends net.minecraft.client.renderer.BlockEntityWi
 
     /** 武器自带能量件的透明度（实体层，不占加法预算）。 */
     private static final int ENERGY_ALPHA = 235;
+    static final int ARMED_HALO_ALPHA = 14;
+    static final float ARRAY_TURN_SPEED = 9.0F;
 
     // ---------------- 主渲染 ----------------
 
@@ -115,7 +117,7 @@ public class CoreOrbRenderer extends net.minecraft.client.renderer.BlockEntityWi
         int baseColor = dormant ? 0 : TierPalette.rgb(tier);
         int level = WeaponSlotsHelper.weaponLevel(stack);
 
-        float time = localTime();
+        float time = localTime(dormant);
         CoreOrbPalette.Palette pal = dormant ? CoreOrbPalette.Palette.dormant() : CoreOrbPalette.Palette.tier(baseColor);
 
         pose.pushPose();
@@ -135,7 +137,9 @@ public class CoreOrbRenderer extends net.minecraft.client.renderer.BlockEntityWi
         pose.pushPose();
         pose.mulPose(Axis.YP.rotationDegrees(MODEL_YAW));
         pose.mulPose(Axis.XP.rotationDegrees(MODEL_PITCH));
-        pose.mulPose(Axis.ZP.rotationDegrees(time * SHELL_SPIN_DEG_PER_SEC));
+        if (dormant) {
+            pose.mulPose(Axis.ZP.rotationDegrees(time * SHELL_SPIN_DEG_PER_SEC));
+        }
         this.emitTo(RenderType.entityTranslucent(SHELL_TEXTURE), silhouette, pose, pal,
                 CoreOrbPalette.Layer.BODY, time, 1.0F,
                 dormant ? DREAM_BODY_ALPHA : WEAPON_BODY_ALPHA, bufferSource);
@@ -159,21 +163,20 @@ public class CoreOrbRenderer extends net.minecraft.client.renderer.BlockEntityWi
         pose.scale(HALO_SCALE, HALO_SCALE, HALO_SCALE);
         pose.translate(-center.x, -center.y, -center.z);
         this.emitTo(DanmakuRenderTypes.additiveGlow(SHELL_TEXTURE), silhouette, pose, pal,
-                CoreOrbPalette.Layer.HALO, time, 1.0F, GLOW_ALPHA, bufferSource);
+                CoreOrbPalette.Layer.HALO, time, 1.0F, dormant ? GLOW_ALPHA : ARMED_HALO_ALPHA, bufferSource);
         pose.popPose();
 
-        // ④ 能量：武器自带的拖尾 / 能量线 / 符文流 / 光轴
+        // ④ 球面印记固定，只有外圈阵纹慢转和走光。
         if (!dormant) {
-            List<CoreOrbGeometry.Quad> energy = CoreOrbGeometry.energy(profile);
-            if (!energy.isEmpty()) {
-                pose.pushPose();
-                pose.mulPose(Axis.YP.rotationDegrees(MODEL_YAW));
-                pose.mulPose(Axis.XP.rotationDegrees(MODEL_PITCH));
-                pose.mulPose(Axis.ZP.rotationDegrees(time * 14.0F));
-                this.emitTo(RenderType.entityTranslucent(SHELL_TEXTURE), energy, pose, pal,
-                        CoreOrbPalette.Layer.ENERGY, time, 1.0F, ENERGY_ALPHA, bufferSource);
-                pose.popPose();
-            }
+            pose.pushPose();
+            pose.mulPose(Axis.YP.rotationDegrees(MODEL_YAW));
+            pose.mulPose(Axis.XP.rotationDegrees(MODEL_PITCH));
+            this.emitTo(RenderType.entityTranslucent(SHELL_TEXTURE), CoreOrbGeometry.seal(profile), pose, pal,
+                    CoreOrbPalette.Layer.ENERGY, time, 0.0F, 255, bufferSource);
+            pose.mulPose(Axis.XP.rotationDegrees(time * ARRAY_TURN_SPEED));
+            this.emitTo(RenderType.entityTranslucent(SHELL_TEXTURE), CoreOrbGeometry.energy(profile), pose, pal,
+                    CoreOrbPalette.Layer.ENERGY, time, 1.0F, ENERGY_ALPHA, bufferSource);
+            pose.popPose();
         }
 
         // ⑤ 火冠：仅沉睡态
@@ -210,10 +213,11 @@ public class CoreOrbRenderer extends net.minecraft.client.renderer.BlockEntityWi
     }
 
     /** 本地单调时钟（秒）。纯视觉用——MUST NOT 依赖服务端同步。 */
-    private static float localTime() {
+    private static float localTime(boolean dormant) {
         // 注意：浮点字面量不能带 L 后缀（`0.0L` 非法——L 只属于整数字面量），
         // 分母写成 `1_000_000_000.0`（double）而不是 `1_000_000_000.0L`。
-        return (float) ((System.nanoTime() % 100_000_000_000L) / 1_000_000_000.0);
+        long cycle = dormant ? 100_000_000_000L : 120_000_000_000L;
+        return (float) ((System.nanoTime() % cycle) / 1_000_000_000.0);
     }
 
     // ---------------- 绘制 ----------------

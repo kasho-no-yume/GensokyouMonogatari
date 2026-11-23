@@ -25,6 +25,11 @@ public final class WeaponShotSounds {
 
     @SubscribeEvent
     public static void onEntityJoin(EntityJoinLevelEvent event) {
+        // Dist.CLIENT also includes the integrated server. Only the client copy
+        // of the projectile may call Audio, which accesses the client level.
+        if (!event.getLevel().isClientSide) {
+            return;
+        }
         if (!(event.getEntity() instanceof AbstractDanmakuProjectile projectile)) {
             return;
         }

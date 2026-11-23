@@ -538,6 +538,17 @@ import java.util.Set;
             SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.INT);
 
     /**
+     * 是否由玩家主武器发射。默认 false。
+     *
+     * <p><b>必须同步到客户端</b>：渲染层的近相机淡出（{@code AbstractDanmakuRenderer#nearCameraFade}）
+     * 用它区分「生成在眼睛处的玩家武器弹」与「远处飞来的敌方弹幕」——只有前者需要淡出，否则
+     * 敌弹会在贴近镜头时视觉消失、判定却仍在。若此项只是服务端普通字段，客户端恒读到默认值
+     * false，淡出会被整段跳过（麟弹的 10 Hz 白闪回归）。
+     */
+    private static final EntityDataAccessor<Boolean> DATA_FROM_WEAPON =
+            SynchedEntityData.defineId(AbstractDanmakuProjectile.class, EntityDataSerializers.BOOLEAN);
+
+    /**
      * 是否穿透方块（跳过方块碰撞）。默认 false。
      *
      * <p>用于「线状弹」——蛛丝这类要在空中拉出长线的弹。普通球弹撞到方块即销毁，
@@ -813,9 +824,6 @@ import java.util.Set;
      */
     private float critMult = 1.0F;
 
-    /** 是否主武器发射（灵力汲取只对武器弹生效，符卡等其他来源除外）。 */
-    private boolean fromWeapon = false;
-
     /** 白名单：其中的实体类型不会被伤害，也不会阻挡弹幕。仅服务端使用。 */
     protected Set<EntityType<?>> whitelist = new HashSet<>();
 
@@ -834,6 +842,7 @@ import java.util.Set;
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(DATA_COLOR, 0xFFFFFF);
         builder.define(DATA_FACTION, 0);
+        builder.define(DATA_FROM_WEAPON, false);
         builder.define(DATA_PIERCE_BLOCKS, false);
         builder.define(DATA_FLAGS, (byte) 0);
         builder.define(DATA_SHOT_CUE, (byte) 0);
@@ -2460,12 +2469,13 @@ import java.util.Set;
         this.critMult = critMult;
     }
 
+    /** 是否主武器发射（灵力汲取只对武器弹生效，符卡等其他来源除外）。 */
     public boolean isFromWeapon() {
-        return this.fromWeapon;
+        return this.entityData.get(DATA_FROM_WEAPON);
     }
 
     public void setFromWeapon(boolean fromWeapon) {
-        this.fromWeapon = fromWeapon;
+        this.entityData.set(DATA_FROM_WEAPON, fromWeapon);
     }
 
     /** 客户端可读的开火 cue；{@code null} = 不播放（BOSS / 玩家符卡弹保持空）。 */
@@ -2581,7 +2591,7 @@ import java.util.Set;
         if (this.critMult != 1.0F) {
             tag.putFloat("CritMult", this.critMult);
         }
-        if (this.fromWeapon) {
+        if (this.isFromWeapon()) {
             tag.putBoolean("FromWeapon", true);
         }
         tag.putByte("Flags", this.entityData.get(DATA_FLAGS));
@@ -2723,7 +2733,7 @@ import java.util.Set;
         if (tag.contains("CritMult")) {
             this.critMult = tag.getFloat("CritMult");
         }
-        this.fromWeapon = tag.getBoolean("FromWeapon");
+        this.setFromWeapon(tag.getBoolean("FromWeapon"));
         if (tag.contains("Flags")) {
             this.entityData.set(DATA_FLAGS, tag.getByte("Flags"));
         }

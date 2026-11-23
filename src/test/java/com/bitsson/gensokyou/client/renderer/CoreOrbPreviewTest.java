@@ -54,24 +54,19 @@ class CoreOrbPreviewTest {
     // 断言
     // ------------------------------------------------------------------
 
-    /**
-     * 每个档案的轮廓 MUST 与其它档案<b>都不同</b>。
-     *
-     * <p>这是"外形随弹核变化"的机器可验证形式：若两个档案的剪影一致，
-     * 玩家在物品栏里就分不出自己拿的是哪把武器。
-     */
+    /** 同阶弹核也需要靠印记和阵纹区分。 */
     @Test
-    void everyProfileHasADistinctSilhouette() throws Exception {
+    void everyProfileHasADistinctAppearanceAtTheSameTier() {
         Set<String> fingerprints = new HashSet<>();
         List<String> duplicates = new ArrayList<>();
         for (CoreShellProfile profile : CoreShellProfile.values()) {
-            BufferedImage image = render(profile);
+            BufferedImage image = render(profile, 1);
             String fingerprint = fingerprint(image);
             if (!fingerprints.add(fingerprint)) {
                 duplicates.add(profile.name());
             }
         }
-        assertTrue(duplicates.isEmpty(), "这些档案的剪影完全相同：" + duplicates);
+        assertTrue(duplicates.isEmpty(), "这些档案的外观完全相同：" + duplicates);
     }
 
     /**
@@ -163,8 +158,12 @@ class CoreOrbPreviewTest {
 
     /** 渲染一个档案的预览。 */
     private static BufferedImage render(CoreShellProfile profile) {
+        return render(profile, profile == CoreShellProfile.GUN || profile == CoreShellProfile.PAPER ? 2 : 1);
+    }
+
+    private static BufferedImage render(CoreShellProfile profile, int tier) {
         boolean dormant = profile.isDormant();
-        int baseColor = dormant ? 0 : TierPalette.rgb(1);
+        int baseColor = dormant ? 0 : TierPalette.rgb(tier);
         CoreOrbPalette.Palette pal = dormant
                 ? CoreOrbPalette.Palette.dormant()
                 : CoreOrbPalette.Palette.tier(baseColor);
@@ -190,6 +189,7 @@ class CoreOrbPreviewTest {
 
         // ④ 能量件
         if (!dormant) {
+            addQuads(draws, CoreOrbGeometry.seal(profile), CoreOrbPalette.Layer.ENERGY, pal, TIME, 0.0F, true);
             addQuads(draws, CoreOrbGeometry.energy(profile), CoreOrbPalette.Layer.ENERGY, pal, TIME, 1.0F, true);
         }
 
@@ -229,7 +229,8 @@ class CoreOrbPreviewTest {
         for (CoreOrbGeometry.Quad q : quads) {
             int alpha = layer.isAdditive()
                     ? CoreOrbPalette.alphaWithin(
-                    CoreOrbPalette.shade(layer, pal, q, time, flowScale), layer.budget(), 255)
+                    CoreOrbPalette.shade(layer, pal, q, time, flowScale), layer.budget(),
+                    layer == CoreOrbPalette.Layer.HALO && !pal.rainbow() ? CoreOrbRenderer.ARMED_HALO_ALPHA : 255)
                     : 255;
             double[][] pts = new double[4][2];
             double depth = 0.0D;
@@ -319,16 +320,12 @@ class CoreOrbPreviewTest {
         double y = p.y;
         double z = p.z;
         if (modelSpace) {
-            // Yaw 90°
-            double nx = z;
-            double nz = -x;
-            x = nx;
-            z = nz;
-            // Pitch 16°
+            // PoseStack 先乘 yaw 再乘 pitch，顶点应用时顺序相反。
             double ry = y * Math.cos(Math.toRadians(PITCH)) - z * Math.sin(Math.toRadians(PITCH));
             double rz = y * Math.sin(Math.toRadians(PITCH)) + z * Math.cos(Math.toRadians(PITCH));
             y = ry;
-            z = rz;
+            z = -x;
+            x = rz;
         }
         return new double[]{x, y, z};
     }
