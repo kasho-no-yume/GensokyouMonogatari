@@ -76,6 +76,7 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.FALLEN_SAKURA_PETALS.get());
                         output.accept(ModItems.GLOW_MUSHROOM_CLUSTER.get());
                         output.accept(ModItems.MISTY_REED.get());
+                        GensokyoNaturalBlocks.addCreativeItems(output);
                         output.accept(ModItems.SANZU_FLASK.get());
                         output.accept(ModItems.SPIRIT_FISH.get());
                         output.accept(ModItems.MERMAID_SCALE.get());

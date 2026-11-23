@@ -1,8 +1,10 @@
-﻿{
+{
   "has_precipitation": true,
-  "temperature": 0.2,
-  "downfall": 0.4,
-  "carvers": { "air": [] },
+  "temperature": 0.65,
+  "downfall": 0.8,
+  "carvers": {
+    "air": []
+  },
   "effects": {
     "fog_color": 12638463,
     "sky_color": 8366493,
@@ -11,8 +13,12 @@
   },
   "spawners": {
     "monster": [
-      { "type": "gensokyou:fairy", "weight": 18, "minCount": 1, "maxCount": 1 },
-      { "type": "gensokyou:big_fairy", "weight": 1, "minCount": 1, "maxCount": 1 }
+      {
+        "type": "gensokyou:fairy",
+        "weight": 18,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ],
     "creature": [],
     "ambient": [],
@@ -24,8 +30,29 @@
   },
   "spawn_costs": {},
   "features": [
-    [], [], [], [], [], [], ["gensokyou:star_silver_ore"], [], [],
-    ["minecraft:trees_taiga", "minecraft:patch_grass_taiga"],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "gensokyou:spirit_iron_ore",
+      "gensokyou:cinnabar",
+      "gensokyou:star_silver_ore",
+      "gensokyou:wind_mica"
+    ],
+    [],
+    [],
+    [
+      "gensokyou:moriya_grove",
+      "minecraft:patch_grass_taiga",
+      "gensokyou:cloud_azalea",
+      "gensokyou:wind_plume",
+      "gensokyou:rock_fan_moss",
+      "gensokyou:gentian",
+      "gensokyou:salt_whisker"
+    ],
     []
   ]
 }

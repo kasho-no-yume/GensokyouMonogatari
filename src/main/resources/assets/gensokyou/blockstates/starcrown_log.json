@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=y": {
+      "model": "gensokyou:block/starcrown_log"
+    },
+    "axis=x": {
+      "model": "gensokyou:block/starcrown_log",
+      "x": 90,
+      "y": 90
+    },
+    "axis=z": {
+      "model": "gensokyou:block/starcrown_log",
+      "x": 90
+    }
+  }
+}

@@ -21,7 +21,7 @@ class GensokyoMapImageTest {
     @Test
     void playerMarkerTracksPixelGridAndHeadingWithoutChangingTheImage() {
         MapItemSavedData map = MapItemSavedData.createForClient((byte) 4, true, Level.OVERWORLD);
-        byte[] base = GensokyoMapImage.buildBaseColors();
+        byte[] base = GensokyoMapImage.buildBaseColors(new GensokyoLayout(0));
         map.colors = base.clone();
         int scale = GensokyoMapImage.BLOCKS_PER_PIXEL;
 

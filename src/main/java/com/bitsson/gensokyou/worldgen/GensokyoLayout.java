@@ -1,9 +1,9 @@
 package com.bitsson.gensokyou.worldgen;
 
-/** Shared fixed geography used by the biome source, terrain, and developer map. */
+/** Seeded geography around fixed regional and landmark anchors. */
 public final class GensokyoLayout {
     /** Bounds the coastline in every direction, including its longest headlands. */
-    public static final int ISLAND_RADIUS = 4288;
+    public static final int ISLAND_RADIUS = 4480;
     public static final int WRAP_PERIOD = 12_288;
     public static final int SEA_LEVEL = 63;
     public static final int COURTYARD_X = 3072;
@@ -11,6 +11,8 @@ public final class GensokyoLayout {
     public static final int COURTYARD_Y = 96;
     public static final int TWIN_GATE_X = 3088;
     public static final int TWIN_GATE_Z = 128;
+    public static final int MISTY_LAKE_X = 1500;
+    public static final int MISTY_LAKE_Z = -1750;
 
     public enum Region {
         HAKUREI("hakurei_shrine", 3072, 128, 3072, 128, 96, 86),
@@ -70,55 +72,80 @@ public final class GensokyoLayout {
         }
     }
 
-    private GensokyoLayout() {
+    private static final Region[] REGIONS = Region.values();
+    private final double coastPhase;
+    private final double xPhase;
+    private final double zPhase;
+    private final double reliefPhase;
+
+    public GensokyoLayout(long seed) {
+        var random = new java.util.SplittableRandom(seed);
+        coastPhase = random.nextDouble(2.0 * Math.PI);
+        xPhase = random.nextDouble(2.0 * Math.PI);
+        zPhase = random.nextDouble(2.0 * Math.PI);
+        reliefPhase = random.nextDouble(2.0 * Math.PI);
     }
 
-    public static boolean isIsland(int x, int z) {
+    public boolean isIsland(int x, int z) {
         return coastDistance(x, z) >= 0.0;
     }
 
     /** Positive inland, negative offshore. A single radial coast keeps the main island joined. */
-    public static double coastDistance(int x, int z) {
+    public double coastDistance(int x, int z) {
         double angle = Math.atan2(z, x);
         double radius = 3700.0
                 + 250.0 * Math.cos(angle * 2.0 + 0.3)
                 + 155.0 * Math.sin(angle * 3.0 - 0.4)
                 + 95.0 * Math.cos(angle * 5.0 + 0.8)
                 + 55.0 * Math.sin(angle * 9.0 + 0.2)
-                + 25.0 * Math.cos(angle * 15.0 - 1.3);
+                + 25.0 * Math.cos(angle * 15.0 - 1.3)
+                + 120.0 * Math.cos(angle * 4.0 + coastPhase)
+                + 65.0 * Math.sin(angle * 7.0 - coastPhase);
+        // The closest landmark to the coast still needs room for its pad and approach.
+        radius = Math.max(3310.0, radius);
         return radius - Math.hypot(x, z);
     }
 
-    public static Region regionAt(int x, int z) {
+    public Region regionAt(int x, int z) {
         if (!isIsland(x, z)) {
             return null;
         }
         return nearestRegion(x, z);
     }
 
-    public static boolean isMistyLake(int x, int z) {
-        long dx = (long) x - 1500;
-        long dz = (long) z + 1750;
-        return dx * dx + dz * dz <= 350L * 350L;
+    public boolean isMistyLake(int x, int z) {
+        return lakeRadius(x, z) <= 1.0;
     }
 
-    public static boolean isChireidenRiftVoid(int x, int y, int z) {
-        long dx = (long) x + 1600;
-        long dz = (long) z - 2050;
-        boolean shaft = dx * dx + dz * dz <= 54L * 54L && y >= 70 && y <= 180;
-        boolean cavern = dx * dx / (230L * 230L) + dz * dz / (190L * 190L) <= 1
-                && y >= 68 && y <= 96;
+    private double lakeRadius(int x, int z) {
+        double u = ((double) x - MISTY_LAKE_X) / 355.0;
+        double v = ((double) z - MISTY_LAKE_Z) / 300.0;
+        return Math.hypot(u, v) + 0.12 * Math.sin(3.0 * u + reliefPhase) * Math.sin(3.0 * v);
+    }
+
+    public boolean isChireidenRiftVoid(int x, int y, int z) {
+        if (y < 68) return false;
+        double along = (double) z - 2050;
+        double across = riftAcross(x, z);
+        boolean shaft = Math.abs(along) < 185 && Math.abs(across) < 48 * (1 - Math.abs(along) / 185);
+        double dx = (x + 1650.0) / 215.0;
+        double dz = (z - 2050.0) / 170.0;
+        boolean cavern = y <= 100 && dx * dx + dz * dz + Math.pow((y - 83.0) / 18.0, 2) < 1;
         return shaft || cavern;
     }
 
-    private static Region nearestRegion(int x, int z) {
+    private static double riftAcross(int x, int z) {
+        return x + 1600.0 - 85.0 * Math.sin((z - 2050.0) / 165.0);
+    }
+
+    private Region nearestRegion(int x, int z) {
         // Warp the coordinates continuously before comparing anchors. This bends the shared
         // borders without scattering small patches of one biome into another.
-        double warpedX = x + regionWarp(z, x);
-        double warpedZ = z + regionWarp(x, -z);
+        double warpedX = x + regionWarp(z, x, xPhase);
+        double warpedZ = z + regionWarp(x, -z, zPhase);
         Region nearest = Region.HUMAN_VILLAGE;
         double nearestDistance = Double.POSITIVE_INFINITY;
-        for (Region candidate : Region.values()) {
+        for (Region candidate : REGIONS) {
             double distance = squaredDistance(warpedX, warpedZ, candidate);
             if (distance < nearestDistance) {
                 nearest = candidate;
@@ -128,9 +155,9 @@ public final class GensokyoLayout {
         return nearest;
     }
 
-    private static double regionWarp(double across, double along) {
-        return 335.0 * Math.sin(across / 690.0 + along / 2400.0)
-                + 120.0 * Math.sin(across / 300.0 - along / 1600.0);
+    private static double regionWarp(double across, double along, double phase) {
+        return 290.0 * Math.sin(across / 720.0 + along / 2400.0)
+                + 160.0 * Math.sin(across / 490.0 - along / 1900.0 + phase);
     }
 
     private static double squaredDistance(double x, double z, Region region) {
@@ -139,41 +166,39 @@ public final class GensokyoLayout {
         return dx * dx + dz * dz;
     }
 
-    /** Seeded noise is supplied by the density-function codec; the same geometry bounds all seeds. */
-    public static double surfaceHeight(int x, int z, double terrainNoise) {
+    public double surfaceHeight(int x, int z, double terrainNoise) {
         double inland = coastDistance(x, z);
         if (inland <= 0.0) {
             double depth = smoothstep(-inland / 580.0);
-            return lerp(SEA_LEVEL - 1.0, 36.0 + terrainNoise * 2.0, depth);
+            return lerp(SEA_LEVEL + Math.max(-8.0, inland / 6.0), 36.0 + terrainNoise * 2.0, depth);
         }
 
-        double warpedX = x + regionWarp(z, x);
-        double warpedZ = z + regionWarp(x, -z);
+        double warpedX = x + regionWarp(z, x, xPhase);
+        double warpedZ = z + regionWarp(x, -z, zPhase);
         double weightedHeight = 0.0;
         double totalWeight = 0.0;
-        for (Region region : Region.values()) {
+        for (Region region : REGIONS) {
             double weight = 1.0 / (squaredDistance(warpedX, warpedZ, region) + 160_000.0);
             weight *= weight * weight;
-            weightedHeight += region.baseHeight * weight;
+            weightedHeight += relief(region, x, z, terrainNoise) * weight;
             totalWeight += weight;
         }
-        double height = weightedHeight / totalWeight + terrainNoise * 9.0;
-
-        height += gaussian(x, z, 0, -3000, 1250.0, 70.0);       // 妖怪之山主脊
-        height += gaussian(x, z, -1600, -2600, 850.0, 42.0);    // 白玉楼阶状台地
-        height -= gaussian(x, z, 1500, -1750, 430.0, 62.0);     // 雾之湖盆地
-        height += gaussian(x, z, -1600, 2050, 520.0, 58.0);     // 地灵殿裂谷高地
-        height -= gaussian(x, z, -1600, 2050, 650.0, 13.0);     // 裂谷入口洼地
-
-        // Keep the coast and the land mask aligned while easing into the inland relief.
-        if (!isMistyLake(x, z)) {
-            height = Math.max(SEA_LEVEL + 2.0, height);
+        double height = Math.max(SEA_LEVEL + 2.0, weightedHeight / totalWeight);
+        double lake = lakeRadius(x, z);
+        if (lake < 1.42) {
+            if (lake <= 1.0) {
+                // Keep the basin below the waterline until the shoreline itself.
+                height = lerp(36.0, SEA_LEVEL, lake * lake);
+            } else {
+                double bank = SEA_LEVEL + (lake - 1.0) * 38.0;
+                height = lerp(bank, height, smoothstep((lake - 1.0) / 0.42));
+            }
         }
-        double beach = SEA_LEVEL - 1.0 + Math.min(12.0, inland / 14.0);
+        double beach = SEA_LEVEL + Math.min(12.0, inland / 6.0);
         height = lerp(beach, height, smoothstep(inland / 380.0));
 
         // Pads are tied to their world positions, including their grading around the edges.
-        for (Region region : Region.values()) {
+        for (Region region : REGIONS) {
             double dx = (double) x - region.landmarkX;
             double dz = (double) z - region.landmarkZ;
             double distanceSquared = dx * dx + dz * dz;
@@ -192,11 +217,27 @@ public final class GensokyoLayout {
         return height;
     }
 
-    private static double gaussian(int x, int z, int centerX, int centerZ, double radius, double amplitude) {
-        double dx = (double) x - centerX;
-        double dz = (double) z - centerZ;
-        double normalized = (dx * dx + dz * dz) / (radius * radius);
-        return amplitude * Math.exp(-0.5 * normalized);
+    private double relief(Region region, int x, int z, double noise) {
+        double folds = Math.sin(x / 170.0 + z / 280.0 + reliefPhase);
+        return region.baseHeight + switch (region) {
+            case HAKUREI -> 26 * Math.sin(x / 340.0 - z / 680.0) + 13 * folds + 15 * noise;
+            case MORIYA -> {
+                double spine = x - 430 * Math.sin((z + 2850.0) / 580.0);
+                double ridge = smoothstep(1 - Math.abs(spine) / 1080.0);
+                yield 25 + ridge * (103 + 34 * folds) + 29 * noise;
+            }
+            case MAGIC_FOREST -> 24 * folds + 18 * Math.sin(z / 220.0 - x / 300.0) + 20 * noise;
+            case BAMBOO -> 20 - 25 * Math.pow(Math.abs(folds), 4) + 12 * noise;
+            case HAKUGYOKUROU -> {
+                double rise = Math.max(0, 5 - Math.hypot((x + 1650.0) / 290.0, (z + 2730.0) / 360.0) + 0.3 * folds);
+                double step = Math.floor(rise);
+                yield 19 * (step + smoothstep((rise - step - 0.72) / 0.28)) + 5 * noise;
+            }
+            case CHIREIDEN -> 53 + 23 * folds + 26 * noise
+                    - 55 * smoothstep(1 - Math.abs(riftAcross(x, z)) / 260.0);
+            case SCARLET_MANSION -> 20 + 16 * folds + 11 * noise;
+            case HUMAN_VILLAGE -> 8 + 6 * folds + 7 * noise;
+        };
     }
 
     private static double smoothstep(double value) {

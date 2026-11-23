@@ -2,7 +2,9 @@
   "has_precipitation": true,
   "temperature": 0.7,
   "downfall": 0.5,
-  "carvers": { "air": [] },
+  "carvers": {
+    "air": []
+  },
   "effects": {
     "fog_color": 12632255,
     "sky_color": 8716287,
@@ -11,12 +13,44 @@
   },
   "spawners": {
     "monster": [
-      { "type": "gensokyou:fairy", "weight": 18, "minCount": 1, "maxCount": 1 },
-      { "type": "gensokyou:big_fairy", "weight": 1, "minCount": 1, "maxCount": 1 }
+      {
+        "type": "gensokyou:fairy",
+        "weight": 18,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ],
-    "creature": [], "ambient": [], "axolotls": [], "underground_water_creature": [],
-    "water_creature": [], "water_ambient": [], "misc": []
+    "creature": [],
+    "ambient": [],
+    "axolotls": [],
+    "underground_water_creature": [],
+    "water_creature": [],
+    "water_ambient": [],
+    "misc": []
   },
   "spawn_costs": {},
-  "features": [[], [], [], [], [], [], [], [], [], ["gensokyou:sacred_tree", "minecraft:trees_plains", "minecraft:patch_grass_forest"], []]
+  "features": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "gensokyou:spirit_iron_ore",
+      "gensokyou:cinnabar"
+    ],
+    [],
+    [],
+    [
+      "gensokyou:sacred_grove",
+      "gensokyou:scarlet_maple_grove",
+      "minecraft:patch_grass_forest",
+      "gensokyou:bell_tuft",
+      "gensokyou:maple_litter",
+      "gensokyou:spirit_herb",
+      "gensokyou:salt_whisker"
+    ],
+    []
+  ]
 }

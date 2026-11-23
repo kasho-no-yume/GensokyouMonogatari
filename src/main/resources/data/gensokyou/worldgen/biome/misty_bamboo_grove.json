@@ -1,8 +1,10 @@
-﻿{
+{
   "has_precipitation": true,
   "temperature": 0.8,
   "downfall": 0.6,
-  "carvers": { "air": [] },
+  "carvers": {
+    "air": []
+  },
   "effects": {
     "fog_color": 12638463,
     "sky_color": 7844013,
@@ -11,8 +13,12 @@
   },
   "spawners": {
     "monster": [
-      { "type": "gensokyou:fairy", "weight": 18, "minCount": 1, "maxCount": 1 },
-      { "type": "gensokyou:big_fairy", "weight": 1, "minCount": 1, "maxCount": 1 }
+      {
+        "type": "gensokyou:fairy",
+        "weight": 18,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ],
     "creature": [],
     "ambient": [],
@@ -24,8 +30,27 @@
   },
   "spawn_costs": {},
   "features": [
-    [], [], [], [], [], [], [], [], [],
-    ["minecraft:bamboo", "minecraft:patch_tall_grass"],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "gensokyou:spirit_iron_ore",
+      "gensokyou:cinnabar",
+      "gensokyou:ringed_jade"
+    ],
+    [],
+    [],
+    [
+      "gensokyou:tall_bamboo",
+      "gensokyou:bamboo_litter",
+      "gensokyou:dappled_mondo",
+      "gensokyou:mist_sedge",
+      "gensokyou:moonjoint_shoot",
+      "gensokyou:salt_whisker"
+    ],
     []
   ]
 }

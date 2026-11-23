@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/mist_sedge"
+  },
+  "render_type": "minecraft:cutout"
+}

@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "side": "gensokyou:block/scarlet_maple_log",
+    "end": "gensokyou:block/scarlet_maple_log_top"
+  }
+}

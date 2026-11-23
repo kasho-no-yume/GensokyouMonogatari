@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "gensokyou:sacred_wood",
+    "gensokyou:magic_wood",
+    "gensokyou:eternal_wood",
+    "gensokyou:starcrown_log",
+    "gensokyou:scarlet_maple_log"
+  ]
+}

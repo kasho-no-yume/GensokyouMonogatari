@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/moon_pink"
+  },
+  "render_type": "minecraft:cutout"
+}

@@ -1,0 +1,24 @@
+{
+  "feature": "gensokyou:moriya_grove",
+  "placement": [
+    {
+      "type": "minecraft:noise_based_count",
+      "noise_to_count_ratio": 7,
+      "noise_factor": 90,
+      "noise_offset": 0.75
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "OCEAN_FLOOR"
+    },
+    {
+      "type": "gensokyou:landmark_clearance"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

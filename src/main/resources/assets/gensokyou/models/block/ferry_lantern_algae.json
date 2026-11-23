@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/ferry_lantern_algae"
+  },
+  "render_type": "minecraft:cutout"
+}

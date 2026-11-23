@@ -9,8 +9,8 @@ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
  * Rasterizes the shared Gensokyo layout into a vanilla map image (128×128 {@link MapColor} pixels).
  *
  * <p>The result is meant to be copied into {@code MapItemSavedData.colors} and rendered by
- * Minecraft's own {@code MapRenderer}. The image is deterministic, seed-independent (the layout is
- * fixed), and never touches chunks. Every pixel covers {@link #BLOCKS_PER_PIXEL} blocks so the whole
+ * Minecraft's own {@code MapRenderer}. The image uses the world layout and never touches chunks.
+ * Every pixel covers {@link #BLOCKS_PER_PIXEL} blocks so the whole
  * island plus some ocean fits into one vanilla map.
  */
 public final class GensokyoMapImage {
@@ -62,11 +62,11 @@ public final class GensokyoMapImage {
     }
 
     /** Builds the packed {@code MapColor} byte array, laid out exactly like {@code MapItemSavedData.colors}. */
-    public static byte[] buildColors() {
+    public static byte[] buildColors(GensokyoLayout layout) {
         byte[] colors = new byte[SIZE * SIZE];
         for (int z = 0; z < SIZE; z++) {
             for (int x = 0; x < SIZE; x++) {
-                colors[x + z * SIZE] = colorAt(x, z);
+                colors[x + z * SIZE] = colorAt(layout, x, z);
             }
         }
         return colors;
@@ -76,8 +76,8 @@ public final class GensokyoMapImage {
      * Base image with the landmark and courtyard symbols baked in. Everything the player sees is
      * part of the map texture itself, so it stays pixel-crisp at any display scale.
      */
-    public static byte[] buildBaseColors() {
-        byte[] colors = buildColors();
+    public static byte[] buildBaseColors(GensokyoLayout layout) {
+        byte[] colors = buildColors(layout);
         for (GensokyoLayout.Region region : GensokyoLayout.Region.values()) {
             drawDiamond(colors, worldToPixel(region.landmarkX()), worldToPixel(region.landmarkZ()),
                     MapColor.SNOW, MapColor.COLOR_BLACK);
@@ -123,12 +123,12 @@ public final class GensokyoMapImage {
         return MapColor.WATER.col;
     }
 
-    private static byte colorAt(int px, int pz) {
+    private static byte colorAt(GensokyoLayout layout, int px, int pz) {
         int worldX = pixelToWorld(px);
         int worldZ = pixelToWorld(pz);
         int hash = hash(px, pz);
-        GensokyoLayout.Region region = GensokyoLayout.regionAt(worldX, worldZ);
-        double inland = GensokyoLayout.coastDistance(worldX, worldZ);
+        GensokyoLayout.Region region = layout.regionAt(worldX, worldZ);
+        double inland = layout.coastDistance(worldX, worldZ);
 
         if (region == null) {
             // Sanzu River: brighter shallow water hugging the coast, darker deeper out at sea.
@@ -150,33 +150,33 @@ public final class GensokyoMapImage {
         }
 
         // Misty Lake: inland water with a pale shoreline.
-        if (GensokyoLayout.isMistyLake(worldX, worldZ)) {
+        if (layout.isMistyLake(worldX, worldZ)) {
             color = (hash & 3) == 0 ? MapColor.WATER : MapColor.COLOR_LIGHT_BLUE;
         }
 
         // The Chireiden shaft reads as a dark hole in the map.
-        if (GensokyoLayout.isChireidenRiftVoid(worldX, 100, worldZ)) {
+        if (layout.isChireidenRiftVoid(worldX, 100, worldZ)) {
             color = (hash & 3) == 0 ? MapColor.COLOR_BLACK : MapColor.DEEPSLATE;
         }
 
         // Shade the boundary in the region's own color so it doesn't read as a river.
-        if (bordersAnotherRegion(px, pz, region)) {
+        if (bordersAnotherRegion(layout, px, pz, region)) {
             return palette[0].getPackedId(MapColor.Brightness.LOWEST);
         }
 
         return color.getPackedId(brightness(hash, false));
     }
 
-    private static boolean bordersAnotherRegion(int px, int pz, GensokyoLayout.Region region) {
-        return different(px - 1, pz, region) || different(px + 1, pz, region)
-                || different(px, pz - 1, region) || different(px, pz + 1, region);
+    private static boolean bordersAnotherRegion(GensokyoLayout layout, int px, int pz, GensokyoLayout.Region region) {
+        return different(layout, px - 1, pz, region) || different(layout, px + 1, pz, region)
+                || different(layout, px, pz - 1, region) || different(layout, px, pz + 1, region);
     }
 
-    private static boolean different(int px, int pz, GensokyoLayout.Region region) {
+    private static boolean different(GensokyoLayout layout, int px, int pz, GensokyoLayout.Region region) {
         if (px < 0 || pz < 0 || px >= SIZE || pz >= SIZE) {
             return false;
         }
-        GensokyoLayout.Region neighbor = GensokyoLayout.regionAt(pixelToWorld(px), pixelToWorld(pz));
+        GensokyoLayout.Region neighbor = layout.regionAt(pixelToWorld(px), pixelToWorld(pz));
         return neighbor != null && neighbor != region;
     }
 

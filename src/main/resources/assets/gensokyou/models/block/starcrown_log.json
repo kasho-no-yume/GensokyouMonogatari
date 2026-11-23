@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "side": "gensokyou:block/starcrown_log",
+    "end": "gensokyou:block/starcrown_log_top"
+  }
+}

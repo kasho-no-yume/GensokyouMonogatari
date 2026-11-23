@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/scarlet_dew_rose"
+  },
+  "render_type": "minecraft:cutout"
+}

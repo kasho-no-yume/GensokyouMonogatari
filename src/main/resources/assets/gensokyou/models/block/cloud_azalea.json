@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/cloud_azalea"
+  },
+  "render_type": "minecraft:cutout"
+}

@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/dappled_mondo"
+  },
+  "render_type": "minecraft:cutout"
+}

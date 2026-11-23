@@ -2,7 +2,9 @@
   "has_precipitation": true,
   "temperature": 0.5,
   "downfall": 0.6,
-  "carvers": { "air": [] },
+  "carvers": {
+    "air": []
+  },
   "effects": {
     "fog_color": 10855845,
     "sky_color": 7616615,
@@ -11,12 +13,46 @@
   },
   "spawners": {
     "monster": [
-      { "type": "gensokyou:fairy", "weight": 18, "minCount": 1, "maxCount": 1 },
-      { "type": "gensokyou:big_fairy", "weight": 1, "minCount": 1, "maxCount": 1 }
+      {
+        "type": "gensokyou:fairy",
+        "weight": 18,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ],
-    "creature": [], "ambient": [], "axolotls": [], "underground_water_creature": [],
-    "water_creature": [], "water_ambient": [], "misc": []
+    "creature": [],
+    "ambient": [],
+    "axolotls": [],
+    "underground_water_creature": [],
+    "water_creature": [],
+    "water_ambient": [],
+    "misc": []
   },
   "spawn_costs": {},
-  "features": [[], [], [], [], [], [], [], [], [], ["minecraft:trees_taiga", "minecraft:patch_grass_taiga"], []]
+  "features": [
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "gensokyou:spirit_iron_ore",
+      "gensokyou:cinnabar",
+      "gensokyou:rose_garnet"
+    ],
+    [],
+    [],
+    [
+      "gensokyou:magic_grove",
+      "gensokyou:purple_sage",
+      "gensokyou:wine_creeper",
+      "gensokyou:ashen_spikemoss",
+      "gensokyou:scarlet_dew_rose",
+      "gensokyou:shore_iris",
+      "gensokyou:misty_reed",
+      "gensokyou:salt_whisker"
+    ],
+    []
+  ]
 }

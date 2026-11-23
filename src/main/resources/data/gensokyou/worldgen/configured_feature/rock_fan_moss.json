@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:multiface_growth",
+  "config": {
+    "block": "gensokyou:rock_fan_moss",
+    "can_be_placed_on": [
+      "gensokyou:gensokyo_stone"
+    ],
+    "can_place_on_ceiling": false,
+    "can_place_on_floor": false,
+    "can_place_on_wall": true,
+    "chance_of_spreading": 0.45,
+    "search_range": 7
+  }
+}

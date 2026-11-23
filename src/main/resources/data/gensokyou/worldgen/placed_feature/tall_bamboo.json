@@ -1,0 +1,15 @@
+{
+  "feature": "gensokyou:tall_bamboo",
+  "placement": [
+    { "type": "minecraft:noise_based_count", "noise_factor": 80.0, "noise_offset": 0.75, "noise_to_count_ratio": 180 },
+    { "type": "minecraft:in_square" },
+    { "type": "minecraft:heightmap", "heightmap": "OCEAN_FLOOR_WG" },
+    { "type": "minecraft:block_predicate_filter", "predicate": {
+      "type": "minecraft:all_of", "predicates": [
+        { "type": "minecraft:matching_blocks", "blocks": "minecraft:air" },
+        { "type": "minecraft:would_survive", "state": { "Name": "minecraft:bamboo" } }
+      ]
+    } },
+    { "type": "minecraft:biome" }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/purple_sage"
+  },
+  "render_type": "minecraft:cutout"
+}

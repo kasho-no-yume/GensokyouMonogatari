@@ -3,12 +3,14 @@ package com.bitsson.gensokyou.item;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.client.GensokyoDebugMapClient;
 import com.bitsson.gensokyou.worldgen.GensokyoLayout;
+import com.bitsson.gensokyou.worldgen.GensokyoLayoutDensity;
 import com.bitsson.gensokyou.worldgen.GensokyoMapImage;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
@@ -30,7 +32,7 @@ import java.util.List;
 public final class GensokyoDebugMapItem extends MapItem {
     public static final ResourceKey<Level> DIMENSION = ResourceKey.create(Registries.DIMENSION, Gensokyou.id("gensokyo"));
     private static final String LAYOUT_VERSION_KEY = "gensokyou_layout_version";
-    private static final int LAYOUT_VERSION = 1;
+    private static final int LAYOUT_VERSION = 2;
 
     public GensokyoDebugMapItem(Properties properties) {
         super(properties.stacksTo(1));
@@ -38,7 +40,7 @@ public final class GensokyoDebugMapItem extends MapItem {
 
     @Override
     public void inventoryTick(ItemStack stack, Level level, Entity entity, int itemSlot, boolean isSelected) {
-        if (level.isClientSide || !(entity instanceof Player player) || !player.hasInfiniteMaterials()) {
+        if (!(level instanceof ServerLevel serverLevel) || !(entity instanceof Player player) || !player.hasInfiniteMaterials()) {
             return;
         }
         boolean held = isSelected || player.getOffhandItem() == stack;
@@ -47,7 +49,12 @@ public final class GensokyoDebugMapItem extends MapItem {
             // Locked pixels are synchronized and saved exactly like a filled map. The layout's
             // world scale is handled separately from vanilla's terrain sampling scale.
             MapItemSavedData map = MapItemSavedData.createFresh(0, 0, (byte) 4, false, false, DIMENSION).locked();
-            map.colors = GensokyoMapImage.buildBaseColors();
+            ServerLevel gensokyo = serverLevel.getServer().getLevel(DIMENSION);
+            if (gensokyo == null) {
+                return;
+            }
+            GensokyoLayout layout = GensokyoLayoutDensity.layoutOf(gensokyo.getChunkSource().randomState().sampler().continentalness());
+            map.colors = GensokyoMapImage.buildBaseColors(layout);
             MapId id = level.getFreeMapId();
             level.setMapData(id, map);
             stack.set(DataComponents.MAP_ID, id);

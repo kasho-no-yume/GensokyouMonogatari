@@ -1,0 +1,58 @@
+{
+  "feature": "gensokyou:ashcap",
+  "placement": [
+    {
+      "type": "minecraft:noise_based_count",
+      "noise_to_count_ratio": 5,
+      "noise_factor": 46,
+      "noise_offset": 0.6
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:uniform",
+        "min_inclusive": {
+          "absolute": 68
+        },
+        "max_inclusive": {
+          "absolute": 105
+        }
+      }
+    },
+    {
+      "type": "minecraft:environment_scan",
+      "direction_of_search": "down",
+      "target_condition": {
+        "type": "minecraft:matching_blocks",
+        "blocks": "gensokyou:chireiden_deepslate",
+        "offset": [
+          0,
+          -1,
+          0
+        ]
+      },
+      "allowed_search_condition": {
+        "type": "minecraft:matching_blocks",
+        "blocks": [
+          "minecraft:air",
+          "minecraft:cave_air"
+        ]
+      },
+      "max_steps": 10
+    },
+    {
+      "type": "gensokyou:height_band",
+      "min_y": 65,
+      "max_y": 105
+    },
+    {
+      "type": "gensokyou:landmark_clearance"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

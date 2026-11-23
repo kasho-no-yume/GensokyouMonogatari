@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/scarlet_maple_sapling"
+  },
+  "render_type": "minecraft:cutout"
+}

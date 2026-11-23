@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:multiface_growth",
+  "config": {
+    "block": "gensokyou:ear_bracket",
+    "can_be_placed_on": [
+      "gensokyou:starcrown_log",
+      "gensokyou:magic_wood"
+    ],
+    "can_place_on_ceiling": false,
+    "can_place_on_floor": false,
+    "can_place_on_wall": true,
+    "chance_of_spreading": 0.45,
+    "search_range": 7
+  }
+}

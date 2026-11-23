@@ -22,6 +22,8 @@ import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.WallBlock;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SaplingBlock;
+import net.minecraft.world.level.block.SugarCaneBlock;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.material.PushReaction;
@@ -186,8 +188,9 @@ public final class ModBlocks {
             BLOCKS.registerBlock("sacred_sapling", SpiritSaplingBlock::new, plantProperties());
     public static final DeferredBlock<SpiritSaplingBlock> MAGIC_SAPLING =
             BLOCKS.registerBlock("magic_sapling", SpiritSaplingBlock::new, plantProperties());
-    public static final DeferredBlock<SpiritSaplingBlock> ETERNAL_SAPLING =
-            BLOCKS.registerBlock("eternal_sapling", SpiritSaplingBlock::new, plantProperties());
+    public static final DeferredBlock<SaplingBlock> ETERNAL_SAPLING =
+            BLOCKS.registerBlock("eternal_sapling", props -> new SaplingBlock(
+                    GensokyoNaturalBlocks.treeGrower("eternal", "eternal_tree", false), props), plantProperties().randomTicks());
     public static final DeferredBlock<SpiritPlantBlock> SPIRIT_HERB =
             BLOCKS.registerBlock("spirit_herb", SpiritPlantBlock::new, plantProperties());
     public static final DeferredBlock<SpiritPlantBlock> GENTIAN =
@@ -233,8 +236,8 @@ public final class ModBlocks {
     public static final DeferredBlock<SpiritPlantBlock> GLOW_MUSHROOM_CLUSTER =
             BLOCKS.registerBlock("glow_mushroom_cluster", SpiritPlantBlock::new,
                     plantProperties().lightLevel(state -> 7));
-    public static final DeferredBlock<SpiritPlantBlock> MISTY_REED =
-            BLOCKS.registerBlock("misty_reed", SpiritPlantBlock::new, plantProperties());
+    public static final DeferredBlock<SugarCaneBlock> MISTY_REED =
+            BLOCKS.registerBlock("misty_reed", SugarCaneBlock::new, plantProperties().randomTicks());
 
     private static BlockBehaviour.Properties terrainStoneProperties() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.STONE)

@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/bead_vine"
+  },
+  "render_type": "minecraft:cutout"
+}

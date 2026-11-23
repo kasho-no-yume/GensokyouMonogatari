@@ -2,13 +2,47 @@
   "type": "minecraft:tree",
   "config": {
     "decorators": [],
-    "dirt_provider": { "type": "minecraft:simple_state_provider", "state": { "Name": "gensokyou:spirit_soil" } },
+    "dirt_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "gensokyou:gensokyo_dirt"
+      }
+    },
+    "foliage_placer": {
+      "type": "minecraft:fancy_foliage_placer",
+      "height": 4,
+      "offset": 4,
+      "radius": 2
+    },
+    "foliage_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "gensokyou:sacred_leaves"
+      }
+    },
+    "force_dirt": false,
     "ignore_vines": true,
-    "minimum_size": { "type": "minecraft:two_layers_feature_size", "limit": 1, "lower_size": 0, "upper_size": 1 },
-    "foliage_provider": { "type": "minecraft:simple_state_provider", "state": { "Name": "gensokyou:sacred_leaves" } },
-    "foliage_placer": { "type": "minecraft:blob_foliage_placer", "radius": 3, "offset": 0, "height": 4 },
-    "trunk_provider": { "type": "minecraft:simple_state_provider", "state": { "Name": "gensokyou:sacred_wood", "Properties": { "axis": "y" } } },
-    "trunk_placer": { "type": "minecraft:straight_trunk_placer", "base_height": 7, "height_rand_a": 3, "height_rand_b": 2 },
-    "force_dirt": false
+    "minimum_size": {
+      "type": "minecraft:two_layers_feature_size",
+      "limit": 0,
+      "lower_size": 0,
+      "min_clipped_height": 4,
+      "upper_size": 0
+    },
+    "trunk_placer": {
+      "type": "minecraft:fancy_trunk_placer",
+      "base_height": 7,
+      "height_rand_a": 6,
+      "height_rand_b": 3
+    },
+    "trunk_provider": {
+      "type": "minecraft:simple_state_provider",
+      "state": {
+        "Name": "gensokyou:sacred_wood",
+        "Properties": {
+          "axis": "y"
+        }
+      }
+    }
   }
 }

@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.ritual.command;
 
 import com.bitsson.gensokyou.balance.BalanceNumbers;
+import com.bitsson.gensokyou.command.DimensionDebugTeleport;
 import com.bitsson.gensokyou.config.GensokyouServerConfig;
 
 import com.bitsson.gensokyou.Gensokyou;
@@ -29,6 +30,7 @@ public final class DebugCommands {
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(Commands.literal("gs_debug")
                 .requires(source -> source.hasPermission(2))
+                .then(DimensionDebugTeleport.command())
                 .then(Commands.literal("spirit")
                         .then(Commands.literal("get").executes(context -> {
                             ServerPlayer player = context.getSource().getPlayerOrException();

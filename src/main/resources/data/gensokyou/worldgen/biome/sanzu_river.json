@@ -1,8 +1,10 @@
-﻿{
+{
   "has_precipitation": true,
   "temperature": 0.5,
   "downfall": 0.5,
-  "carvers": { "air": [] },
+  "carvers": {
+    "air": []
+  },
   "effects": {
     "fog_color": 11587199,
     "sky_color": 6838521,
@@ -11,8 +13,12 @@
   },
   "spawners": {
     "monster": [
-      { "type": "gensokyou:fairy", "weight": 18, "minCount": 1, "maxCount": 1 },
-      { "type": "gensokyou:big_fairy", "weight": 1, "minCount": 1, "maxCount": 1 }
+      {
+        "type": "gensokyou:fairy",
+        "weight": 18,
+        "minCount": 1,
+        "maxCount": 1
+      }
     ],
     "creature": [],
     "ambient": [],
@@ -24,8 +30,25 @@
   },
   "spawn_costs": {},
   "features": [
-    [], [], [], [], [], [], [], [], [],
-    ["minecraft:seagrass_simple", "minecraft:disk_sand"],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+      "gensokyou:nether_black_sand"
+    ],
+    [],
+    [],
+    [
+      "minecraft:seagrass_simple",
+      "minecraft:disk_sand",
+      "gensokyou:smoke_fan_algae",
+      "gensokyou:sunk_thread_algae",
+      "gensokyou:ferry_lantern_algae",
+      "gensokyou:salt_whisker"
+    ],
     []
   ]
 }

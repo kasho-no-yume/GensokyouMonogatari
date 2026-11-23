@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/wind_plume"
+  },
+  "render_type": "minecraft:cutout"
+}

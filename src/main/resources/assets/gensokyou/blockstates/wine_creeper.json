@@ -1,0 +1,60 @@
+{
+  "multipart": [
+    {
+      "when": {
+        "up": "true"
+      },
+      "apply": {
+        "model": "gensokyou:block/wine_creeper",
+        "x": 180
+      }
+    },
+    {
+      "when": {
+        "down": "true"
+      },
+      "apply": {
+        "model": "gensokyou:block/wine_creeper"
+      }
+    },
+    {
+      "when": {
+        "north": "true"
+      },
+      "apply": {
+        "model": "gensokyou:block/wine_creeper",
+        "x": 270
+      }
+    },
+    {
+      "when": {
+        "east": "true"
+      },
+      "apply": {
+        "model": "gensokyou:block/wine_creeper",
+        "x": 270,
+        "y": 90
+      }
+    },
+    {
+      "when": {
+        "south": "true"
+      },
+      "apply": {
+        "model": "gensokyou:block/wine_creeper",
+        "x": 270,
+        "y": 180
+      }
+    },
+    {
+      "when": {
+        "west": "true"
+      },
+      "apply": {
+        "model": "gensokyou:block/wine_creeper",
+        "x": 270,
+        "y": 270
+      }
+    }
+  ]
+}

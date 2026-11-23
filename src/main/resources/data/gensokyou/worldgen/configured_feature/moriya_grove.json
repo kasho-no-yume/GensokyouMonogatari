@@ -1,0 +1,100 @@
+{
+  "type": "minecraft:random_selector",
+  "config": {
+    "default": {
+      "feature": "gensokyou:moriya_pine",
+      "placement": [
+        {
+          "type": "minecraft:block_predicate_filter",
+          "predicate": {
+            "type": "minecraft:all_of",
+            "predicates": [
+              {
+                "type": "minecraft:matching_blocks",
+                "blocks": [
+                  "minecraft:air",
+                  "minecraft:cave_air"
+                ]
+              },
+              {
+                "type": "minecraft:matching_block_tag",
+                "tag": "minecraft:dirt",
+                "offset": [
+                  0,
+                  -1,
+                  0
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "features": [
+      {
+        "feature": {
+          "feature": "gensokyou:sacred_windswept_tree",
+          "placement": [
+            {
+              "type": "minecraft:block_predicate_filter",
+              "predicate": {
+                "type": "minecraft:all_of",
+                "predicates": [
+                  {
+                    "type": "minecraft:matching_blocks",
+                    "blocks": [
+                      "minecraft:air",
+                      "minecraft:cave_air"
+                    ]
+                  },
+                  {
+                    "type": "minecraft:matching_block_tag",
+                    "tag": "minecraft:dirt",
+                    "offset": [
+                      0,
+                      -1,
+                      0
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "chance": 0.22
+      },
+      {
+        "feature": {
+          "feature": "gensokyou:moriya_spruce",
+          "placement": [
+            {
+              "type": "minecraft:block_predicate_filter",
+              "predicate": {
+                "type": "minecraft:all_of",
+                "predicates": [
+                  {
+                    "type": "minecraft:matching_blocks",
+                    "blocks": [
+                      "minecraft:air",
+                      "minecraft:cave_air"
+                    ]
+                  },
+                  {
+                    "type": "minecraft:matching_block_tag",
+                    "tag": "minecraft:dirt",
+                    "offset": [
+                      0,
+                      -1,
+                      0
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "chance": 0.46
+      }
+    ]
+  }
+}

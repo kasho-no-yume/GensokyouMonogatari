@@ -5,8 +5,40 @@
     "discard_chance_on_air_exposure": 0.0,
     "targets": [
       {
-        "target": { "predicate_type": "minecraft:block_match", "block": "gensokyou:oni_stone" },
-        "state": { "Name": "gensokyou:star_silver_ore" }
+        "target": {
+          "predicate_type": "minecraft:block_match",
+          "block": "gensokyou:gensokyo_stone"
+        },
+        "state": {
+          "Name": "gensokyou:star_silver_ore"
+        }
+      },
+      {
+        "target": {
+          "predicate_type": "minecraft:block_match",
+          "block": "gensokyou:hakugyoku_stone"
+        },
+        "state": {
+          "Name": "gensokyou:star_silver_ore"
+        }
+      },
+      {
+        "target": {
+          "predicate_type": "minecraft:block_match",
+          "block": "gensokyou:chireiden_deepslate"
+        },
+        "state": {
+          "Name": "gensokyou:star_silver_ore"
+        }
+      },
+      {
+        "target": {
+          "predicate_type": "minecraft:block_match",
+          "block": "gensokyou:oni_stone"
+        },
+        "state": {
+          "Name": "gensokyou:star_silver_ore"
+        }
       }
     ]
   }

@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/smoke_fan_algae"
+  },
+  "render_type": "minecraft:cutout"
+}

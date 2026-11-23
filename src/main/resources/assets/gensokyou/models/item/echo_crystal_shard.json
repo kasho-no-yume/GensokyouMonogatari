@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "gensokyou:item/echo_crystal_shard"
+  }
+}

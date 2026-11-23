@@ -68,7 +68,10 @@ public final class GensokyoBiomeSource extends BiomeSource {
 
     @Override
     public Holder<Biome> getNoiseBiome(int quartX, int quartY, int quartZ, Climate.Sampler sampler) {
-        GensokyoLayout.Region region = GensokyoLayout.regionAt(QuartPos.toBlock(quartX), QuartPos.toBlock(quartZ));
+        GensokyoLayout layout = GensokyoLayoutDensity.layoutOf(sampler.continentalness());
+        int x = QuartPos.toBlock(quartX);
+        int z = QuartPos.toBlock(quartZ);
+        GensokyoLayout.Region region = layout.regionAt(x, z);
         if (region == null) {
             return sanzuRiver;
         }
@@ -79,7 +82,7 @@ public final class GensokyoBiomeSource extends BiomeSource {
             case BAMBOO -> mistyBambooGrove;
             case HAKUGYOKUROU -> hakugyokurou;
             case CHIREIDEN -> chireiden;
-            case SCARLET_MANSION -> GensokyoLayout.isMistyLake(QuartPos.toBlock(quartX), QuartPos.toBlock(quartZ))
+            case SCARLET_MANSION -> layout.isMistyLake(x, z)
                     ? mistyLake : scarletMansion;
             case HUMAN_VILLAGE -> humanVillage;
         };

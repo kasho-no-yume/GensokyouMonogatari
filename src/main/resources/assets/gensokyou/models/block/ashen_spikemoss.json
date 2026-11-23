@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/ashen_spikemoss"
+  },
+  "render_type": "minecraft:cutout"
+}

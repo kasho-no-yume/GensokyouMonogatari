@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/shore_iris"
+  },
+  "render_type": "minecraft:cutout"
+}

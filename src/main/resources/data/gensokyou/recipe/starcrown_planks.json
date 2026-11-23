@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "gensokyou:starcrown_log"
+    }
+  ],
+  "result": {
+    "id": "gensokyou:starcrown_planks",
+    "count": 4
+  }
+}

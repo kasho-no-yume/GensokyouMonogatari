@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.worldgen;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.command.DimensionDebugTeleport;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior;
 import net.minecraft.core.BlockPos;
@@ -9,6 +10,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -43,6 +46,14 @@ public final class GensokyoWorldgenProbe {
             if (level == null) {
                 throw new AssertionError("Gensokyo dimension was not registered");
             }
+            // Check the command before any other probe loads the destination chunk.
+            var chireiden = GensokyoLayout.Region.CHIREIDEN;
+            BlockPos landing = DimensionDebugTeleport.findLanding(level, chireiden.landmarkX(), chireiden.landmarkZ(),
+                    chireiden.biomePath(), false);
+            if (landing == null) {
+                throw new AssertionError("Debug teleport could not find a landing at Chireiden");
+            }
+            System.out.println("GENSOKYO_DEBUG_TELEPORT_PROBE PASS chireiden=" + landing);
             List<String> results = new ArrayList<>();
             for (GensokyoLayout.Region region : GensokyoLayout.Region.values()) {
                 int x = region.landmarkX();
@@ -81,6 +92,19 @@ public final class GensokyoWorldgenProbe {
             if (!level.getFluidState(new BlockPos(seaX, 62, 0)).isSource()) {
                 throw new AssertionError("Sanzu River ocean is not filled with source water outside the island");
             }
+            var layout = GensokyoLayoutDensity.layoutOf(level.getChunkSource().randomState().sampler().continentalness());
+            int coastX = GensokyoLayout.ISLAND_RADIUS;
+            while (layout.coastDistance(coastX, 0) < 0) coastX--;
+            int lakeBankX = lakeX;
+            while (layout.isMistyLake(lakeBankX, lakeZ)) lakeBankX++;
+            verifyShore(level, coastX, 0, -1);
+            verifyShore(level, lakeBankX, lakeZ, 1);
+            BlockPos mountainTop = new BlockPos(0, level.getHeight(Heightmap.Types.OCEAN_FLOOR, 0, -3000) - 1, -3000);
+            if (!level.getBlockState(mountainTop).is(ModBlocks.GENSOKYO_GRASS_BLOCK.get())) {
+                throw new AssertionError("Moriya high ground is not grass-covered at " + mountainTop);
+            }
+            verifyMineralsAndBamboo(level);
+            verifyStarcrownGrove(level);
             BlockPos shaft = new BlockPos(-1600, 120, 2050);
             level.getChunk(shaft.getX() >> 4, shaft.getZ() >> 4);
             if (!level.getBlockState(shaft).isAir()) {
@@ -103,6 +127,75 @@ public final class GensokyoWorldgenProbe {
         if (exportProbe == null) {
             server.halt(false);
         }
+    }
+
+    private static void verifyShore(ServerLevel level, int x, int z, int inlandDirection) {
+        int seaLevel = GensokyoLayout.SEA_LEVEL;
+        BlockPos water = new BlockPos(x - 8 * inlandDirection, seaLevel - 1, z);
+        BlockPos dry = new BlockPos(x + 8 * inlandDirection, seaLevel - 1, z);
+        if (!level.getFluidState(water).isSource() || !level.getFluidState(water.above()).isEmpty()
+                || !level.getFluidState(dry).isEmpty()
+                || level.getHeight(Heightmap.Types.OCEAN_FLOOR, dry.getX(), z) < seaLevel) {
+            throw new AssertionError("Shore does not meet sea level at " + x + "," + z);
+        }
+        System.out.println("GENSOKYO_SHORE_PROBE PASS water=" + water + " dry=" + dry);
+    }
+
+    private static void verifyMineralsAndBamboo(ServerLevel level) {
+        var region = GensokyoLayout.Region.BAMBOO;
+        int startX = (region.anchorX() >> 4) << 4;
+        int startZ = (region.anchorZ() >> 4) << 4;
+        int iron = 0;
+        int cinnabar = 0;
+        int tallBamboo = 0;
+        var pos = new BlockPos.MutableBlockPos();
+        for (int x = startX; x < startX + 16; x++) {
+            for (int z = startZ; z < startZ + 16; z++) {
+                for (int y = -48; y <= 56; y++) {
+                    var state = level.getBlockState(pos.set(x, y, z));
+                    if (state.is(ModBlocks.SPIRIT_IRON_ORE.get())) iron++;
+                    if (state.is(ModBlocks.CINNABAR.get())) cinnabar++;
+                }
+                // Bamboo can contribute to the ocean-floor heightmap. Count down from its top.
+                int top = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z) - 1;
+                int height = 0;
+                while (level.getBlockState(pos.set(x, top - height, z)).is(Blocks.BAMBOO)) {
+                    height++;
+                }
+                if (height >= 16) tallBamboo++;
+            }
+        }
+        if (iron == 0 || cinnabar == 0 || tallBamboo < 16) {
+            throw new AssertionError("Sparse bamboo or missing ores: iron=" + iron
+                    + " cinnabar=" + cinnabar + " tallBamboo=" + tallBamboo);
+        }
+        System.out.println("GENSOKYO_RESOURCES_PROBE PASS iron=" + iron
+                + " cinnabar=" + cinnabar + " tallBamboo=" + tallBamboo);
+    }
+
+    private static void verifyStarcrownGrove(ServerLevel level) {
+        var region = GensokyoLayout.Region.MAGIC_FOREST;
+        var log = net.minecraft.core.registries.BuiltInRegistries.BLOCK.get(Gensokyou.id("starcrown_log"));
+        var pos = new BlockPos.MutableBlockPos();
+        int roots = 0;
+        for (int chunkX = (region.anchorX() - 240) >> 4; chunkX <= (region.anchorX() - 208) >> 4; chunkX++) {
+            int chunkZ = region.anchorZ() >> 4;
+            level.getChunk(chunkX, chunkZ);
+            for (int x = chunkX << 4; x < (chunkX << 4) + 16; x++) {
+                for (int z = chunkZ << 4; z < (chunkZ << 4) + 16; z++) {
+                    int top = level.getHeight(Heightmap.Types.WORLD_SURFACE, x, z);
+                    for (int y = top - 1; y >= 63; y--) {
+                        if (level.getBlockState(pos.set(x, y, z)).is(log)
+                                && level.getBlockState(pos.below()).is(net.minecraft.tags.BlockTags.DIRT)) {
+                            roots++;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if (roots == 0) throw new AssertionError("No rooted Starcrown logs in forest sample");
+        System.out.println("GENSOKYO_STARCROWN_PROBE PASS rootedLogColumns=" + roots);
     }
 
     private static void verifyTwinPortalSingleton(ServerLevel overworld) {
@@ -160,9 +253,12 @@ public final class GensokyoWorldgenProbe {
         private final net.minecraft.server.MinecraftServer server;
         private final ServerLevel level;
         private final Path directory;
+        private final GensokyoLayout layout;
         private final BufferedImage biomes = new BufferedImage(SAMPLES * CELL_PIXELS,
                 SAMPLES * CELL_PIXELS, BufferedImage.TYPE_INT_RGB);
         private final BufferedImage heights = new BufferedImage(SAMPLES * CELL_PIXELS,
+                SAMPLES * CELL_PIXELS, BufferedImage.TYPE_INT_RGB);
+        private final BufferedImage relief = new BufferedImage(SAMPLES * CELL_PIXELS,
                 SAMPLES * CELL_PIXELS, BufferedImage.TYPE_INT_RGB);
         private int sample;
         private int minHeight = Integer.MAX_VALUE;
@@ -172,6 +268,7 @@ public final class GensokyoWorldgenProbe {
             this.server = server;
             this.level = level;
             this.directory = directory;
+            this.layout = GensokyoLayoutDensity.layoutOf(level.getChunkSource().randomState().sampler().continentalness());
         }
 
         private boolean sampleNext() throws IOException {
@@ -199,6 +296,7 @@ public final class GensokyoWorldgenProbe {
             String seed = Long.toString(level.getSeed());
             ImageIO.write(biomes, "png", directory.resolve("biomes-" + seed + ".png").toFile());
             ImageIO.write(heights, "png", directory.resolve("heights-" + seed + ".png").toFile());
+            ImageIO.write(relief, "png", directory.resolve("relief-" + seed + ".png").toFile());
             System.out.println("GENSOKYO_WORLDGEN_EXPORT PASS seed=" + seed + " size="
                     + SAMPLES * CELL_PIXELS + "x" + SAMPLES * CELL_PIXELS + " samples=" + sample
                     + " floorHeightRange=" + minHeight + ".." + maxHeight
@@ -208,18 +306,21 @@ public final class GensokyoWorldgenProbe {
         }
 
         private void renderBiomeLayout() {
+            DensityFunction terrain = level.getChunkSource().randomState().router().initialDensityWithoutJaggedness();
             for (int pixelX = 0; pixelX < biomes.getWidth(); pixelX++) {
                 for (int pixelZ = 0; pixelZ < biomes.getHeight(); pixelZ++) {
                     int worldX = pixelX * (GensokyoLayout.ISLAND_RADIUS * 2) / biomes.getWidth()
                             - GensokyoLayout.ISLAND_RADIUS;
                     int worldZ = pixelZ * (GensokyoLayout.ISLAND_RADIUS * 2) / biomes.getHeight()
                             - GensokyoLayout.ISLAND_RADIUS;
-                    GensokyoLayout.Region region = GensokyoLayout.regionAt(worldX, worldZ);
+                    GensokyoLayout.Region region = layout.regionAt(worldX, worldZ);
                     int color = region == null ? 0x263F55 : COLORS[region.ordinal()];
-                    if (GensokyoLayout.isMistyLake(worldX, worldZ)) {
+                    if (layout.isMistyLake(worldX, worldZ)) {
                         color = 0x456B88;
                     }
                     biomes.setRGB(pixelX, pixelZ, color);
+                    int height = (int) terrain.compute(new DensityFunction.SinglePointContext(worldX, 0, worldZ));
+                    relief.setRGB(pixelX, pixelZ, heightColor(height));
                 }
             }
         }

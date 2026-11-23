@@ -13,8 +13,13 @@ public final class GensokyoWorldgenCodecs {
 
     @SubscribeEvent
     public static void registerWorldgenCodecs(RegisterEvent event) {
+        event.register(Registries.PLACEMENT_MODIFIER_TYPE, Gensokyou.id("landmark_clearance"),
+                () -> LandmarkClearanceFilter.TYPE);
+        event.register(Registries.PLACEMENT_MODIFIER_TYPE, Gensokyou.id("height_band"), () -> HeightBandFilter.TYPE);
         event.register(Registries.BIOME_SOURCE, Gensokyou.id("layout"), () -> GensokyoBiomeSource.CODEC);
         event.register(Registries.DENSITY_FUNCTION_TYPE, Gensokyou.id("island_terrain"),
                 () -> GensokyoIslandDensity.CODEC.codec());
+        event.register(Registries.DENSITY_FUNCTION_TYPE, Gensokyou.id("island_layout"),
+                () -> GensokyoLayoutDensity.CODEC.codec());
     }
 }
