@@ -621,7 +621,9 @@ public class BarrierBreakBehavior implements RitualBehavior {
         if (gensokyo.getBlockState(twin).is(ModBlocks.SUKIMA.get())) {
             return false; // 先到先得：不覆盖既有孪生门
         }
-        placeAt(gensokyo, twin, true);
+        // 幻想乡侧是返程门：静默瞬开，绝不重播开门的「结界崩解」天变地异演出。
+        // 演出锚点会被写进 NBT 并同步给客户端，带过去会让刚入境的玩家再看一遍爆炸与震屏。
+        placeAt(gensokyo, twin);
         return true;
     }
 
@@ -651,10 +653,9 @@ public class BarrierBreakBehavior implements RitualBehavior {
      * 放置门体，写入尺寸标量并置为开启态，有两种开启方式：
      *
      * <ul>
-     *   <li>{@code playBurst = true}（仪式开门，{@link #placePortals}）：演出锚点从此刻起跑，
+     *   <li>{@code playBurst = true}（仅仪式的主世界侧门，{@link #placePortals}）：演出锚点从此刻起跑，
      *       眼形闭合。先播满 {@code SUKIMA_PORTAL_BURST_TICKS} 的「结界崩解」——蓄能球与光柱、
-     *       地面冲击波、横向烟环与音效——之后眼形张开，双门同帧。两个演出各占独立时间，
-     *       玩家才既看得清爆炸、也看得清「隙间张开」。</li>
+     *       地面冲击波、横向烟环与音效——之后眼形张开。幻想乡侧的孪生门走静默路径，不播演出。</li>
      *   <li>{@code playBurst = false}（闩锁维护补门，{@link #ensurePortals}）：门体瞬开，
      *       不重播任何演出——维护路径不触发投突、不触发击退，免得维护 tick 或玩家进出时
      *       重播召唤演出。</li>

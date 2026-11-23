@@ -2,7 +2,8 @@ package com.bitsson.gensokyou.worldgen;
 
 /** Shared fixed geography used by the biome source, terrain, and developer map. */
 public final class GensokyoLayout {
-    public static final int ISLAND_RADIUS = 4096;
+    /** Bounds the coastline in every direction, including its longest headlands. */
+    public static final int ISLAND_RADIUS = 4288;
     public static final int WRAP_PERIOD = 12_288;
     public static final int SEA_LEVEL = 63;
     public static final int COURTYARD_X = 3072;
@@ -73,9 +74,19 @@ public final class GensokyoLayout {
     }
 
     public static boolean isIsland(int x, int z) {
-        double nx = (double) x / ISLAND_RADIUS;
-        double nz = (double) z / ISLAND_RADIUS;
-        return nx * nx + nz * nz <= 1.0;
+        return coastDistance(x, z) >= 0.0;
+    }
+
+    /** Positive inland, negative offshore. A single radial coast keeps the main island joined. */
+    public static double coastDistance(int x, int z) {
+        double angle = Math.atan2(z, x);
+        double radius = 3700.0
+                + 250.0 * Math.cos(angle * 2.0 + 0.3)
+                + 155.0 * Math.sin(angle * 3.0 - 0.4)
+                + 95.0 * Math.cos(angle * 5.0 + 0.8)
+                + 55.0 * Math.sin(angle * 9.0 + 0.2)
+                + 25.0 * Math.cos(angle * 15.0 - 1.3);
+        return radius - Math.hypot(x, z);
     }
 
     public static Region regionAt(int x, int z) {
@@ -101,10 +112,14 @@ public final class GensokyoLayout {
     }
 
     private static Region nearestRegion(int x, int z) {
+        // Warp the coordinates continuously before comparing anchors. This bends the shared
+        // borders without scattering small patches of one biome into another.
+        double warpedX = x + regionWarp(z, x);
+        double warpedZ = z + regionWarp(x, -z);
         Region nearest = Region.HUMAN_VILLAGE;
-        long nearestDistance = Long.MAX_VALUE;
+        double nearestDistance = Double.POSITIVE_INFINITY;
         for (Region candidate : Region.values()) {
-            long distance = squaredDistance(x, z, candidate.anchorX, candidate.anchorZ);
+            double distance = squaredDistance(warpedX, warpedZ, candidate);
             if (distance < nearestDistance) {
                 nearest = candidate;
                 nearestDistance = distance;
@@ -113,26 +128,36 @@ public final class GensokyoLayout {
         return nearest;
     }
 
-    private static long squaredDistance(int x, int z, int anchorX, int anchorZ) {
-        long dx = (long) x - anchorX;
-        long dz = (long) z - anchorZ;
+    private static double regionWarp(double across, double along) {
+        return 335.0 * Math.sin(across / 690.0 + along / 2400.0)
+                + 120.0 * Math.sin(across / 300.0 - along / 1600.0);
+    }
+
+    private static double squaredDistance(double x, double z, Region region) {
+        double dx = x - region.anchorX;
+        double dz = z - region.anchorZ;
         return dx * dx + dz * dz;
     }
 
     /** Seeded noise is supplied by the density-function codec; the same geometry bounds all seeds. */
     public static double surfaceHeight(int x, int z, double terrainNoise) {
-        double nx = (double) x / ISLAND_RADIUS;
-        double nz = (double) z / ISLAND_RADIUS;
-        double radial = Math.sqrt(nx * nx + nz * nz);
-        if (radial >= 0.90) {
-            double coast = smoothstep((radial - 0.92) / 0.16);
-            return lerp(SEA_LEVEL + 2.0, 36.0, coast) + terrainNoise * 2.0;
+        double inland = coastDistance(x, z);
+        if (inland <= 0.0) {
+            double depth = smoothstep(-inland / 580.0);
+            return lerp(SEA_LEVEL - 1.0, 36.0 + terrainNoise * 2.0, depth);
         }
 
-        Region region = nearestRegion(x, z);
-        double edgeBlend = smoothstep((1.0 - radial) / 0.10);
-        double height = lerp(SEA_LEVEL + 2.0, region.baseHeight, edgeBlend);
-        height += terrainNoise * 9.0;
+        double warpedX = x + regionWarp(z, x);
+        double warpedZ = z + regionWarp(x, -z);
+        double weightedHeight = 0.0;
+        double totalWeight = 0.0;
+        for (Region region : Region.values()) {
+            double weight = 1.0 / (squaredDistance(warpedX, warpedZ, region) + 160_000.0);
+            weight *= weight * weight;
+            weightedHeight += region.baseHeight * weight;
+            totalWeight += weight;
+        }
+        double height = weightedHeight / totalWeight + terrainNoise * 9.0;
 
         height += gaussian(x, z, 0, -3000, 1250.0, 70.0);       // 妖怪之山主脊
         height += gaussian(x, z, -1600, -2600, 850.0, 42.0);    // 白玉楼阶状台地
@@ -140,10 +165,23 @@ public final class GensokyoLayout {
         height += gaussian(x, z, -1600, 2050, 520.0, 58.0);     // 地灵殿裂谷高地
         height -= gaussian(x, z, -1600, 2050, 650.0, 13.0);     // 裂谷入口洼地
 
-        double landmarkDistance = Math.hypot(x - region.landmarkX, z - region.landmarkZ);
-        if (landmarkDistance < 176.0) {
-            double padBlend = smoothstep((landmarkDistance - 72.0) / 104.0);
-            height = lerp(region.landmarkY, height, padBlend);
+        // Keep the coast and the land mask aligned while easing into the inland relief.
+        if (!isMistyLake(x, z)) {
+            height = Math.max(SEA_LEVEL + 2.0, height);
+        }
+        double beach = SEA_LEVEL - 1.0 + Math.min(12.0, inland / 14.0);
+        height = lerp(beach, height, smoothstep(inland / 380.0));
+
+        // Pads are tied to their world positions, including their grading around the edges.
+        for (Region region : Region.values()) {
+            double dx = (double) x - region.landmarkX;
+            double dz = (double) z - region.landmarkZ;
+            double distanceSquared = dx * dx + dz * dz;
+            if (distanceSquared < 176.0 * 176.0) {
+                double padBlend = smoothstep((Math.sqrt(distanceSquared) - 72.0) / 104.0);
+                height = lerp(region.landmarkY, height, padBlend);
+                break;
+            }
         }
 
         double courtyardDistance = Math.hypot(x - COURTYARD_X, z - COURTYARD_Z);

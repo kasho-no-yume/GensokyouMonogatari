@@ -1,6 +1,8 @@
 # Layout probe exports
 
-These 256×256 PNGs were produced by the opt-in dedicated-server worldgen probe. The height image samples actual `OCEAN_FLOOR` heights from generated chunks at the center of a 4×4 grid; the biome image is rasterized from the same shared fixed layout used by the biome source. Colors are diagnostic, not final art.
+The revised layout passed the dedicated-server probe in new worlds with seeds `424242` and `987654321`. Both runs checked the eight landmark biomes and dry pads, Misty Lake, the Sanzu River ocean, and the Chireiden shaft. The [revised biome export](biomes-irregular.png) shows the curved region boundaries and coastline.
+
+These 256×256 PNGs document the initial layout, before the coastline and biome boundaries were revised. The height image samples actual `OCEAN_FLOOR` heights from generated chunks at the center of a 4×4 grid. The biome image was rasterized from the shared layout used by the biome source at the time.
 
 | Seed | Biome layout | Sampled floor heights |
 | --- | --- | --- |

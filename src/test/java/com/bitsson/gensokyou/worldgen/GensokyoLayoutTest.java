@@ -7,7 +7,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -24,7 +24,9 @@ class GensokyoLayoutTest {
             for (int z = 0; z < CELLS; z++) {
                 int worldX = -GensokyoLayout.ISLAND_RADIUS + x * STEP + STEP / 2;
                 int worldZ = -GensokyoLayout.ISLAND_RADIUS + z * STEP + STEP / 2;
-                grid[x][z] = GensokyoLayout.regionAt(worldX, worldZ);
+                if (GensokyoLayout.surfaceHeight(worldX, worldZ, 0.0) > GensokyoLayout.SEA_LEVEL) {
+                    grid[x][z] = GensokyoLayout.regionAt(worldX, worldZ);
+                }
                 if (grid[x][z] != null) {
                     counts.merge(grid[x][z], 1, Integer::sum);
                 }
@@ -69,10 +71,12 @@ class GensokyoLayoutTest {
     @Test
     void seaAndInteriorLakeHaveStableBoundariesAndCourtyardPad() {
         assertNull(GensokyoLayout.regionAt(4600, 0));
-        assertTrue(GensokyoLayout.surfaceHeight(4096, 0, 0.0) < GensokyoLayout.SEA_LEVEL);
+        assertTrue(GensokyoLayout.surfaceHeight(4600, 0, 0.0) < GensokyoLayout.SEA_LEVEL);
+        assertTrue(GensokyoLayout.isIsland(3600, 0));
+        assertFalse(GensokyoLayout.isIsland(0, 3600));
         assertEquals(96.0, GensokyoLayout.surfaceHeight(
                 GensokyoLayout.COURTYARD_X, GensokyoLayout.COURTYARD_Z, 0.0));
-        assertNotNull(GensokyoLayout.regionAt(1500, -1750));
+        assertEquals(GensokyoLayout.Region.SCARLET_MANSION, GensokyoLayout.regionAt(1500, -1750));
         assertTrue(GensokyoLayout.isMistyLake(1500, -1750));
         assertTrue(GensokyoLayout.surfaceHeight(1500, -1750, 0.0) < GensokyoLayout.SEA_LEVEL);
     }

@@ -10,6 +10,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -119,16 +120,18 @@ class BarrierTwinGateDimensionTest {
     }
 
     /**
-     * 结界开门：仪式路径（{@code placePortals}）放置门位后，双门应走带演出的开启——
-     * 门体置为开启、锚点从此刻起跑，先播满「结界崩解」再让眼形张开。
+     * 结界开门：只有仪式所在的主世界侧门播放「结界崩解」演出；
+     * 幻想乡侧的孪生门是返程门，必须静默瞬开，否则玩家刚入境就会在门处重播一次天变地异。
      */
     @Test
-    void ritualOpenPlaysTheShatterStartupBurst() {
+    void ritualOpenPlaysBurstOnlyOnTheSourceGate() {
         String src = readSource();
         assertTrue(src.contains("placeAt(level, mainPortalPos(corePos), true)"),
                 "仪式开门的主门应走带演出的开启路径");
-        assertTrue(src.contains("placeAt(gensokyo, twin, true)"),
-                "仪式开门的孪生门应走带演出的开启路径");
+        assertTrue(src.contains("placeAt(gensokyo, twin)"),
+                "仪式开门的幻想乡侧孪生门应静默开启，不重播演出");
+        assertFalse(src.contains("placeAt(gensokyo, twin, true)"),
+                "幻想乡侧不得再带演出锚点，否则入境处会重播天变地异");
         assertTrue(src.contains("portal.requestOpen(BalanceNumbers.BARRIER_PORTAL_SCALE"),
                 "带演出的开启应走 requestOpen");
     }
