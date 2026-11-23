@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:block",
+  "random_sequence": "gensokyou:blocks/gensokyo_sand",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "gensokyou:gensokyo_sand"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

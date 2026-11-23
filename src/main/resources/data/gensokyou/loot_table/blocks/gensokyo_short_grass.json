@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:block",
+  "random_sequence": "gensokyou:blocks/gensokyo_short_grass",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "gensokyou:gensokyo_short_grass"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

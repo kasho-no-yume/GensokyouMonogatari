@@ -600,8 +600,7 @@ ITEMS = {
     },
 
     # ================================================================ 仪式器物与造物
-    # 【整地器 / 引爆器是方块实体】物品图标必须与方块贴图同款：
-    #   block/landscaping_tool.png = 灰石刃 + 棕木柄（刃朝上的农具）
+    # 筑基器图标由 landscaping_tool_icon.py 按镇地罗盘桩造型手绘。
     #   block/spirit_bomb_*.png     = 暗红方盒 + 金边金十字 + 顶部引信
     # 画成别的东西（现代锤子 / 黑炸弹）会和世界里的方块对不上。
     "item/ritual_wand": {
@@ -615,14 +614,6 @@ ITEMS = {
             "a ritual builder staff held diagonally, warm brown wooden shaft, a teal cyan "
             "crystal core set in brass at the top, two small copper rings on the shaft"
         ),
-    },
-    "item/landscaping_tool": {
-        "prompt": (
-            "a landscaping tool, a wide flat grey stone blade head pointing up on top of a "
-            "short brown wooden handle, a simple rustic craftsman farming tool, a plain "
-            "wooden shaft, no metal parts and no trigger"
-        ),
-        "pad": True,
     },
     "item/spirit_bomb": {
         "prompt": (

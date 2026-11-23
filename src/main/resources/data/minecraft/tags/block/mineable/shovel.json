@@ -4,6 +4,10 @@
     "gensokyou:spirit_soil",
     "gensokyou:porcelain_clay",
     "gensokyou:higan_soil",
-    "gensokyou:moon_sand"
+    "gensokyou:moon_sand",
+    "gensokyou:gensokyo_dirt",
+    "gensokyou:gensokyo_grass_block",
+    "gensokyou:gensokyo_sand",
+    "gensokyou:forest_humus"
   ]
 }

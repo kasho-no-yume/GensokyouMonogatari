@@ -1,4 +1,9 @@
 {
   "replace": false,
-  "values": ["gensokyou:spirit_soil"]
+  "values": [
+    "gensokyou:gensokyo_dirt",
+    "gensokyou:gensokyo_grass_block",
+    "gensokyou:forest_humus",
+    "gensokyou:spirit_soil"
+  ]
 }

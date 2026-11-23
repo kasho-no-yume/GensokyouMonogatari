@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:block",
+  "random_sequence": "gensokyou:blocks/chireiden_deepslate",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "gensokyou:chireiden_deepslate"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

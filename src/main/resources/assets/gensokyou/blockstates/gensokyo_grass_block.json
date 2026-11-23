@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "gensokyou:block/gensokyo_grass_block"
+    }
+  }
+}

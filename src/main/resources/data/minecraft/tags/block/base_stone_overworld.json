@@ -1,4 +1,9 @@
 {
   "replace": false,
-  "values": ["gensokyou:oni_stone"]
+  "values": [
+    "gensokyou:gensokyo_stone",
+    "gensokyou:hakugyoku_stone",
+    "gensokyou:chireiden_deepslate",
+    "gensokyou:oni_stone"
+  ]
 }

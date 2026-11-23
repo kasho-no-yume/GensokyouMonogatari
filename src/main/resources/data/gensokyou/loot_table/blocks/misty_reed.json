@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:block",
+  "random_sequence": "gensokyou:blocks/misty_reed",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "gensokyou:misty_reed"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

@@ -64,6 +64,18 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.SACRED_SAPLING.get());
                         output.accept(ModItems.MAGIC_SAPLING.get());
                         output.accept(ModItems.ETERNAL_SAPLING.get());
+                        // 幻想乡大面积地形方块与地表植被
+                        output.accept(ModItems.GENSOKYO_STONE.get());
+                        output.accept(ModItems.GENSOKYO_DIRT.get());
+                        output.accept(ModItems.GENSOKYO_GRASS_BLOCK.get());
+                        output.accept(ModItems.GENSOKYO_SAND.get());
+                        output.accept(ModItems.HAKUGYOKU_STONE.get());
+                        output.accept(ModItems.CHIREIDEN_DEEPSLATE.get());
+                        output.accept(ModItems.FOREST_HUMUS.get());
+                        output.accept(ModItems.GENSOKYO_SHORT_GRASS.get());
+                        output.accept(ModItems.FALLEN_SAKURA_PETALS.get());
+                        output.accept(ModItems.GLOW_MUSHROOM_CLUSTER.get());
+                        output.accept(ModItems.MISTY_REED.get());
                         output.accept(ModItems.SANZU_FLASK.get());
                         output.accept(ModItems.SPIRIT_FISH.get());
                         output.accept(ModItems.MERMAID_SCALE.get());
