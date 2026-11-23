@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "gensokyou:block/glow_mushroom_cluster"
+  },
+  "render_type": "minecraft:cutout"
+}

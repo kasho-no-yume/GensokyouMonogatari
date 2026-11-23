@@ -208,6 +208,49 @@ public final class ModBlocks {
     public static final DeferredBlock<SpiritCropBlock> MAGIC_MUSHROOM_CROP =
             BLOCKS.registerBlock("magic_mushroom_crop", p -> new SpiritCropBlock(p, true), cropProperties());
 
+    // ---------------- 幻想乡大面积地形方块与地表植被 ----------------
+    /** 基础岩土：幻想石 / 幻想土 / 幻想草径 / 幻想沙。 */
+    public static final DeferredBlock<Block> GENSOKYO_STONE =
+            BLOCKS.registerBlock("gensokyo_stone", Block::new, terrainStoneProperties());
+    public static final DeferredBlock<Block> GENSOKYO_DIRT =
+            BLOCKS.registerBlock("gensokyo_dirt", Block::new, soilProperties());
+    public static final DeferredBlock<Block> GENSOKYO_GRASS_BLOCK =
+            BLOCKS.registerBlock("gensokyo_grass_block", Block::new, grassBlockProperties());
+    public static final DeferredBlock<Block> GENSOKYO_SAND =
+            BLOCKS.registerBlock("gensokyo_sand", Block::new, sandProperties());
+    /** 群系专属基底：白玉岩（白玉楼/高山） / 地底暗岩（地灵殿/深层） / 林间腐殖土（魔法森林/竹林）。 */
+    public static final DeferredBlock<Block> HAKUGYOKU_STONE =
+            BLOCKS.registerBlock("hakugyoku_stone", Block::new, terrainStoneProperties());
+    public static final DeferredBlock<Block> CHIREIDEN_DEEPSLATE =
+            BLOCKS.registerBlock("chireiden_deepslate", Block::new, deepslateProperties());
+    public static final DeferredBlock<Block> FOREST_HUMUS =
+            BLOCKS.registerBlock("forest_humus", Block::new, grassBlockProperties());
+    /** 16x16 地表植被：幻想灵茵 / 冥界落樱瓣 / 幽光蕈簇 / 雾湖芦苇。 */
+    public static final DeferredBlock<SpiritPlantBlock> GENSOKYO_SHORT_GRASS =
+            BLOCKS.registerBlock("gensokyo_short_grass", SpiritPlantBlock::new, plantProperties());
+    public static final DeferredBlock<SpiritPlantBlock> FALLEN_SAKURA_PETALS =
+            BLOCKS.registerBlock("fallen_sakura_petals", SpiritPlantBlock::new, plantProperties());
+    public static final DeferredBlock<SpiritPlantBlock> GLOW_MUSHROOM_CLUSTER =
+            BLOCKS.registerBlock("glow_mushroom_cluster", SpiritPlantBlock::new,
+                    plantProperties().lightLevel(state -> 7));
+    public static final DeferredBlock<SpiritPlantBlock> MISTY_REED =
+            BLOCKS.registerBlock("misty_reed", SpiritPlantBlock::new, plantProperties());
+
+    private static BlockBehaviour.Properties terrainStoneProperties() {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.STONE)
+                .strength(1.5F, 6.0F).requiresCorrectToolForDrops().sound(SoundType.STONE);
+    }
+
+    private static BlockBehaviour.Properties deepslateProperties() {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.DEEPSLATE)
+                .strength(3.0F, 6.0F).requiresCorrectToolForDrops().sound(SoundType.DEEPSLATE);
+    }
+
+    private static BlockBehaviour.Properties grassBlockProperties() {
+        return BlockBehaviour.Properties.of().mapColor(MapColor.GRASS)
+                .strength(0.6F).sound(SoundType.GRASS);
+    }
+
     private static BlockBehaviour.Properties oreProperties() {
         return BlockBehaviour.Properties.of().mapColor(MapColor.STONE)
                 .strength(3.0F, 3.0F).requiresCorrectToolForDrops().sound(SoundType.STONE);

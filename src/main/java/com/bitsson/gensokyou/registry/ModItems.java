@@ -122,6 +122,29 @@ public final class ModItems {
             ITEMS.registerSimpleBlockItem("magic_sapling", ModBlocks.MAGIC_SAPLING);
     public static final DeferredItem<BlockItem> ETERNAL_SAPLING =
             ITEMS.registerSimpleBlockItem("eternal_sapling", ModBlocks.ETERNAL_SAPLING);
+    // ---------------- 幻想乡大面积地形方块与地表植被 ----------------
+    public static final DeferredItem<BlockItem> GENSOKYO_STONE =
+            ITEMS.registerSimpleBlockItem("gensokyo_stone", ModBlocks.GENSOKYO_STONE);
+    public static final DeferredItem<BlockItem> GENSOKYO_DIRT =
+            ITEMS.registerSimpleBlockItem("gensokyo_dirt", ModBlocks.GENSOKYO_DIRT);
+    public static final DeferredItem<BlockItem> GENSOKYO_GRASS_BLOCK =
+            ITEMS.registerSimpleBlockItem("gensokyo_grass_block", ModBlocks.GENSOKYO_GRASS_BLOCK);
+    public static final DeferredItem<BlockItem> GENSOKYO_SAND =
+            ITEMS.registerSimpleBlockItem("gensokyo_sand", ModBlocks.GENSOKYO_SAND);
+    public static final DeferredItem<BlockItem> HAKUGYOKU_STONE =
+            ITEMS.registerSimpleBlockItem("hakugyoku_stone", ModBlocks.HAKUGYOKU_STONE);
+    public static final DeferredItem<BlockItem> CHIREIDEN_DEEPSLATE =
+            ITEMS.registerSimpleBlockItem("chireiden_deepslate", ModBlocks.CHIREIDEN_DEEPSLATE);
+    public static final DeferredItem<BlockItem> FOREST_HUMUS =
+            ITEMS.registerSimpleBlockItem("forest_humus", ModBlocks.FOREST_HUMUS);
+    public static final DeferredItem<BlockItem> GENSOKYO_SHORT_GRASS =
+            ITEMS.registerSimpleBlockItem("gensokyo_short_grass", ModBlocks.GENSOKYO_SHORT_GRASS);
+    public static final DeferredItem<BlockItem> FALLEN_SAKURA_PETALS =
+            ITEMS.registerSimpleBlockItem("fallen_sakura_petals", ModBlocks.FALLEN_SAKURA_PETALS);
+    public static final DeferredItem<BlockItem> GLOW_MUSHROOM_CLUSTER =
+            ITEMS.registerSimpleBlockItem("glow_mushroom_cluster", ModBlocks.GLOW_MUSHROOM_CLUSTER);
+    public static final DeferredItem<BlockItem> MISTY_REED =
+            ITEMS.registerSimpleBlockItem("misty_reed", ModBlocks.MISTY_REED);
     public static final DeferredItem<Item> SANZU_FLASK = ITEMS.registerSimpleItem("sanzu_flask", new Item.Properties().stacksTo(16));
     public static final DeferredItem<Item> SPIRIT_FISH = simpleMaterial("spirit_fish");
     public static final DeferredItem<Item> MERMAID_SCALE = simpleMaterial("mermaid_scale");

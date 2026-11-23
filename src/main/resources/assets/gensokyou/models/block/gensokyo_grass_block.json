@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/cube_bottom_top",
+  "textures": {
+    "top": "gensokyou:block/gensokyo_grass_block_top",
+    "bottom": "gensokyou:block/gensokyo_dirt",
+    "side": "gensokyou:block/gensokyo_grass_block_side"
+  }
+}
