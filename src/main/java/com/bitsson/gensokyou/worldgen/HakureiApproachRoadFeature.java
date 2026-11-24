@@ -3,10 +3,12 @@ package com.bitsson.gensokyou.worldgen;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.StairBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.Feature;
@@ -19,12 +21,27 @@ import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConf
  * 1. Near Shrine (X >= 2780): formal flagstone Sando with paired roadside stone lanterns every 24 blocks.
  * 2. Mid Hills (1500..2780): rustic stepping-stone & worn grass trail with occasional solitary lanterns.
  * 3. Village Outskirts (40..1500): natural countryside dirt path fading into Human Village meadows.
+ * Also places milestone torii gates, roadside rest benches, and railed wooden footbridges.
  */
 public final class HakureiApproachRoadFeature extends Feature<NoneFeatureConfiguration> {
     public static final HakureiApproachRoadFeature INSTANCE = new HakureiApproachRoadFeature(NoneFeatureConfiguration.CODEC);
+    private static final int[] TORII_MILESTONES = {2900, 2580, 2260, 1940, 1620, 1220, 820, 420};
 
     private HakureiApproachRoadFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
+    }
+
+    static boolean isToriiMilestone(int x) {
+        for (int m : TORII_MILESTONES) {
+            if (x == m) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static boolean isRestStopCenter(int x) {
+        return x >= 1560 && x <= 2900 && Math.floorMod(x, 240) == 120 && !isToriiMilestone(x);
     }
 
     @Override
@@ -65,7 +82,7 @@ public final class HakureiApproachRoadFeature extends Feature<NoneFeatureConfigu
             for (int dz = 0; dz < 16; dz++) {
                 int z = chunkMinZ + dz;
                 double dist = Math.abs((double) z - centerZ);
-                if (dist > halfWidth + 1.6) {
+                if (dist > halfWidth + 2.6) {
                     continue;
                 }
 
@@ -75,6 +92,25 @@ public final class HakureiApproachRoadFeature extends Feature<NoneFeatureConfigu
                 }
                 cursor.set(x, surfaceY, z);
                 BlockState existing = level.getBlockState(cursor);
+
+                // Roadside rest bench & signpost on north shoulder (z == centerZi - 4)
+                if (z == centerZi - 4 && existing.getFluidState().isEmpty()) {
+                    if (isRestStopCenter(x)) {
+                        placeRestBench(level, x, surfaceY, z);
+                        placedAny = true;
+                        continue;
+                    }
+                    if (isRestStopCenter(x + 1)) {
+                        placeRoadsideLantern(level, x, surfaceY, z);
+                        placedAny = true;
+                        continue;
+                    }
+                    if (isRestStopCenter(x - 1)) {
+                        placeRestSignpost(level, x, surfaceY, z);
+                        placedAny = true;
+                        continue;
+                    }
+                }
 
                 // Roadside stone lanterns at regular intervals
                 if (formalSando && x % 24 == 0 && (z == centerZi - 3 || z == centerZi + 3)) {
@@ -96,10 +132,13 @@ public final class HakureiApproachRoadFeature extends Feature<NoneFeatureConfigu
                     continue;
                 }
 
-                // Water crossing becomes a simple rustic plank footbridge
+                // Water crossing becomes a railed rustic wooden footbridge
                 if (!existing.getFluidState().isEmpty()) {
                     level.setBlock(cursor, Blocks.SPRUCE_PLANKS.defaultBlockState(), 2);
                     clearAbove(level, x, surfaceY + 1, z);
+                    if (dist > halfWidth - 0.85) {
+                        level.setBlock(new BlockPos(x, surfaceY + 1, z), Blocks.SPRUCE_FENCE.defaultBlockState(), 2);
+                    }
                     placedAny = true;
                     continue;
                 }
@@ -107,6 +146,23 @@ public final class HakureiApproachRoadFeature extends Feature<NoneFeatureConfigu
                 BlockState pave = pickPaving(formalSando, midTrail, dist, random);
                 level.setBlock(cursor, pave, 2);
                 clearAbove(level, x, surfaceY + 1, z);
+                placedAny = true;
+            }
+        }
+
+        // Place torii after paving so their 3-block-wide stone footings can seat over the road shoulder.
+        // Each call writes only this chunk's Z slices; the gate remains seamless across chunk borders.
+        for (int milestone : TORII_MILESTONES) {
+            if (milestone < chunkMinX || milestone > chunkMaxX) {
+                continue;
+            }
+            int centerZi = (int) Math.round(layout.hakureiRoadCenterZ(milestone));
+            int baseY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, milestone, centerZi) - 1;
+            BlockPos ground = new BlockPos(milestone, baseY, centerZi);
+            if (baseY <= GensokyoLayout.SEA_LEVEL || !level.getFluidState(ground).isEmpty()) {
+                continue;
+            }
+            if (HakureiToriiGenerator.placeSlice(level, milestone, baseY, centerZi, chunkMinZ)) {
                 placedAny = true;
             }
         }
@@ -165,5 +221,20 @@ public final class HakureiApproachRoadFeature extends Feature<NoneFeatureConfigu
         level.setBlock(base.above(1), Blocks.COBBLESTONE_WALL.defaultBlockState(), 2);
         level.setBlock(base.above(2), Blocks.OCHRE_FROGLIGHT.defaultBlockState(), 2);
         level.setBlock(base.above(3), Blocks.STONE_BRICK_SLAB.defaultBlockState(), 2);
+    }
+
+    private static void placeRestBench(WorldGenLevel level, int x, int surfaceY, int z) {
+        BlockPos base = new BlockPos(x, surfaceY, z);
+        level.setBlock(base, Blocks.MOSSY_STONE_BRICKS.defaultBlockState(), 2);
+        level.setBlock(base.above(1),
+                Blocks.SPRUCE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, Direction.NORTH), 2);
+    }
+
+    private static void placeRestSignpost(WorldGenLevel level, int x, int surfaceY, int z) {
+        BlockPos base = new BlockPos(x, surfaceY, z);
+        level.setBlock(base, Blocks.MOSSY_STONE_BRICKS.defaultBlockState(), 2);
+        level.setBlock(base.above(1), Blocks.SPRUCE_FENCE.defaultBlockState(), 2);
+        level.setBlock(base.above(2), Blocks.SPRUCE_FENCE.defaultBlockState(), 2);
+        level.setBlock(base.above(3), Blocks.LANTERN.defaultBlockState(), 2);
     }
 }

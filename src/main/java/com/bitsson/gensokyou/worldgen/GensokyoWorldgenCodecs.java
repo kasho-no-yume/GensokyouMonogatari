@@ -23,5 +23,13 @@ public final class GensokyoWorldgenCodecs {
                 () -> GensokyoLayoutDensity.CODEC.codec());
         event.register(Registries.FEATURE, Gensokyou.id("hakurei_approach_road"),
                 () -> HakureiApproachRoadFeature.INSTANCE);
+        event.register(Registries.FEATURE, Gensokyou.id("hakurei_mossy_boulder"),
+                () -> HakureiMossyBoulderFeature.INSTANCE);
+        event.register(Registries.FEATURE, Gensokyou.id("hakurei_spirit_spring"),
+                () -> HakureiSpiritSpringFeature.INSTANCE);
+        event.register(Registries.FEATURE, Gensokyou.id("hakurei_ancient_sacred_tree"),
+                () -> HakureiAncientSacredTreeFeature.INSTANCE);
+        event.register(Registries.FEATURE, Gensokyou.id("hakurei_wilderness_poi"),
+                () -> HakureiWildernessPoiFeature.INSTANCE);
     }
 }

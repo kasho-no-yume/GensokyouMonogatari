@@ -1,0 +1,27 @@
+{
+  "feature": "gensokyou:hakurei_ancient_sacred_tree",
+  "placement": [
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 28
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "gensokyou:height_band",
+      "min_y": 74,
+      "max_y": 118
+    },
+    {
+      "type": "gensokyou:landmark_clearance"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

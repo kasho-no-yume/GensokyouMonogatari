@@ -1,0 +1,29 @@
+{
+  "feature": "gensokyou:fallen_sakura_petals",
+  "placement": [
+    {
+      "type": "minecraft:noise_based_count",
+      "noise_to_count_ratio": 4,
+      "noise_factor": 42,
+      "noise_offset": 0.45
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "gensokyou:height_band",
+      "min_y": 65,
+      "max_y": 88
+    },
+    {
+      "type": "gensokyou:landmark_clearance"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

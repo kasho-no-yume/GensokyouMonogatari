@@ -20,7 +20,20 @@
         "maxCount": 1
       }
     ],
-    "creature": [],
+    "creature": [
+      {
+        "type": "minecraft:fox",
+        "weight": 8,
+        "minCount": 1,
+        "maxCount": 2
+      },
+      {
+        "type": "minecraft:rabbit",
+        "weight": 6,
+        "minCount": 1,
+        "maxCount": 2
+      }
+    ],
     "ambient": [],
     "axolotls": [],
     "underground_water_creature": [],
@@ -32,9 +45,14 @@
   "features": [
     [],
     [],
+    [
+      "gensokyou:hakurei_mossy_boulder",
+      "gensokyou:hakurei_spirit_spring"
+    ],
     [],
-    [],
-    [],
+    [
+      "gensokyou:hakurei_wilderness_poi"
+    ],
     [],
     [
       "gensokyou:spirit_iron_ore",
@@ -44,11 +62,14 @@
     [],
     [
       "gensokyou:sacred_grove",
-      "gensokyou:scarlet_maple_grove",
+      "gensokyou:hakurei_midslope_maple_grove",
+      "gensokyou:hakurei_highland_sacred_grove",
+      "gensokyou:hakurei_ancient_sacred_tree",
       "minecraft:patch_grass_forest",
       "gensokyou:spirit_soil_patch",
       "gensokyou:bell_tuft",
       "gensokyou:maple_litter",
+      "gensokyou:hakurei_valley_sakura_petals",
       "gensokyou:spirit_herb",
       "gensokyou:salt_whisker"
     ],

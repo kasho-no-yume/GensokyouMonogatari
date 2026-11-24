@@ -1,0 +1,27 @@
+{
+  "feature": "gensokyou:hakurei_mossy_boulder",
+  "placement": [
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 5
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:heightmap",
+      "heightmap": "MOTION_BLOCKING_NO_LEAVES"
+    },
+    {
+      "type": "gensokyou:height_band",
+      "min_y": 86,
+      "max_y": 138
+    },
+    {
+      "type": "gensokyou:landmark_clearance"
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}
