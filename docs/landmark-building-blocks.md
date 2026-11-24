@@ -2,7 +2,7 @@
 
 「幻想建筑块」是本项目一组可逐格染色的中性灰模方块，注册名统一为 `gensokyou:landmark_<形状>`，游戏内中文显示为「幻想建筑块」（英文 `Gensokyo Building Block`）。它们是地标的画布：图纸里每格给一个 `0xRRGGBB`，客户端渲染时按维度、区块段、坐标和预期方块 ID 查色；没给颜色的格子保持灰度。
 
-注册见 `src/main/java/com/bitsson/gensokyou/registry/LandmarkBlocks.java`，染色分派见 `src/main/java/com/bitsson/gensokyou/client/LandmarkBlockColors.java`。这些方块**没有物品形态**，不能从创造/生存模式直接拿到并放置；它们只通过结构模板（`structure` NBT）或 `/setblock` 出现在样件与博丽神社中。布局、配色和预览流程见[制作与预览指南](landmark-building-guide.md)。
+注册见 `src/main/java/com/bitsson/gensokyou/registry/LandmarkBlocks.java`，染色分派见 `src/main/java/com/bitsson/gensokyou/client/LandmarkBlockColors.java`。这些方块**没有物品形态**，不能从创造/生存模式直接拿到并放置；它们只通过结构模板（`structure` NBT）或 `/setblock` 出现在样件、博丽神社及其外围地标中。布局、配色和预览流程见[制作与预览指南](landmark-building-guide.md)。
 
 ## 共同属性
 
@@ -71,6 +71,9 @@ cell(5, 2, 1, "wood_door", 0x704837, facing="north", half="lower",
 | `assets/gensokyou/landmark/landmark_sample_v1.bin` | `data/gensokyou/structure/landmark_sample_v1.nbt` | `gensokyou:landmark_sample_v1`，原点 `(12,64,4)`，尺寸 `12×7×8` |
 | `assets/gensokyou/landmark/hakurei_shrine_preview.bin` | `data/gensokyou/structure/hakurei_shrine_preview.nbt` | 同为样件维度，原点 `(128,64,128)`，尺寸 `95×38×71` |
 | `assets/gensokyou/landmark/hakurei_shrine_gensokyo.bin` | 复用博丽神社模板 | `gensokyou:gensokyo`，原点 `(3022,83,93)` |
+| `assets/gensokyou/landmark/hakurei_front_gateway_gensokyo.bin` | `hakurei_front_gateway` | `gensokyou:gensokyo`，原点 `(2976,78,96)`，尺寸 `46×18×60` |
+| `assets/gensokyou/landmark/hakurei_north_guesthouse_gensokyo.bin` | `hakurei_north_guesthouse` | `gensokyou:gensokyo`，原点 `(3040,82,62)`，尺寸 `72×26×31` |
+| `assets/gensokyou/landmark/hakurei_east_grounds_gensokyo.bin` | `hakurei_east_grounds` | `gensokyou:gensokyo`，原点 `(3118,88,100)`，尺寸 `48×32×92` |
 
 其他维度不渲染这些颜色，方块显示原始灰度；配色文件缺失或损坏时同理，客户端日志会出现 `Could not load landmark sample colors`。颜色与坐标及预期方块 ID 绑定：用 `/setblock` 换成另一个幻想建筑块 ID 会褪色，换回原 ID 又恢复；门开合等状态变化不影响颜色。
 
@@ -90,6 +93,10 @@ python tools/export_landmark_sample.py --check
 # 扩展 4 种模型 + 博丽神社 NBT/两套配色
 python tools/export_hakurei_shrine_preview.py
 python tools/export_hakurei_shrine_preview.py --check
+
+# 博丽神社外围三块地标 NBT/ Gensokyo 配色
+python tools/export_hakurei_outer_grounds.py
+python tools/export_hakurei_outer_grounds.py --check
 ```
 
 配色格式与性能说明见[制作与预览指南](landmark-building-guide.md#配色文件与性能)；验收记录见[归档验收记录](../openspec/changes/archive/2026-11-24-prototype-tinted-landmarks/verification.md)。

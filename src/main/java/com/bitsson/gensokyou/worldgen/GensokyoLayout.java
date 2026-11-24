@@ -15,6 +15,22 @@ public final class GensokyoLayout {
     /** Long pilgrimage approach road from Hakurei First Torii (X=3022) down to Human Village east edge (X=40). */
     public static final int HAKUREI_ROAD_START_X = 3022;
     public static final int HAKUREI_ROAD_END_X = 40;
+
+    // Outer-grounds footprints mirror HakureiOuterGrounds. Fixed pads keep the satellite
+    // structures level without flattening the whole Hakurei region.
+    public static final int HAKUREI_FRONT_X = 2976;
+    public static final int HAKUREI_FRONT_Z = 96;
+    public static final int HAKUREI_FRONT_WIDTH = 46;
+    public static final int HAKUREI_FRONT_DEPTH = 60;
+    public static final int HAKUREI_NORTH_X = 3040;
+    public static final int HAKUREI_NORTH_Z = 62;
+    public static final int HAKUREI_NORTH_WIDTH = 72;
+    public static final int HAKUREI_NORTH_DEPTH = 31;
+    public static final int HAKUREI_EAST_X = 3118;
+    public static final int HAKUREI_EAST_Z = 100;
+    public static final int HAKUREI_EAST_WIDTH = 48;
+    public static final int HAKUREI_EAST_DEPTH = 92;
+
     public static final int MISTY_LAKE_X = 1500;
     public static final int MISTY_LAKE_Z = -1750;
 
@@ -246,7 +262,48 @@ public final class GensokyoLayout {
             double blend = 1.0 - smoothstep(shrineEdgeDist / 48.0);
             height = lerp(height, shrineTarget, blend);
         }
+        height = sculptHakureiOuterGrounds(height, x, z);
         return height;
+    }
+
+    private double sculptHakureiOuterGrounds(double height, int x, int z) {
+        // Never let a satellite pad's blended edge raise or lower the established main shrine.
+        if (x >= 3022 && x <= 3116 && z >= 93 && z <= 163) {
+            return height;
+        }
+        double frontDistance = rectangleDistance(x, z,
+                HAKUREI_FRONT_X, HAKUREI_FRONT_Z,
+                HAKUREI_FRONT_X + HAKUREI_FRONT_WIDTH - 1,
+                HAKUREI_FRONT_Z + HAKUREI_FRONT_DEPTH - 1);
+        // The pilgrimage road keeps its own graded surface through the front gateway.
+        if (frontDistance < 10.0 && hakureiRoadDistance(x, z) > 6.5) {
+            double target = z < COURTYARD_Z ? 83.0 : 82.0;
+            height = lerp(height, target, 1.0 - smoothstep(frontDistance / 10.0));
+        }
+
+        double northDistance = rectangleDistance(x, z,
+                HAKUREI_NORTH_X, HAKUREI_NORTH_Z,
+                HAKUREI_NORTH_X + HAKUREI_NORTH_WIDTH - 1,
+                HAKUREI_NORTH_Z + HAKUREI_NORTH_DEPTH - 1);
+        if (northDistance < 12.0) {
+            height = lerp(height, 96.0, 1.0 - smoothstep(northDistance / 12.0));
+        }
+
+        double eastDistance = rectangleDistance(x, z,
+                HAKUREI_EAST_X, HAKUREI_EAST_Z,
+                HAKUREI_EAST_X + HAKUREI_EAST_WIDTH - 1,
+                HAKUREI_EAST_Z + HAKUREI_EAST_DEPTH - 1);
+        if (eastDistance < 14.0) {
+            double target = z < 156 ? 100.0 : 98.0;
+            height = lerp(height, target, 1.0 - smoothstep(eastDistance / 14.0));
+        }
+        return height;
+    }
+
+    private static double rectangleDistance(int x, int z, int minX, int minZ, int maxX, int maxZ) {
+        double dx = Math.max(0.0, Math.max(minX - x, x - maxX));
+        double dz = Math.max(0.0, Math.max(minZ - z, z - maxZ));
+        return Math.hypot(dx, dz);
     }
 
     /** Gentle winding Z centerline of the Hakurei-to-Human-Village pilgrimage road. */

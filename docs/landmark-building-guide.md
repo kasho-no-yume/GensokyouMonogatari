@@ -51,6 +51,25 @@ python tools/export_landmark_sample.py --check
 
 依次应看到空洞、灰砖、恢复浅红的木板。颜色与坐标及预期方块 ID 绑定。同一个 ID 换回原坐标会恢复原配色。门的开关等状态变化保留颜色。配色文件缺失、格式错误或损坏时，在客户端日志搜索 `Could not load landmark sample colors`，样件会以灰度显示。
 
+## 博丽神社外围地标
+
+主神社保持独立模板，外围第一批由三块卫星地标组成：门前小集、北侧客殿院、东侧钟楼与练习场。图纸在 `tools/export_hakurei_outer_grounds.py`，产物为三份结构 NBT 和三份按幻想乡世界坐标保存的 GLC2 配色。导出器会按原版与模组 blockstate 资源校验所有方块 ID，并在门前参道行走高度设置障碍检查。
+
+```powershell
+python tools/export_hakurei_outer_grounds.py
+python tools/export_hakurei_outer_grounds.py --check
+```
+
+在幻想乡维度可用以下管理员命令走查；命令会确保主神社和外围地标已放置：
+
+```mcfunction
+/gs_hakurei_preview visit_gensokyo front
+/gs_hakurei_preview visit_gensokyo north
+/gs_hakurei_preview visit_gensokyo east
+```
+
+三块地标分别占用 `(2976,78,96) 46×18×60`、`(3040,82,62) 72×26×31`、`(3118,88,100) 48×32×92`。修改尺寸或世界原点时，需要同步 `HakureiOuterGrounds`、`GensokyoLayout` 的平地和净空范围，以及[建筑块一览](landmark-building-blocks.md#配色资源与生效范围)的配色表。
+
 ## 配色文件与性能
 
 文件用 GZIP 压缩。`GLC2` 保存 RGB 色板、预期方块 ID 表和有染色数据的区块段。每个 `16×16×16` 段解压为 4 KiB 色号和 4 KiB 方块编号。色号 0 表示原灰度，单份资源支持 255 个显式 RGB。区块网格构建时按坐标直接查数组，解压发生在客户端加载染色资源时。连续的同色面与空格通常能被 GZIP 压得很小。大建筑可根据实际占用段数评估内存，再决定是否需要稀疏存储。

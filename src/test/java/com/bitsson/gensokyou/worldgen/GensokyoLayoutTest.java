@@ -132,6 +132,27 @@ class GensokyoLayoutTest {
     }
 
     @Test
+    void hakureiOuterGroundsPadsStayLevelAcrossAllSeeds() {
+        for (long seed : new long[]{0, 424242, 987654321}) {
+            var seeded = new GensokyoLayout(seed);
+            for (double noise : new double[]{-1.0, 0.0, 1.0}) {
+                assertEquals(83.0, seeded.surfaceHeight(2990, 110, noise), 0.01,
+                        "Front teahouse pad");
+                assertEquals(82.0, seeded.surfaceHeight(2990, 145, noise), 0.01,
+                        "Front rest-pavilion pad");
+                assertEquals(96.0, seeded.surfaceHeight(3070, 77, noise), 0.01,
+                        "North guest courtyard pad");
+                assertEquals(100.0, seeded.surfaceHeight(3127, 108, noise), 0.01,
+                        "East bell-tower pad");
+                assertEquals(98.0, seeded.surfaceHeight(3140, 170, noise), 0.01,
+                        "East practice-ground pad");
+                assertTrue(seeded.surfaceHeight(3020, 128, noise) >= 83.5,
+                        "Outer grounds must not cut through the pilgrimage road");
+            }
+        }
+    }
+
+    @Test
     void hakureiPilgrimageRoadConnectsFirstToriiToHumanVillage() {
         assertEquals(128.0, layout.hakureiRoadCenterZ(GensokyoLayout.HAKUREI_ROAD_START_X), 0.01);
         assertEquals(100.0, layout.hakureiRoadCenterZ(GensokyoLayout.HAKUREI_ROAD_END_X), 0.01);

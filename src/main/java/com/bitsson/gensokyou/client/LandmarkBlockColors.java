@@ -1,5 +1,6 @@
 package com.bitsson.gensokyou.client;
 
+import com.bitsson.gensokyou.landmark.HakureiOuterGrounds;
 import com.bitsson.gensokyou.landmark.HakureiShrineLandmark;
 import com.bitsson.gensokyou.landmark.HakureiShrinePreview;
 import com.bitsson.gensokyou.landmark.LandmarkColors;
@@ -25,7 +26,13 @@ public final class LandmarkBlockColors {
         LandmarkColors sampleColors = load(LandmarkSample.ID.getPath());
         LandmarkColors shrinePreviewColors = load(HakureiShrinePreview.ID.getPath());
         LandmarkColors gensokyoShrineColors = load(HakureiShrineLandmark.COLOR_ID.getPath());
-        if (sampleColors == null && shrinePreviewColors == null && gensokyoShrineColors == null) {
+        LandmarkColors[] gensokyoColors = {
+                gensokyoShrineColors,
+                load(HakureiOuterGrounds.FRONT.colorId().getPath()),
+                load(HakureiOuterGrounds.NORTH.colorId().getPath()),
+                load(HakureiOuterGrounds.EAST.colorId().getPath())
+        };
+        if (sampleColors == null && shrinePreviewColors == null && !hasAny(gensokyoColors)) {
             return;
         }
         event.register((state, view, pos, tint) -> {
@@ -39,9 +46,16 @@ public final class LandmarkBlockColors {
             }
             var blockKey = BuiltInRegistries.BLOCK.getKey(state.getBlock());
             if (level.dimension().equals(HakureiShrineLandmark.GENSOKYO_DIMENSION)) {
-                return gensokyoShrineColors != null
-                        ? gensokyoShrineColors.colorAt(pos.getX(), pos.getY(), pos.getZ(), blockKey)
-                        : LandmarkColors.NO_TINT;
+                for (LandmarkColors colors : gensokyoColors) {
+                    if (colors == null) {
+                        continue;
+                    }
+                    int color = colors.colorAt(pos.getX(), pos.getY(), pos.getZ(), blockKey);
+                    if (color != LandmarkColors.NO_TINT) {
+                        return color;
+                    }
+                }
+                return LandmarkColors.NO_TINT;
             }
             if (!level.dimension().equals(LandmarkSample.DIMENSION)) {
                 return LandmarkColors.NO_TINT;
@@ -56,6 +70,15 @@ public final class LandmarkBlockColors {
                     ? shrinePreviewColors.colorAt(pos.getX(), pos.getY(), pos.getZ(), blockKey)
                     : LandmarkColors.NO_TINT;
         }, LandmarkBlocks.tintedBlocks());
+    }
+
+    private static boolean hasAny(LandmarkColors[] colors) {
+        for (LandmarkColors value : colors) {
+            if (value != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static LandmarkColors load(String idPath) {

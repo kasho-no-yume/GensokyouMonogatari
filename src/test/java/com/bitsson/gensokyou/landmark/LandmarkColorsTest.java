@@ -75,6 +75,27 @@ class LandmarkColorsTest {
     }
 
     @Test
+    void exportedHakureiOuterGroundsDecodeAndTintKeyLandmarks() throws IOException {
+        var lamp = ResourceLocation.fromNamespaceAndPath("gensokyou", "landmark_lamp");
+        try (var resource = getClass().getResourceAsStream("/assets/gensokyou/landmark/hakurei_front_gateway_gensokyo.bin")) {
+            assertNotNull(resource);
+            LandmarkColors colors = LandmarkColors.read(resource);
+            assertEquals(0xFFFFA27E, colors.colorAt(2976 + 27, 78 + 12, 96 + 27, lamp));
+            assertEquals(LandmarkColors.NO_TINT, colors.colorAt(15, 66, 5, lamp));
+        }
+        try (var resource = getClass().getResourceAsStream("/assets/gensokyou/landmark/hakurei_north_guesthouse_gensokyo.bin")) {
+            assertNotNull(resource);
+            LandmarkColors colors = LandmarkColors.read(resource);
+            assertEquals(0xFFFFA27E, colors.colorAt(3040 + 14, 82 + 18, 62 + 22, lamp));
+        }
+        try (var resource = getClass().getResourceAsStream("/assets/gensokyou/landmark/hakurei_east_grounds_gensokyo.bin")) {
+            assertNotNull(resource);
+            LandmarkColors colors = LandmarkColors.read(resource);
+            assertEquals(0xFFFFC570, colors.colorAt(3118 + 6, 88 + 21, 100 + 8, lamp));
+        }
+    }
+
+    @Test
     void rejectsPaletteOverflow() throws IOException {
         assertThrows(IOException.class, () -> LandmarkColors.read(new ByteArrayInputStream(colorFile(127))));
     }

@@ -35,7 +35,13 @@ public final class HakureiPreviewEvents {
                 .then(Commands.literal("visit_gensokyo")
                         .executes(ctx -> visitGensokyo(ctx.getSource(), -12.0, 1.0, 35.5, -90.0F, -8.0F))
                         .then(Commands.literal("courtyard")
-                                .executes(ctx -> visitGensokyo(ctx.getSource(), 50.5, 13.0, 35.5, 90.0F, 0.0F)))));
+                                .executes(ctx -> visitGensokyo(ctx.getSource(), 50.5, 13.0, 35.5, 90.0F, 0.0F)))
+                        .then(Commands.literal("front")
+                                .executes(ctx -> visitGensokyo(ctx.getSource(), -26.0, 2.0, 35.5, 90.0F, 0.0F)))
+                        .then(Commands.literal("north")
+                                .executes(ctx -> visitGensokyo(ctx.getSource(), 34.0, 15.0, -16.5, 180.0F, 0.0F)))
+                        .then(Commands.literal("east")
+                                .executes(ctx -> visitGensokyo(ctx.getSource(), 108.0, 19.0, 35.5, -90.0F, 0.0F)))));
     }
 
     private static int install(CommandSourceStack source) {
@@ -81,6 +87,7 @@ public final class HakureiPreviewEvents {
             return 0;
         }
         HakureiShrineLandmark.ensurePlaced(gensokyo);
+        HakureiOuterGrounds.ensurePlaced(gensokyo);
         BlockPos origin = HakureiShrineLandmark.ORIGIN;
         player.teleportTo(gensokyo, origin.getX() + dx, origin.getY() + dy, origin.getZ() + dz, yaw, pitch);
         return 1;
@@ -95,8 +102,12 @@ public final class HakureiPreviewEvents {
             return;
         }
         var chunkPos = event.getChunk().getPos();
-        if (HakureiShrineLandmark.intersectsChunk(chunkPos.x, chunkPos.z)) {
-            level.getServer().execute(() -> HakureiShrineLandmark.ensurePlaced(level));
+        if (HakureiShrineLandmark.intersectsChunk(chunkPos.x, chunkPos.z)
+                || HakureiOuterGrounds.intersectsChunk(chunkPos.x, chunkPos.z)) {
+            level.getServer().execute(() -> {
+                HakureiShrineLandmark.ensurePlaced(level);
+                HakureiOuterGrounds.ensurePlaced(level);
+            });
         }
     }
 
@@ -115,6 +126,8 @@ public final class HakureiPreviewEvents {
     }
 
     private static boolean isProtected(net.minecraft.world.level.LevelAccessor level, BlockPos pos) {
-        return HakureiShrinePreview.contains(level, pos) || HakureiShrineLandmark.contains(level, pos);
+        return HakureiShrinePreview.contains(level, pos)
+                || HakureiShrineLandmark.contains(level, pos)
+                || HakureiOuterGrounds.contains(level, pos);
     }
 }

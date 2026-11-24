@@ -21,6 +21,16 @@ public final class LandmarkClearanceFilter extends PlacementFilter {
         if (x >= 3012 && x <= 3126 && z >= 83 && z <= 173) {
             return false;
         }
+        // Keep the three Hakurei outer-grounds footprints plus a five-block buffer clear.
+        if (x >= 2971 && x <= 3026 && z >= 91 && z <= 160) {
+            return false;
+        }
+        if (x >= 3035 && x <= 3116 && z >= 57 && z <= 97) {
+            return false;
+        }
+        if (x >= 3113 && x <= 3170 && z >= 95 && z <= 196) {
+            return false;
+        }
         // Keep the Hakurei-to-Human-Village pilgrimage road clear of blocking tree trunks.
         if (x >= GensokyoLayout.HAKUREI_ROAD_END_X && x <= GensokyoLayout.HAKUREI_ROAD_START_X) {
             long seed = context.getLevel().getSeed();
