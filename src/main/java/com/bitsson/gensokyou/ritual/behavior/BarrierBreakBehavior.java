@@ -76,7 +76,8 @@ public class BarrierBreakBehavior implements RitualBehavior {
     public static final int PORTAL_UP = 2;
 
     /** 幻想乡侧孪生门相对该维度地表落点的水平偏移。必须 &gt; 0，否则玩家一落地即被弹回。 */
-    public static final int TWIN_OFFSET = GensokyoLayout.TWIN_GATE_X - GensokyoLayout.COURTYARD_X;
+    public static final int TWIN_OFFSET = Math.abs(GensokyoLayout.TWIN_GATE_X - GensokyoLayout.COURTYARD_X)
+            + Math.abs(GensokyoLayout.TWIN_GATE_Z - GensokyoLayout.COURTYARD_Z);
 
     /** 孪生门落点外扩搜索半径（格），用于避开水面/熔岩/深坑。 */
     public static final int TWIN_SEARCH_RADIUS = 12;
@@ -479,6 +480,9 @@ public class BarrierBreakBehavior implements RitualBehavior {
         BlockPos probe = twinPortalAnchor();
         if (!allowChunkLoad && !gensokyo.isLoaded(probe)) {
             return null;
+        }
+        if (allowChunkLoad) {
+            com.bitsson.gensokyou.landmark.HakureiShrineLandmark.ensurePlaced(gensokyo);
         }
         BlockPos existing = existingTwinPortal(gensokyo, probe.getX(), probe.getZ());
         if (existing != null) {

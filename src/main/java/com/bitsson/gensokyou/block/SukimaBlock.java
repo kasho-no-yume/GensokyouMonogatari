@@ -84,6 +84,7 @@ public class SukimaBlock extends Block implements EntityBlock {
             player.teleportTo(target, landing.getX() + 0.5D, landing.getY(),
                     landing.getZ() + 0.5D, player.getYRot(), player.getXRot());
         } else {
+            com.bitsson.gensokyou.landmark.HakureiShrineLandmark.ensurePlaced(target);
             player.teleportTo(target, GensokyoLayout.COURTYARD_X + 0.5D,
                     GensokyoLayout.COURTYARD_Y, GensokyoLayout.COURTYARD_Z + 0.5D,
                     90.0F, player.getXRot());

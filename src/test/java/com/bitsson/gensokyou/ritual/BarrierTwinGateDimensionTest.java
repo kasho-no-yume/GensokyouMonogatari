@@ -73,7 +73,7 @@ class BarrierTwinGateDimensionTest {
                 "没有找到 requestClose(gensokyo, twin)：关闭路径一直是本 bug 的正确参照物");
     }
 
-    /** 孪生门在博丽庭院落点以东 16 格，保证与初始落点留出空间。 */
+    /** 孪生门在博丽庭院北翼境界石台（落点以北 16 格），保证与初始落点留出空间且不挡拜殿中轴视野。 */
     @Test
     void twinOffsetMatchesTheFixedCourtyardGate() {
         assertEquals(16, BarrierBreakBehavior.TWIN_OFFSET);

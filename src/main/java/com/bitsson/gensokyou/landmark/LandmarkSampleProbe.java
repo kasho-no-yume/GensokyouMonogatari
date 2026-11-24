@@ -3,10 +3,20 @@ package com.bitsson.gensokyou.landmark;
 import com.bitsson.gensokyou.registry.LandmarkBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.piston.PistonStructureResolver;
 import net.minecraft.world.level.material.PushReaction;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
@@ -52,10 +62,42 @@ public final class LandmarkSampleProbe {
             check(EventHooks.onBlockPlace(null, inside, Direction.UP), "Interior placement was allowed");
             check(!EventHooks.onBlockPlace(null, outside, Direction.UP), "Exterior placement was denied");
             check(EventHooks.onMultiBlockPlace(null, List.of(outside, inside), Direction.UP), "Multi-place skipped the second position");
-            System.out.println("LANDMARK_SAMPLE_PROBE PASS template, door, blast, piston, placement");
+            verifyPlacementBeforeWrite(level);
+            System.out.println("LANDMARK_SAMPLE_PROBE PASS template, door, blast, piston, placement, pre-placement");
         } finally {
             server.halt(false);
         }
+    }
+
+    private static void verifyPlacementBeforeWrite(ServerLevel level) {
+        BlockPos floor = LandmarkSample.ORIGIN.offset(3, 0, 2);
+        var stone = new ItemStack(Items.STONE, 2);
+        check(placeOn(level, floor, stone) == InteractionResult.FAIL, "Protected BlockItem placement did not fail");
+        check(level.getBlockState(floor.above()).isAir() && stone.getCount() == 2,
+                "Protected BlockItem placement changed a block or stack");
+
+        // The bed foot fits outside. The head would land over the protected floor.
+        BlockPos support = LandmarkSample.ORIGIN.offset(-1, 0, 0);
+        level.setBlockAndUpdate(support, Blocks.STONE.defaultBlockState());
+        var bed = new ItemStack(Items.RED_BED);
+        check(placeOn(level, support, bed) == InteractionResult.FAIL, "Bed placement crossed the boundary");
+        check(level.getBlockState(support.above()).isAir() && level.getBlockState(support.above().east()).isAir()
+                && bed.getCount() == 1, "Blocked bed placement changed a block or stack");
+        check(placeOn(level, support, stone).consumesAction() && level.getBlockState(support.above()).is(Blocks.STONE),
+                "Normal exterior placement failed");
+        level.removeBlock(support.above(), false);
+        level.removeBlock(support, false);
+    }
+
+    private static InteractionResult placeOn(ServerLevel level, BlockPos support, ItemStack stack) {
+        var hit = new BlockHitResult(Vec3.atCenterOf(support), Direction.UP, support, false);
+        var context = new BlockPlaceContext(level, null, InteractionHand.MAIN_HAND, stack, hit) {
+            @Override
+            public Direction getHorizontalDirection() {
+                return Direction.EAST;
+            }
+        };
+        return ((BlockItem) stack.getItem()).place(context);
     }
 
     private static void check(boolean condition, String message) {

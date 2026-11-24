@@ -9,8 +9,12 @@ public final class GensokyoLayout {
     public static final int COURTYARD_X = 3072;
     public static final int COURTYARD_Z = 128;
     public static final int COURTYARD_Y = 96;
-    public static final int TWIN_GATE_X = 3088;
-    public static final int TWIN_GATE_Z = 128;
+    /** Twin Sukima gate sits on the north boundary stone dais inside Hakurei Shrine (16 blocks north of spawn). */
+    public static final int TWIN_GATE_X = 3072;
+    public static final int TWIN_GATE_Z = 112;
+    /** Long pilgrimage approach road from Hakurei First Torii (X=3022) down to Human Village east edge (X=40). */
+    public static final int HAKUREI_ROAD_START_X = 3022;
+    public static final int HAKUREI_ROAD_END_X = 40;
     public static final int MISTY_LAKE_X = 1500;
     public static final int MISTY_LAKE_Z = -1750;
 
@@ -199,6 +203,9 @@ public final class GensokyoLayout {
 
         // Pads are tied to their world positions, including their grading around the edges.
         for (Region region : REGIONS) {
+            if (region == Region.HAKUREI) {
+                continue; // Hakurei Shrine uses a sculpted stepped hillside shoulder below.
+            }
             double dx = (double) x - region.landmarkX;
             double dz = (double) z - region.landmarkZ;
             double distanceSquared = dx * dx + dz * dz;
@@ -209,12 +216,56 @@ public final class GensokyoLayout {
             }
         }
 
-        double courtyardDistance = Math.hypot(x - COURTYARD_X, z - COURTYARD_Z);
-        if (courtyardDistance < 144.0) {
-            double padBlend = smoothstep((courtyardDistance - 40.0) / 104.0);
-            height = lerp(COURTYARD_Y, height, padBlend);
+        // Smooth roadbed grading along the long pilgrimage road from Hakurei foot (Y=84) to Human Village (Y=72).
+        double roadDist = hakureiRoadDistance(x, z);
+        if (roadDist < 18.0) {
+            double rt = Math.max(0.0, Math.min(1.0, (HAKUREI_ROAD_START_X - (double) x)
+                    / (HAKUREI_ROAD_START_X - HAKUREI_ROAD_END_X)));
+            double targetRoadY = lerp(84.0, 72.0, smoothstep(rt));
+            double nearFoot = 1.0 - smoothstep(Math.max(0.0, HAKUREI_ROAD_START_X - x) / 48.0);
+            double graded = lerp(Math.max(SEA_LEVEL + 3.0, lerp(height, targetRoadY, 0.72)), 84.0, nearFoot);
+            double roadBlend = 1.0 - smoothstep((roadDist - 5.0) / 13.0);
+            height = lerp(height, graded, roadBlend);
+        }
+
+        // Sculpted Hakurei Shrine hillside: west approach ramp (Y=84->96), flat shrine plateau (Y=96), east back ridge.
+        double hdx = Math.max(0.0, Math.max(3022.0 - x, x - 3120.0));
+        double hdz = Math.max(0.0, Math.max(93.0 - z, z - 163.0));
+        double shrineEdgeDist = Math.hypot(hdx, hdz);
+        if (shrineEdgeDist < 48.0) {
+            double shrineTarget;
+            if (x < 3056) {
+                double st = Math.max(0.0, Math.min(1.0, (x - 3022.0) / 34.0));
+                shrineTarget = lerp(84.0, COURTYARD_Y, smoothstep(st));
+            } else if (x <= 3110) {
+                shrineTarget = COURTYARD_Y;
+            } else {
+                double bt = Math.max(0.0, Math.min(1.0, (x - 3110.0) / 28.0));
+                shrineTarget = lerp(COURTYARD_Y, COURTYARD_Y + 8.0, smoothstep(bt));
+            }
+            double blend = 1.0 - smoothstep(shrineEdgeDist / 48.0);
+            height = lerp(height, shrineTarget, blend);
         }
         return height;
+    }
+
+    /** Gentle winding Z centerline of the Hakurei-to-Human-Village pilgrimage road. */
+    public double hakureiRoadCenterZ(int x) {
+        double t = Math.max(0.0, Math.min(1.0,
+                (HAKUREI_ROAD_START_X - (double) x) / (HAKUREI_ROAD_START_X - HAKUREI_ROAD_END_X)));
+        double baseZ = lerp(COURTYARD_Z, 100.0, smoothstep(t));
+        double env = Math.sin(Math.PI * t);
+        double meander = env * env * (34.0 * Math.sin(t * 7.0 + reliefPhase * 0.5)
+                + 18.0 * Math.cos(t * 13.0 - reliefPhase * 0.3));
+        return baseZ + meander;
+    }
+
+    /** Perpendicular Z distance to the pilgrimage road, or +Inf outside its X span. */
+    public double hakureiRoadDistance(int x, int z) {
+        if (x < HAKUREI_ROAD_END_X || x > HAKUREI_ROAD_START_X) {
+            return Double.POSITIVE_INFINITY;
+        }
+        return Math.abs((double) z - hakureiRoadCenterZ(x));
     }
 
     private double relief(Region region, int x, int z, double noise) {

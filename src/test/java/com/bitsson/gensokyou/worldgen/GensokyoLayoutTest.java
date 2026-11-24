@@ -113,6 +113,14 @@ class GensokyoLayoutTest {
             for (double noise : new double[]{-1.0, -0.5, 0.0, 0.5, 1.0}) {
                 double center = layout.surfaceHeight(region.landmarkX(), region.landmarkZ(), noise);
                 assertEquals(region.landmarkY(), center, region + " reserved pad center");
+                if (region == GensokyoLayout.Region.HAKUREI) {
+                    // Hakurei Shrine uses a stepped hillside: flat courtyard/twin-gate plateau (Y=96)
+                    // and a 12-block west ramp down to the First Torii foot (3022, 128) at Y=84.
+                    assertEquals(96.0, layout.surfaceHeight(GensokyoLayout.TWIN_GATE_X, GensokyoLayout.TWIN_GATE_Z, noise), 0.01);
+                    assertEquals(96.0, layout.surfaceHeight(3108, 128, noise), 0.01);
+                    assertEquals(84.0, layout.surfaceHeight(3022, 128, noise), 0.01);
+                    continue;
+                }
                 for (int[] offset : new int[][]{{-48, 0}, {48, 0}, {0, -48}, {0, 48}}) {
                     double edge = layout.surfaceHeight(region.landmarkX() + offset[0],
                             region.landmarkZ() + offset[1], noise);
@@ -120,6 +128,17 @@ class GensokyoLayoutTest {
                             region + " reserved pad edge slope is " + Math.abs(center - edge));
                 }
             }
+        }
+    }
+
+    @Test
+    void hakureiPilgrimageRoadConnectsFirstToriiToHumanVillage() {
+        assertEquals(128.0, layout.hakureiRoadCenterZ(GensokyoLayout.HAKUREI_ROAD_START_X), 0.01);
+        assertEquals(100.0, layout.hakureiRoadCenterZ(GensokyoLayout.HAKUREI_ROAD_END_X), 0.01);
+        for (int x = GensokyoLayout.HAKUREI_ROAD_END_X; x <= GensokyoLayout.HAKUREI_ROAD_START_X; x += 64) {
+            int z = (int) Math.round(layout.hakureiRoadCenterZ(x));
+            assertTrue(layout.surfaceHeight(x, z, 0.0) >= GensokyoLayout.SEA_LEVEL + 2.0,
+                    "Pilgrimage road dipped into water at x=" + x);
         }
     }
 

@@ -21,5 +21,7 @@ public final class GensokyoWorldgenCodecs {
                 () -> GensokyoIslandDensity.CODEC.codec());
         event.register(Registries.DENSITY_FUNCTION_TYPE, Gensokyou.id("island_layout"),
                 () -> GensokyoLayoutDensity.CODEC.codec());
+        event.register(Registries.FEATURE, Gensokyou.id("hakurei_approach_road"),
+                () -> HakureiApproachRoadFeature.INSTANCE);
     }
 }

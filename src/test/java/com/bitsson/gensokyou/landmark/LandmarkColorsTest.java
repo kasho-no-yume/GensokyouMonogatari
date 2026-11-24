@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.zip.GZIPOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -44,6 +45,33 @@ class LandmarkColorsTest {
             }
         }
         assertEquals(LandmarkColors.NO_TINT, colors.colorAt(-33, 0, 0, WOOD));
+    }
+
+    @Test
+    void exportedHakureiShrinePreviewDecodesAndTintsKeyLandmarks() throws IOException {
+        var trapdoor = ResourceLocation.fromNamespaceAndPath("gensokyou", "landmark_wood_trapdoor");
+        var fence = ResourceLocation.fromNamespaceAndPath("gensokyou", "landmark_wood_fence");
+        var lamp = ResourceLocation.fromNamespaceAndPath("gensokyou", "landmark_lamp");
+        try (var resource = getClass().getResourceAsStream("/assets/gensokyou/landmark/hakurei_shrine_preview.bin")) {
+            assertNotNull(resource);
+            LandmarkColors colors = LandmarkColors.read(resource);
+            // First Torii vermilion pillar
+            assertNotEquals(LandmarkColors.NO_TINT, colors.colorAt(128 + 4, 64 + 5, 128 + 30, WOOD));
+            // Redesigned grand gate swung-open vermilion trapdoor leaf & golden transom fence
+            assertEquals(0xFF96291E, colors.colorAt(128 + 62, 64 + 15, 128 + 33, trapdoor));
+            assertEquals(0xFFB8964B, colors.colorAt(128 + 62, 64 + 18, 128 + 35, fence));
+            // Unbreakable tinted warm lamp flanking the grand gate
+            assertEquals(0xFFFFA27E, colors.colorAt(128 + 61, 64 + 17, 128 + 32, lamp));
+            // Does not overlap with landmark_sample_v1 origin
+            assertEquals(LandmarkColors.NO_TINT, colors.colorAt(15, 66, 5, WOOD));
+        }
+        try (var resource = getClass().getResourceAsStream("/assets/gensokyou/landmark/hakurei_shrine_gensokyo.bin")) {
+            assertNotNull(resource);
+            LandmarkColors colors = LandmarkColors.read(resource);
+            // Gensokyo world anchor (3022, 83, 93): grand gate vermilion leaf & warm lamp
+            assertEquals(0xFF96291E, colors.colorAt(3022 + 62, 83 + 15, 93 + 33, trapdoor));
+            assertEquals(0xFFFFA27E, colors.colorAt(3022 + 61, 83 + 17, 93 + 32, lamp));
+        }
     }
 
     @Test

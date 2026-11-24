@@ -1,0 +1,9 @@
+{
+  "feature": "gensokyou:hakurei_approach_road",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 1
+    }
+  ]
+}

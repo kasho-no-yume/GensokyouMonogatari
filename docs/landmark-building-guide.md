@@ -15,6 +15,10 @@
 
 `install` 把 328 格样件放入独立的 `gensokyou:landmark_sample_v1` 维度，`visit` 把你传到门外。样件原点是 `(12,64,4)`。面向入口看外墙的 `(14,66,5)`、`(15,66,5)`、`(16,66,5)`，应依次看到灰色、浅红、深红，最后两格跨过区块边界。离开视距后回来，或退出世界再进入，可以复核颜色。
 
+## 验证禁放手感
+
+切换到生存模式，在室内拿着一格方块尝试放置。动作栏应显示“此处不能放置方块”，画面不应闪现方块，手持数量也不应变化。再测试床的一半落入保护区、在区外正常放块，以及手持方块右击门。
+
 ## 改图纸和配色
 
 在 [`tools/export_landmark_sample.py`](../tools/export_landmark_sample.py) 的 `sample_cells()` 里编辑样件。每格使用相对原点的坐标、材质与形状、一个 `0xRRGGBB` 色值和可选的朝向等方块属性。传 `None` 保留原始灰度。给一面墙统一配色时，可以让该面所有格引用同一个 Python 颜色常量。
@@ -25,7 +29,7 @@ cell(4, 2, 1, "wood", 0x873927)
 cell(2, 2, 1, "wood", None)
 ```
 
-可用形状 ID 后缀为 `brick`、`wood`、`tile`、`tile_slab`、`tile_stairs` 和 `wood_door`。游戏中文统一显示为“幻想建筑块”，调试时用 F3 看注册 ID 和方块属性。门的上下两半各占一格，通常为两格指定相同的 RGB。
+可用形状 ID 后缀共 10 种（含 `wood_trapdoor`、`wood_fence`、`stone_wall`、`lamp`），逐项见[幻想建筑块一览](landmark-building-blocks.md)。游戏中文统一显示为“幻想建筑块”，调试时用 F3 看注册 ID 和方块属性。门的上下两半各占一格，通常为两格指定相同的 RGB。
 
 ```powershell
 .\tools\gradle_task.ps1 createMinecraftArtifacts

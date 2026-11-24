@@ -1,13 +1,14 @@
 {
   "required": true,
   "minVersion": "0.8.5",
-  "package": "com.bitsson.gensokyou.mixin.client",
+  "package": "com.bitsson.gensokyou.mixin",
   "compatibilityLevel": "JAVA_21",
+  "mixins": ["BlockItemPlacementMixin"],
   "client": [
-    "LevelRendererShakeMixin",
-    "RenderChunkRegionAccessor",
-    "SoulBurnFireAnimationMixin",
-    "SoulBurnFlameMixin"
+    "client.LevelRendererShakeMixin",
+    "client.RenderChunkRegionAccessor",
+    "client.SoulBurnFireAnimationMixin",
+    "client.SoulBurnFlameMixin"
   ],
   "injectors": {
     "defaultRequire": 1

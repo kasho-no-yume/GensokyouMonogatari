@@ -67,7 +67,7 @@ def sample_cells():
     return cells
 
 
-def structure(cells, data_version):
+def structure(cells, data_version, size=SIZE):
     palette = {}
     blocks = []
     for pos, (block, _, properties) in sorted(cells.items(), key=lambda entry: (entry[0][1], entry[0][0], entry[0][2])):
@@ -76,11 +76,11 @@ def structure(cells, data_version):
             palette[key] = len(palette)
         blocks.append(compound(tag(9, "pos", sequence(3, [integer(n) for n in pos])),
                                tag(3, "state", integer(palette[key]))))
-    states = [compound(tag(8, "Name", text(f"gensokyou:landmark_{block}")),
+    states = [compound(tag(8, "Name", text(block if ":" in block else f"gensokyou:landmark_{block}")),
                        tag(10, "Properties", compound(*(tag(8, k, text(v)) for k, v in props))))
               for block, props in palette]
     return tag(10, "", compound(tag(3, "DataVersion", integer(data_version)),
-                               tag(9, "size", sequence(3, [integer(n) for n in SIZE])),
+                               tag(9, "size", sequence(3, [integer(n) for n in size])),
                                tag(9, "palette", sequence(10, states)),
                                tag(9, "blocks", sequence(10, blocks)),
                                tag(9, "entities", sequence(10, []))))
