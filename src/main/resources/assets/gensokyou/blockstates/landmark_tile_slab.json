@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "gensokyou:block/landmark_tile_slab"
+    },
+    "type=double": {
+      "model": "gensokyou:block/landmark_tile"
+    },
+    "type=top": {
+      "model": "gensokyou:block/landmark_tile_slab_top"
+    }
+  }
+}

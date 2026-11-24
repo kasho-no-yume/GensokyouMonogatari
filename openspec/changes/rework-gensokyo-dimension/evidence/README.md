@@ -1,5 +1,17 @@
 # Layout probe exports
 
+## 3.2 / 3.3 acceptance probe (2026-11-24)
+
+Fresh worlds with seeds `987654321` and `424242` both pass the full worldgen probe.
+Beyond the original landmark/shore/mineral/bamboo checks, the probe now asserts natural
+material counts (spirit soil, rooted sacred trees, star silver), fairy spawn tables,
+Gensokyo block proportions on terrain surface and underground, boundary height continuity,
+and an internal walkable route from each landmark. Logs:
+`build/agent-logs/20261124-114158-runGensokyoWorldgenProbe.log` (`987654321`) and
+`build/agent-logs/20261124-113836-runGensokyoWorldgenProbe.log` (`424242`).
+Thresholds and measured values are in [acceptance-numbers.md](../acceptance-numbers.md).
+
+
 The [ecology texture sheet](ecology-textures.png) shows the new block and item textures at 4× scale. In a new world with seed `987654321`, the dedicated-server ecology probe verified the shoreline, landmark pads, bamboo, existing underground ores, and 36 rooted Starcrown log columns across three forest sample chunks. Inspection of the generated chunk palettes found all eight new regional ores. The run log is `build/agent-logs/20261124-004532-runGensokyoWorldgenProbe.log`.
 
 A fresh-world rerun with seed `987654321` after the Hakugyokurou root-placement update passed the eight landmark checks, both shoreline checks, the bamboo and ore sample, Chireiden debug teleport, twin-gate repair, and the layout export. The forest sample contained 34 rooted Starcrown log columns. The run log is `build/agent-logs/20261124-005150-runGensokyoWorldgenProbe.log`.

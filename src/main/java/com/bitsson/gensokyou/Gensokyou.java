@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.config.GensokyouClientConfig;
 import com.bitsson.gensokyou.config.GensokyouServerConfig;
 import com.bitsson.gensokyou.registry.ModAttributes;
 import com.bitsson.gensokyou.registry.GensokyoNaturalBlocks;
+import com.bitsson.gensokyou.registry.LandmarkBlocks;
 import com.bitsson.gensokyou.registry.ModBlocks;
 import com.bitsson.gensokyou.registry.ModBlockEntities;
 import com.bitsson.gensokyou.registry.ModCreativeTabs;
@@ -35,6 +36,7 @@ public class Gensokyou {
 
     public Gensokyou(IEventBus modEventBus, ModContainer modContainer) {
         GensokyoNaturalBlocks.register();
+        LandmarkBlocks.register();
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModEntityTypes.ENTITY_TYPES.register(modEventBus);

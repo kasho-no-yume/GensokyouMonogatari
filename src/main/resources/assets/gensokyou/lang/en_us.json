@@ -1,4 +1,13 @@
 {
+  "block.gensokyou.landmark_brick": "Gensokyo Building Block",
+  "block.gensokyou.landmark_wood": "Gensokyo Building Block",
+  "block.gensokyou.landmark_tile": "Gensokyo Building Block",
+  "block.gensokyou.landmark_tile_slab": "Gensokyo Building Block",
+  "block.gensokyou.landmark_tile_stairs": "Gensokyo Building Block",
+  "block.gensokyou.landmark_wood_door": "Gensokyo Building Block",
+  "commands.gensokyou.landmark_sample.missing_dimension": "The landmark sample dimension is unavailable.",
+  "commands.gensokyou.landmark_sample.invalid_template": "Could not place the landmark sample template.",
+  "commands.gensokyou.landmark_sample.installed": "Landmark sample installed. Use /gs_landmark_sample visit to see it.",
   "subtitles.gensokyou.shot_normal": "Danmaku shot",
   "subtitles.gensokyou.shot_fast": "Rapid danmaku",
   "subtitles.gensokyou.knife_throw": "Knife throw",

@@ -3,14 +3,20 @@ package com.bitsson.gensokyou.worldgen;
 import com.bitsson.gensokyou.Gensokyou;
 import com.bitsson.gensokyou.command.DimensionDebugTeleport;
 import com.bitsson.gensokyou.registry.ModBlocks;
+import com.bitsson.gensokyou.registry.ModEntityTypes;
 import com.bitsson.gensokyou.ritual.behavior.BarrierBreakBehavior;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.MobSpawnSettings;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.storage.LevelResource;
@@ -105,6 +111,10 @@ public final class GensokyoWorldgenProbe {
             }
             verifyMineralsAndBamboo(level);
             verifyStarcrownGrove(level);
+            verifyNaturalMaterials(level);
+            verifyProportions(level, layout);
+            verifyBiomeTransitions(level, layout);
+            verifyRoutes(level);
             BlockPos shaft = new BlockPos(-1600, 120, 2050);
             level.getChunk(shaft.getX() >> 4, shaft.getZ() >> 4);
             if (!level.getBlockState(shaft).isAir()) {
@@ -196,6 +206,255 @@ public final class GensokyoWorldgenProbe {
         }
         if (roots == 0) throw new AssertionError("No rooted Starcrown logs in forest sample");
         System.out.println("GENSOKYO_STARCROWN_PROBE PASS rootedLogColumns=" + roots);
+    }
+
+    private static boolean isGensokyoBlock(BlockState state) {
+        return BuiltInRegistries.BLOCK.getKey(state.getBlock()).getNamespace().equals(Gensokyou.MODID);
+    }
+
+    /** Natural terrain top: ignores canopies, conifer trunks and bamboo (all are vegetation). */
+    private static int terrainTop(ServerLevel level, int x, int z) {
+        var pos = new BlockPos.MutableBlockPos();
+        int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
+        if (top <= GensokyoLayout.SEA_LEVEL) return top;
+        BlockState state = level.getBlockState(pos.set(x, top, z));
+        while (top > GensokyoLayout.SEA_LEVEL
+                && (state.is(net.minecraft.tags.BlockTags.LOGS) || state.is(Blocks.BAMBOO))) {
+            top--;
+            state = level.getBlockState(pos.set(x, top, z));
+        }
+        return top;
+    }
+
+    private static int countSurfaceBlocks(ServerLevel level, int x, int z, net.minecraft.world.level.block.Block block) {
+        var pos = new BlockPos.MutableBlockPos();
+        int count = 0;
+        for (int dx = 0; dx < 16; dx++) {
+            for (int dz = 0; dz < 16; dz++) {
+                int top = level.getHeight(Heightmap.Types.OCEAN_FLOOR, x + dx, z + dz) - 1;
+                if (level.getBlockState(pos.set(x + dx, top, z + dz)).is(block)) count++;
+            }
+        }
+        return count;
+    }
+
+    private static int countBlocks(ServerLevel level, int x, int z, net.minecraft.world.level.block.Block block,
+                                   int minY, int maxY) {
+        var pos = new BlockPos.MutableBlockPos();
+        int count = 0;
+        for (int dx = 0; dx < 16; dx++) {
+            for (int dz = 0; dz < 16; dz++) {
+                for (int y = minY; y <= maxY; y++) {
+                    if (level.getBlockState(pos.set(x + dx, y, z + dz)).is(block)) count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static int countRootedLogs(ServerLevel level, int x, int z, net.minecraft.world.level.block.Block log) {
+        var pos = new BlockPos.MutableBlockPos();
+        int roots = 0;
+        for (int dx = 0; dx < 16; dx++) {
+            for (int dz = 0; dz < 16; dz++) {
+                int top = level.getHeight(Heightmap.Types.WORLD_SURFACE, x + dx, z + dz);
+                for (int y = top - 1; y >= 63; y--) {
+                    if (level.getBlockState(pos.set(x + dx, y, z + dz)).is(log)
+                            && level.getBlockState(pos.below()).is(net.minecraft.tags.BlockTags.DIRT)) {
+                        roots++;
+                        break;
+                    }
+                }
+            }
+        }
+        return roots;
+    }
+
+    /** task 3.2: natural acquisition of spirit soil, sacred trees, star silver and ordinary fairies. */
+    private static void verifyNaturalMaterials(ServerLevel level) {
+        var sacred = BuiltInRegistries.BLOCK.get(Gensokyou.id("sacred_wood"));
+        // The landmark pad and its 80-block clearance are deliberately empty of trees and disks.
+        // Sample three chunks 256 blocks out so the check measures the natural biome instead.
+        int[][] offsets = {{256, 0}, {0, 256}, {-256, 0}};
+        for (GensokyoLayout.Region region : new GensokyoLayout.Region[]{
+                GensokyoLayout.Region.HAKUREI, GensokyoLayout.Region.HUMAN_VILLAGE}) {
+            int soil = 0;
+            int roots = 0;
+            int matchingChunks = 0;
+            for (int[] offset : offsets) {
+                int chunkX = (region.anchorX() + offset[0]) >> 4;
+                int chunkZ = (region.anchorZ() + offset[1]) >> 4;
+                level.getChunk(chunkX, chunkZ);
+                ResourceKey<Biome> biome = level.getBiome(
+                        new BlockPos(chunkX << 4, 80, chunkZ << 4)).unwrapKey().orElse(null);
+                if (biome == null || !biome.location().equals(Gensokyou.id(region.biomePath()))) continue;
+                matchingChunks++;
+                soil += countSurfaceBlocks(level, chunkX << 4, chunkZ << 4, ModBlocks.SPIRIT_SOIL.get());
+                roots += countRootedLogs(level, chunkX << 4, chunkZ << 4, sacred);
+            }
+            if (matchingChunks == 0 || soil < 12 * matchingChunks || roots < matchingChunks) {
+                throw new AssertionError("Sparse spirit soil or sacred grove at " + region
+                        + ": soil=" + soil + " sacredRoots=" + roots + " chunks=" + matchingChunks);
+            }
+            System.out.println("GENSOKYO_NATURAL_MATERIALS_PROBE PASS region=" + region
+                    + " spiritSoil=" + soil + " sacredRoots=" + roots + " chunks=" + matchingChunks);
+        }
+        for (GensokyoLayout.Region region : new GensokyoLayout.Region[]{
+                GensokyoLayout.Region.MORIYA, GensokyoLayout.Region.MAGIC_FOREST, GensokyoLayout.Region.CHIREIDEN}) {
+            int x = (region.anchorX() >> 4) << 4;
+            int z = (region.anchorZ() >> 4) << 4;
+            level.getChunk(x >> 4, z >> 4);
+            int ore = countBlocks(level, x, z, ModBlocks.STAR_SILVER_ORE.get(), -32, 24);
+            if (ore < 7) throw new AssertionError("Sparse star silver at " + region + ": ore=" + ore);
+            System.out.println("GENSOKYO_STAR_SILVER_PROBE PASS region=" + region + " ore=" + ore);
+        }
+        int checked = 0;
+        for (GensokyoLayout.Region region : GensokyoLayout.Region.values()) {
+            if (!hasFairySpawns(level, region.anchorX(), region.anchorZ())) {
+                throw new AssertionError("Fairy spawn check failed at " + region);
+            }
+            checked++;
+        }
+        if (!hasFairySpawns(level, 1500, -1750) || !hasFairySpawns(level, GensokyoLayout.ISLAND_RADIUS + 256, 0)) {
+            throw new AssertionError("Fairy spawn check failed in misty lake or sanzu river");
+        }
+        System.out.println("GENSOKYO_FAIRY_SPAWN_PROBE PASS biomes=" + (checked + 2));
+    }
+
+    private static boolean hasFairySpawns(ServerLevel level, int x, int z) {
+        Biome biome = level.getBiome(new BlockPos(x, 80, z)).value();
+        boolean fairy = false;
+        for (MobSpawnSettings.SpawnerData data : biome.getMobSettings().getMobs(MobCategory.MONSTER).unwrap()) {
+            EntityType<?> type = data.type;
+            if (type == ModEntityTypes.FAIRY.get()) fairy = true;
+            if (type == ModEntityTypes.BIG_FAIRY.get()) return false;
+        }
+        return fairy;
+    }
+
+    /** task 3.3: Gensokyo blocks must dominate the natural surface and the underground body. */
+    private static void verifyProportions(ServerLevel level, GensokyoLayout layout) {
+        var pos = new BlockPos.MutableBlockPos();
+        int[][] offsets = {{0, 0}, {256, 0}, {0, 256}};
+        for (GensokyoLayout.Region region : GensokyoLayout.Region.values()) {
+            int surfaceTotal = 0, surfaceGenso = 0, undergroundTotal = 0, undergroundGenso = 0;
+            int worstSurface = 100, worstUnderground = 100;
+            for (int[] offset : offsets) {
+                int chunkX = (region.anchorX() + offset[0]) >> 4;
+                int chunkZ = (region.anchorZ() + offset[1]) >> 4;
+                level.getChunk(chunkX, chunkZ);
+                int chunkSurface = 0, chunkSurfaceGenso = 0, chunkUnderground = 0, chunkUndergroundGenso = 0;
+                for (int x = chunkX << 4; x < (chunkX << 4) + 16; x++) {
+                    for (int z = chunkZ << 4; z < (chunkZ << 4) + 16; z++) {
+                        ResourceKey<Biome> biome = level.getBiome(pos.set(x, 80, z)).unwrapKey().orElse(null);
+                        if (biome == null || !biome.location().equals(Gensokyou.id(region.biomePath()))) continue;
+                        int top = terrainTop(level, x, z);
+                        if (top <= GensokyoLayout.SEA_LEVEL) continue;
+                        BlockState topState = level.getBlockState(pos.set(x, top, z));
+                        chunkSurface++;
+                        if (isGensokyoBlock(topState)) chunkSurfaceGenso++;
+                        for (int y = top - 6; y >= Math.max(-8, top - 40); y -= 4) {
+                            BlockState underground = level.getBlockState(pos.set(x, y, z));
+                            if (underground.isAir()) continue;
+                            chunkUnderground++;
+                            if (isGensokyoBlock(underground)) chunkUndergroundGenso++;
+                        }
+                    }
+                }
+                if (chunkSurface > 0) {
+                    surfaceTotal += chunkSurface;
+                    surfaceGenso += chunkSurfaceGenso;
+                    worstSurface = Math.min(worstSurface, chunkSurfaceGenso * 100 / chunkSurface);
+                }
+                if (chunkUnderground > 0) {
+                    undergroundTotal += chunkUnderground;
+                    undergroundGenso += chunkUndergroundGenso;
+                    worstUnderground = Math.min(worstUnderground, chunkUndergroundGenso * 100 / chunkUnderground);
+                }
+            }
+            double surfaceRatio = surfaceTotal == 0 ? 0 : (double) surfaceGenso / surfaceTotal;
+            double undergroundRatio = undergroundTotal == 0 ? 0 : (double) undergroundGenso / undergroundTotal;
+            if (surfaceTotal < 128 || surfaceRatio < 0.90 || worstSurface < 85
+                    || undergroundRatio < 0.95 || worstUnderground < 90) {
+                throw new AssertionError("Block proportion failed at " + region + ": surface="
+                        + surfaceGenso + "/" + surfaceTotal + " worst=" + worstSurface
+                        + " underground=" + undergroundGenso + "/" + undergroundTotal + " worst=" + worstUnderground);
+            }
+            System.out.println("GENSOKYO_PROPORTIONS_PROBE PASS region=" + region
+                    + " surface=" + String.format("%.1f%%", surfaceRatio * 100) + " worst=" + worstSurface
+                    + " underground=" + String.format("%.1f%%", undergroundRatio * 100) + " worst=" + worstUnderground);
+        }
+    }
+
+    /** task 3.3: height continuity along two transects per region; Chireiden shaft and lake are excluded. */
+    private static void verifyBiomeTransitions(ServerLevel level, GensokyoLayout layout) {
+        for (GensokyoLayout.Region region : GensokyoLayout.Region.values()) {
+            int maxJump = 0;
+            for (int axis = 0; axis < 2; axis++) {
+                int lastHeight = 0;
+                boolean hasLast = false;
+                for (int d = -512; d <= 512; d += 32) {
+                    int x = axis == 0 ? region.anchorX() + d : region.anchorX();
+                    int z = axis == 1 ? region.anchorZ() + d : region.anchorZ();
+                    GensokyoLayout.Region here = layout.regionAt(x, z);
+                    if (here == null || here == GensokyoLayout.Region.CHIREIDEN || layout.isMistyLake(x, z)) {
+                        hasLast = false;
+                        continue;
+                    }
+                    level.getChunk(x >> 4, z >> 4);
+                    int height = level.getHeight(Heightmap.Types.OCEAN_FLOOR, x, z);
+                    if (hasLast) {
+                        int jump = Math.abs(height - lastHeight);
+                        maxJump = Math.max(maxJump, jump);
+                        if (jump > 48) {
+                            throw new AssertionError("Biome transition jump at " + region
+                                    + " x=" + x + " z=" + z + " jump=" + jump);
+                        }
+                    }
+                    lastHeight = height;
+                    hasLast = true;
+                }
+            }
+            System.out.println("GENSOKYO_TRANSITIONS_PROBE PASS region=" + region + " maxStep=" + maxJump);
+        }
+    }
+
+    /** task 3.3: at least one walkable ray from each landmark into its own region. */
+    private static void verifyRoutes(ServerLevel level) {
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (GensokyoLayout.Region region : GensokyoLayout.Region.values()) {
+            boolean ok = false;
+            for (int[] direction : directions) {
+                int last = terrainTop(level, region.landmarkX(), region.landmarkZ());
+                int waterGap = 0;
+                boolean pass = true;
+                for (int d = 4; d <= 256; d += 4) {
+                    int x = region.landmarkX() + direction[0] * d;
+                    int z = region.landmarkZ() + direction[1] * d;
+                    level.getChunk(x >> 4, z >> 4);
+                    int height = terrainTop(level, x, z);
+                    if (height <= GensokyoLayout.SEA_LEVEL) {
+                        if (++waterGap > 3) {
+                            pass = false;
+                            break;
+                        }
+                        continue;
+                    }
+                    waterGap = 0;
+                    if (Math.abs(height - last) > 20) {
+                        pass = false;
+                        break;
+                    }
+                    last = height;
+                }
+                if (pass) {
+                    ok = true;
+                    break;
+                }
+            }
+            if (!ok) throw new AssertionError("No walkable internal route from landmark at " + region);
+            System.out.println("GENSOKYO_ROUTES_PROBE PASS region=" + region);
+        }
     }
 
     private static void verifyTwinPortalSingleton(ServerLevel overworld) {

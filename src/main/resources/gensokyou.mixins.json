@@ -5,6 +5,7 @@
   "compatibilityLevel": "JAVA_21",
   "client": [
     "LevelRendererShakeMixin",
+    "RenderChunkRegionAccessor",
     "SoulBurnFireAnimationMixin",
     "SoulBurnFlameMixin"
   ],

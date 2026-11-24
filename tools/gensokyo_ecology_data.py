@@ -44,6 +44,29 @@ HANGING = {'bead_vine', 'snowfall_vine', 'black_roots'}
 HORIZONTAL = {'maple_litter', 'bamboo_litter', 'mist_lily', 'sunk_thread_algae'}
 UNDERWATER = {'silver_ribbon_grass', 'smoke_fan_algae', 'sunk_thread_algae', 'ferry_lantern_algae'}
 
+# Local accent patches that design.md requires as disks / ore clusters rather than full base layers.
+# (biome, patch id, block, radius min, radius max, count per chunk)
+PATCHES = {
+    'hakurei_shrine': [('spirit_soil_patch', 'spirit_soil', 2, 3, 4)],
+    'human_village': [('spirit_soil_patch', 'spirit_soil', 2, 3, 4),
+                      ('porcelain_clay_patch', 'porcelain_clay', 2, 2, 2)],
+    'hakugyokurou': [('higan_soil_patch', 'higan_soil', 2, 2, 2),
+                     ('moon_sand_patch', 'moon_sand', 1, 2, 2)],
+    'sanzu_river': [('higan_soil_patch', 'higan_soil', 2, 2, 2),
+                    ('moon_sand_patch', 'moon_sand', 1, 2, 2)],
+    'scarlet_devil_mansion': [('higan_soil_patch', 'higan_soil', 2, 2, 2)],
+    'misty_bamboo_grove': [('moon_sand_patch', 'moon_sand', 1, 2, 2)],
+    'misty_lake': [('porcelain_clay_patch', 'porcelain_clay', 2, 2, 2)],
+}
+PATCH_TARGETS = {
+    'spirit_soil_patch': ['gensokyo_grass_block', 'gensokyo_dirt', 'forest_humus'],
+    'higan_soil_patch': ['gensokyo_grass_block', 'gensokyo_dirt', 'hakugyoku_stone'],
+    'moon_sand_patch': ['gensokyo_sand', 'gensokyo_dirt'],
+    'porcelain_clay_patch': ['gensokyo_sand', 'gensokyo_dirt', 'gensokyo_grass_block'],
+}
+PATCH_TARGETS = {key: [MOD + block for block in blocks]
+                 for key, blocks in PATCH_TARGETS.items()}
+
 
 def load(path):
     return json.loads(path.read_text(encoding='utf-8-sig'))
@@ -225,6 +248,35 @@ def grove(id, trees, count, giant=False, rocky_ground=False):
                   minecraft('heightmap', heightmap='OCEAN_FLOOR'), {'type': MOD + 'landmark_clearance'})
 
 
+# Multiple biomes share one patch id; keep the generated files stable across calls.
+_PATCH_CACHE = {}
+
+
+def disk_patch(id, block, radius_min, radius_max, count):
+    """A one-block-thick surface disk of an accent block, replacing terrain top blocks."""
+    if id not in _PATCH_CACHE:
+        configured(id, 'disk', half_height=1,
+                   radius={'type': 'minecraft:uniform',
+                           'min_inclusive': radius_min, 'max_inclusive': radius_max},
+                   state_provider={'fallback': provider(block), 'rules': []},
+                   target=minecraft('matching_blocks', blocks=PATCH_TARGETS[id]))
+        _PATCH_CACHE[id] = placed(id, MOD + id, minecraft('count', count=count),
+                                  minecraft('in_square'),
+                                  minecraft('heightmap', heightmap='OCEAN_FLOOR'),
+                                  {'type': MOD + 'landmark_clearance'})
+    return _PATCH_CACHE[id]
+
+
+def oni_stone_veins():
+    """Oni stone clusters on Chireiden rift walls, smaller than the T3 regional ore veins."""
+    configured('oni_stone_vein', 'ore', size=5, discard_chance_on_air_exposure=0,
+               targets=[{'target': {'predicate_type': 'minecraft:block_match',
+                                    'block': MOD + 'chireiden_deepslate'},
+                         'state': state('oni_stone')}])
+    return placed('oni_stone_veins', MOD + 'oni_stone_vein',
+                  minecraft('count', count=3), minecraft('in_square'), height(40, 90))
+
+
 def main():
     names = {}
     biome_features = {biome: [] for biome in ECOLOGY}
@@ -249,6 +301,9 @@ def main():
     conifers = grove('moriya_grove', ['moriya_pine', ('sacred_windswept_tree', 0.22), ('moriya_spruce', 0.46)], noise)
     biome_features.update({'hakurei_shrine': [sacred, maple], 'human_village': [sacred], 'magic_forest': [giants, magic],
                            'moriya_mountain': [conifers], 'hakugyokurou': [eternal], 'scarlet_devil_mansion': [magic]})
+    biome_features['chireiden'].append(oni_stone_veins())
+    patch_features = {biome: [disk_patch(*patch) for patch in patches]
+                      for biome, patches in PATCHES.items()}
     for prefix, cn, en in [('starcrown', '星冠木', 'Starcrown'), ('scarlet_maple', '绯梢枫', 'Scarlet Maple')]:
         for suffix, form, c, e in [('log', 'log', '原木', 'Log'), ('leaves', 'leaves', '树叶', 'Leaves'),
                                     ('sapling', 'cross', '树苗', 'Sapling')]:
@@ -270,8 +325,10 @@ def main():
             models(id, 'wall' if id in WALLS else 'flat' if id in HORIZONTAL else 'cross')
             loot(id, id, 'moonjoint_tips') if id == 'moonjoint_shoot' else loot(id)
             decoration[biome].append(plant(id))
-    extra = {'moriya_mountain': ['gentian'], 'magic_forest': ['magic_mushroom'], 'hakugyokurou': ['fallen_sakura_petals'],
-             'hakurei_shrine': ['spirit_herb'], 'chireiden': ['glow_mushroom_cluster'], 'misty_lake': ['misty_reed']}
+    extra = {'moriya_mountain': ['gentian'], 'magic_forest': ['magic_mushroom'],
+             'hakugyokurou': ['fallen_sakura_petals', 'higanbana'],
+             'hakurei_shrine': ['spirit_herb'], 'chireiden': ['glow_mushroom_cluster'],
+             'misty_lake': ['misty_reed'], 'sanzu_river': ['higanbana']}
     for biome, plants in extra.items():
         decoration[biome].extend(plant(id) for id in plants)
     decoration['scarlet_devil_mansion'].extend([MOD + 'shore_iris', MOD + 'misty_reed'])
@@ -316,7 +373,7 @@ def main():
                     'moriya_mountain': ['minecraft:patch_grass_taiga']}.get(biome, [])
         # Common cross-biome features keep the same relative order in every biome.
         ornament = [feature for feature in decoration[biome] if feature != MOD + 'salt_whisker']
-        source['features'][9] = [*features, *baseline, *ornament,
+        source['features'][9] = [*features, *baseline, *patch_features.get(biome, []), *ornament,
                                  *([MOD + 'salt_whisker'] if MOD + 'salt_whisker' in decoration[biome] else [])]
         write(path, source)
 

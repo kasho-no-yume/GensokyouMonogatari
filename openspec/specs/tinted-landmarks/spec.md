@@ -1,0 +1,34 @@
+# tinted-landmarks Specification
+
+## Purpose
+TBD - created by archiving change prototype-tinted-landmarks. Update Purpose after archive.
+## Requirements
+### Requirement: 基岩式灰模
+
+原型 SHALL 提供可乘色的灰度建筑方块，具备负硬度、基岩级爆炸抗性、不可燃和阻挡活塞的属性。
+
+#### Scenario: 常规破坏
+- **WHEN** 生存玩家挖掘样件，或 TNT、黏性活塞影响样件
+- **THEN** 样件的灰模保持原位
+
+### Requirement: 独立逐格配色
+
+原型 SHALL 将色板和每格色号与灰模结构分开存储，每一格采用至多一个 RGB，染色不得要求逐格方块实体。
+
+#### Scenario: 跨区块重载
+- **WHEN** 客户端加载、卸载后重载或重新进入跨区块样件
+- **THEN** 相邻相同灰模按各自的色号显示，其他维度的相同坐标保持原始灰度
+
+#### Scenario: 方块缺失、替换或状态改变
+- **WHEN** 染色位置为空，或实际方块的注册 ID 与配色记录不同
+- **THEN** 客户端 SHALL 跳过该位置的染色，实际方块 ID 恢复匹配后恢复配色
+- **AND** 同一注册 ID 的门状态改变时 SHALL 保留配色
+
+### Requirement: 区域禁放与可用的门
+
+原型 SHALL 按方块实际落点限制样件内部放置，并保留门的正常交互。
+
+#### Scenario: 保护区边界
+- **WHEN** 玩家尝试从区域外向内部放块，或尝试放置跨越边界的多格方块
+- **THEN** 放置被拒绝，完整位于区域外的常规放置和样件门开关正常工作
+

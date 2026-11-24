@@ -44,9 +44,12 @@
     [
       "minecraft:seagrass_simple",
       "minecraft:disk_sand",
+      "gensokyou:higan_soil_patch",
+      "gensokyou:moon_sand_patch",
       "gensokyou:smoke_fan_algae",
       "gensokyou:sunk_thread_algae",
       "gensokyou:ferry_lantern_algae",
+      "gensokyou:higanbana",
       "gensokyou:salt_whisker"
     ],
     []

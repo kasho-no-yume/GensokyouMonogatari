@@ -1,5 +1,8 @@
 package com.bitsson.gensokyou.block.entity;
 
+import com.bitsson.gensokyou.landmark.LandmarkSample;
+import com.bitsson.gensokyou.registry.LandmarkBlocks;
+
 import com.bitsson.gensokyou.config.GensokyouServerConfig;
 
 import com.bitsson.gensokyou.registry.ModBlockEntities;
@@ -178,7 +181,7 @@ public class LandscapingBlockEntity extends BlockEntity {
         int cleared = 0;
         for (BlockPos pos : BlockPos.betweenClosed(boxMin(), boxMax())) {
             BlockState state = server.getBlockState(pos);
-            if (state.isAir() || isKept(state)) {
+            if (state.isAir() || isKept(state) || LandmarkSample.contains(server, pos)) {
                 continue;
             }
             server.destroyBlock(pos, false, player);
@@ -197,7 +200,7 @@ public class LandscapingBlockEntity extends BlockEntity {
             for (int z = min.getZ(); z <= max.getZ(); z++) {
                 BlockPos pos = new BlockPos(x, y, z);
                 BlockState state = server.getBlockState(pos);
-                if (state.is(Blocks.DIRT) || isKept(state)) {
+                if (state.is(Blocks.DIRT) || isKept(state) || LandmarkSample.contains(server, pos)) {
                     continue;
                 }
                 if (!player.isCreative() && !consumeDirt(player)) {
@@ -217,7 +220,7 @@ public class LandscapingBlockEntity extends BlockEntity {
      * + 基岩 + 本设备自身。其余一切（地形、树木、容器、矿石、mod 素材……）一律平等删除。
      */
     private static boolean isKept(BlockState state) {
-        if (state.is(Blocks.BEDROCK)) {
+        if (state.is(Blocks.BEDROCK) || LandmarkBlocks.contains(state)) {
             return true;
         }
         Block block = state.getBlock();
