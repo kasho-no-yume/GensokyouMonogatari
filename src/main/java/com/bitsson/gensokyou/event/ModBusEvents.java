@@ -8,6 +8,7 @@ import com.bitsson.gensokyou.entity.FakeFlandreEntity;
 import com.bitsson.gensokyou.entity.FlandreEntity;
 import com.bitsson.gensokyou.entity.YakumoRanEntity;
 import com.bitsson.gensokyou.entity.RumiaEntity;
+import com.bitsson.gensokyou.entity.ReimuEntity;
 import com.bitsson.gensokyou.entity.YamameEntity;
 import com.bitsson.gensokyou.entity.TouhouNpcEntity;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
@@ -49,6 +50,7 @@ public final class ModBusEvents {
         event.put(ModEntityTypes.BLOOD_BAR_PROBE_T4.get(),
                 com.bitsson.gensokyou.entity.BloodBarProbeBoss.createAttributes().build());
         event.put(ModEntityTypes.RINNOSUKE.get(), TouhouNpcEntity.createAttributes().build());
+        event.put(ModEntityTypes.REIMU.get(), ReimuEntity.createAttributes().build());
     }
 
     @SubscribeEvent

@@ -8,6 +8,7 @@ import com.bitsson.gensokyou.client.renderer.BigFairyGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.YamameGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.YakumoRanGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.RumiaGeoRenderer;
+import com.bitsson.gensokyou.client.renderer.ReimuGeoRenderer;
 import com.bitsson.gensokyou.client.renderer.SkinMobRenderer;
 import com.bitsson.gensokyou.client.renderer.RitualPedestalRenderer;
 import com.bitsson.gensokyou.client.renderer.SpiritTreatmentRenderer;
@@ -105,6 +106,7 @@ public final class GensokyouClient {
                 context -> new SkinMobRenderer<>(context, 0.45F, 1.15F, GensokyouTextures.FAIRY));
         event.registerEntityRenderer(ModEntityTypes.RINNOSUKE.get(),
                 context -> new SkinMobRenderer<>(context, 0.5F, 1.0F, GensokyouTextures.RINNOSUKE));
+        event.registerEntityRenderer(ModEntityTypes.REIMU.get(), ReimuGeoRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.BALANCE_TEST_BOSS.get(),
                 com.bitsson.gensokyou.client.renderer.TestBossGeoRenderer::new);
         // 咒符条外观试作（临时）：只验证 frame_3/4 边框，复用妖精皮肤，无专属美术。

@@ -42,6 +42,24 @@ public final class DialogueManager {
         sendNode(player, npc.getId(), graph, graph.entry());
     }
 
+    /** 行走型 NPC 在有效对话期间停步；玩家远离或离线后不再阻止散步。 */
+    public static boolean isTalkingTo(TouhouNpcEntity npc) {
+        var server = npc.getServer();
+        if (server == null) {
+            return false;
+        }
+        for (var entry : SESSIONS.entrySet()) {
+            if (entry.getValue().npcId() == npc.getId()) {
+                ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
+                if (player != null && player.isAlive() && player.level() == npc.level()
+                        && player.distanceToSqr(npc) <= MAX_INTERACT_DIST_SQ) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** C2S 选项回报：校验会话存在、实体匹配、距离合法、索引在界内后推进。 */
     public static void handleAction(ServerPlayer player, int entityId, int choiceIndex) {
         Session session = SESSIONS.get(player.getUUID());

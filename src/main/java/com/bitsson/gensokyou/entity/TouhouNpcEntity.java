@@ -7,6 +7,9 @@ import com.bitsson.gensokyou.dialogue.DialogueManager;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -36,23 +39,25 @@ import java.util.UUID;
 /**
  * 东方 NPC 基类：尽力无敌（一切伤害静默拒绝），仅「将死（玩家一击致死）或真死（hack 绕过）」
  * 触发恢复流程——紫色粒子 → discard → 原坐标复制体。
- * 雕像行为：无移动 AI、无重力、不可推、不可拴绳、不自然消失。
+ * 默认驻留原地；行走型子类可覆写 {@link #isStationary()}，保留不可推、不可拴绳、不自然消失。
  * 子类按需实现 {@link #updateTrades()}（交易）与 {@link #dialogueGraph()}（对话）。
  */
 public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant {
 
     private static final Vector3f PURPLE = new Vector3f(0.55F, 0.1F, 0.85F);
+    private static final EntityDataAccessor<String> QUEST_MARKER = SynchedEntityData.defineId(
+            TouhouNpcEntity.class, EntityDataSerializers.STRING);
 
     private final MerchantOffers offers = new MerchantOffers();
     @Nullable
     private Player tradingPlayer;
-    /** 锚点坐标：NPC 永恒驻留之地，NBT 持久；仅 setAnchorPos 可改。 */
+    /** 锚点坐标：驻留位置或行走范围的中心，NBT 持久；仅 setAnchorPos 可改。 */
     @Nullable
     private Vec3 anchorPos;
 
     protected TouhouNpcEntity(EntityType<? extends TouhouNpcEntity> type, Level level) {
         super(type, level);
-        this.setNoGravity(true);
+        this.setNoGravity(this.isStationary());
         this.setPersistenceRequired();
         this.xpReward = 0;
         if (!level.isClientSide) {
@@ -72,6 +77,26 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
         this.goalSelector.addGoal(2, new RandomLookAroundGoal(this));
     }
 
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(QUEST_MARKER, NpcQuestMarker.NONE.id());
+    }
+
+    public final NpcQuestMarker getQuestMarker() {
+        return NpcQuestMarker.fromId(this.entityData.get(QUEST_MARKER));
+    }
+
+    /** 服务端任务逻辑入口；自动同步给正在追踪此 NPC 的客户端，并随实体保存。 */
+    public final void setQuestMarker(NpcQuestMarker marker) {
+        this.entityData.set(QUEST_MARKER, marker.id());
+    }
+
+    /** 行走型子类只需返回 false，普通 NPC 仍固定在锚点。 */
+    protected boolean isStationary() {
+        return true;
+    }
+
     // ---- 雕像行为 ----
 
     @Override
@@ -86,30 +111,32 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
     }
 
     /**
-     * 速度恒为零：所有位移来源（水流、爆炸击退、实体碰撞、活塞、mod 调用）
+     * 驻留型 NPC 速度恒为零：所有位移来源（水流、爆炸击退、实体碰撞、活塞、mod 调用）
      * 最终都经 {@code setDeltaMovement(Vec3)} 收口，覆写为 no-op 即彻底不可移动。
      * 传送走 {@code setPosition} 不受影响；克隆体 load 读 Motion 亦恒零。
      */
     @Override
     public void setDeltaMovement(Vec3 deltaMovement) {
-        // 雕像：永不获得速度
+        if (!this.isStationary()) {
+            super.setDeltaMovement(deltaMovement);
+        }
     }
 
     /**
-     * 重力恒为 0。{@code getGravity()} 是 final 且 {@code isNoGravity()?0:getDefaultGravity()}，
+     * 驻留型 NPC 重力恒为 0。{@code getGravity()} 是 final 且 {@code isNoGravity()?0:getDefaultGravity()}，
      * 而 {@code Entity.load()} 会用 NBT 缺省的 {@code NoGravity=false} 覆盖构造期的
      * {@code setNoGravity(true)}，故必须在此覆写默认重力才能彻底免疫。
      */
     @Override
     protected double getDefaultGravity() {
-        return 0.0D;
+        return this.isStationary() ? 0.0D : super.getDefaultGravity();
     }
 
     // ---- 锚点驻留（design D6：永远待在刷出位置，仅 setAnchorPos 可移位）----
 
     /**
-     * 唯一合法移位入口：更新锚点并落位（如未来"NPC 搬家"玩法调用）。
-     * 其余一切位置写入都会被钉回锚点。
+     * 更新锚点并落位（如未来"NPC 搬家"玩法调用）。
+     * 驻留型 NPC 的其余位置写入都会被钉回锚点；行走型以此为活动中心。
      */
     public final void setAnchorPos(Vec3 pos) {
         this.anchorPos = pos;
@@ -124,7 +151,7 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
     /** 位置写入收口 1：setPos(Vec3) final 包装与 move() 都落到这里。 */
     @Override
     public void setPos(double x, double y, double z) {
-        if (this.anchorPos == null) {
+        if (this.anchorPos == null || !this.isStationary()) {
             super.setPos(x, y, z);
         } else {
             super.setPos(this.anchorPos.x, this.anchorPos.y, this.anchorPos.z);
@@ -134,7 +161,7 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
     /** 位置写入收口 2：moveTo 各重载最终走 5 参版（内部 setPosRaw，不经 setPos）。 */
     @Override
     public void moveTo(double x, double y, double z, float yRot, float xRot) {
-        if (this.anchorPos == null) {
+        if (this.anchorPos == null || !this.isStationary()) {
             super.moveTo(x, y, z, yRot, xRot);
         } else {
             super.moveTo(this.anchorPos.x, this.anchorPos.y, this.anchorPos.z, yRot, xRot);
@@ -149,7 +176,8 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
         }
         if (this.anchorPos == null) {
             this.anchorPos = this.position();
-        } else if (this.distanceToSqr(this.anchorPos.x, this.anchorPos.y, this.anchorPos.z) > 1.0E-4) {
+        } else if (this.isStationary()
+                && this.distanceToSqr(this.anchorPos.x, this.anchorPos.y, this.anchorPos.z) > 1.0E-4) {
             // 兜底：setPosRaw 等不可覆写路径造成的漂移，下一 tick 内钉回
             super.setPos(this.anchorPos.x, this.anchorPos.y, this.anchorPos.z);
         }
@@ -158,6 +186,7 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        tag.putString("QuestMarker", this.getQuestMarker().id());
         if (this.anchorPos != null) {
             tag.putDouble("NpcAnchorX", this.anchorPos.x);
             tag.putDouble("NpcAnchorY", this.anchorPos.y);
@@ -168,6 +197,7 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        this.setQuestMarker(NpcQuestMarker.fromId(tag.getString("QuestMarker")));
         if (tag.contains("NpcAnchorX")) {
             this.anchorPos = new Vec3(tag.getDouble("NpcAnchorX"),
                     tag.getDouble("NpcAnchorY"), tag.getDouble("NpcAnchorZ"));

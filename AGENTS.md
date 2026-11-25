@@ -2,7 +2,7 @@
 
 ## 构建 / 运行：必须走 wrapper，禁止裸跑 gradlew
 
-**硬性规则：任何 Gradle 调用都要用 `tools/gradle_task.ps1`，不要直接敲 `gradlew`。**
+**硬性规则：任何 Gradle 调用都要用 wrapper，不要直接敲 `gradlew`。Windows 用 `tools/gradle_task.ps1`，Linux/WSL/容器用 `tools/gradle_task.sh`。**
 
 ```powershell
 .\tools\gradle_task.ps1 build                  # 编译 + 测试，实时输出，退出码透传
@@ -14,6 +14,14 @@
 # 只看关心的行（-Filter 只过滤"显示"，绝不影响构建本身）
 .\tools\gradle_task.ps1 compileJava -Filter '错误|error:|BUILD'
 .\tools\gradle_task.ps1 compileJava --rerun-tasks      # gradle 自己的开关直接跟在后面
+```
+
+```bash
+bash tools/gradle_task.sh build
+bash tools/gradle_task.sh compileJava
+bash tools/gradle_task.sh --timeout 1200 compileJava --no-daemon --max-workers=1
+bash tools/gradle_task.sh runServer --no-wait
+bash tools/gradle_task.sh --filter 'error:|BUILD' compileJava
 ```
 
 ### 三种失败模式（都不叫"构建慢"，别往那边想）
