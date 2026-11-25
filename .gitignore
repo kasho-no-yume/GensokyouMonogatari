@@ -63,3 +63,4 @@ logs/wall*
 logs/
 release/
 .opencode/
+tools/gensokyou_dev.bat
