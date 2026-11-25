@@ -1172,5 +1172,10 @@
   "msg.gensokyou.residents.preview": "Prepared %s local resident previews; look on nearby flat, dry ground.",
   "msg.gensokyou.residents.cleared": "Cleared local resident previews.",
   "msg.gensokyou.residents.status": "Local residents: %s active, %s drawn, %s preview slots.",
-  "msg.gensokyou.residents.creative_only": "Resident previews are available in Creative mode."
+  "msg.gensokyou.residents.creative_only": "Resident previews are available in Creative mode.",
+  "msg.gensokyou.village.unknown": "Unknown Human Village landmark: %s.",
+  "msg.gensokyou.village.missing_dimension": "The Gensokyo dimension is unavailable.",
+  "msg.gensokyou.village.placement_failed": "The arrival area could not be placed. Check the server log for structure template errors.",
+  "msg.gensokyou.village.visited": "Arrived at Human Village landmark: %s.",
+  "msg.gensokyou.village.stats": "Human Village: %s buildings, %s homes (core %s / middle %s / outskirts %s), %s road cells, %s%% homes connected, %s chunks / %s buildings placed; nearest sampled biome edge about %s blocks."
 }

@@ -45,7 +45,7 @@
   2. `GensokyoLayout` 地形微高差台地与河槽改造、`LandmarkClearanceFilter` 更新。
   3. `HumanVillagePlanner`（密度梯度、边缘禁建、碰撞放置、种子微变）与 `VillageRoadRouter`（分层路网、A* 接路、跨溪架桥、浅溪填水）。
   4. `HumanVillageManager`（`SavedData` + 区块加载放置 + 保护区禁放 + 预览/传送调试命令）。
-  5. `human_village.json` 128 名假 NPC 正式演出配置与全量单元测试。
+   5. `human_village.json` 116 槽位假 NPC 正式演出配置（场景容量 128、同时最多活动/绘制 48 名）与全量单元测试。
 
 ## Impact
 

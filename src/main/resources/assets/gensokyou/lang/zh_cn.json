@@ -1315,5 +1315,10 @@
   "msg.gensokyou.residents.preview": "已准备 %s 名本地居民预览；请在附近的平坦干燥地面查看。",
   "msg.gensokyou.residents.cleared": "已清除本地居民预览。",
   "msg.gensokyou.residents.status": "本地居民：活动 %s，当前绘制 %s，预览槽位 %s。",
-  "msg.gensokyou.residents.creative_only": "居民预览仅供创造模式使用。"
+  "msg.gensokyou.residents.creative_only": "居民预览仅供创造模式使用。",
+  "msg.gensokyou.village.unknown": "未知的人间之里地标：%s。",
+  "msg.gensokyou.village.missing_dimension": "无法找到幻想乡维度。",
+  "msg.gensokyou.village.placement_failed": "人间之里抵达区域尚未成功放置，请检查服务端日志中的建筑模板错误。",
+  "msg.gensokyou.village.visited": "已抵达人间之里地标：%s。",
+  "msg.gensokyou.village.stats": "人间之里：建筑 %s，民居 %s（核心 %s / 中圈 %s / 外郊 %s），道路 %s 格，民居连通率 %s%%，已放置 %s 区块 / %s 栋建筑，采样最近群系边界约 %s 格。"
 }

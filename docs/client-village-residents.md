@@ -33,7 +33,13 @@
 
 正式活动只在指定维度的已加载区域生效，脚下必须是 `landmark_brick`、`landmark_wood`、`landmark_tile`、对应半砖或楼梯；不因为自然草地碰巧在同一坐标就出现居民。不要把路线穿过建筑或水面。每条最多 16 点，相邻点 0.05–64 格，每场景最多 128 人，总数最多 512 人，同时最多活动/绘制 48 人，距离上限 96 格。
 
-附带的 `human_village.json` 只是中心预留区的保护铺装接入样例，未生成村庄或铺路。建筑定稿后替换活动坐标并执行 F3+T，无需服务器逻辑或世界种子。
+正式 `human_village.json` 现为 116 个槽位（50 名驻足、66 名行人），分布于龙神广场、东西主街与市集、铃奈庵书坊街、鲵吞亭水巷、稗田宅门前及高札场/香霖堂西道。它只依赖跨种子固定的路网和铺装，与外围随机民居分离；同时活动/绘制上限仍为 48 人。需要重新生成配置时运行 `python tools/export_human_village_residents.py`。
+
+场景原点为 `[-200,73,100]`：路面方块在 `Y=72`，居民脚底是 `Y=73`。不要把建筑原点或地面方块 Y 直接当成居民脚底高度。服务器按已加载区块渐进放置正式村庄；旧的空白地形区块也可首次补建，已完成区块不会因重进世界再次覆盖。
+
+管理员可使用 `/gs_village visit dragon|hieda|suzunaan|geidontei|kourindou|east_gate` 抵达正式村庄，使用 `/gs_village stats` 查看建筑、三圈民居数量、连通率、放置进度及采样群系边界余量。`/gs_village showcase` 继续使用独立样件维度，供逐栋查看外观。修改居民资源后执行 F3+T 即可重新加载场景。
+
+自动化回归由 `HumanVillageResidentsAlignmentTest` 读取正式 NBT 与居民 JSON，对每段路线每 0.25 格检查固定铺装和碰撞。隔离服务端可运行 `./tools/gradle_task.ps1 runHumanVillageProbe`，使用真实模组方块校验分块放置、存档、溪水、保护及全部居民路线；需先在 `build/human-village-probe/` 中接受 EULA。测试不代替客户端视效与性能验收。
 
 ## 实机验收
 

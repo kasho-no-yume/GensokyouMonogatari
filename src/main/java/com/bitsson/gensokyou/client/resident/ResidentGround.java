@@ -41,7 +41,6 @@ public final class ResidentGround implements ResidentWalker.Surface {
         int x = (int) Math.floor(probeX), z = (int) Math.floor(probeZ);
         if (!world.loaded(x, z)) return Double.NaN;
         double best = Double.NaN;
-        double bestDifference = Double.POSITIVE_INFINITY;
         int minY = Math.max(world.minY(), (int) Math.floor(expectedY) - 3);
         int maxY = Math.min(world.maxY() - 1, (int) Math.ceil(expectedY) + 1);
         for (int y = minY; y <= maxY; y++) {
@@ -54,9 +53,8 @@ public final class ResidentGround implements ResidentWalker.Surface {
                 double feet = y + shape.maxY;
                 double difference = Math.abs(feet - expectedY);
                 // Do not reinterpret a newly placed wall/low ceiling as a rooftop spawn.
-                if (difference > 2 || feet - expectedY > 0.6 || difference >= bestDifference) continue;
+                if (difference > 2 || feet - expectedY > 0.6 || (Double.isFinite(best) && feet <= best)) continue;
                 best = feet;
-                bestDifference = difference;
             }
         }
         return best;
@@ -121,7 +119,8 @@ public final class ResidentGround implements ResidentWalker.Surface {
         var id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock());
         if (!id.getNamespace().equals("gensokyou")) return false;
         return switch (id.getPath()) {
-            case "landmark_brick", "landmark_wood", "landmark_tile", "landmark_tile_slab", "landmark_tile_stairs" -> true;
+            case "landmark_brick", "landmark_wood", "landmark_tile", "landmark_tile_slab", "landmark_tile_stairs",
+                    "landmark_wood_slab", "landmark_wood_stairs", "landmark_brick_slab", "landmark_brick_stairs" -> true;
             default -> false;
         };
     }

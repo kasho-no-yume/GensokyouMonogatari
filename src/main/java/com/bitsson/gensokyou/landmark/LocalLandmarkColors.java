@@ -7,7 +7,10 @@ import net.minecraft.world.level.block.Rotation;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.DataOutputStream;
+import java.io.OutputStream;
 import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * Local-coordinate color table (GLC3) loaded once per template and queried by instance anchor,
@@ -64,6 +67,9 @@ public final class LocalLandmarkColors {
             for (int i = 0; i < paletteSize; i++) {
                 int rgb = in.readInt();
                 byte role = in.readByte();
+                if (role < 0 || role > HumanVillagePalette.ROLE_FOUNDATION_STONE || (i == 0 && (rgb != 0 || role != 0))) {
+                    throw new IOException("Invalid GLC3 palette role or reserved entry");
+                }
                 palette[i] = i == 0 ? LandmarkColors.NO_TINT : (0xFF000000 | (rgb & 0xFFFFFF));
                 roles[i] = role;
             }
@@ -78,6 +84,9 @@ public final class LocalLandmarkColors {
             }
             int entryCount = in.readInt();
             int volume = sx * sy * sz;
+            if (entryCount < 0 || entryCount > volume) {
+                throw new IOException("Invalid GLC3 entry count: " + entryCount);
+            }
             byte[] colorIdx = new byte[volume];
             byte[] blockIdx = new byte[volume];
             for (int i = 0; i < entryCount; i++) {
@@ -86,14 +95,44 @@ public final class LocalLandmarkColors {
                 int lz = in.readUnsignedShort();
                 int ci = in.readUnsignedByte();
                 int bi = in.readUnsignedByte();
-                if (lx >= sx || ly >= sy || lz >= sz || ci >= paletteSize || bi > blockCount) {
+                if (lx >= sx || ly >= sy || lz >= sz || ci == 0 || ci >= paletteSize || bi == 0 || bi > blockCount) {
                     throw new IOException("Out-of-bounds GLC3 voxel entry");
                 }
                 int flat = (ly * sz + lz) * sx + lx;
+                if (colorIdx[flat] != 0) throw new IOException("Duplicate GLC3 voxel entry");
                 colorIdx[flat] = (byte) ci;
                 blockIdx[flat] = (byte) bi;
             }
+            if (in.read() != -1) throw new IOException("Trailing GLC3 data");
             return new LocalLandmarkColors(sx, sy, sz, palette, roles, blocks, colorIdx, blockIdx);
+        }
+    }
+
+    /** Writes the same sparse, big-endian contract used by the Python architecture exporters. */
+    public void write(OutputStream compressed) throws IOException {
+        try (var out = new DataOutputStream(new GZIPOutputStream(compressed))) {
+            out.writeInt(GLC3_MAGIC);
+            out.writeShort(sizeX); out.writeShort(sizeY); out.writeShort(sizeZ);
+            out.writeShort(paletteArgb.length);
+            for (int i = 0; i < paletteArgb.length; i++) {
+                out.writeInt(i == 0 ? 0 : paletteArgb[i] & 0xFFFFFF);
+                out.writeByte(paletteRoles[i]);
+            }
+            out.writeByte(expectedBlocks.length - 1);
+            for (int i = 1; i < expectedBlocks.length; i++) out.writeUTF(expectedBlocks[i].toString());
+            int count = 0;
+            for (byte color : colorIndices) if (color != 0) count++;
+            out.writeInt(count);
+            for (int y = 0; y < sizeY; y++) {
+                for (int z = 0; z < sizeZ; z++) {
+                    for (int x = 0; x < sizeX; x++) {
+                        int index = (y * sizeZ + z) * sizeX + x;
+                        if (colorIndices[index] == 0) continue;
+                        out.writeShort(x); out.writeShort(y); out.writeShort(z);
+                        out.writeByte(colorIndices[index]); out.writeByte(blockIndices[index]);
+                    }
+                }
+            }
         }
     }
 

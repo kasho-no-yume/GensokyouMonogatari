@@ -45,7 +45,8 @@ public final class LandmarkClearanceFilter extends PlacementFilter {
             }
             long dx = (long) x - region.landmarkX();
             long dz = (long) z - region.landmarkZ();
-            if (dx * dx + dz * dz <= 80L * 80L) return false;
+            long radius = region == GensokyoLayout.Region.HUMAN_VILLAGE ? 215L : 80L;
+            if (dx * dx + dz * dz <= radius * radius) return false;
         }
         return true;
     }
