@@ -1302,5 +1302,9 @@
   "item.gensokyou.moonjoint_tips": "月节嫩笋",
   "item.gensokyou.echo_crystal_shard": "鸣晶碎片",
   "item.gensokyou.black_sand_iron": "冥砂铁粒",
-  "item.gensokyou.mist_reed_fiber": "雾苇纤维"
+  "item.gensokyou.mist_reed_fiber": "雾苇纤维",
+  "msg.gensokyou.residents.preview": "已准备 %s 名本地居民预览；请在附近的平坦干燥地面查看。",
+  "msg.gensokyou.residents.cleared": "已清除本地居民预览。",
+  "msg.gensokyou.residents.status": "本地居民：活动 %s，当前绘制 %s，预览槽位 %s。",
+  "msg.gensokyou.residents.creative_only": "居民预览仅供创造模式使用。"
 }

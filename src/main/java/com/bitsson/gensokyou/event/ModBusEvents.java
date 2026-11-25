@@ -12,6 +12,7 @@ import com.bitsson.gensokyou.entity.ReimuEntity;
 import com.bitsson.gensokyou.entity.YamameEntity;
 import com.bitsson.gensokyou.entity.TouhouNpcEntity;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
+import com.bitsson.gensokyou.worldgen.GensokyoFairySpawns;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Difficulty;
@@ -61,7 +62,8 @@ public final class ModBusEvents {
                 (EntityType<FairyEntity> type, ServerLevelAccessor level, MobSpawnType spawnType,
                  BlockPos pos, RandomSource random) ->
                         level.getDifficulty() != Difficulty.PEACEFUL
-                                && Mob.checkMobSpawnRules(type, level, spawnType, pos, random),
+                                && Mob.checkMobSpawnRules(type, level, spawnType, pos, random)
+                                && GensokyoFairySpawns.canSpawn(level, spawnType, pos, random),
                 RegisterSpawnPlacementsEvent.Operation.REPLACE);
         event.register(ModEntityTypes.BIG_FAIRY.get(),
                 SpawnPlacementTypes.ON_GROUND,
