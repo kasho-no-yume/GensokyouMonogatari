@@ -1,0 +1,36 @@
+# Tasks: 人间之里群系全面改造（Rework Human Village）
+
+> **分工标记**：
+> - **[高阶模型 / 建筑师]**：新增建筑块设计、4 大特殊地标、装饰地标群、1 Base 派生 10 种民居模板的 Python 实现、预览渲染与配合用户实机迭代验收。
+> - **[下游模型 / 照图实现]**：严格按 `design.md` 实现染色底层、地形、规划器、道路算法、懒加载放置、网络同步、假 NPC 配置与单元测试。
+
+---
+
+## Phase 1: 新增和风幻想建筑块与染色底座
+
+- [x] 1.1 **[高阶模型]** 在 `LandmarkBlocks.java` 注册 9 种新建筑块（`wood_slab`, `wood_stairs`, `brick_slab`, `brick_stairs`, `wood_fence_gate`, `shoji`, `curtain`, `bookshelf`, `lantern`），同步更新 `tintedBlocks()`、`contains()` 与 `zh_cn.json` / `en_us.json`
+- [x] 1.2 **[高阶模型]** 使用 `tools/gen_tex.py` 产出 4 张新灰度贴图（`landmark_shoji`, `landmark_curtain`, `landmark_bookshelf`, `landmark_lantern`）及 9 种新方块的 blockstate/model JSON
+- [ ] 1.3 **[下游模型]** 扩展 `ResidentGround.isPaving()` 放行 `landmark_wood_slab`, `landmark_wood_stairs`, `landmark_brick_slab`, `landmark_brick_stairs`
+- [ ] 1.4 **[下游模型]** 实现 `LocalLandmarkColors.java`（`GLC3` 二进制读写）、`HumanVillagePalette.java`（8 套调色板 + 角色替换）与 4 向逆旋转工具（主类已随展场预置，下游模型补全 `LocalLandmarkColorsTest` 单元测试）
+- [ ] 1.5 **[下游模型]** 实现 `HumanVillageLayoutSyncPayload.java`、`ClientVillageColors.java`（区块空间索引 + `setSectionDirty` 刷新）及 `HumanVillageProceduralColors.java`（道路/护岸兜底着色），接入 `LandmarkBlockColors.java` 三层查色管线
+
+## Phase 2: 建筑设计实现与实机视觉验收（核心美术交付）
+
+- [x] 2.1 **[高阶模型]** 编写共用 Python 建筑框架 `tools/export_human_village_common.py`（支持 19 种 `landmark_*` 方块、`GLC3` 导出、`PaletteRole` 标注、离线俯视/立面/等轴测预览图渲染、blockstate 合法性校验）
+- [x] 2.2 **[高阶模型]** 设计并导出 1 套参数化町家 Base 引擎 `tools/export_human_village_houses.py`，派生 `hv_machiya_v01` ~ `hv_machiya_v10` 共 10 种民居模板（`.nbt` + `.local.bin`）
+- [x] 2.3 **[高阶模型]** 设计并导出 4 座特殊 NPC 功能地标 `tools/export_human_village_landmarks.py`：香霖堂（`hv_kourindou`）、鲵吞亭（`hv_geidontei`）、铃奈庵（`hv_suzunaan`）、稗田阿求居所（`hv_hieda_residence`）
+- [x] 2.4 **[高阶模型]** 设计并导出非功能装饰地标群 `tools/export_human_village_decor.py`：龙神像中央广场、东/西/北冠木门与高札场、水车小屋、4 类市集摊位、古井/地藏小龛/神木休憩坛
+- [x] 2.5 **[高阶模型 + 用户实机验收]** 提供 `/gs_village showcase` 独立展场命令与渲染预览图，由用户逐一检查 4 大地标与 10 种民居变体外观，按反馈迭代打磨直至全部确认满意
+
+## Phase 3: 地形改造、村庄排布与道路算法
+
+- [ ] 3.1 **[下游模型]** 改造 `GensokyoLayout.java` 实现 `sculptHumanVillage()`（中心台地 `Y=72`、村北稗田高台 `Y=75`、贯城浅溪槽 `Y=68.2`、东口自然衔接），更新 `LandmarkClearanceFilter.java`（人间之里野生树净空半径 `215`），编写 `HumanVillageTerrainTest`
+- [ ] 3.2 **[下游模型]** 实现 `HumanVillagePlanner.java`（`OccupancyGrid`、边缘禁建 `>= 220` 格、固定核心 + 种子微变三圈密度梯度、坡度校验与地基深度计算），编写 `HumanVillagePlannerTest`
+- [ ] 3.3 **[下游模型]** 实现 `VillageRoadRouter.java`（4 级路网：主干道、核心环巷/水巷、4 邻域正交 A* 门廊接路、跨溪自动架桥与桥头灯柱），编写 `VillageRoadRouterTest`
+
+## Phase 4: 世界放置、保护区、假 NPC 演出与集成验收
+
+- [ ] 4.1 **[下游模型]** 实现 `HumanVillageManager.java`、`HumanVillageSavedData.java` 与 `HumanVillageStreamPlacer.java`（按区块懒加载放置、浅溪显式填水至 `Y=70` 与石护岸、悬空地基自动补填）
+- [ ] 4.2 **[下游模型]** 实现 `HumanVillageEvents.java`（`ChunkEvent.Load` 异步入队、玩家登录/切维度发送 `HumanVillageLayoutSyncPayload`、保护区禁放拦截、`/gs_village visit|stats` 命令）
+- [ ] 4.3 **[下游模型]** 编写完整 116+ 槽位 `assets/gensokyou/village_residents/human_village.json`（覆盖龙神广场、东西主街与市集、铃奈庵、鲵吞亭水巷、稗田宅门前、高札场与香霖堂西道），并编写 `HumanVillageResidentsAlignmentTest`
+- [ ] 4.4 **[共同验收]** 运行 `.\tools\gradle_task.ps1 build` 全量编译测试通过，进入幻想乡实机走查全村地形、浅溪、桥梁、路网连通、染色与 128 假 NPC 繁华演出

@@ -3,6 +3,7 @@ package com.bitsson.gensokyou.client;
 import com.bitsson.gensokyou.landmark.HakureiOuterGrounds;
 import com.bitsson.gensokyou.landmark.HakureiShrineLandmark;
 import com.bitsson.gensokyou.landmark.HakureiShrinePreview;
+import com.bitsson.gensokyou.landmark.HumanVillageShowcase;
 import com.bitsson.gensokyou.landmark.LandmarkColors;
 import com.bitsson.gensokyou.landmark.LandmarkSample;
 import com.bitsson.gensokyou.mixin.client.RenderChunkRegionAccessor;
@@ -66,9 +67,13 @@ public final class LandmarkBlockColors {
                     return color;
                 }
             }
-            return shrinePreviewColors != null
-                    ? shrinePreviewColors.colorAt(pos.getX(), pos.getY(), pos.getZ(), blockKey)
-                    : LandmarkColors.NO_TINT;
+            if (shrinePreviewColors != null) {
+                int color = shrinePreviewColors.colorAt(pos.getX(), pos.getY(), pos.getZ(), blockKey);
+                if (color != LandmarkColors.NO_TINT) {
+                    return color;
+                }
+            }
+            return HumanVillageShowcase.colorAt(pos.getX(), pos.getY(), pos.getZ(), blockKey);
         }, LandmarkBlocks.tintedBlocks());
     }
 

@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "hanging=false": {
+      "model": "gensokyou:block/landmark_lantern"
+    },
+    "hanging=true": {
+      "model": "gensokyou:block/landmark_lantern_hanging"
+    }
+  }
+}
