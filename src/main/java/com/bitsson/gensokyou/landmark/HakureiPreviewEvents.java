@@ -6,6 +6,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Block;
@@ -104,10 +105,13 @@ public final class HakureiPreviewEvents {
         var chunkPos = event.getChunk().getPos();
         if (HakureiShrineLandmark.intersectsChunk(chunkPos.x, chunkPos.z)
                 || HakureiOuterGrounds.intersectsChunk(chunkPos.x, chunkPos.z)) {
-            level.getServer().execute(() -> {
+            // execute() 在服务端线程会立即运行，重新请求正在完成的区块会互相等待。
+            // tell() 始终入队，先让 ChunkEvent.Load 返回并完成区块加载。
+            var server = level.getServer();
+            server.tell(new TickTask(server.getTickCount(), () -> {
                 HakureiShrineLandmark.ensurePlaced(level);
                 HakureiOuterGrounds.ensurePlaced(level);
-            });
+            }));
         }
     }
 

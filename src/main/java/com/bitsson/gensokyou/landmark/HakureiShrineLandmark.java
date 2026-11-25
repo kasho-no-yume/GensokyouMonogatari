@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.landmark;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.registry.ModEntityTypes;
 import com.mojang.logging.LogUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 
 /**
@@ -37,6 +39,7 @@ public final class HakureiShrineLandmark {
             Registries.DIMENSION, Gensokyou.id("gensokyo"));
     public static final ResourceLocation COLOR_ID = Gensokyou.id("hakurei_shrine_gensokyo");
     public static final BlockPos ORIGIN = new BlockPos(3022, 83, 93);
+    public static final BlockPos REIMU_SPAWN = ORIGIN.offset(48, 13, 35);
     public static final BlockPos SIZE = HakureiShrinePreview.SIZE;
     static final BlockPos END = ORIGIN.offset(SIZE.getX() - 1, SIZE.getY() - 1, SIZE.getZ() - 1);
     private static final String SAVED_DATA_NAME = "gensokyou_hakurei_shrine_landmark";
@@ -73,6 +76,7 @@ public final class HakureiShrineLandmark {
         }
         State state = level.getDataStorage().computeIfAbsent(State.FACTORY, SAVED_DATA_NAME);
         if (state.placed) {
+            ensureReimuSpawned(level, state);
             return true;
         }
         StructureTemplate template = level.getStructureManager().get(HakureiShrinePreview.ID).orElse(null);
@@ -94,6 +98,7 @@ public final class HakureiShrineLandmark {
                 level, ORIGIN, ORIGIN, new StructurePlaceSettings(), level.getRandom(), Block.UPDATE_ALL);
         if (placed) {
             state.markPlaced();
+            ensureReimuSpawned(level, state);
             LOGGER.info("Placed Hakurei Shrine landmark in gensokyou:gensokyo at {}", ORIGIN.toShortString());
         } else {
             LOGGER.error("Failed to place Hakurei Shrine landmark at {}", ORIGIN.toShortString());
@@ -101,15 +106,40 @@ public final class HakureiShrineLandmark {
         return placed;
     }
 
+    /** 独立出生标记也为已生成神社的旧存档补上灵梦，重复加载区块不会重复生成。 */
+    private static void ensureReimuSpawned(ServerLevel level, State state) {
+        if (state.reimuSpawned) {
+            return;
+        }
+        level.getChunk(REIMU_SPAWN.getX() >> 4, REIMU_SPAWN.getZ() >> 4);
+        // 加载区块可能触发另一次确保出生的回调，落地前再核对一次。
+        if (state.reimuSpawned) {
+            return;
+        }
+        var reimu = ModEntityTypes.REIMU.get().create(level);
+        if (reimu != null) {
+            reimu.setAnchorPos(Vec3.atBottomCenterOf(REIMU_SPAWN));
+            reimu.setYRot(90.0F);
+            reimu.setYHeadRot(90.0F);
+            if (level.addFreshEntity(reimu)) {
+                state.reimuSpawned = true;
+                state.setDirty();
+                LOGGER.info("Spawned Reimu in the Hakurei Shrine courtyard at {}", REIMU_SPAWN.toShortString());
+            }
+        }
+    }
+
     private static final class State extends SavedData {
         static final Factory<State> FACTORY = new Factory<>(State::new, State::load, null);
         private boolean placed;
+        private boolean reimuSpawned;
 
         private State() {}
 
         private static State load(CompoundTag tag, HolderLookup.Provider registries) {
             State state = new State();
             state.placed = tag.getBoolean("placed");
+            state.reimuSpawned = tag.getBoolean("reimuSpawned");
             return state;
         }
 
@@ -121,6 +151,7 @@ public final class HakureiShrineLandmark {
         @Override
         public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
             tag.putBoolean("placed", placed);
+            tag.putBoolean("reimuSpawned", reimuSpawned);
             return tag;
         }
     }

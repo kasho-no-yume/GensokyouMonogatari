@@ -11,6 +11,7 @@ import com.bitsson.gensokyou.entity.FlandreEntity;
 import com.bitsson.gensokyou.entity.KnifeDanmaku;
 import com.bitsson.gensokyou.entity.LaserDanmaku;
 import com.bitsson.gensokyou.entity.OrbitYinYangOrb;
+import com.bitsson.gensokyou.entity.ReimuEntity;
 import com.bitsson.gensokyou.entity.RinnosukeEntity;
 import com.bitsson.gensokyou.entity.SphereDanmaku;
 import com.bitsson.gensokyou.entity.TalismanDanmaku;
@@ -247,6 +248,13 @@ public final class ModEntityTypes {
                     .sized(0.6F, 1.9F)
                     .clientTrackingRange(10)
                     .build("rinnosuke"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<ReimuEntity>> REIMU =
+            ENTITY_TYPES.register("reimu", () -> EntityType.Builder
+                    .<ReimuEntity>of(ReimuEntity::new, MobCategory.CREATURE)
+                    .sized(0.6F, 1.8F)
+                    .clientTrackingRange(10)
+                    .build("reimu"));
 
     /** 数值测试 BOSS（add-balance-test-harness，仅 /gs_test 生成）。 */
     public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.BalanceTestBossEntity>> BALANCE_TEST_BOSS =

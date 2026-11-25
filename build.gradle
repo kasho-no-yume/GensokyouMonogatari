@@ -122,6 +122,13 @@ neoForge {
             gameDirectory = project.file('build/landmark-sample-probe')
             systemProperty 'gensokyou.landmarkSampleProbe', 'true'
         }
+        npcProbe {
+            server()
+            programArgument '--nogui'
+            programArgument '--port=25569'
+            gameDirectory = project.file('build/npc-probe')
+            systemProperty 'gensokyou.npcProbe', 'true'
+        }
         // 性能基线用的客户端：与 client 只有一处不同——打开 mod 内置的客户端帧时记录器
         // （openspec: add-danmaku-program-core，任务 1.3）。系统属性默认不设，
         // 故 runClient 不受影响；本配置产出 run/frame_profile/frames-*.csv。
