@@ -43,7 +43,7 @@ public final class ModNetworking {
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("3");
         registrar.playToClient(QuestSyncPayload.TYPE, QuestSyncPayload.STREAM_CODEC,
-                com.bitsson.gensokyou.client.ClientQuests::handle);
+                ClientPayloadHandler::handleQuestSync);
         registrar.playToServer(QuestTrackPayload.TYPE, QuestTrackPayload.STREAM_CODEC, QuestTrackPayload::handle);
         registrar.playToClient(HumanVillageLayoutSyncPayload.TYPE, HumanVillageLayoutSyncPayload.STREAM_CODEC,
                 com.bitsson.gensokyou.client.ClientVillageColors::handle);

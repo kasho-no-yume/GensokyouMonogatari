@@ -13,7 +13,6 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 @EventBusSubscriber(modid = Gensokyou.MODID, value = Dist.CLIENT)
 public final class ClientQuests {
@@ -22,19 +21,17 @@ public final class ClientQuests {
     public static NpcQuestMarker marker(ResourceLocation role) {
         return NpcQuestMarker.fromId(snapshot.markers().getOrDefault(role, "none"));
     }
-    public static void handle(QuestSyncPayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> {
-            try {
-                snapshot = QuestSnapshot.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(payload.json())).getOrThrow();
-                var minecraft = Minecraft.getInstance();
-                if (minecraft.screen instanceof QuestBookScreen screen) screen.refresh();
-                else if (payload.openBook() && minecraft.player != null) minecraft.setScreen(new QuestBookScreen());
-            } catch (RuntimeException e) {
-                snapshot = QuestSnapshot.EMPTY;
-                if (Minecraft.getInstance().screen instanceof QuestBookScreen screen) screen.refresh();
-                Gensokyou.LOGGER.error("Invalid private quest snapshot", e);
-            }
-        });
+    public static void handle(QuestSyncPayload payload) {
+        try {
+            snapshot = QuestSnapshot.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(payload.json())).getOrThrow();
+            var minecraft = Minecraft.getInstance();
+            if (minecraft.screen instanceof QuestBookScreen screen) screen.refresh();
+            else if (payload.openBook() && minecraft.player != null) minecraft.setScreen(new QuestBookScreen());
+        } catch (RuntimeException e) {
+            snapshot = QuestSnapshot.EMPTY;
+            if (Minecraft.getInstance().screen instanceof QuestBookScreen screen) screen.refresh();
+            Gensokyou.LOGGER.error("Invalid private quest snapshot", e);
+        }
     }
     @SubscribeEvent public static void logout(ClientPlayerNetworkEvent.LoggingOut event) { snapshot = QuestSnapshot.EMPTY; }
     private ClientQuests() {}

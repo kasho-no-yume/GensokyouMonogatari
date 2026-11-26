@@ -157,6 +157,12 @@ public final class ClientPayloadHandler {
         context.enqueueWork(() -> ClientDialog.handle(payload));
     }
 
+    /** 任务快照同步：委托客户端专属类处理（服务端不加载 QuestBookScreen/Minecraft）。 */
+    public static void handleQuestSync(com.bitsson.gensokyou.network.QuestSyncPayload payload,
+                                       IPayloadContext context) {
+        context.enqueueWork(() -> ClientQuests.handle(payload));
+    }
+
     /** 无尽藏晶可见页快照：暂存供界面渲染。 */
     public static void handleCrystalPage(
             com.bitsson.gensokyou.network.CrystalStoragePagePayload payload, IPayloadContext context) {

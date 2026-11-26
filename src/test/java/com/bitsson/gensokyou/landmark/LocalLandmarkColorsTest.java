@@ -73,7 +73,7 @@ class LocalLandmarkColorsTest {
         assertEquals(0xFF363A40,index.colorAt(16,73,16,WOOD));
         assertEquals(LandmarkColors.NO_TINT,index.colorAt(1,73,1,WOOD));
         assertThrows(IllegalArgumentException.class,()->new HumanVillageLayoutSyncPayload.InstanceEntry(WOOD,0,0,0,5,3,3,(byte)4,(byte)0));
-        assertEquals(LandmarkColors.NO_TINT,HumanVillageProceduralColors.colorAt(-421,72,100,WOOD));
+        assertEquals(LandmarkColors.NO_TINT,HumanVillageProceduralColors.colorAt(-4481,72,100,WOOD));
         assertNotEquals(LandmarkColors.NO_TINT,HumanVillageProceduralColors.colorAt(-200,72,100,WOOD));
     }
     private static byte[] fixture(int count) throws IOException {

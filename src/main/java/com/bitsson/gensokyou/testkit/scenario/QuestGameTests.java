@@ -17,12 +17,16 @@ import com.bitsson.gensokyou.worldgen.human_village.AkyuuResidence;
 import com.bitsson.gensokyou.worldgen.human_village.BuildingInstance;
 import com.bitsson.gensokyou.worldgen.human_village.HumanVillagePlan;
 import com.bitsson.gensokyou.worldgen.human_village.HumanVillageSavedData;
+import io.netty.channel.embedded.EmbeddedChannel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
@@ -30,6 +34,7 @@ import net.minecraft.world.level.block.Rotation;
 import net.neoforged.neoforge.attachment.AttachmentInternals;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
+import net.neoforged.neoforge.network.registration.NetworkRegistry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,10 +47,31 @@ import java.util.Set;
 @PrefixGameTestTemplate(false)
 public final class QuestGameTests {
     private static final String TEMPLATE = "test/spirit_treatment";
+
+    /**
+     * Mock player with a fully configured network connection. The vanilla
+     * {@code makeMockServerPlayerInLevel()} leaves custom-payload channels unregistered, so the
+     * login-time {@code OnDatapackSyncEvent} send of {@code ritual_data_sync} throws.
+     */
+    private static ServerPlayer mockPlayer(GameTestHelper test) {
+        var server = test.getLevel().getServer();
+        var cookie = CommonListenerCookie.createInitial(
+                new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "test-mock-player"), false);
+        var player = new ServerPlayer(server, test.getLevel(), cookie.gameProfile(), cookie.clientInformation()) {
+            @Override public boolean isSpectator() { return false; }
+            @Override public boolean isCreative() { return true; }
+        };
+        var connection = new Connection(PacketFlow.SERVERBOUND);
+        new EmbeddedChannel(connection);
+        NetworkRegistry.configureMockConnection(connection);
+        server.getPlayerList().placeNewPlayer(connection, player, cookie);
+        return player;
+    }
+
     @GameTest(template = TEMPLATE)
     public static void privateProgressDeathPersistenceAndConfirmedDialogue(GameTestHelper test) {
-        var a = test.makeMockServerPlayerInLevel();
-        var b = test.makeMockServerPlayerInLevel();
+        var a = mockPlayer(test);
+        var b = mockPlayer(test);
         var npc = test.spawn(ModEntityTypes.AKYUU.get(), new BlockPos(3, 1, 3));
         a.setPos(npc.getX() + 1, npc.getY(), npc.getZ());
         b.setPos(npc.getX() + 1, npc.getY(), npc.getZ() + 1);
@@ -92,8 +118,8 @@ public final class QuestGameTests {
     }
     @GameTest(template = TEMPLATE)
     public static void observerMarkersJournalAndSingleTracking(GameTestHelper test) {
-        var a = test.makeMockServerPlayerInLevel();
-        var b = test.makeMockServerPlayerInLevel();
+        var a = mockPlayer(test);
+        var b = mockPlayer(test);
         var npc = test.spawn(ModEntityTypes.AKYUU.get(), new BlockPos(3, 1, 3));
         a.setPos(npc.getX() + 1, npc.getY(), npc.getZ());
         b.setPos(npc.getX() + 1, npc.getY(), npc.getZ() + 1);

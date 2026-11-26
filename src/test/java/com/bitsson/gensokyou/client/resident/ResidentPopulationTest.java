@@ -63,7 +63,7 @@ class ResidentPopulationTest {
         var population=new ResidentPopulation();var point=slot("shifted",20,0);
         ResidentWalker.Surface shifted=new ResidentWalker.Surface() {
             public ResidentRoute.Point resolve(ResidentRoute.Point p,float scale,boolean protect) {return new ResidentRoute.Point(30,p.y(),p.z());}
-            public boolean clear(ResidentRoute.Point a,ResidentRoute.Point b) {return true;}
+            public boolean clear(ResidentRoute.Point a,ResidentRoute.Point b,float scale) {return true;}
         };
         population.tick(List.of(point),VIEWER,shifted,walker->{assertEquals(30,walker.frame(1).position().x());return false;});
         assertEquals(0,population.size());
@@ -74,6 +74,6 @@ class ResidentPopulationTest {
     private static final class Surface implements ResidentWalker.Surface {
         int probes;
         public ResidentRoute.Point resolve(ResidentRoute.Point p,float scale,boolean protectedGround) {probes++;return p.x()<0?null:p;}
-        public boolean clear(ResidentRoute.Point a,ResidentRoute.Point b) {return true;}
+        public boolean clear(ResidentRoute.Point a,ResidentRoute.Point b,float scale) {return true;}
     }
 }
