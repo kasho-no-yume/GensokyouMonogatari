@@ -91,6 +91,7 @@ public final class HumanVillageManager {
             int cx=ChunkPos.getX(key),cz=ChunkPos.getZ(key);
             if(level.getChunkSource().getChunkNow(cx,cz)!=null) ensureChunkPopulated(new ChunkPos(cx,cz));
         }
+        if(level.getGameTime() % 20 == 0) AkyuuResidence.ensure(level, data);
     }
     public boolean ensureChunkPopulated(ChunkPos chunk) {
         if(populating || data.hasChunk(chunk.toLong()) || !intersectsChunk(chunk.x,chunk.z)) return data.hasChunk(chunk.toLong());

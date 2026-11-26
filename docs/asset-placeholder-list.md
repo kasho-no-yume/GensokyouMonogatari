@@ -19,6 +19,8 @@ AI 扩散生图（64×64 新绘物品）：`python tools/comfy_pixel_gen.py --sp
 
 环境居民的共享图集 `textures/entity/village_resident.png` 由原版 1.21.1 村民皮肤衍生：保留头/鼻子 UV，衣服和腿部去色后按部件着色，新增服装/配件灰阶图块。生成入口为 `tools/gen_resident_texture.py --vanilla <minecraft_1.21.1_client.jar>`；图集为 128×128，所有居民共享，无逐居民动态贴图。
 
+阿求 `textures/entity/akyuu.png` 暂用 Alex 占位；`tools/quest_assets.py` 生成该皮肤、委托书通用图标及 300×200 的樱符任务簿底图（程序结构 + ASCII 花瓣，无烘焙文字）。
+
 ## 物品贴图（目标：正式物品图标）
 
 > 2026-10-21 起，「新绘物品」统一升到 **64×64**（gen-textures skill 的扩散生图甜区）。
@@ -30,6 +32,7 @@ AI 扩散生图（64×64 新绘物品）：`python tools/comfy_pixel_gen.py --sp
 | 路径 | 状态 | 占位来源 |
 |---|---|---|
 | textures/item/guide_book.png | TODO | 海洋之心 |
+| textures/item/quest_book.png | TODO（委托书，沿用通用占位） | 海洋之心 |
 | textures/item/spellcard_frame.png | DONE(gen_tex 新绘·白纸卡框，不染层，全符卡共享)·**已无模型引用**（9 张符卡改用各自的卡纸+纹章） | 旗帜图案 |
 | textures/item/spellcard_emblem.png | DONE(gen_tex 新绘·灰度法阵染层，按卡主题色 tint，全符卡共享)·**已无模型引用** | 旗帜图案 |
 | textures/item/spellcard_<卡id>.png ×9 | DONE(gen_tex 新绘·**竖长方形**符卡卡纸：64×64 画布内嵌 48×64 卡纸（左右各留 8px 透明），ASCII 模板 + 每卡调色板·数据文件 tools/textures/spellcard_cards.py） | 旗帜图案 |

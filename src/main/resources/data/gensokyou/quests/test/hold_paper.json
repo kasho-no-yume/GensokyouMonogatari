@@ -1,0 +1,21 @@
+{
+  "id": "gensokyou:test/hold_paper",
+  "kind": "commission",
+  "scope": "player",
+  "title": "quest.gensokyou.test.hold_paper.title",
+  "description": "quest.gensokyou.test.hold_paper.description",
+  "provider": "gensokyou:akyuu",
+  "return_npc": "gensokyou:akyuu",
+  "test": true,
+  "stages": [{
+    "id": "hold",
+    "title": "quest.gensokyou.test.hold_paper.stage",
+    "objectives": [{
+      "type": "gensokyou:have_items",
+      "item": "minecraft:paper",
+      "count": 4,
+      "description": "quest.gensokyou.test.hold_paper.goal"
+    }]
+  }],
+  "rewards": [{"item": "gensokyou:yen", "count": 1}]
+}

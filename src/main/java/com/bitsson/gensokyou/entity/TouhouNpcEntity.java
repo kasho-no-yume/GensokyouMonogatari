@@ -7,8 +7,6 @@ import com.bitsson.gensokyou.dialogue.DialogueManager;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -45,8 +43,6 @@ import java.util.UUID;
 public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant {
 
     private static final Vector3f PURPLE = new Vector3f(0.55F, 0.1F, 0.85F);
-    private static final EntityDataAccessor<String> QUEST_MARKER = SynchedEntityData.defineId(
-            TouhouNpcEntity.class, EntityDataSerializers.STRING);
 
     private final MerchantOffers offers = new MerchantOffers();
     @Nullable
@@ -80,16 +76,11 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
-        builder.define(QUEST_MARKER, NpcQuestMarker.NONE.id());
     }
 
-    public final NpcQuestMarker getQuestMarker() {
-        return NpcQuestMarker.fromId(this.entityData.get(QUEST_MARKER));
-    }
-
-    /** 服务端任务逻辑入口；自动同步给正在追踪此 NPC 的客户端，并随实体保存。 */
-    public final void setQuestMarker(NpcQuestMarker marker) {
-        this.entityData.set(QUEST_MARKER, marker.id());
+    /** Stable character role, independent of the UUID replaced by the restoration flow. */
+    public net.minecraft.resources.ResourceLocation questRole() {
+        return net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(this.getType());
     }
 
     /** 行走型子类只需返回 false，普通 NPC 仍固定在锚点。 */
@@ -186,7 +177,6 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        tag.putString("QuestMarker", this.getQuestMarker().id());
         if (this.anchorPos != null) {
             tag.putDouble("NpcAnchorX", this.anchorPos.x);
             tag.putDouble("NpcAnchorY", this.anchorPos.y);
@@ -197,7 +187,6 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        this.setQuestMarker(NpcQuestMarker.fromId(tag.getString("QuestMarker")));
         if (tag.contains("NpcAnchorX")) {
             this.anchorPos = new Vec3(tag.getDouble("NpcAnchorX"),
                     tag.getDouble("NpcAnchorY"), tag.getDouble("NpcAnchorZ"));
@@ -311,7 +300,7 @@ public abstract class TouhouNpcEntity extends PathfinderMob implements Merchant 
             return InteractionResult.PASS;
         }
         DialogueGraph graph = this.dialogueGraph();
-        if (graph != null) {
+        if (graph != null || com.bitsson.gensokyou.quest.QuestDialogue.hasOperations(serverPlayer, this)) {
             DialogueManager.open(serverPlayer, this, graph);
             return InteractionResult.sidedSuccess(false);
         }

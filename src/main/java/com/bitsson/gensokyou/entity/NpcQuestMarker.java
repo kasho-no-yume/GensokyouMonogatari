@@ -1,6 +1,6 @@
 package com.bitsson.gensokyou.entity;
 
-/** NPC 头顶任务标记；任务系统可在服务端切换，默认不显示。 */
+/** NPC 头顶任务标记视图；由服务端向每名观察者单独同步，不存于实体。 */
 public enum NpcQuestMarker {
     NONE("none", ""),
     EXCLAMATION("exclamation", "!"),

@@ -1,0 +1,23 @@
+{
+  "id": "gensokyou:test/shrine_delivery",
+  "kind": "commission",
+  "scope": "player",
+  "title": "quest.gensokyou.test.shrine_delivery.title",
+  "description": "quest.gensokyou.test.shrine_delivery.description",
+  "provider": "gensokyou:akyuu",
+  "return_npc": "gensokyou:akyuu",
+  "test": true,
+  "stages": [{
+    "id": "deliver",
+    "title": "quest.gensokyou.test.shrine_delivery.stage",
+    "objectives": [{
+      "type": "gensokyou:submit_items",
+      "npc": "gensokyou:reimu",
+      "item": "minecraft:paper",
+      "count": 4,
+      "description": "quest.gensokyou.test.shrine_delivery.goal"
+    }],
+    "navigation": {"npc": "gensokyou:reimu"}
+  }],
+  "rewards": [{"item": "gensokyou:yen", "count": 1}]
+}

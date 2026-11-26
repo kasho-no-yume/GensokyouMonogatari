@@ -65,6 +65,7 @@ public class DialogScreen extends Screen {
             Gensokyou.id("textures/gui/dialog.png");
 
     private final int entityId;
+    private long revision;
     private Component text;
     private List<DialogSyncPayload.Option> options = List.of();
     private List<FormattedCharSequence> lines = List.of();
@@ -77,12 +78,17 @@ public class DialogScreen extends Screen {
     public DialogScreen(DialogSyncPayload payload) {
         super(Component.translatable("gui.gensokyou.dialog.title"));
         this.entityId = payload.entityId();
+        this.revision = payload.revision();
         this.text = payload.text();
         this.options = payload.options();
     }
 
+    public boolean matches(int npc, long revision) { return entityId == npc && this.revision == revision; }
+    public int npcId() { return entityId; }
+
     /** 服务端推进：原地刷新内容（不重建 Screen）。 */
     public void setContent(DialogSyncPayload payload) {
+        this.revision = payload.revision();
         this.text = payload.text();
         this.options = payload.options();
         this.page = 0;
@@ -141,12 +147,12 @@ public class DialogScreen extends Screen {
     }
 
     private void choose(int index) {
-        PacketDistributor.sendToServer(new DialogActionPayload(entityId, index));
+        PacketDistributor.sendToServer(new DialogActionPayload(entityId, revision, index));
     }
 
     @Override
     public void removed() {
-        PacketDistributor.sendToServer(new DialogClosePayload(entityId));
+        PacketDistributor.sendToServer(new DialogClosePayload(entityId, revision));
         super.removed();
     }
 

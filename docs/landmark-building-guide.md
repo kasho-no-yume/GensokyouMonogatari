@@ -72,7 +72,7 @@ python tools/export_hakurei_outer_grounds.py --check
 
 ## 配色文件与性能
 
-夯实村土不走以下配色流程，完整颜色来自模型贴图，可直接作为人间之里的 Worldgen 表层；不为地面生成 `.bin`。人间之里建筑模板使用 GLC3 局部坐标配色并复用实例，固定旧博丽样件使用下述 GLC2。当前村庄放置、高度与旧世界兼容规则见[现行设计](../openspec/changes/rework-human-village/design.md)。
+夯实村土不走以下配色流程，完整颜色来自模型贴图，可直接作为人间之里的 Worldgen 表层；不为地面生成 `.bin`。人间之里建筑模板使用 GLC3 局部坐标配色并复用实例，固定旧博丽样件使用下述 GLC2。当前村庄放置、高度与旧世界兼容规则见[正式规格](../openspec/specs/human-village-rework/spec.md)，实现细节见[归档设计](../openspec/changes/archive/2026-11-26-rework-human-village/design.md)。
 
 文件用 GZIP 压缩。`GLC2` 保存 RGB 色板、预期方块 ID 表和有染色数据的区块段。每个 `16×16×16` 段解压为 4 KiB 色号和 4 KiB 方块编号。色号 0 表示原灰度，单份资源支持 255 个显式 RGB。区块网格构建时按坐标直接查数组，解压发生在客户端加载染色资源时。连续的同色面与空格通常能被 GZIP 压得很小。大建筑可根据实际占用段数评估内存，再决定是否需要稀疏存储。
 

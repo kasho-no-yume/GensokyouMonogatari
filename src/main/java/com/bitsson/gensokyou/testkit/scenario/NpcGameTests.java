@@ -1,7 +1,6 @@
 package com.bitsson.gensokyou.testkit.scenario;
 
 import com.bitsson.gensokyou.Gensokyou;
-import com.bitsson.gensokyou.entity.NpcQuestMarker;
 import com.bitsson.gensokyou.registry.ModEntityTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -19,7 +18,7 @@ public final class NpcGameTests {
     private NpcGameTests() {}
 
     @GameTest(template = TEMPLATE)
-    public static void stationaryNpcAndQuestMarkerPersistence(GameTestHelper test) {
+    public static void stationaryNpcAndRolePersistence(GameTestHelper test) {
         var npc = test.spawn(ModEntityTypes.RINNOSUKE.get(), new BlockPos(3, 1, 3));
         Vec3 anchor = npc.position();
         npc.setAnchorPos(anchor);
@@ -29,29 +28,16 @@ public final class NpcGameTests {
         test.assertValueEqual(npc.position(), anchor, "ordinary NPC remains anchored");
         test.assertValueEqual(npc.getDeltaMovement(), Vec3.ZERO, "ordinary NPC rejects motion");
         test.assertTrue(npc.isNoGravity(), "ordinary NPC has no gravity");
-        test.assertValueEqual(npc.getQuestMarker(), NpcQuestMarker.NONE, "markers are hidden by default");
-
         var replica = ModEntityTypes.RINNOSUKE.get().create(test.getLevel());
-        for (NpcQuestMarker marker : new NpcQuestMarker[] {
-                NpcQuestMarker.EXCLAMATION, NpcQuestMarker.QUESTION, NpcQuestMarker.NONE}) {
-            npc.setQuestMarker(marker);
-            var updates = npc.getEntityData().packDirty();
-            if (updates != null) {
-                replica.getEntityData().assignValues(updates);
-            }
-            test.assertValueEqual(replica.getQuestMarker(), marker, "marker is included in entity data updates");
-            CompoundTag saved = npc.saveWithoutId(new CompoundTag());
-            replica.load(saved);
-            test.assertValueEqual(replica.getQuestMarker(), marker, "marker survives NBT reload");
-            test.assertValueEqual(replica.getAnchorPos(), anchor, "anchor survives NBT reload");
-        }
+        CompoundTag saved = npc.saveWithoutId(new CompoundTag());
+        replica.load(saved);
+        test.assertValueEqual(replica.questRole(), npc.questRole(), "stable NPC role survives reload");
+        test.assertValueEqual(replica.getAnchorPos(), anchor, "anchor survives NBT reload");
+        test.assertFalse(saved.contains("QuestMarker"), "observer quest markers are not stored in entity NBT");
         CompoundTag legacy = npc.saveWithoutId(new CompoundTag());
-        legacy.remove("QuestMarker");
+        legacy.putString("QuestMarker", "question");
         replica.load(legacy);
-        test.assertValueEqual(replica.getQuestMarker(), NpcQuestMarker.NONE, "legacy NPC has no marker");
-        legacy.putString("QuestMarker", "unknown_future_marker");
-        replica.load(legacy);
-        test.assertValueEqual(replica.getQuestMarker(), NpcQuestMarker.NONE, "unknown marker is hidden");
+        test.assertFalse(replica.saveWithoutId(new CompoundTag()).contains("QuestMarker"), "legacy global marker is ignored");
         test.succeed();
     }
 
@@ -69,7 +55,7 @@ public final class NpcGameTests {
         test.assertFalse(npc.isNoGravity(), "walking NPC stands on the ground");
         test.assertFalse(npc.hurt(test.getLevel().damageSources().generic(), 5), "NPC protection remains active");
         npc.setDeltaMovement(Vec3.ZERO);
-        npc.setQuestMarker(NpcQuestMarker.QUESTION);
+        var role = npc.questRole();
         var previousId = npc.getUUID();
         npc.die(test.getLevel().damageSources().generic());
 
@@ -79,7 +65,7 @@ public final class NpcGameTests {
             var copy = copies.getFirst();
             test.assertFalse(copy.getUUID().equals(previousId), "restored NPC gets a new UUID");
             test.assertValueEqual(copy.getAnchorPos(), anchor, "restoration preserves walking anchor");
-            test.assertValueEqual(copy.getQuestMarker(), NpcQuestMarker.QUESTION, "restoration preserves marker");
+            test.assertValueEqual(copy.questRole(), role, "restoration preserves quest role despite a new UUID");
             copy.setPos(anchor.x + 100, anchor.y, anchor.z);
             copy.tick();
             test.assertValueEqual(copy.position(), anchor, "out-of-bounds NPC returns to courtyard anchor");

@@ -20,6 +20,7 @@ public final class ReloadListenerHandler {
 
     @SubscribeEvent
     public static void onAddReloadListeners(AddReloadListenerEvent event) {
+        event.addListener(new com.bitsson.gensokyou.quest.QuestDefinitionLoader());
         event.addListener(new RitualPatternLoader());
         event.addListener(new RitualRecipeLoader());
         event.addListener(new RitualSmeltRuleLoader());

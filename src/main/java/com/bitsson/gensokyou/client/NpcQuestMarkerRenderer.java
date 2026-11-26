@@ -39,13 +39,13 @@ public final class NpcQuestMarkerRenderer {
         boolean rendered = false;
         for (Entity entity : minecraft.level.entitiesForRendering()) {
             if (!(entity instanceof TouhouNpcEntity npc) || !npc.isAlive() || npc.isInvisible()
-                    || npc.getQuestMarker() == NpcQuestMarker.NONE
+                    || ClientQuests.marker(npc.questRole()) == NpcQuestMarker.NONE
                     || npc.distanceToSqr(camera) > MAX_DISTANCE_SQUARED
                     || !event.getFrustum().isVisible(npc.getBoundingBox().inflate(0.5D, 1.0D, 0.5D))) {
                 continue;
             }
             Vec3 position = npc.getPosition(partialTick);
-            var text = Component.literal(npc.getQuestMarker().symbol()).withStyle(style -> style.withBold(true));
+            var text = Component.literal(ClientQuests.marker(npc.questRole()).symbol()).withStyle(style -> style.withBold(true));
             pose.pushPose();
             pose.translate(position.x - camera.x, position.y - camera.y + npc.getBbHeight() + 0.65D,
                     position.z - camera.z);

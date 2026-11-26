@@ -41,7 +41,10 @@ public final class ModNetworking {
 
     @SubscribeEvent
     public static void onRegisterPayloads(RegisterPayloadHandlersEvent event) {
-        PayloadRegistrar registrar = event.registrar("2");
+        PayloadRegistrar registrar = event.registrar("3");
+        registrar.playToClient(QuestSyncPayload.TYPE, QuestSyncPayload.STREAM_CODEC,
+                com.bitsson.gensokyou.client.ClientQuests::handle);
+        registrar.playToServer(QuestTrackPayload.TYPE, QuestTrackPayload.STREAM_CODEC, QuestTrackPayload::handle);
         registrar.playToClient(HumanVillageLayoutSyncPayload.TYPE, HumanVillageLayoutSyncPayload.STREAM_CODEC,
                 com.bitsson.gensokyou.client.ClientVillageColors::handle);
         registrar.playToClient(ProgramDataPayload.TYPE, ProgramDataPayload.STREAM_CODEC,
@@ -215,7 +218,7 @@ public final class ModNetworking {
     private static void handleDialogAction(DialogActionPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
-                DialogueManager.handleAction(player, payload.entityId(), payload.choiceIndex());
+                DialogueManager.handleAction(player, payload.entityId(), payload.revision(), payload.choiceIndex());
             }
         });
     }
@@ -224,7 +227,7 @@ public final class ModNetworking {
     private static void handleDialogClose(DialogClosePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
-                DialogueManager.handleClose(player, payload.entityId());
+                DialogueManager.handleClose(player, payload.entityId(), payload.revision());
             }
         });
     }

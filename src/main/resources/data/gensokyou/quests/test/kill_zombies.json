@@ -1,0 +1,22 @@
+{
+  "id": "gensokyou:test/kill_zombies",
+  "kind": "commission",
+  "scope": "player",
+  "title": "quest.gensokyou.test.kill_zombies.title",
+  "description": "quest.gensokyou.test.kill_zombies.description",
+  "provider": "gensokyou:akyuu",
+  "return_npc": "gensokyou:akyuu",
+  "test": true,
+  "stages": [{
+    "id": "kill",
+    "title": "quest.gensokyou.test.kill_zombies.stage",
+    "objectives": [{
+      "type": "gensokyou:kill_entities",
+      "entity": "minecraft:zombie",
+      "count": 2,
+      "description": "quest.gensokyou.test.kill_zombies.goal"
+    }],
+    "navigation": {"dimension": "minecraft:overworld", "x": 0.5, "y": 80.0, "z": 0.5}
+  }],
+  "rewards": [{"item": "gensokyou:yen", "count": 1}]
+}

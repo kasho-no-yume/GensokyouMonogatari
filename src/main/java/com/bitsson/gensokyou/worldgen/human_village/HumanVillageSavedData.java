@@ -19,6 +19,7 @@ public final class HumanVillageSavedData extends SavedData {
     private HumanVillagePlan plan;
     private final Set<Long> placedChunks = new HashSet<>();
     private final Set<Integer> placedBuildingIds = new HashSet<>();
+    private java.util.UUID akyuuUuid;
 
     public HumanVillagePlan plan() { return plan; }
     public void setPlan(HumanVillagePlan plan) {
@@ -30,6 +31,9 @@ public final class HumanVillageSavedData extends SavedData {
     public int placedBuildingCount() { return placedBuildingIds.size(); }
     public void markChunk(long pos) { if(placedChunks.add(pos)) setDirty(); }
     public void markBuilding(int id) { if(placedBuildingIds.add(id)) setDirty(); }
+    public boolean hasBuilding(int id) { return placedBuildingIds.contains(id); }
+    public java.util.UUID akyuuUuid() { return akyuuUuid; }
+    public void setAkyuuUuid(java.util.UUID uuid) { if (!uuid.equals(akyuuUuid)) { akyuuUuid = uuid; setDirty(); } }
 
     public static HumanVillageSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
         var data=new HumanVillageSavedData();
@@ -60,6 +64,7 @@ public final class HumanVillageSavedData extends SavedData {
         data.plan=new HumanVillagePlan(version,tag.getLong("worldSeed"),buildings,roads,protection);
         for(long p:tag.getLongArray("placedChunks")) data.placedChunks.add(p);
         for(int id:tag.getIntArray("placedBuildingIds")) if(id>=0 && id<buildings.size()) data.placedBuildingIds.add(id);
+        if(tag.hasUUID("akyuuUuid")) data.akyuuUuid = tag.getUUID("akyuuUuid");
         return data;
     }
     @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
@@ -79,6 +84,7 @@ public final class HumanVillageSavedData extends SavedData {
         tag.putIntArray("roads",roads);
         tag.putLongArray("placedChunks",placedChunks.stream().mapToLong(Long::longValue).sorted().toArray());
         tag.putIntArray("placedBuildingIds",placedBuildingIds.stream().mapToInt(Integer::intValue).sorted().toArray());
+        if(akyuuUuid != null) tag.putUUID("akyuuUuid", akyuuUuid);
         return tag;
     }
 }

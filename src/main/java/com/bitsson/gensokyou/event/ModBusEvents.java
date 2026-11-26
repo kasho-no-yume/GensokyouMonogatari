@@ -51,6 +51,7 @@ public final class ModBusEvents {
         event.put(ModEntityTypes.BLOOD_BAR_PROBE_T4.get(),
                 com.bitsson.gensokyou.entity.BloodBarProbeBoss.createAttributes().build());
         event.put(ModEntityTypes.RINNOSUKE.get(), TouhouNpcEntity.createAttributes().build());
+        event.put(ModEntityTypes.AKYUU.get(), TouhouNpcEntity.createAttributes().build());
         event.put(ModEntityTypes.REIMU.get(), ReimuEntity.createAttributes().build());
     }
 

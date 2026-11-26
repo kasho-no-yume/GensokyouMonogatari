@@ -56,7 +56,7 @@
 
 管理员可使用 `/gs_village visit dragon|hieda|suzunaan|geidontei|kourindou|east_gate` 抵达核心地标，使用 `/gs_village stats` 查看建筑、归一化内/中/外区民居数、装饰铺装格数、平面入口可达率、放置进度及粗采样群系边缘余量。平面入口检查不验证高差与真实身形碰撞。`/gs_village showcase` 继续使用独立样件维度供逐栋查看模板，它不代表 v2 的街区排布。修改居民资源后执行 F3+T 即可重新加载场景。
 
-自动化回归由 `HumanVillageResidentsAlignmentTest` 检查核心模板/路线，`VillageResidentAnchorsTest` 检查旋转、核心兴趣点与屋顶排除，`ResidentStreetCrowdTest` 检查局部路线/预算/回收，`ResidentPopulationTest` 检查无效点回填、96 人上限与状态复用。以上是回归源码覆盖，**本轮按本机策略未运行编译/测试或游戏**；实际人数、行走观感和性能仍待实测。原生完整村庄探针仅在明确要求时经项目 wrapper 启动。
+自动化回归由 `HumanVillageResidentsAlignmentTest` 检查核心模板/路线，`VillageResidentAnchorsTest` 检查旋转、核心兴趣点与屋顶排除，`ResidentStreetCrowdTest` 检查局部路线/预算/回收，`ResidentPopulationTest` 检查无效点回填、96 人上限与状态复用，`ResidentSpawnVisibilityTest` 检查视野外入场。2026-11-26 用户确认当前版本实机验证完成、没有问题并批准归档，见[最终验收](../openspec/changes/archive/2026-11-26-rework-human-village/acceptance.md)。本机未运行当前修订的编译/自动化测试，未提供量化人数或帧耗记录；原生完整村庄探针仅在明确要求时经项目 wrapper 启动。
 
 ## 实机验收
 

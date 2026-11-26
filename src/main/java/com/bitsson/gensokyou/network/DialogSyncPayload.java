@@ -14,7 +14,7 @@ import java.util.List;
  * S2C：对话节点同步（开启与推进共用）。
  * nodeId 为空串 = 关闭对话界面的哨兵包。
  */
-public record DialogSyncPayload(int entityId, String nodeId, Component text,
+public record DialogSyncPayload(int entityId, long revision, String nodeId, Component text,
                                 List<Option> options) implements CustomPacketPayload {
 
     /** 选项视图：next/action 空串 = 无。 */
@@ -29,6 +29,7 @@ public record DialogSyncPayload(int entityId, String nodeId, Component text,
 
     private void write(RegistryFriendlyByteBuf buf) {
         buf.writeVarInt(this.entityId);
+        buf.writeVarLong(this.revision);
         buf.writeUtf(this.nodeId);
         ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, this.text);
         buf.writeVarInt(this.options.size());
@@ -41,6 +42,7 @@ public record DialogSyncPayload(int entityId, String nodeId, Component text,
 
     private static DialogSyncPayload read(RegistryFriendlyByteBuf buf) {
         int entityId = buf.readVarInt();
+        long revision = buf.readVarLong();
         String nodeId = buf.readUtf();
         Component text = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
         int count = buf.readVarInt();
@@ -49,7 +51,7 @@ public record DialogSyncPayload(int entityId, String nodeId, Component text,
             Component label = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
             options.add(new Option(label, buf.readUtf(), buf.readUtf()));
         }
-        return new DialogSyncPayload(entityId, nodeId, text, options);
+        return new DialogSyncPayload(entityId, revision, nodeId, text, options);
     }
 
     @Override

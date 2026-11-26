@@ -1,0 +1,23 @@
+{
+  "id": "gensokyou:test/confirm_dialogue",
+  "kind": "commission",
+  "scope": "player",
+  "title": "quest.gensokyou.test.confirm_dialogue.title",
+  "description": "quest.gensokyou.test.confirm_dialogue.description",
+  "provider": "gensokyou:akyuu",
+  "return_npc": "gensokyou:akyuu",
+  "test": true,
+  "stages": [{
+    "id": "confirm",
+    "title": "quest.gensokyou.test.confirm_dialogue.stage",
+    "objectives": [{
+      "type": "gensokyou:talk_to_npc",
+      "npc": "gensokyou:akyuu",
+      "action": "gensokyou:test/confirm_ready",
+      "description": "quest.gensokyou.test.confirm_dialogue.goal",
+      "question": "quest.gensokyou.test.confirm_dialogue.question"
+    }],
+    "navigation": {"npc": "gensokyou:akyuu"}
+  }],
+  "rewards": [{"item": "gensokyou:yen", "count": 1}]
+}

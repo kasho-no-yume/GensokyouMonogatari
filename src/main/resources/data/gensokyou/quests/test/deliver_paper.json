@@ -1,0 +1,23 @@
+{
+  "id": "gensokyou:test/deliver_paper",
+  "kind": "commission",
+  "scope": "player",
+  "title": "quest.gensokyou.test.deliver_paper.title",
+  "description": "quest.gensokyou.test.deliver_paper.description",
+  "provider": "gensokyou:akyuu",
+  "return_npc": "gensokyou:akyuu",
+  "test": true,
+  "stages": [{
+    "id": "deliver",
+    "title": "quest.gensokyou.test.deliver_paper.stage",
+    "objectives": [{
+      "type": "gensokyou:submit_items",
+      "npc": "gensokyou:akyuu",
+      "item": "minecraft:paper",
+      "count": 4,
+      "description": "quest.gensokyou.test.deliver_paper.goal"
+    }],
+    "navigation": {"npc": "gensokyou:akyuu"}
+  }],
+  "rewards": [{"item": "gensokyou:yen", "count": 1}]
+}

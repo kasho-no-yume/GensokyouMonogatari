@@ -20,12 +20,12 @@ public final class ClientDialog {
             return;
         }
         if (payload.nodeId().isEmpty()) {
-            if (mc.screen instanceof DialogScreen) {
+            if (mc.screen instanceof DialogScreen screen && screen.matches(payload.entityId(), payload.revision())) {
                 mc.setScreen(null);
             }
             return;
         }
-        if (mc.screen instanceof DialogScreen screen) {
+        if (mc.screen instanceof DialogScreen screen && screen.npcId() == payload.entityId()) {
             screen.setContent(payload);
         } else {
             mc.setScreen(new DialogScreen(payload));

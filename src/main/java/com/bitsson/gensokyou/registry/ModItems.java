@@ -72,6 +72,8 @@ public final class ModItems {
             ITEMS.registerSimpleItem("broken_spell_card_star", new Item.Properties().stacksTo(16));
     public static final DeferredItem<Item> YEN =
             ITEMS.registerSimpleItem("yen", new Item.Properties().stacksTo(64));
+    public static final DeferredItem<com.bitsson.gensokyou.item.QuestBookItem> QUEST_BOOK =
+            ITEMS.register("quest_book", () -> new com.bitsson.gensokyou.item.QuestBookItem(new Item.Properties().stacksTo(1)));
     public static final DeferredItem<Item> MEMORY_FRAGMENT =
             ITEMS.register("memory_fragment", () -> new MemoryFragmentItem(new Item.Properties().stacksTo(64)));
     public static final DeferredItem<GensokyoDebugMapItem> GENSOKYO_DEBUG_MAP =

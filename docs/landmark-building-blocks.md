@@ -30,7 +30,7 @@
 
 其中 `brick`、`wood`、`tile`、`tile_slab`、`tile_stairs`、`wood_door` 是**基础 6 种**，模型由 `tools/export_landmark_sample.py` 生成；`wood_trapdoor`、`wood_fence`、`stone_wall`、`lamp` 是**扩展 4 种**，模型由 `tools/export_hakurei_shrine_preview.py` 的 `extra_model_assets()` 生成。两者的方块状态与模型都已签入资源目录，所以在图纸里写任意一种后缀都可以；只是单独重跑样件导出器不会重新生成扩展 4 种的模型。
 
-人间之里还包括 `wood_slab`、`wood_stairs`、`brick_slab`、`brick_stairs`、`wood_fence_gate`、`shoji`、`curtain`、`bookshelf`、`lantern` 九种灰模形状。建筑共 19 种灰模，加一类完整彩色地面；人间之里模板采用 GLC3 局部配色与实例旋转，见[现行设计](../openspec/changes/rework-human-village/design.md)。
+人间之里还包括 `wood_slab`、`wood_stairs`、`brick_slab`、`brick_stairs`、`wood_fence_gate`、`shoji`、`curtain`、`bookshelf`、`lantern` 九种灰模形状。建筑共 19 种灰模，加一类完整彩色地面；人间之里模板采用 GLC3 局部配色与实例旋转，见[正式规格](../openspec/specs/human-village-rework/spec.md)及[归档设计](../openspec/changes/archive/2026-11-26-rework-human-village/design.md)。
 
 夯实村土贴图源为 `tools/textures/landmark_packed_earth.py`。只需运行 `python tools/gen_tex.py tools/textures/landmark_packed_earth.py --write-assets`，不重导 NBT 或颜色表。Worldgen 与局部公共空地均替换原地表一层，不往地表上加一层。
 

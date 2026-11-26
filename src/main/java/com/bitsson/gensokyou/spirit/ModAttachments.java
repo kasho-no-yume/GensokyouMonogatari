@@ -19,6 +19,11 @@ public final class ModAttachments {
     public static final DeferredRegister<AttachmentType<?>> ATTACHMENTS =
             DeferredRegister.create(NeoForgeRegistries.ATTACHMENT_TYPES, Gensokyou.MODID);
 
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.bitsson.gensokyou.quest.PlayerQuestData>> QUESTS =
+            ATTACHMENTS.register("quests", () -> AttachmentType
+                    .builder(com.bitsson.gensokyou.quest.PlayerQuestData::empty)
+                    .serialize(com.bitsson.gensokyou.quest.PlayerQuestData.CODEC).copyOnDeath().build());
+
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<SkillStateData>> SKILL_STATE =
             ATTACHMENTS.register("skill_state", () -> AttachmentType
                     .<SkillStateData>builder(SkillStateData::initial)
