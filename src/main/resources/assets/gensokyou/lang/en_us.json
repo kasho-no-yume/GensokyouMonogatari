@@ -2,6 +2,8 @@
   "item.gensokyou.quest_book": "Commission Book",
   "entity.gensokyou.akyuu": "Hieda no Akyuu",
   "gui.gensokyou.quest.book_title": "Quest Journal",
+  "gui.gensokyou.quest.expand_group": "Expand %s",
+  "gui.gensokyou.quest.collapse_group": "Collapse %s",
   "gui.gensokyou.quest.tasks": "Quests",
   "gui.gensokyou.quest.available": "Available commissions",
   "gui.gensokyou.quest.deliveries": "Material deliveries",

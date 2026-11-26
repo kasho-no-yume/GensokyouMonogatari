@@ -2,6 +2,8 @@
   "item.gensokyou.quest_book": "委托书",
   "entity.gensokyou.akyuu": "稗田阿求",
   "gui.gensokyou.quest.book_title": "任务簿",
+  "gui.gensokyou.quest.expand_group": "展开%s",
+  "gui.gensokyou.quest.collapse_group": "收起%s",
   "gui.gensokyou.quest.tasks": "任务",
   "gui.gensokyou.quest.available": "可接取委托",
   "gui.gensokyou.quest.deliveries": "材料交付",
