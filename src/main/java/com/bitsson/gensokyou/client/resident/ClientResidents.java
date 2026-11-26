@@ -67,7 +67,8 @@ public final class ClientResidents {
         }
         // Explicit local preview replaces the ordinary scene until cleared.
         candidates.addAll(preview);
-        population.tick(candidates,viewer,ground);
+        if(preview.isEmpty()) population.tick(candidates,viewer,ground,ResidentRenderer::mayAppear);
+        else population.tick(candidates,viewer,ground); // An explicit preview intentionally appears in front.
     }
 
     private static List<ResidentStreetCrowd.Seed> streetInterests(ResidentRoute.Point viewer,List<ResidentScene.Slot> authored) {
@@ -130,10 +131,12 @@ public final class ClientResidents {
 
     public static void villageLayoutChanged() {
         population.clear(); streetCrowd.clear(); drawn=0;
+        ResidentRenderer.clearSpawnView();
     }
 
     private static void clearWorld() {
         clearPreview();
+        ResidentRenderer.clearSpawnView();
         lastLevel = null;
     }
 

@@ -39,6 +39,38 @@ class ResidentPopulationTest {
         assertEquals(2,population.size());
         population.clear();assertEquals(0,population.size());assertTrue(population.visible().isEmpty());
     }
+    @Test void visibleForegroundDoesNotConsumeSlotsOrStarveOffscreenCandidates() {
+        var population=new ResidentPopulation();var surface=new Surface();
+        var candidates=new ArrayList<ResidentScene.Slot>();
+        for(int i=0;i<64;i++) candidates.add(slot("foreground/"+i,10+i*.01,0));
+        for(int i=0;i<120;i++) candidates.add(slot("offscreen/"+i,20+i*.01,0));
+        for(int tick=0;tick<25;tick++) population.tick(candidates,VIEWER,surface,
+                walker->walker.slot().identity().startsWith("offscreen/"));
+        assertEquals(96,population.size());
+        assertTrue(population.visible().stream().allMatch(w->w.slot().identity().startsWith("offscreen/")));
+    }
+    @Test void alreadyAdmittedResidentsCanEnterViewAndDeferredResidentsRetry() {
+        var population=new ResidentPopulation();var surface=new Surface();var point=slot("normal",20,0);
+        population.tick(List.of(point),VIEWER,surface,walker->false);
+        assertEquals(0,population.size());
+        for(int tick=0;tick<ResidentPopulation.VIEW_RETRY_TICKS;tick++) population.tick(List.of(point),VIEWER,surface,walker->true);
+        assertEquals(1,population.size());
+        var admitted=population.visible().getFirst();
+        population.tick(List.of(point),VIEWER,surface,walker->{fail("Existing resident must not be tested for a new spawn");return false;});
+        assertSame(admitted,population.visible().getFirst());
+    }
+    @Test void admissionUsesTheResolvedSpawnPositionAndClearResetsDeferral() {
+        var population=new ResidentPopulation();var point=slot("shifted",20,0);
+        ResidentWalker.Surface shifted=new ResidentWalker.Surface() {
+            public ResidentRoute.Point resolve(ResidentRoute.Point p,float scale,boolean protect) {return new ResidentRoute.Point(30,p.y(),p.z());}
+            public boolean clear(ResidentRoute.Point a,ResidentRoute.Point b) {return true;}
+        };
+        population.tick(List.of(point),VIEWER,shifted,walker->{assertEquals(30,walker.frame(1).position().x());return false;});
+        assertEquals(0,population.size());
+        population.clear();
+        population.tick(List.of(point),VIEWER,shifted,walker->true);
+        assertEquals(1,population.size());
+    }
     private static final class Surface implements ResidentWalker.Surface {
         int probes;
         public ResidentRoute.Point resolve(ResidentRoute.Point p,float scale,boolean protectedGround) {probes++;return p.x()<0?null:p;}
