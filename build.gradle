@@ -122,6 +122,14 @@ neoForge {
             gameDirectory = project.file('build/landmark-sample-probe')
             systemProperty 'gensokyou.landmarkSampleProbe', 'true'
         }
+        humanVillageProbe {
+            server()
+            programArgument '--nogui'
+            programArgument '--port=25570'
+            programArgument '--world=world-v1'
+            gameDirectory = project.file('build/human-village-probe')
+            systemProperty 'gensokyou.humanVillageProbe', 'true'
+        }
         npcProbe {
             server()
             programArgument '--nogui'
@@ -322,6 +330,19 @@ tasks.register('verifyNoTestContent') {
 
 tasks.named('check') {
     dependsOn 'verifyNoTestContent'
+}
+
+// Minecraft may exit with code zero after a caught startup assertion; require the actual probe artifact.
+tasks.named('runHumanVillageProbe').configure {
+    doFirst {
+        delete layout.projectDirectory.file('build/human-village-probe/human-village-probe-pass.txt').asFile
+    }
+    doLast {
+        def result = layout.projectDirectory.file('build/human-village-probe/human-village-probe-pass.txt').asFile
+        if (!result.exists() || !result.getText('UTF-8').startsWith('HUMAN_VILLAGE_PROBE PASS buildings=')) {
+            throw new GradleException('Human Village native probe did not produce its PASS marker; inspect build/human-village-probe/logs/latest.log')
+        }
+    }
 }
 
 // 发布包依赖收集：从真实 runtime classpath 里挑出第三方 mod 本体，

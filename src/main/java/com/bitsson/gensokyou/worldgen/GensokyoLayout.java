@@ -15,6 +15,8 @@ public final class GensokyoLayout {
     /** Long pilgrimage approach road from Hakurei First Torii (X=3022) down to Human Village east edge (X=40). */
     public static final int HAKUREI_ROAD_START_X = 3022;
     public static final int HAKUREI_ROAD_END_X = 40;
+    public static final int VILLAGE_CENTER_X = -200, VILLAGE_CENTER_Z = 100;
+    public static final int VILLAGE_BASE_Y = 72, VILLAGE_STREAM_WATER_Y = 70, VILLAGE_HIEDA_Y = 75;
 
     // Outer-grounds footprints mirror HakureiOuterGrounds. Fixed pads keep the satellite
     // structures level without flattening the whole Hakurei region.
@@ -219,7 +221,7 @@ public final class GensokyoLayout {
 
         // Pads are tied to their world positions, including their grading around the edges.
         for (Region region : REGIONS) {
-            if (region == Region.HAKUREI) {
+            if (region == Region.HAKUREI || region == Region.HUMAN_VILLAGE) {
                 continue; // Hakurei Shrine uses a sculpted stepped hillside shoulder below.
             }
             double dx = (double) x - region.landmarkX;
@@ -232,6 +234,8 @@ public final class GensokyoLayout {
             }
         }
 
+        height = sculptHumanVillage(height, x, z);
+
         // Smooth roadbed grading along the long pilgrimage road from Hakurei foot (Y=84) to Human Village (Y=72).
         double roadDist = hakureiRoadDistance(x, z);
         if (roadDist < 18.0) {
@@ -239,7 +243,9 @@ public final class GensokyoLayout {
                     / (HAKUREI_ROAD_START_X - HAKUREI_ROAD_END_X)));
             double targetRoadY = lerp(84.0, 72.0, smoothstep(rt));
             double nearFoot = 1.0 - smoothstep(Math.max(0.0, HAKUREI_ROAD_START_X - x) / 48.0);
+            double approach = 1.0 - smoothstep((x - 40.0) / 48.0);
             double graded = lerp(Math.max(SEA_LEVEL + 3.0, lerp(height, targetRoadY, 0.72)), 84.0, nearFoot);
+            graded = lerp(graded, targetRoadY, approach);
             double roadBlend = 1.0 - smoothstep((roadDist - 5.0) / 13.0);
             height = lerp(height, graded, roadBlend);
         }
@@ -264,6 +270,39 @@ public final class GensokyoLayout {
         }
         height = sculptHakureiOuterGrounds(height, x, z);
         return height;
+    }
+
+    private double sculptHumanVillage(double height, int x, int z) {
+        double radius = Math.hypot(x - VILLAGE_CENTER_X, z - VILLAGE_CENTER_Z);
+        if (radius < 250) {
+            double micro = 0.8 * Math.sin(x / 55.0) * Math.cos(z / 55.0);
+            double target = VILLAGE_BASE_Y + micro * smoothstep((radius - 120) / 80.0);
+            height = lerp(height, target, 1 - smoothstep((radius - 145) / 105.0));
+        }
+        double estateDistance = rectangleDistance(x, z, -242, -48, -159, 20);
+        if (estateDistance < 14) height = lerp(height, VILLAGE_HIEDA_Y, 1 - smoothstep(estateDistance / 14));
+        if (x >= -360 && x <= 20) {
+            double distance = Math.abs(z - villageStreamCenterZ(x));
+            if (distance < 7) {
+                double bed = 68.2 + 0.5 * Math.min(distance / 2.6, 1.0);
+                double valley = lerp(bed, height, smoothstep((distance - 2.6) / 4.4));
+                double end = smoothstep((x + 360.0) / 40) * (1 - smoothstep((x + 20.0) / 40));
+                height = lerp(height, valley, end);
+            }
+        }
+        // The last 40 blocks of village road meet the existing pilgrimage road at exactly 72.
+        if (x >= 0 && x <= 40 && Math.abs(z - 100) < 18) {
+            height = lerp(height, VILLAGE_BASE_Y, 1 - smoothstep((Math.abs(z - 100) - 3.0) / 15));
+        }
+        return height;
+    }
+
+    /** Fixed across seeds. The level canal reach fits the approved, north-facing tavern deck. */
+    public static double villageStreamCenterZ(int x) {
+        double t = (x + 200.0) / 180;
+        double original = 156 - 16 * Math.sin(t * 1.35) + 8 * Math.cos(t * 2.2);
+        double canal = smoothstep((x + 180.0) / 20) * (1 - smoothstep((x + 100.0) / 40));
+        return lerp(original, 158.0, canal);
     }
 
     private double sculptHakureiOuterGrounds(double height, int x, int z) {

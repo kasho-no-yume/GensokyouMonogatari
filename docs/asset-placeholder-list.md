@@ -17,6 +17,8 @@ AI 扩散生图（64×64 新绘物品）：`python tools/comfy_pixel_gen.py --sp
 | 钻石块 | assets/minecraft/textures/block/diamond_block.png |
 | Alex 皮肤(slim) | assets/minecraft/textures/entity/player/slim/alex.png |
 
+环境居民的共享图集 `textures/entity/village_resident.png` 由原版 1.21.1 村民皮肤衍生：保留头/鼻子 UV，衣服和腿部去色后按部件着色，新增服装/配件灰阶图块。生成入口为 `tools/gen_resident_texture.py --vanilla <minecraft_1.21.1_client.jar>`；图集为 128×128，所有居民共享，无逐居民动态贴图。
+
 ## 物品贴图（目标：正式物品图标）
 
 > 2026-10-21 起，「新绘物品」统一升到 **64×64**（gen-textures skill 的扩散生图甜区）。

@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=south": {
+      "model": "gensokyou:block/landmark_curtain"
+    },
+    "facing=west": {
+      "model": "gensokyou:block/landmark_curtain",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "gensokyou:block/landmark_curtain",
+      "y": 180
+    },
+    "facing=east": {
+      "model": "gensokyou:block/landmark_curtain",
+      "y": 270
+    }
+  }
+}

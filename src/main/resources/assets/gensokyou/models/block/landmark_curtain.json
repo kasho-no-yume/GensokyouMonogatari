@@ -1,0 +1,83 @@
+{
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "curtain": "gensokyou:block/landmark_curtain",
+    "particle": "gensokyou:block/landmark_curtain"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        2,
+        0.5
+      ],
+      "to": [
+        16,
+        16,
+        1.5
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            0,
+            0,
+            16,
+            14
+          ],
+          "texture": "#curtain",
+          "tintindex": 0
+        },
+        "south": {
+          "uv": [
+            0,
+            0,
+            16,
+            14
+          ],
+          "texture": "#curtain",
+          "tintindex": 0
+        },
+        "east": {
+          "uv": [
+            0,
+            0,
+            1,
+            14
+          ],
+          "texture": "#curtain",
+          "tintindex": 0
+        },
+        "west": {
+          "uv": [
+            15,
+            0,
+            16,
+            14
+          ],
+          "texture": "#curtain",
+          "tintindex": 0
+        },
+        "up": {
+          "uv": [
+            0,
+            0,
+            16,
+            1
+          ],
+          "texture": "#curtain",
+          "tintindex": 0
+        },
+        "down": {
+          "uv": [
+            0,
+            13,
+            16,
+            14
+          ],
+          "texture": "#curtain",
+          "tintindex": 0
+        }
+      }
+    }
+  ]
+}
