@@ -1,4 +1,8 @@
-"""Author the 116 stable Human Village performance slots (no runtime random house dependencies)."""
+"""Author 116 core slots at the v1 height baseline; v2 lowers them once on the client.
+
+Keep this baseline for old saves. Nearby peripheral house slots are derived separately
+from the synchronized building descriptors by VillageResidentAnchors.
+"""
 from __future__ import annotations
 
 import json

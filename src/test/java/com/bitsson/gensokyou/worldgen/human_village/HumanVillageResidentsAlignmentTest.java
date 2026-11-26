@@ -53,7 +53,8 @@ class HumanVillageResidentsAlignmentTest {
                     int steps=Math.max(1,(int)Math.ceil(from.distance(to)*4));
                     ResidentRoute.Point previous=null;
                     for(int step=0;step<=steps;step++) {
-                        var expected=from.lerp(to,(double)step/steps);
+                        var raw=from.lerp(to,(double)step/steps);
+                        var expected=new ResidentRoute.Point(raw.x(),raw.y()-(plan.layoutVersion()>=2?1:0),raw.z());
                         int x=(int)Math.floor(expected.x()),z=(int)Math.floor(expected.z());
                         assertTrue(stage.contains(pack(x,z)),slot.identity()+" left fixed stage at "+expected);
                         // Vanilla counterparts preserve actual collision shapes; no mod registration is needed in JUnit.
@@ -73,13 +74,15 @@ class HumanVillageResidentsAlignmentTest {
         private final Map<BlockPos,BlockState> blocks=new HashMap<>();
         TemplateWorld(HumanVillagePlan plan) throws Exception {
             for(var c:plan.roadCells()) {
-                blocks.put(new BlockPos(c.x(),c.surfaceY(),c.z()),Blocks.STONE_BRICKS.defaultBlockState());
+                blocks.put(new BlockPos(c.x(),c.surfaceY(),c.z()),(c.type()==RoadType.EARTH?Blocks.DIRT:Blocks.STONE_BRICKS).defaultBlockState());
                 if(c.type()==RoadType.L4_BRIDGE && VillageRoadRouter.streamDistance(c.x(),c.z())<=1.2) {
                     blocks.remove(new BlockPos(c.x(),c.surfaceY(),c.z()));
                     blocks.put(new BlockPos(c.x(),c.surfaceY()+1,c.z()),Blocks.OAK_SLAB.defaultBlockState().setValue(SlabBlock.TYPE,SlabType.BOTTOM));
                 }
             }
             for(var b:plan.buildings()) {
+                // This test checks the authored core, not every voxel of thousands of distant houses.
+                if(b.maxX()<-382 || b.minX()>42 || b.maxZ()<-84 || b.minZ()>232) continue;
                 try(var stream=getClass().getResourceAsStream("/data/gensokyou/structure/"+b.templateId().getPath()+".nbt")) {
                     assertNotNull(stream);var nbt=NbtIo.readCompressed(stream,NbtAccounter.unlimitedHeap());
                     var size=nbt.getList("size",Tag.TAG_INT);

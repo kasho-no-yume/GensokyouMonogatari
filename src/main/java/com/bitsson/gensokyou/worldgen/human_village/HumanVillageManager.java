@@ -36,6 +36,7 @@ public final class HumanVillageManager {
     private final HumanVillageLayoutSyncPayload payload;
     private final Map<Long,List<RoadCell>> roadsByChunk=new HashMap<>();
     private final Map<Long,RoadCell> roads=new HashMap<>();
+    private final Map<Long,List<Integer>> buildingsByChunk=new HashMap<>();
     private final Set<Long> queue=new LinkedHashSet<>();
     private boolean populating;
 
@@ -48,7 +49,12 @@ public final class HumanVillageManager {
             GensokyoLayout layout=GensokyoLayoutDensity.layoutOf(level.getChunkSource().randomState().sampler().continentalness());
             data.setPlan(HumanVillagePlanner.plan(level.getSeed(),layout));
         }
-        payload=new HumanVillageLayoutSyncPayload(plan().buildings().stream().map(HumanVillageLayoutSyncPayload.InstanceEntry::of).toList());
+        payload=new HumanVillageLayoutSyncPayload(plan().layoutVersion(),plan().buildings().stream().map(HumanVillageLayoutSyncPayload.InstanceEntry::of).toList());
+        for(int i=0;i<plan().buildings().size();i++) {
+            var b=plan().buildings().get(i);
+            for(int cx=b.minX()>>4;cx<=b.maxX()>>4;cx++) for(int cz=b.minZ()>>4;cz<=b.maxZ()>>4;cz++)
+                buildingsByChunk.computeIfAbsent(ChunkPos.asLong(cx,cz),key->new ArrayList<>()).add(i);
+        }
         for(var road:plan().roadCells()) {
             roads.put(road.key(),road);
             roadsByChunk.computeIfAbsent(ChunkPos.asLong(road.x()>>4,road.z()>>4),key->new ArrayList<>()).add(road);
@@ -69,7 +75,16 @@ public final class HumanVillageManager {
         return (cx<<4)<=OccupancyGrid.MAX_X && (cx<<4)+15>=OccupancyGrid.MIN_X
                 && (cz<<4)<=OccupancyGrid.MAX_Z && (cz<<4)+15>=OccupancyGrid.MIN_Z;
     }
-    public void enqueue(ChunkPos chunk) { if(!data.hasChunk(chunk.toLong())) queue.add(chunk.toLong()); }
+    private boolean usesChunk(ChunkPos chunk) {
+        return buildingsByChunk.containsKey(chunk.toLong()) || roadsByChunk.containsKey(chunk.toLong())
+                || (chunk.x>=(-346>>4) && chunk.x<=(6>>4) && chunk.z>=(125>>4) && chunk.z<=(190>>4));
+    }
+    private List<Integer> buildingIds(ChunkPos chunk) { return buildingsByChunk.getOrDefault(chunk.toLong(),List.of()); }
+    private boolean buildingColumn(int x,int z) {
+        for(int id:buildingIds(new ChunkPos(x>>4,z>>4))) if(plan().buildings().get(id).containsColumn(x,z)) return true;
+        return false;
+    }
+    public void enqueue(ChunkPos chunk) { if(usesChunk(chunk) && !data.hasChunk(chunk.toLong())) queue.add(chunk.toLong()); }
     public void tick() {
         for(int budget=0;budget<2 && !queue.isEmpty();budget++) {
             var iterator=queue.iterator();long key=iterator.next();iterator.remove();
@@ -80,8 +95,10 @@ public final class HumanVillageManager {
     public boolean ensureChunkPopulated(ChunkPos chunk) {
         if(populating || data.hasChunk(chunk.toLong()) || !intersectsChunk(chunk.x,chunk.z)) return data.hasChunk(chunk.toLong());
         if(level.getChunkSource().getChunkNow(chunk.x,chunk.z)==null) return false;
+        if(!usesChunk(chunk)) return true;
         // Validate resources before touching terrain; a broken data pack remains retryable.
-        for(var b:plan().buildings()) if(b.intersectsChunk(chunk.x,chunk.z)) {
+        for(int id:buildingIds(chunk)) {
+            var b=plan().buildings().get(id);
             var template=level.getStructureManager().get(b.templateId()).orElse(null);
             if(template==null || template.getSize().getX()!=b.sizeX() || template.getSize().getY()!=b.sizeY() || template.getSize().getZ()!=b.sizeZ()) {
                 LogUtils.getLogger().error("Missing or mismatched village template {}",b.templateId());return false;
@@ -92,8 +109,8 @@ public final class HumanVillageManager {
             HumanVillageStreamPlacer.populate(level,chunk);
             for(var cell:roadsByChunk.getOrDefault(chunk.toLong(),List.of())) placeRoad(cell);
             var box=new BoundingBox(chunk.x<<4,level.getMinBuildHeight(),chunk.z<<4,(chunk.x<<4)+15,level.getMaxBuildHeight()-1,(chunk.z<<4)+15);
-            for(var b:plan().buildings()) {
-                if(!b.intersectsChunk(chunk.x,chunk.z)) continue;
+            for(int id:buildingIds(chunk)) {
+                var b=plan().buildings().get(id);
                 prepareBuilding(b,chunk);
                 var settings=new StructurePlaceSettings().setRotation(b.rotation()).setBoundingBox(box).setIgnoreEntities(true)
                         .setKnownShape(true).setLiquidSettings(LiquidSettings.IGNORE_WATERLOGGING);
@@ -103,7 +120,7 @@ public final class HumanVillageManager {
             }
             placeRoadFurniture(chunk);
             data.markChunk(chunk.toLong());
-            for(int i=0;i<plan().buildings().size();i++) {
+            for(int i:buildingIds(chunk)) {
                 var b=plan().buildings().get(i);boolean complete=true;
                 for(int cx=b.minX()>>4;cx<=b.maxX()>>4;cx++) for(int cz=b.minZ()>>4;cz<=b.maxZ()>>4;cz++) if(!data.hasChunk(ChunkPos.asLong(cx,cz))) complete=false;
                 if(complete) data.markBuilding(i);
@@ -130,7 +147,7 @@ public final class HumanVillageManager {
     }
     private void placeRoad(RoadCell cell) {
         // Template-owned paving is represented in the graph but left intact, including statue basins.
-        for(var b:plan().buildings()) if(b.containsColumn(cell.x(),cell.z())) return;
+        if(buildingColumn(cell.x(),cell.z())) return;
         int x=cell.x(),y=cell.surfaceY(),z=cell.z();
         int clearTop=Math.max(y+4,level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,x,z));
         for(int py=y+1;py<=clearTop;py++) set(level,x,py,z,Blocks.AIR.defaultBlockState());
@@ -142,7 +159,8 @@ public final class HumanVillageManager {
             } else set(level,x,y,z,LandmarkBlocks.WOOD.get().defaultBlockState());
         } else {
             fillFoundation(x,y-1,z);
-            var state=cell.type()==RoadType.L3_BRANCH && ((x*31+z)&3)==0 ? LandmarkBlocks.BRICK.get().defaultBlockState() : LandmarkBlocks.TILE.get().defaultBlockState();
+            var state=cell.type()==RoadType.EARTH ? LandmarkBlocks.PACKED_EARTH.get().defaultBlockState()
+                    : cell.type()==RoadType.L3_BRANCH && ((x*31+z)&3)==0 ? LandmarkBlocks.BRICK.get().defaultBlockState() : LandmarkBlocks.TILE.get().defaultBlockState();
             RoadCell north=roads.get(pack(x,z-1)),south=roads.get(pack(x,z+1)),east=roads.get(pack(x+1,z)),west=roads.get(pack(x-1,z));
             if(north!=null && north.surfaceY()==y+1) state=LandmarkBlocks.BRICK_STAIRS.get().defaultBlockState().setValue(StairBlock.FACING,Direction.NORTH);
             else if(south!=null && south.surfaceY()==y+1) state=LandmarkBlocks.BRICK_STAIRS.get().defaultBlockState().setValue(StairBlock.FACING,Direction.SOUTH);
@@ -150,7 +168,7 @@ public final class HumanVillageManager {
             else if(west!=null && west.surfaceY()==y+1) state=LandmarkBlocks.BRICK_STAIRS.get().defaultBlockState().setValue(StairBlock.FACING,Direction.WEST);
             // The original approach feature paves heightmap-1, one block below the village floor.
             // A west-facing stair at the shared endpoint gives two half steps instead of a jump.
-            if(x==GensokyoLayout.HAKUREI_ROAD_END_X && Math.abs(z-100)<=1) {
+            if(plan().layoutVersion()==1 && x==GensokyoLayout.HAKUREI_ROAD_END_X && Math.abs(z-100)<=1) {
                 state=LandmarkBlocks.STAIR.get().defaultBlockState().setValue(StairBlock.FACING,Direction.WEST);
             }
             set(level,x,y,z,state);
@@ -161,7 +179,8 @@ public final class HumanVillageManager {
         for(int x=chunk.x<<4;x<(chunk.x<<4)+16;x++) for(int z=chunk.z<<4;z<(chunk.z<<4)+16;z++) {
             if(roads.containsKey(pack(x,z))) continue;
             boolean reserved=false;
-            for(var b:plan().buildings()) {
+            for(int id:buildingIds(chunk)) {
+                var b=plan().buildings().get(id);
                 if(b.containsColumn(x,z) || (b.hasDoorAnchor() && Math.abs(x-b.doorWorldX())+Math.abs(z-b.doorWorldZ())<=2)) reserved=true;
             }
             if(reserved) continue;
@@ -173,7 +192,7 @@ public final class HumanVillageManager {
                     var rail=LandmarkBlocks.FENCE.get().defaultBlockState();
                     rail=direction[0]!=0 ? rail.setValue(FenceBlock.NORTH,true).setValue(FenceBlock.SOUTH,true)
                             : rail.setValue(FenceBlock.EAST,true).setValue(FenceBlock.WEST,true);
-                    set(level,x,73,z,rail);break;
+                    set(level,x,cell.surfaceY()+1,z,rail);break;
                 }
                 boolean bridgeHead=cell.type()==RoadType.L4_BRIDGE && stream>4.2 && stream<=7;
                 int interval=cell.type()==RoadType.L1_MAIN?14:18;
@@ -190,8 +209,11 @@ public final class HumanVillageManager {
         }
     }
     public boolean isProtected(BlockPos pos) {
-        if(!data.hasChunk(ChunkPos.asLong(pos.getX()>>4,pos.getZ()>>4)) || !plan().protectedColumns().contains(pack(pos.getX(),pos.getZ()))) return false;
-        for(var b:plan().buildings()) if(b.containsColumn(pos.getX(),pos.getZ()) && pos.getY()>=b.minY()-Math.max(8,b.foundationDepth()) && pos.getY()<b.minY()+b.sizeY()) return true;
+        if(!data.hasChunk(ChunkPos.asLong(pos.getX()>>4,pos.getZ()>>4))) return false;
+        for(int id:buildingIds(new ChunkPos(pos.getX()>>4,pos.getZ()>>4))) {
+            var b=plan().buildings().get(id);
+            if(b.containsColumn(pos.getX(),pos.getZ()) && pos.getY()>=b.minY()-Math.max(8,b.foundationDepth()) && pos.getY()<b.minY()+b.sizeY()) return true;
+        }
         RoadCell road=roads.get(pack(pos.getX(),pos.getZ()));
         return road!=null && pos.getY()>=road.surfaceY()-2 && pos.getY()<=road.surfaceY()+5;
     }

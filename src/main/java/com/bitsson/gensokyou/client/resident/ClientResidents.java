@@ -44,8 +44,10 @@ public final class ClientResidents {
         String dimension = mc.level.dimension().location().toString();
         if (preview.isEmpty()) {
             for (ResidentScene scene : scenes) {
-                if (scene.dimension().equals(dimension)) candidates.addAll(scene.residents());
+                if (scene.dimension().equals(dimension)) scene.residents().stream().map(VillageResidentAnchors::coreSlot).forEach(candidates::add);
             }
+            if(dimension.equals("gensokyou:gensokyo")) candidates.addAll(VillageResidentAnchors.near(mc.player.getX(),mc.player.getY(),mc.player.getZ(),
+                    ResidentScene.MAX_RESIDENTS-candidates.size()));
         }
         // Explicit local preview replaces the ordinary scene until cleared.
         candidates.addAll(preview);
@@ -103,6 +105,10 @@ public final class ClientResidents {
     public static void clearPreview() {
         preview = List.of();
         active.clear(); visible = List.of(); drawn = 0;
+    }
+
+    public static void villageLayoutChanged() {
+        active.clear(); visible=List.of(); drawn=0;
     }
 
     private static void clearWorld() {

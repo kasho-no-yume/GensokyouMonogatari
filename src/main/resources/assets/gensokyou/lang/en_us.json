@@ -1,4 +1,5 @@
 {
+  "block.gensokyou.landmark_packed_earth": "Tamped Village Earth",
   "block.gensokyou.landmark_brick": "Gensokyo Building Block",
   "block.gensokyou.landmark_wood": "Gensokyo Building Block",
   "block.gensokyou.landmark_tile": "Gensokyo Building Block",
@@ -1177,5 +1178,5 @@
   "msg.gensokyou.village.missing_dimension": "The Gensokyo dimension is unavailable.",
   "msg.gensokyou.village.placement_failed": "The arrival area could not be placed. Check the server log for structure template errors.",
   "msg.gensokyou.village.visited": "Arrived at Human Village landmark: %s.",
-  "msg.gensokyou.village.stats": "Human Village: %s buildings, %s homes (core %s / middle %s / outskirts %s), %s road cells, %s%% homes connected, %s chunks / %s buildings placed; nearest sampled biome edge about %s blocks."
+  "msg.gensokyou.village.stats": "Human Village: %s buildings, %s homes (inner %s / middle %s / outer %s), %s decorative paving cells, %s%% planar door access, %s chunks / %s buildings placed; coarse biome edge margin about %s blocks."
 }

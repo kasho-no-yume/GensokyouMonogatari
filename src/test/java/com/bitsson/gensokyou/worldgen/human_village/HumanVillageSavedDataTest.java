@@ -25,4 +25,20 @@ class HumanVillageSavedDataTest {
             }
         }
     }
+    @Test void versionOneGeometryAndProgressAreNotMigrated() {
+        var b=new BuildingInstance(net.minecraft.resources.ResourceLocation.parse("gensokyou:hv_machiya_v01"),
+                BuildingInstance.BuildingCategory.RESIDENTIAL,-300,72,90,9,12,10,net.minecraft.world.level.block.Rotation.NONE,
+                0,-296,72,100,true,true,1,2);
+        var roads=java.util.List.of(new HumanVillagePlan.RoadCell(-296,72,100,HumanVillagePlan.RoadType.L1_MAIN,true));
+        var protection=new java.util.HashSet<Long>();
+        for(int x=b.minX();x<=b.maxX();x++) for(int z=b.minZ();z<=b.maxZ();z++) protection.add(HumanVillagePlan.pack(x,z));
+        protection.add(roads.getFirst().key());
+        var data=new HumanVillageSavedData();
+        data.setPlan(new HumanVillagePlan(1,42,java.util.List.of(b),roads,protection));
+        data.markChunk(ChunkPos.asLong(-19,6));data.markBuilding(0);
+        var restored=HumanVillageSavedData.load(data.save(new CompoundTag(),null),null);
+        assertEquals(data.plan(),restored.plan());
+        assertEquals(72,restored.plan().buildings().getFirst().minY());
+        assertEquals(1,restored.placedChunkCount());assertEquals(1,restored.placedBuildingCount());
+    }
 }

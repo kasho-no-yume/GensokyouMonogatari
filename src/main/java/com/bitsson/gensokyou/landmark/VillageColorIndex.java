@@ -51,6 +51,7 @@ public final class VillageColorIndex {
         return LandmarkColors.NO_TINT;
     }
     public long[] chunkKeys() { return buckets.keySet().toLongArray(); }
+    public boolean hasChunk(int x,int z) { return buckets.containsKey(ChunkPos.asLong(x,z)); }
     public Set<Section> sections() { return sections; }
     public record Section(int x,int y,int z) {}
     private record Instance(InstanceEntry entry, LocalLandmarkColors colors, Rotation rotation, int maxX, int maxZ) {}

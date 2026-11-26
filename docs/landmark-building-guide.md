@@ -29,7 +29,7 @@ cell(4, 2, 1, "wood", 0x873927)
 cell(2, 2, 1, "wood", None)
 ```
 
-可用形状 ID 后缀共 10 种（含 `wood_trapdoor`、`wood_fence`、`stone_wall`、`lamp`），逐项见[幻想建筑块一览](landmark-building-blocks.md)。游戏中文统一显示为“幻想建筑块”，调试时用 F3 看注册 ID 和方块属性。门的上下两半各占一格，通常为两格指定相同的 RGB。
+灰模建筑共 19 种形状（含人间之里的木/砖半砖、楼梯、障子、暖帘等），另有无需染色的 `landmark_packed_earth` 完整体地面，逐项见[幻想建筑块一览](landmark-building-blocks.md)。灰模中文显示“幻想建筑块”，完整体地面显示“夯实村土”；调试时用 F3 看注册 ID 和方块属性。门的上下两半各占一格，通常为两格指定相同 RGB。
 
 ```powershell
 .\tools\gradle_task.ps1 createMinecraftArtifacts
@@ -71,6 +71,8 @@ python tools/export_hakurei_outer_grounds.py --check
 三块地标分别占用 `(2976,78,96) 46×18×60`、`(3040,82,62) 72×26×31`、`(3118,88,100) 48×32×92`。修改尺寸或世界原点时，需要同步 `HakureiOuterGrounds`、`GensokyoLayout` 的平地和净空范围，以及[建筑块一览](landmark-building-blocks.md#配色资源与生效范围)的配色表。
 
 ## 配色文件与性能
+
+夯实村土不走以下配色流程，完整颜色来自模型贴图，可直接作为人间之里的 Worldgen 表层；不为地面生成 `.bin`。人间之里建筑模板使用 GLC3 局部坐标配色并复用实例，固定旧博丽样件使用下述 GLC2。当前村庄放置、高度与旧世界兼容规则见[现行设计](../openspec/changes/rework-human-village/design.md)。
 
 文件用 GZIP 压缩。`GLC2` 保存 RGB 色板、预期方块 ID 表和有染色数据的区块段。每个 `16×16×16` 段解压为 4 KiB 色号和 4 KiB 方块编号。色号 0 表示原灰度，单份资源支持 255 个显式 RGB。区块网格构建时按坐标直接查数组，解压发生在客户端加载染色资源时。连续的同色面与空格通常能被 GZIP 压得很小。大建筑可根据实际占用段数评估内存，再决定是否需要稀疏存储。
 

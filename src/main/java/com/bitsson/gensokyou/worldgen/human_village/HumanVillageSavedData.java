@@ -34,10 +34,11 @@ public final class HumanVillageSavedData extends SavedData {
     public static HumanVillageSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
         var data=new HumanVillageSavedData();
         if(!tag.getBoolean("planned")) return data;
-        if(tag.getInt("version")!=1) throw new IllegalStateException("Unsupported saved Human Village plan version");
+        int version=tag.getInt("version");
+        if(version<1 || version>HumanVillagePlan.CURRENT_VERSION) throw new IllegalStateException("Unsupported saved Human Village plan version");
         var buildings=new ArrayList<BuildingInstance>();
         ListTag list=tag.getList("buildings",Tag.TAG_COMPOUND);
-        if(list.size()>512) throw new IllegalStateException("Invalid saved village building count");
+        if(list.size()>HumanVillagePlan.MAX_BUILDINGS) throw new IllegalStateException("Invalid saved village building count");
         for(int i=0;i<list.size();i++) {
             CompoundTag b=list.getCompound(i);int[] v=b.getIntArray("geometry");
             if(v.length!=16 || v[6]<0 || v[6]>3 || v[15]<0 || v[15]>=BuildingInstance.BuildingCategory.values().length) throw new IllegalStateException("Invalid saved village building");
@@ -46,18 +47,23 @@ public final class HumanVillageSavedData extends SavedData {
         }
         var roads=new ArrayList<HumanVillagePlan.RoadCell>();
         int[] cells=tag.getIntArray("roads");
-        if(cells.length%5!=0 || cells.length>OccupancyGrid.WIDTH*OccupancyGrid.DEPTH*5) throw new IllegalStateException("Invalid saved village roads");
-        for(int i=0;i<cells.length;i+=5) roads.add(new HumanVillagePlan.RoadCell(cells[i],cells[i+1],cells[i+2],HumanVillagePlan.RoadType.values()[cells[i+3]],cells[i+4]!=0));
+        if(cells.length%5!=0 || cells.length>1_000_000) throw new IllegalStateException("Invalid saved village paving");
+        for(int i=0;i<cells.length;i+=5) {
+            if(cells[i+3]<0 || cells[i+3]>=HumanVillagePlan.RoadType.values().length) throw new IllegalStateException("Invalid saved paving type");
+            roads.add(new HumanVillagePlan.RoadCell(cells[i],cells[i+1],cells[i+2],HumanVillagePlan.RoadType.values()[cells[i+3]],cells[i+4]!=0));
+        }
         var protection=new HashSet<Long>();
-        for(var b:buildings) for(int x=b.minX();x<=b.maxX();x++) for(int z=b.minZ();z<=b.maxZ();z++) protection.add(HumanVillagePlan.pack(x,z));
-        for(var road:roads) protection.add(road.key());
-        data.plan=new HumanVillagePlan(tag.getLong("worldSeed"),buildings,roads,protection);
+        if(version==1) {
+            for(var b:buildings) for(int x=b.minX();x<=b.maxX();x++) for(int z=b.minZ();z<=b.maxZ();z++) protection.add(HumanVillagePlan.pack(x,z));
+            for(var road:roads) protection.add(road.key());
+        }
+        data.plan=new HumanVillagePlan(version,tag.getLong("worldSeed"),buildings,roads,protection);
         for(long p:tag.getLongArray("placedChunks")) data.placedChunks.add(p);
         for(int id:tag.getIntArray("placedBuildingIds")) if(id>=0 && id<buildings.size()) data.placedBuildingIds.add(id);
         return data;
     }
     @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-        tag.putInt("version",1);tag.putBoolean("planned",plan!=null);
+        tag.putInt("version",plan==null?HumanVillagePlan.CURRENT_VERSION:plan.layoutVersion());tag.putBoolean("planned",plan!=null);
         if(plan==null) return tag;
         tag.putLong("worldSeed",plan.worldSeed());
         var list=new ListTag();

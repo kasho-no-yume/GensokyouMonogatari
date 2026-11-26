@@ -17,8 +17,8 @@ public final class HumanVillagePlanner {
     public static HumanVillagePlan plan(long worldSeed) { return plan(worldSeed, new GensokyoLayout(worldSeed)); }
     public static HumanVillagePlan plan(long worldSeed, GensokyoLayout layout) {
         var grid = new OccupancyGrid();
-        for (int x = OccupancyGrid.MIN_X; x <= OccupancyGrid.MAX_X; x++) {
-            for (int z = OccupancyGrid.MIN_Z; z <= OccupancyGrid.MAX_Z; z++) {
+        for (int x = -350; x <= 10; x++) {
+            for (int z = 125; z <= 190; z++) {
                 if (VillageRoadRouter.streamDistance(x, z) <= 5) grid.set(x, z, OccupancyGrid.STREAM);
             }
         }
@@ -53,18 +53,14 @@ public final class HumanVillagePlanner {
             addFixed(grid, buildings, landmark("hv_stall_" + stalls[(i+2)%4],DECOR_LANDMARK,sx,72,104,5,5,4,Rotation.CLOCKWISE_180,sx+2,72,103,true));
         }
 
-        // Some fixed storefronts lie in the middle ring. Fill each ring to its own total.
-        fillRing(grid, buildings, layout, random, 30,110,26,2);
-        fillRing(grid, buildings, layout, random, 110,160,24,18);
-        fillRing(grid, buildings, layout, random, 160,198,12,32);
+        var field = new VillageSettlementField(layout);
+        fillDistricts(grid, buildings, layout, field, worldSeed);
         addDecor(grid, buildings, layout, random, "hv_well",5,6,5,3);
         addDecor(grid, buildings, layout, random, "hv_jizo",3,5,3,3);
         addDecor(grid, buildings, layout, random, "hv_rest_tree",7,9,7,2);
         var roads = VillageRoadRouter.route(grid, buildings, layout);
-        Set<Long> protectedColumns = new HashSet<>();
-        for (var b : buildings) for (int x = b.minX(); x <= b.maxX(); x++) for (int z = b.minZ(); z <= b.maxZ(); z++) protectedColumns.add(pack(x,z));
-        for (var cell : roads) protectedColumns.add(cell.key());
-        return new HumanVillagePlan(worldSeed, buildings, roads, protectedColumns);
+        // Protection is resolved through chunk-indexed building bounds, not millions of boxed columns.
+        return new HumanVillagePlan(HumanVillagePlan.CURRENT_VERSION, worldSeed, buildings, roads, Set.of());
     }
 
     private static void addFixed(OccupancyGrid grid, List<BuildingInstance> buildings, BuildingInstance b) {
@@ -73,6 +69,9 @@ public final class HumanVillagePlanner {
                 throw new IllegalStateException("Fixed village templates overlap: " + b.templateId() + " and " + other.templateId());
             }
         }
+        b = new BuildingInstance(b.templateId(), b.category(), b.minX(), b.minY()-1, b.minZ(),
+                b.sizeX(), b.sizeY(), b.sizeZ(), b.rotation(), b.paletteThemeId(),
+                b.doorWorldX(), b.doorWorldY()-1, b.doorWorldZ(), b.hasDoorAnchor(), b.fixed(), b.clearance(), b.foundationDepth());
         buildings.add(b); grid.occupy(b);
     }
     private static BuildingInstance landmark(String id, BuildingInstance.BuildingCategory category,int x,int y,int z,int sx,int sy,int sz,
@@ -89,51 +88,52 @@ public final class HumanVillagePlanner {
     }
     private static ResourceLocation id(String path) { return ResourceLocation.fromNamespaceAndPath("gensokyou",path); }
 
-    private static void fillRing(OccupancyGrid grid,List<BuildingInstance> buildings,GensokyoLayout layout,SplittableRandom random,
-                                 int minRadius,int maxRadius,int target,int spacing) {
-        int lowerBound=minRadius==30?0:minRadius;
-        int count = (int) buildings.stream().filter(b -> b.category()==RESIDENTIAL && b.radius()>lowerBound && b.radius()<=maxRadius).count();
-        var candidates = new ArrayList<Candidate>();
-        for (int x=-398;x<=0;x+=spacing) for (int z=-98;z<=298;z+=spacing) {
-            int jitter = spacing==2 ? 0 : spacing==18 ? 4 : 7;
-            int cx=x+random.nextInt(-jitter,jitter+1),cz=z+random.nextInt(-jitter,jitter+1);
-            double radius=Math.hypot(cx+200,cz-100);
-            if (radius<=minRadius || radius>maxRadius) continue;
-            double roadDistance=Math.min(Math.min(Math.abs(cx+200),Math.abs(cz-100)),Math.min(Math.abs(cx+256),Math.abs(cz-48)));
-            candidates.add(new Candidate(cx,cz,(spacing==2 ? roadDistance : 0)+random.nextDouble()*4));
+    private static void fillDistricts(OccupancyGrid grid, List<BuildingInstance> buildings, GensokyoLayout layout,
+                                      VillageSettlementField field, long seed) {
+        var districts = new ArrayList<Candidate>();
+        // Staggered, smoothly displaced groups. The gap between facing houses is the lane.
+        for (int gz = -90; gz <= 90; gz++) for (int gx = -90; gx <= 90; gx++) {
+            int x = -200 + gx * 48 + Math.floorMod(gz, 2) * 24 + (int)Math.round(9*Math.sin(gz*.47));
+            int z = 100 + gz * 44 + (int)Math.round(8*Math.sin(gx*.39));
+            if (field.edgeDistance(x,z) >= VillageSettlementField.EDGE_BUFFER)
+                districts.add(new Candidate(x,z,field.outward(x,z)));
         }
-        candidates.sort(Comparator.comparingDouble(Candidate::priority));
-        // Extra seeded samples fill awkward lots without changing the fixed commercial stage.
-        for (int i=0;i<5000;i++) {
-            double angle=random.nextDouble()*Math.PI*2;
-            double radius=random.nextDouble(minRadius+1,maxRadius);
-            candidates.add(new Candidate(-200+(int)Math.round(Math.cos(angle)*radius),100+(int)Math.round(Math.sin(angle)*radius),0));
+        districts.sort(Comparator.comparingDouble(Candidate::priority).thenComparingInt(Candidate::x).thenComparingInt(Candidate::z));
+        for (var c : districts) {
+            var random = new SplittableRandom(seed ^ pack(c.x,c.z) ^ 0x485644495354524CL);
+            double t = c.priority;
+            if (random.nextDouble() < .04 + .20*t*t) continue;
+            boolean quarter = random.nextBoolean();
+            int columns = t < .38 ? 3 : t < .72 ? 2 : 1;
+            int gap = t < .38 ? 4 : t < .72 ? 6 : 10;
+            int cx = c.x + random.nextInt(-3,4), cz = c.z + random.nextInt(-3,4);
+            // Reserve the common yard before inserting its facing rows. It opens at both ends.
+            for(int along=-columns*7-3;along<=columns*7+3;along++) for(int across=-gap/2;across<gap/2;across++) {
+                int x=quarter?cx+across:cx+along,z=quarter?cz+along:cz+across;
+                if(grid.get(x,z)==OccupancyGrid.EMPTY) grid.set(x,z,OccupancyGrid.MAIN_ROAD);
+            }
+            for (int side : new int[]{-1,1}) for (int slot=0;slot<columns;slot++) {
+                if (buildings.size() >= HumanVillagePlan.MAX_BUILDINGS) throw new IllegalStateException("Village building budget exceeded");
+                int variant = random.nextInt(HOUSE_SIZES.length);
+                int[] s = HOUSE_SIZES[variant];
+                int along = (slot*14) - (columns-1)*7 + random.nextInt(-1,2);
+                int setback = gap/2 + random.nextInt(0,3);
+                Rotation rotation = quarter ? (side<0 ? Rotation.COUNTERCLOCKWISE_90 : Rotation.CLOCKWISE_90)
+                        : (side<0 ? Rotation.NONE : Rotation.CLOCKWISE_180);
+                int width = quarter?s[2]:s[0], depth=quarter?s[0]:s[2];
+                int x = quarter ? cx+(side<0 ? -setback-width : setback) : cx+along-width/2;
+                int z = quarter ? cz+along-depth/2 : cz+(side<0 ? -setback-depth : setback);
+                if (!grid.available(x,z,width,depth,1) || !field.containsLot(x,z,width,depth)) continue;
+                double[] h=heights(layout,x,z,width,depth);
+                if (h[1]-h[0]>2.5) continue;
+                int y=(int)Math.ceil(h[2])-1;
+                var b=house(variant,x,y,z,rotation,random.nextInt(8),false,1,Math.max(1,y-(int)Math.floor(h[0])+2));
+                if (grid.get(b.doorWorldX(),b.doorWorldZ())==OccupancyGrid.BUILDING) continue;
+                buildings.add(b); grid.occupy(b);
+                // Reserve the doorstep; later groups cannot seal another household's entrance.
+                grid.set(b.doorWorldX(),b.doorWorldZ(),OccupancyGrid.MAIN_ROAD);
+            }
         }
-        int[] variants = maxRadius<=110 ? new int[]{2,3,4,5,6,8} : maxRadius<=160 ? new int[]{0,1,2,3,6,7,8} : new int[]{0,1,9};
-        for (var c : candidates) {
-            if (count>=target) break;
-            int variant=variants[random.nextInt(variants.length)];
-            int[] size=HOUSE_SIZES[variant];
-            int dx=c.x+200,dz=c.z-100;
-            Rotation rotation=Math.abs(dx)>Math.abs(dz) ? (dx<0 ? Rotation.COUNTERCLOCKWISE_90 : Rotation.CLOCKWISE_90)
-                    : (dz<0 ? Rotation.NONE : Rotation.CLOCKWISE_180);
-            boolean quarter=rotation==Rotation.CLOCKWISE_90 || rotation==Rotation.COUNTERCLOCKWISE_90;
-            int width=quarter ? size[2] : size[0],depth=quarter ? size[0] : size[2];
-            int x=c.x-width/2,z=c.z-depth/2;
-            int clearance=maxRadius<=110 ? 1 : maxRadius<=160 ? random.nextInt(3,6) : random.nextInt(12,19);
-            if (!grid.available(x,z,width,depth,clearance) || !isSafeFromBiomeEdge(layout,c.x,c.z)) continue;
-            double farthest=0;
-            for (int px : new int[]{x,x+width-1}) for (int pz : new int[]{z,z+depth-1}) farthest=Math.max(farthest,Math.hypot(px+200,pz-100));
-            if (farthest>200) continue;
-            double[] heights=heights(layout,x,z,width,depth);
-            if (heights[1]-heights[0]>2.5) continue;
-            int y=(int)Math.round(heights[2]);
-            int theme=maxRadius>160 ? new int[]{2,3,7}[random.nextInt(3)] : random.nextInt(8);
-            var b=house(variant,x,y,z,rotation,theme,false,clearance,Math.max(1,y-(int)Math.floor(heights[0])));
-            if (b.radius()<=minRadius || b.radius()>maxRadius || grid.get(b.doorWorldX(),b.doorWorldZ())==OccupancyGrid.BUILDING) continue;
-            buildings.add(b); grid.occupy(b); count++;
-        }
-        if (count<target) throw new IllegalStateException("Unable to fill village ring " + minRadius + ".." + maxRadius + ": " + count + "/" + target);
     }
     private static double[] heights(GensokyoLayout layout,int x,int z,int width,int depth) {
         double min=Double.POSITIVE_INFINITY,max=Double.NEGATIVE_INFINITY,total=0;
@@ -143,10 +143,10 @@ public final class HumanVillagePlanner {
         return new double[]{min,max,total/4};
     }
     public static boolean isSafeFromBiomeEdge(GensokyoLayout layout,int cx,int cz) {
-        if (Math.hypot(cx+200,cz-100)>200 || layout.regionAt(cx,cz)!=GensokyoLayout.Region.HUMAN_VILLAGE) return false;
+        if (layout.regionAt(cx,cz)!=GensokyoLayout.Region.HUMAN_VILLAGE) return false;
         int[][] directions={{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}};
         for (int[] d:directions) {
-            double distance=d[0]!=0 && d[1]!=0 ? 220/Math.sqrt(2) : 220;
+            double distance=d[0]!=0 && d[1]!=0 ? 64/Math.sqrt(2) : 64;
             if (layout.regionAt(cx+(int)Math.round(d[0]*distance),cz+(int)Math.round(d[1]*distance))!=GensokyoLayout.Region.HUMAN_VILLAGE) return false;
         }
         return true;
@@ -172,15 +172,16 @@ public final class HumanVillagePlanner {
                                   String id,int width,int height,int depth,int count) {
         int added=0;
         for (int attempt=0;attempt<3000 && added<count;attempt++) {
+            if(buildings.size()>=HumanVillagePlan.MAX_BUILDINGS) return;
             int x=random.nextInt(-325,-80),z=random.nextInt(35,220);
             if (!grid.available(x,z,width,depth,1) || !isSafeFromBiomeEdge(layout,x+width/2,z+depth/2)) continue;
             double[] h=heights(layout,x,z,width,depth);
             if (h[1]-h[0]>1.5) continue;
-            var b=landmark(id,DECOR_LANDMARK,x,(int)Math.round(h[2]),z,width,height,depth,Rotation.NONE,0,0,0,false);
+            var b=landmark(id,DECOR_LANDMARK,x,(int)Math.ceil(h[2])-1,z,width,height,depth,Rotation.NONE,0,0,0,false);
             b=new BuildingInstance(b.templateId(),b.category(),b.minX(),b.minY(),b.minZ(),b.sizeX(),b.sizeY(),b.sizeZ(),b.rotation(),-1,0,0,0,false,false,1,3);
             buildings.add(b);grid.occupy(b);added++;
         }
-        if (added<count) throw new IllegalStateException("Not enough street-corner lots for " + id);
+        // A crowded district may omit optional street furniture rather than failing the entire village.
     }
     private record Candidate(int x,int z,double priority) {}
 }

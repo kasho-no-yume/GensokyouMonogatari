@@ -17,6 +17,8 @@ public final class LandmarkClearanceFilter extends PlacementFilter {
     protected boolean shouldPlace(PlacementContext context, RandomSource random, BlockPos pos) {
         int x = pos.getX();
         int z = pos.getZ();
+        // Keep finished living surfaces clear; grass pockets may still carry shrubs and soil patches.
+        if(context.getBlockState(pos.below()).is(com.bitsson.gensokyou.registry.LandmarkBlocks.PACKED_EARTH.get())) return false;
         // Keep the full grand Hakurei Shrine bounding box (3022..3116, 93..163) + 10-block buffer clear of wild trees.
         if (x >= 3012 && x <= 3126 && z >= 83 && z <= 173) {
             return false;

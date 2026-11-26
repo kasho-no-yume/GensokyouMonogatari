@@ -81,7 +81,7 @@ public final class HumanVillageEvents {
         var b=manager.plan().buildings().stream().filter(building->building.templateId().getPath().equals(id)).findFirst().orElseThrow();
         int x=b.hasDoorAnchor()?b.doorWorldX():id.equals("hv_dragon_plaza")?-184:-63;
         int z=b.hasDoorAnchor()?b.doorWorldZ():100;
-        int y=b.hasDoorAnchor()?b.doorWorldY():72;
+        int y=b.hasDoorAnchor()?b.doorWorldY():manager.plan().layoutVersion()==1?72:71;
         // Explicit visit prepares only the arrival neighborhood. Normal exploration remains lazy.
         for(int cx=(x>>4)-1;cx<=(x>>4)+1;cx++) for(int cz=(z>>4)-1;cz<=(z>>4)+1;cz++) {
             level.getChunk(cx,cz);
@@ -101,14 +101,17 @@ public final class HumanVillageEvents {
         if(level==null) {source.sendFailure(Component.translatable("msg.gensokyou.village.missing_dimension"));return 0;}
         var manager=HumanVillageManager.get(level);var plan=manager.plan();
         var homes=plan.buildings().stream().filter(b->b.category()==BuildingInstance.BuildingCategory.RESIDENTIAL).toList();
-        long core=homes.stream().filter(b->b.radius()<=110).count(),middle=homes.stream().filter(b->b.radius()>110 && b.radius()<=160).count(),outer=homes.size()-core-middle;
-        var connected=VillageRoadRouter.connectedColumns(plan.roadCells());
-        long reached=homes.stream().filter(b->connected.contains(HumanVillagePlan.pack(b.doorWorldX(),b.doorWorldZ()))).count();
-        String ratio=String.format(Locale.ROOT,"%.1f",100.0*reached/homes.size());
         var layout=com.bitsson.gensokyou.worldgen.GensokyoLayoutDensity.layoutOf(level.getChunkSource().randomState().sampler().continentalness());
-        int edge=HumanVillagePlanner.sampledBiomeEdgeDistance(layout,plan.buildings());
+        var field=new VillageSettlementField(layout);
+        long core=homes.stream().filter(b->field.outward((b.minX()+b.maxX())/2,(b.minZ()+b.maxZ())/2)<.38).count();
+        long middle=homes.stream().filter(b->{double t=field.outward((b.minX()+b.maxX())/2,(b.minZ()+b.maxZ())/2);return t>=.38 && t<.72;}).count(),outer=homes.size()-core-middle;
+        var connected=VillageWalkability.reachableDoors(plan);
+        long reached=homes.stream().filter(b->connected.contains(HumanVillagePlan.pack(b.doorWorldX(),b.doorWorldZ()))).count();
+        String ratio=String.format(Locale.ROOT,"%.1f",100.0*reached/Math.max(1,homes.size()));
+        int edge=homes.stream().mapToInt(b->field.edgeDistance((b.minX()+b.maxX())/2,(b.minZ()+b.maxZ())/2)).min().orElse(0);
+        long paving=plan.roadCells().stream().filter(c->c.type()!=HumanVillagePlan.RoadType.EARTH).count();
         source.sendSuccess(()->Component.translatable("msg.gensokyou.village.stats",plan.buildings().size(),homes.size(),core,middle,outer,
-                plan.roadCells().size(),ratio,manager.data().placedChunkCount(),manager.data().placedBuildingCount(),edge),false);
+                paving,ratio,manager.data().placedChunkCount(),manager.data().placedBuildingCount(),edge),false);
         return 1;
     }
 }

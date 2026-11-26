@@ -44,7 +44,7 @@ public final class HumanVillageProbe {
             long start=System.nanoTime();
             check(manager.ensureChunkPopulated(new ChunkPos(sliceX,-3)),"Estate slice failed");
             check(level.getChunkSource().getLoadedChunksCount()==before,"Chunk-local placement loaded neighbors");
-            var witness=new BlockPos(sliceX==-13?-200:-216,76,-36);
+            var witness=new BlockPos(sliceX==-13?-200:-216,manager.plan().layoutVersion()==1?76:75,-36);
             check(level.getBlockState(witness).is(LandmarkBlocks.WOOD.get()),"Estate floor slice missing: "+level.getBlockState(witness));
             int progress=manager.data().placedChunkCount();
             check(manager.ensureChunkPopulated(new ChunkPos(sliceX,-3)) && progress==manager.data().placedChunkCount(),"Repeated placement was not idempotent");
@@ -69,9 +69,10 @@ public final class HumanVillageProbe {
             for(int x=-345;x<=5;x++) for(int z=130;z<=180;z++) if(HumanVillageStreamPlacer.waterColumn(x,z)) {
                 boolean mill=false;
                 for(var b:manager.plan().buildings()) if(b.templateId().getPath().equals("hv_watermill")&&b.containsColumn(x,z)) mill=true;
-                for(int y=69;y<=70;y++) if(!(mill&&y==70)) check(level.getBlockState(new BlockPos(x,y,z)).is(Blocks.WATER),"Blocked stream at "+x+","+y+","+z);
+                for(int y=69;y<=70;y++) if(!mill) check(level.getBlockState(new BlockPos(x,y,z)).is(Blocks.WATER),"Blocked stream at "+x+","+y+","+z);
             }
-            var floor=new BlockPos(-200,72,130);
+            int floorY=manager.plan().layoutVersion()==1?72:71;
+            var floor=new BlockPos(-200,floorY,130);
             check(EventHooks.onBlockPlace(null,BlockSnapshot.create(level.dimension(),level,floor.above()),Direction.UP),"Protected road allowed placement");
 
             ResidentScene scene;
@@ -85,10 +86,11 @@ public final class HumanVillageProbe {
                 @Override public int minY() {return level.getMinBuildHeight();}
                 @Override public int maxY() {return level.getMaxBuildHeight();}
             });
-            check(level.getBlockState(new BlockPos(40,72,100)).is(LandmarkBlocks.STAIR.get()),"Approach endpoint ramp missing");
+            if(manager.plan().layoutVersion()==1) check(level.getBlockState(new BlockPos(40,72,100)).is(LandmarkBlocks.STAIR.get()),"Legacy approach endpoint ramp missing");
+            else check(level.getBlockState(new BlockPos(40,71,100)).is(LandmarkBlocks.PACKED_EARTH.get()),"Flush village earth endpoint missing");
             ResidentRoute.Point previousSeam=null;
             for(int step=0;step<=12;step++) {
-                var p=new ResidentRoute.Point(39.5+step*0.25,73.0-step/12.0,100.5);
+                var p=new ResidentRoute.Point(39.5+step*0.25,manager.plan().layoutVersion()==1?73.0-step/12.0:72,100.5);
                 var resolved=ground.resolve(p,1.021f,false);
                 check(resolved!=null,"Approach seam has no support at "+p);
                 if(previousSeam!=null) check(ground.clear(previousSeam,resolved,1.021f),"Approach seam has collision at "+p);
@@ -102,7 +104,8 @@ public final class HumanVillageProbe {
                     int steps=Math.max(1,(int)Math.ceil(a.distance(b)*4));
                     ResidentRoute.Point previous=null;
                     for(int j=0;j<=steps;j++) {
-                        var p=a.lerp(b,(double)j/steps);
+                        var raw=a.lerp(b,(double)j/steps);
+                        var p=new ResidentRoute.Point(raw.x(),raw.y()-(manager.plan().layoutVersion()>=2?1:0),raw.z());
                         var resolved=ground.resolve(p,1.021f,true);
                         check(resolved!=null,slot.identity()+" has invalid native paving/collision at "+p);
                         if(previous!=null) check(ground.clear(previous,resolved,1.021f),slot.identity()+" has blocked native route at "+p);
@@ -110,7 +113,7 @@ public final class HumanVillageProbe {
                     }
                 }
             }
-            var connected=VillageRoadRouter.connectedColumns(manager.plan().roadCells());
+            var connected=VillageWalkability.reachableDoors(manager.plan());
             long homes=manager.plan().buildings().stream().filter(b->b.category()==BuildingInstance.BuildingCategory.RESIDENTIAL).count();
             long reached=manager.plan().buildings().stream().filter(b->b.category()==BuildingInstance.BuildingCategory.RESIDENTIAL&&connected.contains(HumanVillagePlan.pack(b.doorWorldX(),b.doorWorldZ()))).count();
             check(reached>=homes*0.9,"Native layout has too many disconnected homes");

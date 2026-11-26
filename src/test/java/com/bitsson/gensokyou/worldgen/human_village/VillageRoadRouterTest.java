@@ -6,9 +6,9 @@ import static com.bitsson.gensokyou.worldgen.human_village.HumanVillagePlan.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class VillageRoadRouterTest {
-    @Test void roadGraphConnectsSpecialLandmarksAndAtLeastNinetyPercentOfHomes() {
+    @Test void unpavedNegativeSpaceConnectsHomesAndPavingStaysLocal() {
         for(long seed:VillageTestPlans.SEEDS) {
-            var plan=VillageTestPlans.get(seed);var connected=VillageRoadRouter.connectedColumns(plan.roadCells());
+            var plan=VillageTestPlans.get(seed);var connected=VillageWalkability.reachableDoors(plan);
             long homes=0,reached=0;
             for(var b:plan.buildings()) {
                 boolean hit=connected.contains(pack(b.doorWorldX(),b.doorWorldZ()));
@@ -23,9 +23,15 @@ class VillageRoadRouterTest {
             for(var c:plan.roadCells()) {
                 assertFalse(VillageRoadRouter.blocked(plan.buildings(),c.x(),c.z()),"road crosses building at "+c);
                 if(VillageRoadRouter.streamDistance(c.x(),c.z())<=3.6) {
-                    assertEquals(RoadType.L4_BRIDGE,c.type());assertEquals(72,c.surfaceY());
+                    assertEquals(RoadType.L4_BRIDGE,c.type());assertEquals(71,c.surfaceY());
                 }
+                assertNotEquals(RoadType.L1_MAIN,c.type());
+                assertNotEquals(RoadType.L2_RING,c.type());
             }
+            assertTrue(plan.roadCells().stream().anyMatch(c->c.type()==RoadType.EARTH));
+            // A normal household gets at most its nine-cell apron, never an A* spur across the landscape.
+            long outside=plan.roadCells().stream().filter(c->!c.fixed()).count();
+            assertTrue(outside<=homes*9);
         }
     }
 }

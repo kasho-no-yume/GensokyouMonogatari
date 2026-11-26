@@ -281,6 +281,7 @@ public final class GensokyoWorldgenProbe {
             int soil = 0;
             int roots = 0;
             int matchingChunks = 0;
+            int villageEarth = 0;
             for (int[] offset : offsets) {
                 int chunkX = (region.anchorX() + offset[0]) >> 4;
                 int chunkZ = (region.anchorZ() + offset[1]) >> 4;
@@ -291,6 +292,13 @@ public final class GensokyoWorldgenProbe {
                 matchingChunks++;
                 soil += countSurfaceBlocks(level, chunkX << 4, chunkZ << 4, ModBlocks.SPIRIT_SOIL.get());
                 roots += countRootedLogs(level, chunkX << 4, chunkZ << 4, sacred);
+                if(region==GensokyoLayout.Region.HUMAN_VILLAGE)
+                    villageEarth += countSurfaceBlocks(level,chunkX<<4,chunkZ<<4,com.bitsson.gensokyou.registry.LandmarkBlocks.PACKED_EARTH.get());
+            }
+            if(region==GensokyoLayout.Region.HUMAN_VILLAGE) {
+                if(matchingChunks==0 || villageEarth<64*matchingChunks) throw new AssertionError("Missing inhabited earth surface: "+villageEarth);
+                System.out.println("GENSOKYO_VILLAGE_EARTH_PROBE PASS earth="+villageEarth+" chunks="+matchingChunks);
+                continue;
             }
             if (matchingChunks == 0 || soil < 12 * matchingChunks || roots < matchingChunks) {
                 throw new AssertionError("Sparse spirit soil or sacred grove at " + region

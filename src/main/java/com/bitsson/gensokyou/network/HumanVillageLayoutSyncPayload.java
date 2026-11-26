@@ -11,11 +11,13 @@ import java.util.List;
 import java.util.LinkedHashMap;
 
 /** Bounded instance descriptors only; shared GLC3 resources are never sent over the network. */
-public record HumanVillageLayoutSyncPayload(List<InstanceEntry> instances) implements CustomPacketPayload {
-    public static final int MAX_INSTANCES = 512;
+public record HumanVillageLayoutSyncPayload(int layoutVersion, List<InstanceEntry> instances) implements CustomPacketPayload {
+    public static final int MAX_INSTANCES = com.bitsson.gensokyou.worldgen.human_village.HumanVillagePlan.MAX_BUILDINGS;
+    public HumanVillageLayoutSyncPayload(List<InstanceEntry> instances) { this(1,instances); }
     public static final Type<HumanVillageLayoutSyncPayload> TYPE = new Type<>(ResourceLocation.fromNamespaceAndPath("gensokyou", "human_village_layout"));
     public static final StreamCodec<FriendlyByteBuf, HumanVillageLayoutSyncPayload> STREAM_CODEC = new StreamCodec<>() {
         @Override public HumanVillageLayoutSyncPayload decode(FriendlyByteBuf buf) {
+            int version=buf.readVarInt();
             int templates=buf.readVarInt();
             if(templates<0 || templates>MAX_INSTANCES) throw new IllegalArgumentException("Invalid village template count");
             var ids=new ResourceLocation[templates];
@@ -29,9 +31,10 @@ public record HumanVillageLayoutSyncPayload(List<InstanceEntry> instances) imple
                 entries.add(new InstanceEntry(ids[id],readCoordinate(buf),readCoordinate(buf),readCoordinate(buf),
                         buf.readVarInt(),buf.readVarInt(),buf.readVarInt(),buf.readByte(),buf.readByte()));
             }
-            return new HumanVillageLayoutSyncPayload(entries);
+            return new HumanVillageLayoutSyncPayload(version,entries);
         }
         @Override public void encode(FriendlyByteBuf buf, HumanVillageLayoutSyncPayload value) {
+            buf.writeVarInt(value.layoutVersion);
             var templates=new LinkedHashMap<ResourceLocation,Integer>();
             for(var e:value.instances) templates.computeIfAbsent(e.templateId,key->templates.size());
             buf.writeVarInt(templates.size());
@@ -48,6 +51,7 @@ public record HumanVillageLayoutSyncPayload(List<InstanceEntry> instances) imple
     private static int readCoordinate(FriendlyByteBuf buf) { int value=buf.readVarInt();return (value>>>1)^-(value&1); }
     private static void writeCoordinate(FriendlyByteBuf buf,int value) { buf.writeVarInt((value<<1)^(value>>31)); }
     public HumanVillageLayoutSyncPayload {
+        if(layoutVersion<1 || layoutVersion>2) throw new IllegalArgumentException("Invalid village layout version");
         instances = List.copyOf(instances);
         if (instances.size() > MAX_INSTANCES) throw new IllegalArgumentException("Too many village instances");
     }

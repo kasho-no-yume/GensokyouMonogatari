@@ -17,26 +17,45 @@ class HumanVillagePlannerTest {
         for(long seed:VillageTestPlans.SEEDS) {
             var plan=VillageTestPlans.get(seed); var layout=new GensokyoLayout(seed); var bs=plan.buildings();
             long homes=bs.stream().filter(b->b.category()==RESIDENTIAL).count();
-            assertTrue(homes>=55 && homes<=75,"homes="+homes);
-            assertEquals(26,bs.stream().filter(b->b.category()==RESIDENTIAL && b.radius()<=110).count());
-            assertEquals(24,bs.stream().filter(b->b.category()==RESIDENTIAL && b.radius()>110 && b.radius()<=160).count());
-            assertEquals(12,bs.stream().filter(b->b.category()==RESIDENTIAL && b.radius()>160).count());
+            assertEquals(2,plan.layoutVersion());
+            assertTrue(homes>=500 && homes<=HumanVillagePlan.MAX_BUILDINGS,"homes="+homes);
+            assertTrue(bs.stream().anyMatch(b->b.category()==RESIDENTIAL && b.radius()>700));
+            assertTrue(bs.stream().filter(b->b.category()==RESIDENTIAL && b.radius()>200).count()>homes*.6);
+            var field=new VillageSettlementField(layout);
+            var neighborhood=new java.util.HashMap<Long,java.util.List<BuildingInstance>>();
+            for(var b:bs) if(b.category()==RESIDENTIAL) neighborhood.computeIfAbsent(
+                    HumanVillagePlan.pack(((b.minX()+b.maxX())/2)>>7,((b.minZ()+b.maxZ())/2)>>7),key->new java.util.ArrayList<>()).add(b);
             long[] coverage=new long[3];
+            long[] area=new long[3];
+            int habitableSamples=0,settledSamples=0;
+            var occupied=new OccupancyGrid();
+            for(int x=-2200;x<=2000;x+=64) for(int z=-1900;z<=2000;z+=64) {
+                if(!field.containsLot(x,z,1,1)) continue;
+                double t=field.outward(x,z);area[t<.38?0:t<.72?1:2]+=4096;
+                habitableSamples++;
+                boolean settled=false;
+                for(int cx=(x>>7)-2;cx<=(x>>7)+2;cx++) for(int cz=(z>>7)-2;cz<=(z>>7)+2;cz++) {
+                    for(var b:neighborhood.getOrDefault(HumanVillagePlan.pack(cx,cz),List.of())) {
+                        int dx=Math.max(0,Math.max(b.minX()-x,x-b.maxX())),dz=Math.max(0,Math.max(b.minZ()-z,z-b.maxZ()));
+                        if(dx*dx+dz*dz<=96*96) settled=true;
+                    }
+                }
+                if(settled) settledSamples++;
+            }
+            assertTrue(settledSamples>habitableSamples*.65,"settlement covers too little biome: "+settledSamples+"/"+habitableSamples);
             for(int i=0;i<bs.size();i++) {
                 var b=bs.get(i);
-                assertTrue(b.radius()<=200,b.toString());
                 assertTrue(HumanVillagePlanner.isSafeFromBiomeEdge(layout,(b.minX()+b.maxX())/2,(b.minZ()+b.maxZ())/2));
-                for(int j=0;j<i;j++) {
-                    var a=bs.get(j);
-                    assertFalse(b.minX()<=a.maxX()+1 && b.maxX()+1>=a.minX() && b.minZ()<=a.maxZ()+1 && b.maxZ()+1>=a.minZ(),b+" near "+a);
-                }
+                assertTrue(occupied.available(b.minX(),b.minZ(),b.rotSizeX(),b.rotSizeZ(),1),"overlapping lot "+b);
+                occupied.occupy(b);
                 for(int x=b.minX();x<=b.maxX();x++) for(int z=b.minZ();z<=b.maxZ();z++) {
                     if(!b.templateId().getPath().equals("hv_watermill")) assertTrue(VillageRoadRouter.streamDistance(x,z)>3,b+" intrudes stream at "+x+","+z);
-                    double r=Math.hypot(x+200,z-100);
-                    if(r<=200) coverage[r<=110?0:r<=160?1:2]++;
+                    double t=field.outward(x,z);
+                    coverage[t<.38?0:t<.72?1:2]++;
                 }
             }
-            double core=coverage[0]/(Math.PI*110*110),middle=coverage[1]/(Math.PI*(160*160-110*110)),outer=coverage[2]/(Math.PI*(200*200-160*160));
+            double core=(double)coverage[0]/area[0],middle=(double)coverage[1]/area[1],outer=(double)coverage[2]/area[2];
+            assertTrue(core>.18,"inner area is still too empty: "+core);
             assertTrue(core>middle && middle>outer,"density="+core+","+middle+","+outer);
         }
     }
@@ -55,16 +74,17 @@ class HumanVillagePlannerTest {
             }
         }
     }
-    @Test void completeSnapshotFitsThreeKiBAndSampledBoundaryMarginExceedsMinimum() {
+    @Test void completeSnapshotIsBoundedAndBoundaryBufferFollowsTheBiome() {
         var plan=VillageTestPlans.get(42);
-        var payload=new HumanVillageLayoutSyncPayload(plan.buildings().stream().map(HumanVillageLayoutSyncPayload.InstanceEntry::of).toList());
+        var payload=new HumanVillageLayoutSyncPayload(plan.layoutVersion(),plan.buildings().stream().map(HumanVillageLayoutSyncPayload.InstanceEntry::of).toList());
         var buffer=new FriendlyByteBuf(Unpooled.buffer());
         try {
             HumanVillageLayoutSyncPayload.STREAM_CODEC.encode(buffer,payload);
-            assertTrue(buffer.readableBytes()<3072,"layout packet bytes="+buffer.readableBytes());
+            assertTrue(buffer.readableBytes()<262144,"layout packet bytes="+buffer.readableBytes());
             assertEquals(payload,HumanVillageLayoutSyncPayload.STREAM_CODEC.decode(buffer));
         } finally {buffer.release();}
-        assertTrue(HumanVillagePlanner.sampledBiomeEdgeDistance(new GensokyoLayout(42),plan.buildings())>=220);
+        var field=new VillageSettlementField(new GensokyoLayout(42));
+        for(var b:plan.buildings()) if(!b.fixed()) assertTrue(field.containsLot(b.minX(),b.minZ(),b.rotSizeX(),b.rotSizeZ()));
     }
     private static List<String> fixedGeometry(HumanVillagePlan p) {
         return p.buildings().stream().filter(BuildingInstance::fixed).map(b->b.templateId()+":"+b.minX()+","+b.minY()+","+b.minZ()+":"+b.rotation()).toList();

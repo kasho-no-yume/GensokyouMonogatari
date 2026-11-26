@@ -119,7 +119,7 @@ public final class ResidentGround implements ResidentWalker.Surface {
         var id = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock());
         if (!id.getNamespace().equals("gensokyou")) return false;
         return switch (id.getPath()) {
-            case "landmark_brick", "landmark_wood", "landmark_tile", "landmark_tile_slab", "landmark_tile_stairs",
+            case "landmark_packed_earth", "landmark_brick", "landmark_wood", "landmark_tile", "landmark_tile_slab", "landmark_tile_stairs",
                     "landmark_wood_slab", "landmark_wood_stairs", "landmark_brick_slab", "landmark_brick_stairs" -> true;
             default -> false;
         };

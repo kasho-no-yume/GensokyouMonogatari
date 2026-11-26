@@ -20,6 +20,9 @@ import net.minecraft.world.level.material.PushReaction;
 import net.neoforged.neoforge.registries.DeferredBlock;
 
 public final class LandmarkBlocks {
+    /** Finished-color village surface; deliberately excluded from tintedBlocks(). */
+    public static final DeferredBlock<Block> PACKED_EARTH = ModBlocks.BLOCKS.registerBlock("landmark_packed_earth",
+            Block::new, solid(SoundType.GRAVEL).mapColor(net.minecraft.world.level.material.MapColor.DIRT));
     public static final DeferredBlock<Block> BRICK = ModBlocks.BLOCKS.registerBlock("landmark_brick", Block::new, solid(SoundType.STONE));
     public static final DeferredBlock<Block> WOOD = ModBlocks.BLOCKS.registerBlock("landmark_wood", Block::new, solid(SoundType.WOOD));
     public static final DeferredBlock<Block> TILE = ModBlocks.BLOCKS.registerBlock("landmark_tile", Block::new, solid(SoundType.STONE));
@@ -73,7 +76,7 @@ public final class LandmarkBlocks {
     }
 
     public static boolean contains(BlockState state) {
-        return state.is(BRICK.get()) || state.is(WOOD.get()) || state.is(TILE.get())
+        return state.is(PACKED_EARTH.get()) || state.is(BRICK.get()) || state.is(WOOD.get()) || state.is(TILE.get())
                 || state.is(SLAB.get()) || state.is(STAIR.get()) || state.is(DOOR.get())
                 || state.is(TRAPDOOR.get()) || state.is(FENCE.get()) || state.is(WALL.get())
                 || state.is(LAMP.get())

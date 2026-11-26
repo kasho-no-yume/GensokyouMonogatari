@@ -383,7 +383,8 @@ public final class GensokyoLayout {
             case CHIREIDEN -> 53 + 23 * folds + 26 * noise
                     - 55 * smoothstep(1 - Math.abs(riftAcross(x, z)) / 260.0);
             case SCARLET_MANSION -> 20 + 16 * folds + 11 * noise;
-            case HUMAN_VILLAGE -> 8 + 6 * folds + 7 * noise;
+            // Broad inhabited slopes, rather than short, noisy hummocks between neighboring houses.
+            case HUMAN_VILLAGE -> 8 + 3 * Math.sin(x / 240.0 + reliefPhase) + 3 * Math.sin(z / 310.0) + 1.2 * noise;
         };
     }
 

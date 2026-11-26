@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "": [
+      {"model": "gensokyou:block/landmark_packed_earth"},
+      {"model": "gensokyou:block/landmark_packed_earth", "y": 90},
+      {"model": "gensokyou:block/landmark_packed_earth", "y": 180},
+      {"model": "gensokyou:block/landmark_packed_earth", "y": 270}
+    ]
+  }
+}

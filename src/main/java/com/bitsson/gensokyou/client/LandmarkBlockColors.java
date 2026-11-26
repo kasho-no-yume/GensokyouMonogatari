@@ -56,7 +56,8 @@ public final class LandmarkBlockColors {
                 }
                 int instanceColor = ClientVillageColors.colorAt(pos.getX(), pos.getY(), pos.getZ(), blockKey);
                 return instanceColor != LandmarkColors.NO_TINT ? instanceColor
-                        : HumanVillageProceduralColors.colorAt(pos.getX(), pos.getY(), pos.getZ(), blockKey);
+                        : ClientVillageColors.allowsProceduralColor(pos.getX(),pos.getZ())
+                        ? HumanVillageProceduralColors.colorAt(pos.getX(), pos.getY(), pos.getZ(), blockKey) : LandmarkColors.NO_TINT;
             }
             if (!level.dimension().equals(LandmarkSample.DIMENSION)) {
                 return LandmarkColors.NO_TINT;

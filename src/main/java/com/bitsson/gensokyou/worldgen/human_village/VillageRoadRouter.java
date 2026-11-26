@@ -8,7 +8,7 @@ import java.util.*;
 
 import static com.bitsson.gensokyou.worldgen.human_village.HumanVillagePlan.*;
 
-/** Four-neighbor routing with direction in the search state, so turn penalties remain correct. */
+/** Public performance clearances and small paving patches; houses define the lanes, not a road graph. */
 public final class VillageRoadRouter {
     private static final int[][] DIRECTIONS = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
     private VillageRoadRouter() {}
@@ -65,33 +65,25 @@ public final class VillageRoadRouter {
 
     public static List<RoadCell> route(OccupancyGrid grid, List<BuildingInstance> buildings, GensokyoLayout layout) {
         var roads = skeleton(layout);
-        // Preserve templates: only their known public paving participates in the road graph.
+        // These fixed clearances keep authored performances valid. They are EARTH, not paved streets.
         roads.entrySet().removeIf(e -> blocked(buildings, e.getValue().x(), e.getValue().z()));
-        var ordered = new ArrayList<>(buildings);
-        ordered.sort(Comparator.comparing((BuildingInstance b) -> !b.fixed()).thenComparingDouble(BuildingInstance::radius)
-                .thenComparing(b -> b.templateId().toString()).thenComparingInt(BuildingInstance::minX));
-        for (BuildingInstance b : ordered) {
+        roads.replaceAll((key,c) -> new RoadCell(c.x(),c.surfaceY(),c.z(),RoadType.EARTH,true));
+        for (BuildingInstance b : buildings) {
             if (!b.hasDoorAnchor()) continue;
-            var path = findPath(grid, roads, b.doorWorldX(), b.doorWorldZ(), layout);
-            if (path.isEmpty()) continue;
-            for (int i = 0; i < path.size(); i++) {
-                long key = path.get(i);
-                int x = unpackX(key), z = unpackZ(key);
-                if (!roads.containsKey(key)) add(roads, layout, x, z, RoadType.L3_BRANCH, b.fixed());
-                if (i + 1 < path.size()) {
-                    int nx = unpackX(path.get(i + 1)), nz = unpackZ(path.get(i + 1));
-                    int ex = x + (nz != z ? 1 : 0), ez = z + (nx != x ? 1 : 0);
-                    if (grid.get(ex, ez) != OccupancyGrid.BUILDING && grid.get(ex, ez) != OccupancyGrid.STREAM
-                            && !blocked(buildings, ex, ez)) add(roads, layout, ex, ez, RoadType.L3_BRANCH, b.fixed());
-                }
+            int hash = b.minX()*31+b.minZ()*17;
+            boolean stone = b.category()!=BuildingInstance.BuildingCategory.RESIDENTIAL || Math.floorMod(hash,5)==0;
+            // A tiny apron replaces the surface near a door. No per-house path is drawn to the center.
+            for(int dx=-1;dx<=1;dx++) for(int dz=-1;dz<=1;dz++) {
+                int x=b.doorWorldX()+dx,z=b.doorWorldZ()+dz;
+                if(grid.get(x,z)==OccupancyGrid.BUILDING || streamDistance(x,z)<=5) continue;
+                int y = dx==0 && dz==0 ? b.doorWorldY() : (int)Math.ceil(layout.surfaceHeight(x,z,0))-1;
+                var previous=roads.get(pack(x,z));
+                boolean fixed=b.fixed() || (previous!=null && previous.fixed());
+                roads.put(pack(x,z),new RoadCell(x,y,z,stone?RoadType.L3_BRANCH:RoadType.EARTH,fixed));
             }
-            // The final approach uses the exact template floor height, including the Hieda stair top.
-            long door = pack(b.doorWorldX(), b.doorWorldZ());
-            var cell = roads.get(door);
-            if (cell != null) roads.put(door, new RoadCell(cell.x(), b.doorWorldY(), cell.z(), cell.type(), cell.fixed()));
         }
         roads.replaceAll((key, c) -> streamDistance(c.x(), c.z()) <= 4.2
-                ? new RoadCell(c.x(), 72, c.z(), RoadType.L4_BRIDGE, c.fixed()) : c);
+                ? new RoadCell(c.x(), 71, c.z(), RoadType.L4_BRIDGE, c.fixed()) : c);
         return List.copyOf(roads.values());
     }
 
@@ -118,13 +110,13 @@ public final class VillageRoadRouter {
         return x < -345 || x > 5 ? Double.POSITIVE_INFINITY : Math.abs(z - GensokyoLayout.villageStreamCenterZ(x));
     }
     public static int surfaceY(GensokyoLayout layout, int x, int z) {
-        if (Math.abs(x + 200) <= 2 && z >= 20 && z <= 26) return 75 - (z - 20) / 2;
+        if (Math.abs(x + 200) <= 2 && z >= 20 && z <= 26) return 74 - (z - 20) / 2;
         if(x>=-257 && x<=-145 && z>=-62 && z<=34) {
-            if(Math.abs(x+200)<=2 && z>=26) return 72;
-            return (int)Math.round(layout.surfaceHeight(x,z,0));
+            if(Math.abs(x+200)<=2 && z>=26) return 71;
+            return (int)Math.ceil(layout.surfaceHeight(x,z,0))-1;
         }
-        if (Math.hypot(x + 200, z - 100) <= 145 || (z >= 98 && z <= 102 && x >= -380 && x <= 40)) return 72;
-        return (int) Math.round(layout.surfaceHeight(x, z, 0));
+        if (Math.hypot(x + 200, z - 100) <= 145 || (z >= 98 && z <= 102 && x >= -380 && x <= 40)) return 71;
+        return (int) Math.ceil(layout.surfaceHeight(x, z, 0))-1;
     }
     private static void add(Map<Long, RoadCell> roads, GensokyoLayout layout, int x, int z, RoadType type, boolean fixed) {
         if (x < OccupancyGrid.MIN_X || x > OccupancyGrid.MAX_X || z < OccupancyGrid.MIN_Z || z > OccupancyGrid.MAX_Z) return;
@@ -140,62 +132,6 @@ public final class VillageRoadRouter {
         }
     }
 
-    private static List<Long> findPath(OccupancyGrid grid, Map<Long, RoadCell> roads, int startX, int startZ, GensokyoLayout layout) {
-        if (roads.containsKey(pack(startX, startZ))) return List.of(pack(startX, startZ));
-        if (roads.isEmpty()) return List.of();
-        int[] distance = distanceField(roads);
-        var open = new PriorityQueue<Node>(Comparator.comparingDouble(Node::estimate).thenComparingDouble(Node::cost)
-                .thenComparingInt(Node::x).thenComparingInt(Node::z).thenComparingInt(Node::direction));
-        var best = new HashMap<Long, Double>();
-        Node start = new Node(startX, startZ, 4, 0, 0, null);
-        open.add(start); best.put(start.stateKey(), 0.0);
-        int expanded = 0;
-        while (!open.isEmpty() && expanded < 2500) {
-            Node node = open.remove();
-            if (node.cost > best.getOrDefault(node.stateKey(), Double.POSITIVE_INFINITY)) continue;
-            expanded++;
-            if (roads.containsKey(pack(node.x, node.z))) {
-                var path = new ArrayList<Long>();
-                for (Node p = node; p != null; p = p.parent) path.add(pack(p.x, p.z));
-                Collections.reverse(path); return path;
-            }
-            for (int d = 0; d < 4; d++) {
-                int x = node.x + DIRECTIONS[d][0], z = node.z + DIRECTIONS[d][1];
-                if (!grid.inside(x, z) || (grid.get(x, z) == OccupancyGrid.BUILDING && !roads.containsKey(pack(x, z)))) continue;
-                double cost = node.cost + (roads.containsKey(pack(x, z)) ? 0.15 : grid.get(x, z) == OccupancyGrid.STREAM ? 5.5 : 1.0)
-                        + (node.direction != 4 && node.direction != d ? 0.6 : 0)
-                        + 2.5 * Math.abs(surfaceY(layout, x, z) - surfaceY(layout, node.x, node.z));
-                // Exact Manhattan distance to the goal SET, minus the discounted final road step.
-                // This is admissible and avoids exhausting 2500 states in a broad empty field.
-                double heuristic = Math.max(0, distance[(z - OccupancyGrid.MIN_Z) * OccupancyGrid.WIDTH + x - OccupancyGrid.MIN_X] - 0.85);
-                Node next = new Node(x, z, d, cost, cost + heuristic, node);
-                if (cost < best.getOrDefault(next.stateKey(), Double.POSITIVE_INFINITY)) {
-                    best.put(next.stateKey(), cost); open.add(next);
-                }
-            }
-        }
-        return List.of();
-    }
-    private static int[] distanceField(Map<Long, RoadCell> roads) {
-        int width=OccupancyGrid.WIDTH,depth=OccupancyGrid.DEPTH;
-        int[] distance=new int[width*depth];
-        Arrays.fill(distance,width+depth);
-        for(var cell:roads.values()) distance[(cell.z()-OccupancyGrid.MIN_Z)*width+cell.x()-OccupancyGrid.MIN_X]=0;
-        for(int z=0;z<depth;z++) for(int x=0;x<width;x++) {
-            int i=z*width+x;
-            if(x>0) distance[i]=Math.min(distance[i],distance[i-1]+1);
-            if(z>0) distance[i]=Math.min(distance[i],distance[i-width]+1);
-        }
-        for(int z=depth-1;z>=0;z--) for(int x=width-1;x>=0;x--) {
-            int i=z*width+x;
-            if(x+1<width) distance[i]=Math.min(distance[i],distance[i+1]+1);
-            if(z+1<depth) distance[i]=Math.min(distance[i],distance[i+width]+1);
-        }
-        return distance;
-    }
-    private record Node(int x, int z, int direction, double cost, double estimate, Node parent) {
-        long stateKey() { return (((long) (z - OccupancyGrid.MIN_Z) * OccupancyGrid.WIDTH + x - OccupancyGrid.MIN_X) * 5) + direction; }
-    }
     public static Set<Long> connectedColumns(List<RoadCell> cells) {
         Set<Long> available = new HashSet<>();
         for (var cell : cells) available.add(cell.key());
