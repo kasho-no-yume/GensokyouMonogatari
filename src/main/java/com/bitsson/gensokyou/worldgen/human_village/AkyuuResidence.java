@@ -36,26 +36,7 @@ public final class AkyuuResidence {
         return true;
     }
     public static void ensure(ServerLevel level, HumanVillageSavedData data) {
-        if (data.plan() == null) return;
-        for (int id = 0; id < data.plan().buildings().size(); id++) {
-            var b = data.plan().buildings().get(id);
-            if (!b.templateId().equals(TEMPLATE) || !complete(data, id)) continue;
-            Vec3 position = anchor(b);
-            var pos = BlockPos.containing(position);
-            // Entity sections must finish loading before absence is meaningful. Never request an adjacent chunk.
-            if (level.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4) == null
-                    || !level.areEntitiesLoaded(ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4))) continue;
-            final int buildingId = id;
-            var residents = level.getEntitiesOfClass(AkyuuEntity.class, new AABB(pos).inflate(3), n -> n.residenceId() == buildingId);
-            if (!residents.isEmpty()) { data.setAkyuuUuid(residents.getFirst().getUUID()); continue; }
-            if (data.akyuuUuid() != null && level.getEntity(data.akyuuUuid()) instanceof AkyuuEntity) continue;
-            var npc = ModEntityTypes.AKYUU.get().create(level);
-            if (npc == null) continue;
-            npc.setResidenceId(id);
-            npc.setAnchorPos(position);
-            npc.setYRot(yaw(b)); npc.setYHeadRot(yaw(b));
-            if (level.addFreshEntity(npc)) data.setAkyuuUuid(npc.getUUID());
-        }
+        VillageLandmarkNpcs.ensure(level, data);
     }
     public static Optional<QuestSnapshot.Destination> destination(MinecraftServer server, ResourceLocation role, String label) {
         if (!ROLE.equals(role)) return Optional.empty();

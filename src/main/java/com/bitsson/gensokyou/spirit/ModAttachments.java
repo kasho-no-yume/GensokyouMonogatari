@@ -24,6 +24,11 @@ public final class ModAttachments {
                     .builder(com.bitsson.gensokyou.quest.PlayerQuestData::empty)
                     .serialize(com.bitsson.gensokyou.quest.PlayerQuestData.CODEC).copyOnDeath().build());
 
+    public static final DeferredHolder<AttachmentType<?>, AttachmentType<com.bitsson.gensokyou.village.VillagePlayerData>> VILLAGE_SERVICES =
+            ATTACHMENTS.register("village_services", () -> AttachmentType
+                    .builder(com.bitsson.gensokyou.village.VillagePlayerData::empty)
+                    .serialize(com.bitsson.gensokyou.village.VillagePlayerData.CODEC).copyOnDeath().build());
+
     public static final DeferredHolder<AttachmentType<?>, AttachmentType<SkillStateData>> SKILL_STATE =
             ATTACHMENTS.register("skill_state", () -> AttachmentType
                     .<SkillStateData>builder(SkillStateData::initial)

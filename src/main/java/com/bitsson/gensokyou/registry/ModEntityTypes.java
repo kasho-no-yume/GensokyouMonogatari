@@ -254,6 +254,16 @@ public final class ModEntityTypes {
                     .<com.bitsson.gensokyou.entity.AkyuuEntity>of(com.bitsson.gensokyou.entity.AkyuuEntity::new, MobCategory.CREATURE)
                     .sized(0.6F, 1.8F).clientTrackingRange(10).build("akyuu"));
 
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.MiyoiEntity>> MIYOI =
+            ENTITY_TYPES.register("miyoi", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.MiyoiEntity>of(com.bitsson.gensokyou.entity.MiyoiEntity::new, MobCategory.CREATURE)
+                    .sized(0.6F, 1.8F).clientTrackingRange(10).build("miyoi"));
+
+    public static final DeferredHolder<EntityType<?>, EntityType<com.bitsson.gensokyou.entity.KosuzuEntity>> KOSUZU =
+            ENTITY_TYPES.register("kosuzu", () -> EntityType.Builder
+                    .<com.bitsson.gensokyou.entity.KosuzuEntity>of(com.bitsson.gensokyou.entity.KosuzuEntity::new, MobCategory.CREATURE)
+                    .sized(0.6F, 1.8F).clientTrackingRange(10).build("kosuzu"));
+
     public static final DeferredHolder<EntityType<?>, EntityType<ReimuEntity>> REIMU =
             ENTITY_TYPES.register("reimu", () -> EntityType.Builder
                     .<ReimuEntity>of(ReimuEntity::new, MobCategory.CREATURE)

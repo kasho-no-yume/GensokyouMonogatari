@@ -3,6 +3,8 @@ package com.bitsson.gensokyou.worldgen.human_village;
 import com.bitsson.gensokyou.client.resident.ResidentGround;
 import com.bitsson.gensokyou.client.resident.ResidentRoute;
 import com.bitsson.gensokyou.client.resident.ResidentScene;
+import com.bitsson.gensokyou.client.resident.VillageResidentAnchors;
+import com.bitsson.gensokyou.network.HumanVillageLayoutSyncPayload;
 import com.bitsson.gensokyou.support.MinecraftTestBootstrap;
 import com.google.gson.JsonParser;
 import net.minecraft.core.BlockPos;
@@ -15,6 +17,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -67,6 +70,32 @@ class HumanVillageResidentsAlignmentTest {
                 } catch(AssertionError error) { failures.add(error.getMessage()); }
             }
             assertTrue(failures.isEmpty(),String.join("\n",failures));
+        }
+    }
+
+    @Test void allIndoorCustomerRoutesFitRealTemplatesInEveryRotationAndLayoutHeight() throws Exception {
+        var shops=VillageTestPlans.get(42).buildings().stream()
+                .filter(b->!VillageResidentAnchors.indoors(HumanVillageLayoutSyncPayload.InstanceEntry.of(b)).isEmpty()).toList();
+        assertEquals(3,shops.size());
+        for(var shop:shops) for(var rotation:Rotation.values()) for(int version:new int[]{1,2}) {
+            var b=new BuildingInstance(shop.templateId(),shop.category(),-200,version==1?72:71,100,
+                    shop.sizeX(),shop.sizeY(),shop.sizeZ(),rotation,shop.paletteThemeId(),0,0,0,false,true,1,2);
+            var plan=new HumanVillagePlan(version,42,List.of(b),List.of(),Set.of());
+            var ground=new ResidentGround(new TemplateWorld(plan));
+            for(var slot:VillageResidentAnchors.indoors(HumanVillageLayoutSyncPayload.InstanceEntry.of(b))) {
+                var points=slot.route().points();var from=points.getFirst();var to=points.getLast();
+                int steps=(int)Math.ceil(from.distance(to)*4);
+                ResidentRoute.Point previous=null;
+                for(int i=0;i<=steps;i++) {
+                    var expected=from.lerp(to,(double)i/steps);
+                    var actual=ground.resolve(expected,1.025f,false);
+                    String context=slot.identity()+" "+rotation+" v"+version+" "+expected;
+                    assertNotNull(actual,context);
+                    assertEquals(expected.y(),actual.y(),.01,context+" must stay on the room floor");
+                    if(previous!=null) assertTrue(ground.clear(previous,actual,1.025f),context);
+                    previous=actual;
+                }
+            }
         }
     }
 

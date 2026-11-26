@@ -42,7 +42,7 @@ def cube(element):
     return result
 
 
-def geometry(project):
+def geometry(project, identifier="reimu"):
     elements = {e["uuid"]: e for e in project["elements"]}
     bones = []
 
@@ -67,7 +67,7 @@ def geometry(project):
         "format_version": "1.12.0",
         "minecraft:geometry": [{
             "description": {
-                "identifier": "geometry.reimu",
+                "identifier": f"geometry.{identifier}",
                 "texture_width": project["resolution"]["width"],
                 "texture_height": project["resolution"]["height"],
                 "visible_bounds_width": 3,
@@ -79,7 +79,7 @@ def geometry(project):
     }
 
 
-def animations(project):
+def animations(project, identifier="reimu"):
     result = {}
     for animation in project["animations"]:
         bones = {}
@@ -98,7 +98,7 @@ def animations(project):
                     frame["lerp_mode"] = "catmullrom"
                 channels.setdefault(channel, {})[f'{keyframe["time"]:g}'] = frame
             bones[animator["name"]] = channels
-        result[f'animation.reimu.{animation["name"]}'] = {
+        result[f'animation.{identifier}.{animation["name"]}'] = {
             "loop": animation["loop"] == "loop",
             "animation_length": animation["length"],
             "bones": bones,

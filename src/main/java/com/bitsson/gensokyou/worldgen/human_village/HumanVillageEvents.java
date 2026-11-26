@@ -52,12 +52,12 @@ public final class HumanVillageEvents {
     @SubscribeEvent public static void stop(ServerStoppedEvent event) { HumanVillageManager.clearAll(); }
     @SubscribeEvent public static void preventPlacement(BlockEvent.EntityPlaceEvent event) {
         if(!(event.getLevel() instanceof ServerLevel level) || !level.dimension().equals(HakureiShrineLandmark.GENSOKYO_DIMENSION)) return;
-        if(event.getEntity() instanceof ServerPlayer player && player.hasInfiniteMaterials()) return;
+        boolean creative=event.getEntity() instanceof ServerPlayer player && player.hasInfiniteMaterials();
         var manager=HumanVillageManager.existing(level);
         if(manager==null) return;
         if(event instanceof BlockEvent.EntityMultiPlaceEvent multi) {
-            if(multi.getReplacedBlockSnapshots().stream().anyMatch(s->manager.isProtected(s.getPos()))) event.setCanceled(true);
-        } else if(manager.isProtected(event.getPos())) event.setCanceled(true);
+            if(multi.getReplacedBlockSnapshots().stream().anyMatch(s->manager.isPlacementProtected(s.getPos(),creative))) event.setCanceled(true);
+        } else if(manager.isPlacementProtected(event.getPos(),creative)) event.setCanceled(true);
     }
     @SubscribeEvent public static void preventBreaking(BlockEvent.BreakEvent event) {
         if(!(event.getLevel() instanceof ServerLevel level) || !level.dimension().equals(HakureiShrineLandmark.GENSOKYO_DIMENSION) || event.getPlayer().hasInfiniteMaterials()) return;

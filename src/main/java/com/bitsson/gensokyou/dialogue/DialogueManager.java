@@ -38,6 +38,8 @@ public final class DialogueManager {
 
     public static void open(ServerPlayer player, TouhouNpcEntity npc, DialogueGraph graph) {
         if (!player.isAlive() || player.isSpectator() || player.level() != npc.level() || player.distanceToSqr(npc) > MAX_INTERACT_DIST_SQ) return;
+        if (npc instanceof com.bitsson.gensokyou.entity.VillageNpcEntity village)
+            graph = com.bitsson.gensokyou.village.VillageDialogue.forPlayer(player, village, graph);
         graph = com.bitsson.gensokyou.quest.QuestDialogue.augment(player, npc, graph);
         if (graph.node(graph.entry()) == null) {
             return;
@@ -102,6 +104,13 @@ public final class DialogueManager {
             sendClose(player, entityId, revision);
             if (action == DialogueAction.OPEN_TRADE) {
                 npc.openTrade(player);
+            } else if (action == DialogueAction.COMPLETE_VILLAGE_INTRO && session.nodeId().equals("intro")
+                    && npc instanceof com.bitsson.gensokyou.entity.VillageNpcEntity village
+                    && com.bitsson.gensokyou.village.VillageDialogue.owns(session.graph())) {
+                var state = com.bitsson.gensokyou.village.VillageServices.data(player);
+                com.bitsson.gensokyou.village.VillageServices.store(player, state.introduce(village.villageRole()));
+                com.bitsson.gensokyou.quest.QuestService.sync(player, false);
+                open(player, npc, npc.dialogueGraph());
             }
             return;
         }

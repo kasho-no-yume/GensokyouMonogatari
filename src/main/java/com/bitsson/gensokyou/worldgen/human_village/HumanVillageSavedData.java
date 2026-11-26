@@ -20,6 +20,7 @@ public final class HumanVillageSavedData extends SavedData {
     private final Set<Long> placedChunks = new HashSet<>();
     private final Set<Integer> placedBuildingIds = new HashSet<>();
     private java.util.UUID akyuuUuid;
+    private final java.util.Map<Integer, java.util.UUID> landmarkNpcs = new java.util.HashMap<>();
 
     public HumanVillagePlan plan() { return plan; }
     public void setPlan(HumanVillagePlan plan) {
@@ -34,6 +35,10 @@ public final class HumanVillageSavedData extends SavedData {
     public boolean hasBuilding(int id) { return placedBuildingIds.contains(id); }
     public java.util.UUID akyuuUuid() { return akyuuUuid; }
     public void setAkyuuUuid(java.util.UUID uuid) { if (!uuid.equals(akyuuUuid)) { akyuuUuid = uuid; setDirty(); } }
+    public java.util.UUID landmarkNpc(int building) { return landmarkNpcs.get(building); }
+    public void setLandmarkNpc(int building, java.util.UUID uuid) {
+        if (!uuid.equals(landmarkNpcs.put(building, uuid))) setDirty();
+    }
 
     public static HumanVillageSavedData load(CompoundTag tag, HolderLookup.Provider registries) {
         var data=new HumanVillageSavedData();
@@ -65,6 +70,12 @@ public final class HumanVillageSavedData extends SavedData {
         for(long p:tag.getLongArray("placedChunks")) data.placedChunks.add(p);
         for(int id:tag.getIntArray("placedBuildingIds")) if(id>=0 && id<buildings.size()) data.placedBuildingIds.add(id);
         if(tag.hasUUID("akyuuUuid")) data.akyuuUuid = tag.getUUID("akyuuUuid");
+        ListTag npcs = tag.getList("landmarkNpcs", Tag.TAG_COMPOUND);
+        for (int n = 0; n < npcs.size(); n++) {
+            CompoundTag entry = npcs.getCompound(n);
+            int id = entry.getInt("building");
+            if (id >= 0 && id < buildings.size() && entry.hasUUID("uuid")) data.landmarkNpcs.put(id, entry.getUUID("uuid"));
+        }
         return data;
     }
     @Override public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
@@ -85,6 +96,11 @@ public final class HumanVillageSavedData extends SavedData {
         tag.putLongArray("placedChunks",placedChunks.stream().mapToLong(Long::longValue).sorted().toArray());
         tag.putIntArray("placedBuildingIds",placedBuildingIds.stream().mapToInt(Integer::intValue).sorted().toArray());
         if(akyuuUuid != null) tag.putUUID("akyuuUuid", akyuuUuid);
+        var npcs = new ListTag();
+        landmarkNpcs.forEach((building, uuid) -> {
+            var entry = new CompoundTag(); entry.putInt("building", building); entry.putUUID("uuid", uuid); npcs.add(entry);
+        });
+        tag.put("landmarkNpcs", npcs);
         return tag;
     }
 }

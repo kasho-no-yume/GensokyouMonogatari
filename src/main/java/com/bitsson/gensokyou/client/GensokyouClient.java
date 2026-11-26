@@ -105,9 +105,13 @@ public final class GensokyouClient {
         event.registerEntityRenderer(ModEntityTypes.CIRNO.get(),
                 context -> new SkinMobRenderer<>(context, 0.45F, 1.15F, GensokyouTextures.FAIRY));
         event.registerEntityRenderer(ModEntityTypes.RINNOSUKE.get(),
-                context -> new SkinMobRenderer<>(context, 0.5F, 1.0F, GensokyouTextures.RINNOSUKE));
+                context -> new com.bitsson.gensokyou.client.renderer.VillageNpcGeoRenderer<>(context));
         event.registerEntityRenderer(ModEntityTypes.AKYUU.get(),
-                context -> new SkinMobRenderer<>(context, 0.5F, 1.0F, GensokyouTextures.AKYUU));
+                context -> new com.bitsson.gensokyou.client.renderer.VillageNpcGeoRenderer<>(context));
+        event.registerEntityRenderer(ModEntityTypes.MIYOI.get(),
+                context -> new com.bitsson.gensokyou.client.renderer.VillageNpcGeoRenderer<>(context));
+        event.registerEntityRenderer(ModEntityTypes.KOSUZU.get(),
+                context -> new com.bitsson.gensokyou.client.renderer.VillageNpcGeoRenderer<>(context));
         event.registerEntityRenderer(ModEntityTypes.REIMU.get(), ReimuGeoRenderer::new);
         event.registerEntityRenderer(ModEntityTypes.BALANCE_TEST_BOSS.get(),
                 com.bitsson.gensokyou.client.renderer.TestBossGeoRenderer::new);

@@ -12,14 +12,7 @@
     "water_fog_color": 329011
   },
   "spawners": {
-    "monster": [
-      {
-        "type": "gensokyou:fairy",
-        "weight": 18,
-        "minCount": 1,
-        "maxCount": 1
-      }
-    ],
+    "monster": [],
     "creature": [],
     "ambient": [],
     "axolotls": [],

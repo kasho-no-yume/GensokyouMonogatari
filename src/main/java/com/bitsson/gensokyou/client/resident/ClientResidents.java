@@ -62,12 +62,13 @@ public final class ClientResidents {
                     }
                     @Override public boolean clear(ResidentRoute.Point a,ResidentRoute.Point b) {return ground.clear(a,b,1.025f);}
                 });
+                candidates.addAll(VillageResidentAnchors.nearIndoors(viewer));
                 candidates.addAll(streetCrowd.near(viewer,ResidentScene.MAX_RESIDENTS-candidates.size()));
             }
         }
         // Explicit local preview replaces the ordinary scene until cleared.
         candidates.addAll(preview);
-        if(preview.isEmpty()) population.tick(candidates,viewer,ground,ResidentRenderer::mayAppear);
+        if(preview.isEmpty()) population.tickAoi(candidates,viewer,ground);
         else population.tick(candidates,viewer,ground); // An explicit preview intentionally appears in front.
     }
 
@@ -131,12 +132,10 @@ public final class ClientResidents {
 
     public static void villageLayoutChanged() {
         population.clear(); streetCrowd.clear(); drawn=0;
-        ResidentRenderer.clearSpawnView();
     }
 
     private static void clearWorld() {
         clearPreview();
-        ResidentRenderer.clearSpawnView();
         lastLevel = null;
     }
 
@@ -151,4 +150,5 @@ public final class ClientResidents {
     public static int activeCount() { return population.size(); }
     public static int drawnCount() { return drawn; }
     public static int previewCount() { return preview.size(); }
+    static float opacity(ResidentWalker walker, float partial) { return population.opacity(walker, partial); }
 }

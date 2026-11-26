@@ -71,6 +71,23 @@ class ResidentPopulationTest {
         population.tick(List.of(point),VIEWER,shifted,walker->true);
         assertEquals(1,population.size());
     }
+    @Test void indoorCustomersCanFillNearbyRoomsAfterInitialAdmissionEnds() {
+        var population=new ResidentPopulation();var surface=new Surface();
+        for(int tick=0;tick<45;tick++) population.tickAoi(List.of(),VIEWER,surface);
+        var indoor=slot("gensokyou:village_indoor/hv_suzunaan/one",5,0);
+        var street=slot("gensokyou:street/near",10,0);
+        var far=slot("gensokyou:village_indoor/hv_suzunaan/far",60,0);
+        population.tickAoi(List.of(indoor,street,far),VIEWER,surface);
+        assertEquals(1,population.size());
+        var customer=population.visible().getFirst();
+        assertSame(indoor,customer.slot());
+        assertTrue(population.opacity(customer,0)<1);
+        population.tickAoi(List.of(indoor),VIEWER,surface);
+        assertSame(customer,population.visible().getFirst());
+        population.tickAoi(List.of(),new ResidentRoute.Point(100,72,0),surface);
+        assertEquals(0,population.size());
+    }
+
     private static final class Surface implements ResidentWalker.Surface {
         int probes;
         public ResidentRoute.Point resolve(ResidentRoute.Point p,float scale,boolean protectedGround) {probes++;return p.x()<0?null:p;}

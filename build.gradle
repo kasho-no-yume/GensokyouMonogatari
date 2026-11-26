@@ -129,6 +129,9 @@ neoForge {
             programArgument '--world=world-v1'
             gameDirectory = project.file('build/human-village-probe')
             systemProperty 'gensokyou.humanVillageProbe', 'true'
+            if (providers.gradleProperty('villageServicesOnly').isPresent()) {
+                systemProperty 'gensokyou.humanVillageServicesOnly', 'true'
+            }
         }
         npcProbe {
             server()

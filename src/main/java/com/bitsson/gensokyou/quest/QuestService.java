@@ -86,12 +86,15 @@ public final class QuestService {
                 || player.distanceToSqr(npc) > 64D) return;
         var state = data(player);
         if (action.kind().equals("accept")) {
-            var def = QuestProviders.available(npc.questRole(), state).stream()
+            var def = QuestProviders.available(player, npc.questRole()).stream()
                     .filter(d -> d.id().toString().equals(action.target())).findFirst().orElse(null);
             if (def == null || state.quests().stream().anyMatch(q -> !q.complete() && q.definition().equals(def.id()))) return;
             var quests = new ArrayList<>(state.quests());
-            quests.add(QuestProgress.start(def).apply(def, new QuestObjectives.Poll(), inventory(player)));
+            boolean daily = com.bitsson.gensokyou.village.DailyCommissions.daily(def);
+            var started = daily ? QuestProgress.at(def, com.bitsson.gensokyou.village.DailyCommissions.instance(player, def), 0) : QuestProgress.start(def);
+            quests.add(started.apply(def, new QuestObjectives.Poll(), inventory(player)));
             store(player, new PlayerQuestData(state.epoch(), quests, state.tracked()));
+            if (daily) com.bitsson.gensokyou.village.DailyCommissions.accepted(player, def);
         } else if (action.target().equals(PlayerQuestData.MAINLINE)) {
             actMain(player, npc, action);
         } else {
@@ -156,6 +159,9 @@ public final class QuestService {
         var state = data(player);
         var entries = new ArrayList<QuestSnapshot.Entry>();
         var markers = new LinkedHashMap<ResourceLocation, String>();
+        var village = com.bitsson.gensokyou.village.VillageServices.data(player);
+        for (var role : com.bitsson.gensokyou.village.VillageRole.values())
+            if (!village.knows(role)) markers.put(role.id(), "question");
         var activeMain = main(player.getServer());
         if (activeMain.isPresent()) {
             var stage = activeMain.get();
@@ -169,7 +175,7 @@ public final class QuestService {
             if (def != null && !q.complete() && q.compatible(def)) entries.add(new QuestSnapshot.Entry(def, q, state.tracked().equals(q.instance())));
         }
         for (var provider : QuestDefinitionLoader.all().values().stream().map(QuestDefinition::provider).distinct().toList())
-            if (!QuestProviders.available(provider, state).isEmpty()) markers.put(provider, "question");
+            if (!QuestProviders.available(player, provider).isEmpty()) markers.put(provider, "question");
         for (var entry : entries) {
             var q = entry.progress();
             if (q.ready()) markers.put(entry.definition().returnNpc(), "question");
@@ -193,7 +199,7 @@ public final class QuestService {
     private static Optional<QuestSnapshot.Destination> resolve(ServerPlayer player, QuestDefinition.Navigation nav, String label) {
         if (nav.dimension().isPresent()) return Optional.of(new QuestSnapshot.Destination(nav.dimension().get(), nav.x(), nav.y(), nav.z(), label));
         ResourceLocation role = nav.npc().orElseThrow();
-        var residence = AkyuuResidence.destination(player.getServer(), role, label);
+        var residence = com.bitsson.gensokyou.worldgen.human_village.VillageLandmarkNpcs.destination(player.getServer(), role, label);
         if (residence.isPresent()) return residence;
         for (var level : player.getServer().getAllLevels()) {
             var matches = level.getEntities(net.minecraft.world.level.entity.EntityTypeTest.forClass(TouhouNpcEntity.class),

@@ -19,6 +19,7 @@ public final class ResidentModel {
     private final ModelPart root;
     private final List<ModelPart> parts;
     private final ModelPart head, body, arms, hands, rightLeg, leftLeg;
+    private int alpha = 255;
 
     public ResidentModel() {
         root = createLayer().bakeRoot();
@@ -67,7 +68,13 @@ public final class ResidentModel {
     }
 
     public void render(PoseStack pose, VertexConsumer out, int light, ResidentAppearance look,
-                       ResidentWalker.Frame frame, double age, boolean details) {
+                        ResidentWalker.Frame frame, double age, boolean details) {
+        render(pose, out, light, look, frame, age, details, 1F);
+    }
+
+    public void render(PoseStack pose, VertexConsumer out, int light, ResidentAppearance look,
+                       ResidentWalker.Frame frame, double age, boolean details, float opacity) {
+        alpha = Math.clamp(Math.round(opacity * 255F), 0, 255);
         // Geometry is reused for every person. resetPose alone does not reset visibility.
         for (ModelPart part : parts) {
             part.resetPose();
@@ -85,16 +92,16 @@ public final class ResidentModel {
         rightLeg.xRot = swing;
         leftLeg.xRot = -swing;
 
-        head.render(pose, out, light, OverlayTexture.NO_OVERLAY, look.skin());
-        body.render(pose, out, light, OverlayTexture.NO_OVERLAY, look.cloth());
-        arms.render(pose, out, light, OverlayTexture.NO_OVERLAY, look.cloth());
+        head.render(pose, out, light, OverlayTexture.NO_OVERLAY, tint(look.skin()));
+        body.render(pose, out, light, OverlayTexture.NO_OVERLAY, tint(look.cloth()));
+        arms.render(pose, out, light, OverlayTexture.NO_OVERLAY, tint(look.cloth()));
         pose.pushPose();
         arms.translateAndRotate(pose);
         hands.visible = true;
-        hands.render(pose, out, light, OverlayTexture.NO_OVERLAY, look.skin());
+        hands.render(pose, out, light, OverlayTexture.NO_OVERLAY, tint(look.skin()));
         pose.popPose();
-        rightLeg.render(pose, out, light, OverlayTexture.NO_OVERLAY, look.sash());
-        leftLeg.render(pose, out, light, OverlayTexture.NO_OVERLAY, look.sash());
+        rightLeg.render(pose, out, light, OverlayTexture.NO_OVERLAY, tint(look.sash()));
+        leftLeg.render(pose, out, light, OverlayTexture.NO_OVERLAY, tint(look.sash()));
 
         draw(look.outfit() == ResidentAppearance.Outfit.ROBE ? "robe" : "coat", pose, out, light, look.cloth());
         draw("sash", pose, out, light, look.sash());
@@ -122,6 +129,7 @@ public final class ResidentModel {
     }
 
     private void draw(String part, PoseStack pose, VertexConsumer out, int light, int color) {
-        root.getChild(part).render(pose, out, light, OverlayTexture.NO_OVERLAY, color);
+        root.getChild(part).render(pose, out, light, OverlayTexture.NO_OVERLAY, tint(color));
     }
+    private int tint(int color) { return (color & 0xFFFFFF) | alpha << 24; }
 }

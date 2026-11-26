@@ -36,6 +36,28 @@ class VillageResidentAnchorsTest {
         assertSame(original,VillageResidentAnchors.coreSlot(original));
     }
 
+    @Test void indoorCustomersUseInstanceHeightRotationAndOnlyTheThreeShops() {
+        var counts=java.util.Map.of("hv_kourindou",3,"hv_geidontei",4,"hv_suzunaan",3,"hv_hieda_residence",0);
+        for(var entry:counts.entrySet()) for(var rotation:Rotation.values()) {
+            var b=new BuildingInstance(ResourceLocation.parse("gensokyou:"+entry.getKey()),BuildingInstance.BuildingCategory.SPECIAL_LANDMARK,
+                    600,78,400,44,29,36,rotation,0,0,0,0,true,true,1,2);
+            var instance=HumanVillageLayoutSyncPayload.InstanceEntry.of(b);
+            var slots=VillageResidentAnchors.indoors(instance);
+            assertEquals(entry.getValue(),slots.size());
+            for(var slot:slots) for(var point:slot.route().points()) {
+                assertTrue(VillageResidentAnchors.isIndoor(slot));
+                assertEquals(79,point.y());
+                assertTrue(b.containsColumn((int)Math.floor(point.x()),(int)Math.floor(point.z())));
+            }
+            VillageResidentAnchors.install(new HumanVillageLayoutSyncPayload(2,List.of(instance)));
+            assertEquals(slots.stream().map(ResidentScene.Slot::identity).toList(),
+                    VillageResidentAnchors.nearIndoors(new ResidentRoute.Point(620,79,420)).stream()
+                            .map(ResidentScene.Slot::identity).sorted().toList());
+            VillageResidentAnchors.clear();
+            assertTrue(VillageResidentAnchors.nearIndoors(new ResidentRoute.Point(620,79,420)).isEmpty());
+        }
+    }
+
     @Test void candidatesRespectNeighborhoodAndSharedBudget() {
         var entries=new java.util.ArrayList<HumanVillageLayoutSyncPayload.InstanceEntry>();
         for(int i=0;i<100;i++) entries.add(new HumanVillageLayoutSyncPayload.InstanceEntry(ResourceLocation.parse("gensokyou:hv_machiya_v02"),

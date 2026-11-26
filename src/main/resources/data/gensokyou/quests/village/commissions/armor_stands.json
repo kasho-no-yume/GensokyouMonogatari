@@ -1,0 +1,9 @@
+{
+  "id": "gensokyou:village/commissions/armor_stands", "kind": "commission", "scope": "player",
+  "title": "quest.gensokyou.village.armor_stands.title", "description": "quest.gensokyou.village.armor_stands.description",
+  "provider": "gensokyou:akyuu", "return_npc": "gensokyou:akyuu",
+  "stages": [{"id": "deliver", "title": "quest.gensokyou.village.deliver", "objectives": [
+    {"type": "gensokyou:submit_items", "npc": "gensokyou:akyuu", "item": "minecraft:armor_stand", "count": 6, "description": "quest.gensokyou.village.armor_stands.goal"}
+  ], "navigation": {"npc": "gensokyou:akyuu"}}],
+  "rewards": [{"item": "gensokyou:yen", "count": 12}]
+}

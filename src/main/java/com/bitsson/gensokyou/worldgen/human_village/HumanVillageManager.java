@@ -91,7 +91,7 @@ public final class HumanVillageManager {
             int cx=ChunkPos.getX(key),cz=ChunkPos.getZ(key);
             if(level.getChunkSource().getChunkNow(cx,cz)!=null) ensureChunkPopulated(new ChunkPos(cx,cz));
         }
-        if(level.getGameTime() % 20 == 0) AkyuuResidence.ensure(level, data);
+        if(level.getGameTime() % 20 == 0) VillageLandmarkNpcs.ensure(level, data);
     }
     public boolean ensureChunkPopulated(ChunkPos chunk) {
         if(populating || data.hasChunk(chunk.toLong()) || !intersectsChunk(chunk.x,chunk.z)) return data.hasChunk(chunk.toLong());
@@ -210,11 +210,20 @@ public final class HumanVillageManager {
         }
     }
     public boolean isProtected(BlockPos pos) {
+        return isProtected(pos,false);
+    }
+    /** Creative builders retain their existing permissions outside the four service landmarks. */
+    public boolean isPlacementProtected(BlockPos pos,boolean creative) {
+        return isProtected(pos,creative);
+    }
+    private boolean isProtected(BlockPos pos,boolean landmarksOnly) {
         if(!data.hasChunk(ChunkPos.asLong(pos.getX()>>4,pos.getZ()>>4))) return false;
         for(int id:buildingIds(new ChunkPos(pos.getX()>>4,pos.getZ()>>4))) {
             var b=plan().buildings().get(id);
-            if(b.containsColumn(pos.getX(),pos.getZ()) && pos.getY()>=b.minY()-Math.max(8,b.foundationDepth()) && pos.getY()<b.minY()+b.sizeY()) return true;
+            if((!landmarksOnly || b.category()==BuildingInstance.BuildingCategory.SPECIAL_LANDMARK)
+                    && b.containsColumn(pos.getX(),pos.getZ()) && pos.getY()>=b.minY()-Math.max(8,b.foundationDepth()) && pos.getY()<b.minY()+b.sizeY()) return true;
         }
+        if(landmarksOnly) return false;
         RoadCell road=roads.get(pack(pos.getX(),pos.getZ()));
         return road!=null && pos.getY()>=road.surfaceY()-2 && pos.getY()<=road.surfaceY()+5;
     }

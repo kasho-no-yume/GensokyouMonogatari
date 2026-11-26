@@ -2,6 +2,8 @@ package com.bitsson.gensokyou.client.resident;
 
 import com.bitsson.gensokyou.network.HumanVillageLayoutSyncPayload;
 import com.bitsson.gensokyou.network.HumanVillageLayoutSyncPayload.InstanceEntry;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Rotation;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -13,6 +15,7 @@ import java.util.LinkedHashMap;
 public final class VillageResidentAnchors {
     private static final Map<Long,List<InstanceEntry>> buckets = new HashMap<>();
     private static final Map<ResidentScene.Slot,ResidentScene.Slot> loweredCore = new HashMap<>();
+    private static final List<ResidentScene.Slot> indoorSlots = new ArrayList<>();
     private static int version = 1;
     private static boolean ready;
     private VillageResidentAnchors() {}
@@ -21,6 +24,7 @@ public final class VillageResidentAnchors {
     public static void install(HumanVillageLayoutSyncPayload payload) {
         clear(); version=payload.layoutVersion();ready=true;
         for(var e:payload.instances()) {
+            indoorSlots.addAll(indoors(e));
             int sx=e.rotationOrdinal()%2==0?e.sizeX():e.sizeZ(),sz=e.rotationOrdinal()%2==0?e.sizeZ():e.sizeX();
             for(int x=e.minX()>>4;x<=(e.minX()+sx-1)>>4;x++) for(int z=e.minZ()>>4;z<=(e.minZ()+sz-1)>>4;z++)
                 buckets.computeIfAbsent(key(x,z),k->new ArrayList<>()).add(e);
@@ -47,6 +51,49 @@ public final class VillageResidentAnchors {
         return nearby(viewer).stream().filter(e->e.templateId().getPath().startsWith("hv_machiya_")).map(VillageResidentAnchors::doorstep)
                 .sorted(java.util.Comparator.comparingDouble((ResidentScene.Slot s)->s.route().distanceSquared(viewer)).thenComparing(ResidentScene.Slot::identity))
                 .limit(Math.max(0,budget)).toList();
+    }
+
+    /** A few authored shoppers, separate from heightmap-based public street interests. */
+    public static List<ResidentScene.Slot> indoors(InstanceEntry e) {
+        double[][][] routes = switch(e.templateId().toString()) {
+            case "gensokyou:hv_kourindou" -> new double[][][] {
+                    {{15.5,13.5},{15.5,20.5}}, {{23.5,14.5},{23.5,21.5}}, {{16.5,11.5},{21.5,11.5}}};
+            case "gensokyou:hv_geidontei" -> new double[][][] {
+                    {{18.5,12.5},{18.5,16.5}}, {{18.5,20.5},{18.5,24.5}},
+                    {{14.5,12.5},{14.5,17.5}}, {{14.5,21.5},{14.5,24.5}}};
+            case "gensokyou:hv_suzunaan" -> new double[][][] {
+                    {{6.5,9.5},{6.5,11.5}}, {{10.5,14.5},{15.5,14.5}}, {{10.5,23.5},{15.5,23.5}}};
+            default -> new double[0][][];
+        };
+        if(routes.length==0) return List.of();
+        Rotation rotation=Rotation.values()[e.rotationOrdinal()];
+        int sx=e.rotationOrdinal()%2==0?e.sizeX():e.sizeZ(),sz=e.rotationOrdinal()%2==0?e.sizeZ():e.sizeX();
+        BlockPos pivot=switch(rotation) {
+            case NONE -> new BlockPos(e.minX(),e.minY(),e.minZ());
+            case CLOCKWISE_90 -> new BlockPos(e.minX()+sx-1,e.minY(),e.minZ());
+            case CLOCKWISE_180 -> new BlockPos(e.minX()+sx-1,e.minY(),e.minZ()+sz-1);
+            case COUNTERCLOCKWISE_90 -> new BlockPos(e.minX(),e.minY(),e.minZ()+sz-1);
+        };
+        var result=new ArrayList<ResidentScene.Slot>();
+        for(int i=0;i<routes.length;i++) {
+            var points=new ArrayList<ResidentRoute.Point>();
+            for(var p:routes[i]) {
+                // Rotate block centers around the same integer pivot as StructureTemplate.
+                var local=new BlockPos((int)Math.floor(p[0]),1,(int)Math.floor(p[1])).rotate(rotation).offset(pivot);
+                points.add(new ResidentRoute.Point(local.getX()+.5,local.getY(),local.getZ()+.5));
+            }
+            result.add(new ResidentScene.Slot("gensokyou:village_indoor/"+e.templateId().getPath()+"/"+e.minX()+"/"+e.minZ()+"/"+i,
+                    new ResidentRoute(points),e.rotationOrdinal()*90f,true));
+        }
+        return List.copyOf(result);
+    }
+
+    public static List<ResidentScene.Slot> nearIndoors(ResidentRoute.Point viewer) {
+        return ResidentScene.candidates(indoorSlots,viewer);
+    }
+
+    public static boolean isIndoor(ResidentScene.Slot slot) {
+        return slot.identity().startsWith("gensokyou:village_indoor/");
     }
 
     public static List<ResidentStreetCrowd.Seed> interests(ResidentRoute.Point viewer) {
@@ -96,5 +143,5 @@ public final class VillageResidentAnchors {
         }
         return true;
     }
-    public static void clear() { buckets.clear(); loweredCore.clear(); version=1;ready=false; }
+    public static void clear() { buckets.clear(); loweredCore.clear(); indoorSlots.clear(); version=1;ready=false; }
 }

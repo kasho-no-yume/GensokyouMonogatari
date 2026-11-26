@@ -1,0 +1,9 @@
+{
+  "id": "gensokyou:village/commissions/chests", "kind": "commission", "scope": "player",
+  "title": "quest.gensokyou.village.chests.title", "description": "quest.gensokyou.village.chests.description",
+  "provider": "gensokyou:akyuu", "return_npc": "gensokyou:akyuu",
+  "stages": [{"id": "deliver", "title": "quest.gensokyou.village.deliver", "objectives": [
+    {"type": "gensokyou:submit_items", "npc": "gensokyou:akyuu", "item": "minecraft:chest", "count": 8, "description": "quest.gensokyou.village.chests.goal"}
+  ], "navigation": {"npc": "gensokyou:akyuu"}}],
+  "rewards": [{"item": "gensokyou:yen", "count": 12}]
+}

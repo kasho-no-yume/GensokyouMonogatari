@@ -6,6 +6,7 @@ import java.util.Locale;
 /** 对话选项动作（null = 仅跳转/关闭由 next 决定）。 */
 public enum DialogueAction {
     OPEN_TRADE,
+    COMPLETE_VILLAGE_INTRO,
     CLOSE;
 
     public static final Codec<DialogueAction> CODEC = Codec.stringResolver(

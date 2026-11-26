@@ -24,7 +24,7 @@ public final class QuestDialogue {
         return build(player, npc, base, false);
     }
     public static boolean hasOperations(ServerPlayer player, TouhouNpcEntity npc) {
-        if (!QuestProviders.available(npc.questRole(), QuestService.data(player)).isEmpty()) return true;
+        if (!QuestProviders.available(player, npc.questRole()).isEmpty()) return true;
         for (var entry : QuestService.snapshot(player).entries()) {
             var q = entry.progress(); var def = entry.definition();
             if (q.ready() && def.returnNpc().equals(npc.questRole()) || !q.costs(def, npc.questRole()).isEmpty()) return true;
@@ -47,14 +47,26 @@ public final class QuestDialogue {
         var intro = new ArrayList<>(entry.options());
         if (original == null && !npc.getOffers().isEmpty()) intro.add(new DialogueOption(
                 Component.translatable("gui.gensokyou.quest.trade"), Optional.empty(), Optional.of(com.bitsson.gensokyou.dialogue.DialogueAction.OPEN_TRADE)));
-        intro.add(link(Component.translatable("gui.gensokyou.quest.tasks"), ROOT));
-        nodes.put(base.entry(), new DialogueNode(entry.text(), intro));
+        boolean villageGraph = npc instanceof com.bitsson.gensokyou.entity.VillageNpcEntity && com.bitsson.gensokyou.village.VillageDialogue.owns(base);
+        if (villageGraph && npc instanceof com.bitsson.gensokyou.entity.VillageNpcEntity village) {
+            if (village.villageRole().shop() && hasOperations(player, npc)) {
+                // Keep exactly two choices at the ordinary root; quest operations live inside its function entry.
+                var greet = nodes.get("greet");
+                nodes.put("greet", new DialogueNode(greet.text(), List.of(
+                        link(Component.translatable("dialogue.gensokyou.village.function"), "services"), greet.options().getLast())));
+                nodes.put("services", new DialogueNode(greet.text(), List.of(
+                        new DialogueOption(Component.translatable("gui.gensokyou.quest.trade"), Optional.empty(), Optional.of(com.bitsson.gensokyou.dialogue.DialogueAction.OPEN_TRADE)),
+                        link(Component.translatable("gui.gensokyou.quest.tasks"), ROOT),
+                        link(Component.translatable("gui.gensokyou.quest.back"), "greet"))));
+            }
+        } else intro.add(link(Component.translatable("gui.gensokyou.quest.tasks"), ROOT));
+        if (!villageGraph) nodes.put(base.entry(), new DialogueNode(entry.text(), intro));
         var accept = new ArrayList<Operation>();
         var submit = new ArrayList<Operation>();
         var claim = new ArrayList<Operation>();
         var talk = new ArrayList<Operation>();
         var state = QuestService.data(player);
-        for (var def : QuestProviders.available(npc.questRole(), state)) accept.add(new Operation(
+        for (var def : QuestProviders.available(player, npc.questRole())) accept.add(new Operation(
                 Component.translatable(def.title()), details(def), Component.translatable("gui.gensokyou.quest.accept"),
                 new QuestDialogueAction("accept", def.id().toString(), 0, "")));
         for (var entryView : QuestService.snapshot(player).entries()) {

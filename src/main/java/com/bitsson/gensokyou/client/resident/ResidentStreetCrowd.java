@@ -11,7 +11,7 @@ import java.util.function.Supplier;
 /** Incremental local street performances; no world seed, global navigation grid or distant simulation. */
 public final class ResidentStreetCrowd {
     public static final int PROBES_PER_TICK=48, MAX_CACHED=384;
-    public static final double SPAWN_RADIUS=72;
+    public static final double SPAWN_RADIUS=ResidentSpawnVisibility.SPAWN_RADIUS;
     private final Map<String,ResidentScene.Slot> slots=new LinkedHashMap<>();
     private final ArrayDeque<Seed> pending=new ArrayDeque<>();
     private ResidentRoute.Point lastViewer;
@@ -35,7 +35,7 @@ public final class ResidentStreetCrowd {
 
     public void update(ResidentRoute.Point viewer,Supplier<List<Seed>> interests,Streets surface) {
         tick++;
-        slots.values().removeIf(s->s.route().distanceSquared(viewer)>ResidentScene.VIEW_DISTANCE*ResidentScene.VIEW_DISTANCE);
+        slots.values().removeIf(s->s.route().distanceSquared(viewer)>ResidentSpawnVisibility.DESPAWN_RADIUS*ResidentSpawnVisibility.DESPAWN_RADIUS);
         if(lastViewer==null || horizontalDistanceSquared(lastViewer,viewer)>=8*8 || tick-lastRefresh>=40) {
             var unique=new LinkedHashMap<String,Seed>();
             for(var seed:interests.get()) if(seed.distanceSquared(viewer)<=SPAWN_RADIUS*SPAWN_RADIUS)

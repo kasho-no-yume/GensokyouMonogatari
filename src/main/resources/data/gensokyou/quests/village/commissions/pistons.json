@@ -1,0 +1,9 @@
+{
+  "id": "gensokyou:village/commissions/pistons", "kind": "commission", "scope": "player",
+  "title": "quest.gensokyou.village.pistons.title", "description": "quest.gensokyou.village.pistons.description",
+  "provider": "gensokyou:akyuu", "return_npc": "gensokyou:akyuu",
+  "stages": [{"id": "deliver", "title": "quest.gensokyou.village.deliver", "objectives": [
+    {"type": "gensokyou:submit_items", "npc": "gensokyou:akyuu", "item": "minecraft:piston", "count": 4, "description": "quest.gensokyou.village.pistons.goal"}
+  ], "navigation": {"npc": "gensokyou:akyuu"}}],
+  "rewards": [{"item": "gensokyou:yen", "count": 16}]
+}

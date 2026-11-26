@@ -1,0 +1,9 @@
+{
+  "id": "gensokyou:village/commissions/flower_pots", "kind": "commission", "scope": "player",
+  "title": "quest.gensokyou.village.flower_pots.title", "description": "quest.gensokyou.village.flower_pots.description",
+  "provider": "gensokyou:akyuu", "return_npc": "gensokyou:akyuu",
+  "stages": [{"id": "deliver", "title": "quest.gensokyou.village.deliver", "objectives": [
+    {"type": "gensokyou:submit_items", "npc": "gensokyou:akyuu", "item": "minecraft:flower_pot", "count": 12, "description": "quest.gensokyou.village.flower_pots.goal"}
+  ], "navigation": {"npc": "gensokyou:akyuu"}}],
+  "rewards": [{"item": "gensokyou:yen", "count": 10}]
+}

@@ -3,19 +3,32 @@ package com.bitsson.gensokyou.testkit;
 import com.bitsson.gensokyou.client.resident.ResidentGround;
 import com.bitsson.gensokyou.client.resident.ResidentRoute;
 import com.bitsson.gensokyou.client.resident.ResidentScene;
+import com.bitsson.gensokyou.client.resident.VillageResidentAnchors;
 import com.bitsson.gensokyou.landmark.HakureiShrineLandmark;
+import com.bitsson.gensokyou.network.HumanVillageLayoutSyncPayload;
 import com.bitsson.gensokyou.registry.LandmarkBlocks;
+import com.bitsson.gensokyou.registry.ModEntityTypes;
 import com.bitsson.gensokyou.worldgen.human_village.*;
 import com.google.gson.JsonParser;
+import com.mojang.authlib.GameProfile;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.BlockSnapshot;
+import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.event.EventHooks;
+import net.neoforged.neoforge.event.entity.living.MobSpawnEvent;
+import net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
 import java.io.InputStreamReader;
@@ -23,6 +36,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.UUID;
 
 /** Dev-only isolated native-world probe, excluded from the distributed jar with the testkit package. */
 @EventBusSubscriber(modid="gensokyou")
@@ -37,6 +52,26 @@ public final class HumanVillageProbe {
             var level=server.getLevel(HakureiShrineLandmark.GENSOKYO_DIMENSION);
             check(level!=null,"Missing Gensokyo dimension");
             var manager=HumanVillageManager.get(level);
+            if(Boolean.getBoolean("gensokyou.humanVillageServicesOnly")) {
+                var serviceChunks=new LinkedHashSet<Long>();
+                for(var b:manager.plan().buildings()) {
+                    if(b.category()!=BuildingInstance.BuildingCategory.SPECIAL_LANDMARK) continue;
+                    for(int x=(b.minX()-1)>>4;x<=b.maxX()>>4;x++) for(int z=b.minZ()>>4;z<=b.maxZ()>>4;z++)
+                        serviceChunks.add(ChunkPos.asLong(x,z));
+                }
+                serviceChunks.add(ChunkPos.asLong(-200>>4,130>>4));
+                serviceChunks.add(ChunkPos.asLong(-200>>4,100>>4));
+                for(long key:serviceChunks) {
+                    var chunk=new ChunkPos(ChunkPos.getX(key),ChunkPos.getZ(key));
+                    level.getChunk(chunk.x,chunk.z);
+                    check(manager.ensureChunkPopulated(chunk),"Service landmark chunk failed "+chunk);
+                }
+                verifyServiceSafety(level,manager,ground(level));
+                String pass="HUMAN_VILLAGE_PROBE PASS buildings=4 indoorCustomers=10 protectedLandmarks=4 hostileSpawnChecks=PASS chunks="+serviceChunks.size();
+                Files.writeString(result,pass+System.lineSeparator(),StandardCharsets.UTF_8);
+                System.out.println(pass);
+                return;
+            }
             // A single estate slice must not force the rest of this 76x64-block building into memory.
             int sliceX=manager.data().hasChunk(ChunkPos.asLong(-13,-3))?-14:-13;
             level.getChunk(sliceX,-3);
@@ -80,12 +115,7 @@ public final class HumanVillageProbe {
                 check(stream!=null,"Missing resident scene");
                 scene=ResidentScene.parse("gensokyou:human_village",JsonParser.parseReader(new InputStreamReader(stream,StandardCharsets.UTF_8)).getAsJsonObject());
             }
-            var ground=new ResidentGround(new ResidentGround.World() {
-                @Override public net.minecraft.world.level.BlockGetter blocks() {return level;}
-                @Override public boolean loaded(int x,int z) {return level.getChunkSource().getChunkNow(x>>4,z>>4)!=null;}
-                @Override public int minY() {return level.getMinBuildHeight();}
-                @Override public int maxY() {return level.getMaxBuildHeight();}
-            });
+            var ground=ground(level);
             if(manager.plan().layoutVersion()==1) check(level.getBlockState(new BlockPos(40,72,100)).is(LandmarkBlocks.STAIR.get()),"Legacy approach endpoint ramp missing");
             else check(level.getBlockState(new BlockPos(40,71,100)).is(LandmarkBlocks.PACKED_EARTH.get()),"Flush village earth endpoint missing");
             ResidentRoute.Point previousSeam=null;
@@ -113,14 +143,93 @@ public final class HumanVillageProbe {
                     }
                 }
             }
+            verifyServiceSafety(level,manager,ground);
             var connected=VillageWalkability.reachableDoors(manager.plan());
             long homes=manager.plan().buildings().stream().filter(b->b.category()==BuildingInstance.BuildingCategory.RESIDENTIAL).count();
             long reached=manager.plan().buildings().stream().filter(b->b.category()==BuildingInstance.BuildingCategory.RESIDENTIAL&&connected.contains(HumanVillagePlan.pack(b.doorWorldX(),b.doorWorldZ()))).count();
             check(reached>=homes*0.9,"Native layout has too many disconnected homes");
-            String pass="HUMAN_VILLAGE_PROBE PASS buildings="+manager.plan().buildings().size()+" homes="+homes+" connected="+reached+" roads="+manager.plan().roadCells().size()+" chunks="+chunks.size()+" residents="+scene.residents().size()+" routeSamples="+samples;
+            String pass="HUMAN_VILLAGE_PROBE PASS buildings="+manager.plan().buildings().size()+" homes="+homes+" connected="+reached+" roads="+manager.plan().roadCells().size()+" chunks="+chunks.size()+" residents="+scene.residents().size()+" routeSamples="+samples+" indoorCustomers=10 protectedLandmarks=4 hostileSpawnChecks=PASS";
             Files.writeString(result,pass+System.lineSeparator(),StandardCharsets.UTF_8);
             System.out.println(pass);
         } finally {server.halt(false);}
+    }
+
+    private static ResidentGround ground(ServerLevel level) {
+        return new ResidentGround(new ResidentGround.World() {
+            @Override public net.minecraft.world.level.BlockGetter blocks() {return level;}
+            @Override public boolean loaded(int x,int z) {return level.getChunkSource().getChunkNow(x>>4,z>>4)!=null;}
+            @Override public int minY() {return level.getMinBuildHeight();}
+            @Override public int maxY() {return level.getMaxBuildHeight();}
+        });
+    }
+
+    private static void verifyServiceSafety(ServerLevel level,HumanVillageManager manager,ResidentGround ground) {
+        var player=FakePlayerFactory.get(level,new GameProfile(UUID.fromString("48115202-7c7f-42c8-9c82-472bb7cfbe55"),"[VillageProbe]"));
+        int landmarks=0,customers=0;
+        for(var b:manager.plan().buildings()) {
+            if(b.category()!=BuildingInstance.BuildingCategory.SPECIAL_LANDMARK) continue;
+            landmarks++;
+            var inside=new BlockPos(b.minX(),b.minY()+1,b.minZ()+b.rotSizeZ()/2);
+            var outside=inside.west();
+            check(!manager.isPlacementProtected(outside,true),"Landmark placement guard escaped its footprint: "+b.templateId());
+            for(var mode:new GameType[]{GameType.SURVIVAL,GameType.CREATIVE}) {
+                player.setGameMode(mode);
+                check(EventHooks.onBlockPlace(player,BlockSnapshot.create(level.dimension(),level,inside),Direction.UP),
+                        mode+" placed inside "+b.templateId());
+                check(EventHooks.onMultiBlockPlace(player,List.of(BlockSnapshot.create(level.dimension(),level,outside),
+                                BlockSnapshot.create(level.dimension(),level,inside)),Direction.UP),
+                        mode+" multi-place crossed into "+b.templateId());
+            }
+            check(!EventHooks.onBlockPlace(player,BlockSnapshot.create(level.dimension(),level,outside),Direction.UP),
+                    "Creative placement outside the landmark was blocked: "+b.templateId());
+            check(!manager.isPlacementProtected(new BlockPos(inside.getX(),b.minY()+b.sizeY(),inside.getZ()),true),
+                    "Landmark placement guard escaped its height: "+b.templateId());
+            for(var slot:VillageResidentAnchors.indoors(HumanVillageLayoutSyncPayload.InstanceEntry.of(b))) {
+                customers++;
+                var from=slot.route().points().getFirst();var to=slot.route().points().getLast();
+                int steps=(int)Math.ceil(from.distance(to)*4);
+                ResidentRoute.Point previous=null;
+                for(int i=0;i<=steps;i++) {
+                    var p=from.lerp(to,(double)i/steps);var resolved=ground.resolve(p,1.025f,true);
+                    check(resolved!=null && Math.abs(resolved.y()-p.y())<.01,slot.identity()+" has invalid native indoor support at "+p);
+                    if(previous!=null) check(ground.clear(previous,resolved,1.025f),slot.identity()+" crosses native furniture at "+p);
+                    previous=resolved;
+                }
+            }
+        }
+        check(landmarks==4 && customers==10,"Expected four protected landmarks and ten indoor customers");
+        var road=new BlockPos(-200,manager.plan().layoutVersion()==1?73:72,130);
+        check(!EventHooks.onBlockPlace(player,BlockSnapshot.create(level.dimension(),level,road),Direction.UP),
+                "Creative road placement lost its existing exemption");
+
+        var village=new BlockPos(-200,manager.plan().layoutVersion()==1?73:72,100);
+        check(level.getBiome(village).is(HumanVillageSpawns.BIOME),"Spawn test is outside the human village biome");
+        check(level.getBiome(village).value().getMobSettings().getMobs(MobCategory.MONSTER).isEmpty(),"Human village still has hostile biome spawns");
+        for(var type:List.of(EntityType.ZOMBIE,EntityType.SLIME,ModEntityTypes.FAIRY.get(),EntityType.PHANTOM,EntityType.PILLAGER,EntityType.COW)) {
+            var mob=type.create(level);
+            check(mob!=null,"Spawn test could not create "+type);
+            mob.moveTo(village.getX()+.5,village.getY(),village.getZ()+.5,0,0);
+            for(var reason:MobSpawnType.values()) {
+                var spawn=new MobSpawnEvent.PositionCheck(mob,level,reason,null);
+                NeoForge.EVENT_BUS.post(spawn);
+                boolean blocked=type!=EntityType.COW && (reason==MobSpawnType.NATURAL || reason==MobSpawnType.CHUNK_GENERATION || reason==MobSpawnType.PATROL);
+                check(spawn.getResult()==(blocked?MobSpawnEvent.PositionCheck.Result.FAIL:MobSpawnEvent.PositionCheck.Result.DEFAULT),
+                        "Unexpected village spawn decision for "+type+" "+reason+": "+spawn.getResult());
+                mob.setSpawnCancelled(false);
+                var finalize=new FinalizeSpawnEvent(mob,level,mob.getX(),mob.getY(),mob.getZ(),level.getCurrentDifficultyAt(village),reason,null,null);
+                NeoForge.EVENT_BUS.post(finalize);
+                check(finalize.isSpawnCancelled()==blocked,"Unexpected village finalization for "+type+" "+reason);
+            }
+            mob.setSpawnCancelled(false);
+            mob.moveTo(3072.5,97,128.5,0,0);
+            var outside=new MobSpawnEvent.PositionCheck(mob,level,MobSpawnType.NATURAL,null);
+            NeoForge.EVENT_BUS.post(outside);
+            check(outside.getResult()==MobSpawnEvent.PositionCheck.Result.DEFAULT,"Village spawn guard leaked into another biome");
+            var finalizeOutside=new FinalizeSpawnEvent(mob,level,mob.getX(),mob.getY(),mob.getZ(),level.getCurrentDifficultyAt(mob.blockPosition()),MobSpawnType.NATURAL,null,null);
+            NeoForge.EVENT_BUS.post(finalizeOutside);
+            check(!finalizeOutside.isSpawnCancelled(),"Village finalization guard leaked into another biome");
+        }
+        System.out.println("HUMAN_VILLAGE_PROBE services PASS indoorCustomers=10 protectedLandmarks=4 hostileSpawnChecks=PASS");
     }
     private static void check(boolean condition,String message) {if(!condition) throw new AssertionError(message);}
 }

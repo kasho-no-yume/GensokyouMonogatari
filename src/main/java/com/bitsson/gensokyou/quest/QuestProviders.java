@@ -19,6 +19,13 @@ public final class QuestProviders {
                 .toList());
     }
     public static void register(Provider source) { SOURCES.add(source); }
+    public static List<QuestDefinition> available(net.minecraft.server.level.ServerPlayer observer, ResourceLocation npc) {
+        var result = new ArrayList<>(available(npc, QuestService.data(observer)).stream()
+                .filter(d -> !d.test()).toList());
+        if (npc.equals(com.bitsson.gensokyou.village.VillageRole.AKYUU.id()))
+            result.addAll(com.bitsson.gensokyou.village.DailyCommissions.available(observer));
+        return result.stream().distinct().sorted(Comparator.comparing(d -> d.id().toString())).toList();
+    }
     public static List<QuestDefinition> available(ResourceLocation npc, PlayerQuestData player) {
         return SOURCES.stream().flatMap(s -> s.available(npc, player).stream())
                 .filter(d -> d.scope() == QuestDefinition.Scope.PLAYER && d.provider().equals(npc))
