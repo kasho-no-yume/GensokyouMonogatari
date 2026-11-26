@@ -4,6 +4,7 @@ import com.bitsson.gensokyou.Gensokyou;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -11,17 +12,15 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /** Bounded local presentation state. No Entity, server hooks, persistence or packets. */
 @EventBusSubscriber(modid = Gensokyou.MODID, value = Dist.CLIENT)
 public final class ClientResidents {
     private static List<ResidentScene> scenes = List.of();
     private static List<ResidentScene.Slot> preview = List.of();
-    private static final Map<String, ResidentWalker> active = new HashMap<>();
-    private static List<ResidentWalker> visible = List.of();
+    private static final ResidentPopulation population = new ResidentPopulation();
+    private static final ResidentStreetCrowd streetCrowd = new ResidentStreetCrowd();
     private static ClientLevel lastLevel;
     private static int drawn;
 
@@ -40,30 +39,52 @@ public final class ClientResidents {
             lastLevel = mc.level;
         }
         if (mc.level == null || mc.player == null || mc.isPaused()) return;
+        var position=mc.player.position();
+        var viewer=new ResidentRoute.Point(position.x,position.y,position.z);
+        ResidentGround ground = ground(mc.level);
         List<ResidentScene.Slot> candidates = new ArrayList<>();
         String dimension = mc.level.dimension().location().toString();
         if (preview.isEmpty()) {
             for (ResidentScene scene : scenes) {
-                if (scene.dimension().equals(dimension)) scene.residents().stream().map(VillageResidentAnchors::coreSlot).forEach(candidates::add);
+                if (scene.dimension().equals(dimension)) scene.residents().stream().map(VillageResidentAnchors::coreSlot)
+                        .filter(s->s.route().distanceSquared(viewer)<=ResidentScene.VIEW_DISTANCE*ResidentScene.VIEW_DISTANCE).forEach(candidates::add);
             }
-            if(dimension.equals("gensokyou:gensokyo")) candidates.addAll(VillageResidentAnchors.near(mc.player.getX(),mc.player.getY(),mc.player.getZ(),
-                    ResidentScene.MAX_RESIDENTS-candidates.size()));
+            if(dimension.equals("gensokyou:gensokyo")) {
+                streetCrowd.update(viewer,()->streetInterests(viewer,candidates),new ResidentStreetCrowd.Streets() {
+                    @Override public ResidentRoute.Point groundAt(double x,double z) {
+                        int bx=(int)Math.floor(x),bz=(int)Math.floor(z);
+                        // Never ask the heightmap for a chunk not already in the client cache.
+                        if(!mc.level.hasChunk(bx>>4,bz>>4) || !VillageResidentAnchors.publicGround(bx,bz,Double.NEGATIVE_INFINITY)) return null;
+                        // MOTION_BLOCKING is sent to clients; NO_LEAVES is a server-only heightmap.
+                        int y=mc.level.getHeight(Heightmap.Types.MOTION_BLOCKING,bx,bz);
+                        if(Math.abs(y-viewer.y())>ResidentScene.VIEW_DISTANCE || !VillageResidentAnchors.publicGround(bx,bz,y)) return null;
+                        return ground.resolve(new ResidentRoute.Point(x,y,z),1.025f,true);
+                    }
+                    @Override public boolean clear(ResidentRoute.Point a,ResidentRoute.Point b) {return ground.clear(a,b,1.025f);}
+                });
+                candidates.addAll(streetCrowd.near(viewer,ResidentScene.MAX_RESIDENTS-candidates.size()));
+            }
         }
         // Explicit local preview replaces the ordinary scene until cleared.
         candidates.addAll(preview);
-        var viewer = mc.player.position();
-        List<ResidentScene.Slot> nearest = ResidentScene.nearest(candidates,
-                new ResidentRoute.Point(viewer.x, viewer.y, viewer.z));
-        var selected = nearest.stream().map(ResidentScene.Slot::identity).collect(java.util.stream.Collectors.toSet());
-        active.keySet().removeIf(key -> !selected.contains(key));
-        ResidentGround ground = ground(mc.level);
-        List<ResidentWalker> renderable = new ArrayList<>();
-        for (ResidentScene.Slot slot : nearest) {
-            ResidentWalker walker = active.computeIfAbsent(slot.identity(), ignored -> new ResidentWalker(slot));
-            walker.tick(ground);
-            if (walker.visible()) renderable.add(walker);
+        population.tick(candidates,viewer,ground);
+    }
+
+    private static List<ResidentStreetCrowd.Seed> streetInterests(ResidentRoute.Point viewer,List<ResidentScene.Slot> authored) {
+        var seeds=new ArrayList<>(VillageResidentAnchors.interests(viewer));
+        for(var slot:authored) {
+            var points=slot.route().points();
+            for(int i=0;i<points.size();i++) {
+                var a=points.get(i);var b=points.get(Math.min(i+1,points.size()-1));
+                int samples=Math.max(1,(int)Math.ceil(a.distance(b)/4));
+                int axis=Math.abs(b.x()-a.x())>=Math.abs(b.z()-a.z())?0:1;
+                for(int step=0;step<samples;step++) {
+                    var p=a.lerp(b,(double)step/samples);
+                    seeds.add(ResidentStreetCrowd.Seed.at(p.x(),p.z(),axis));
+                }
+            }
         }
-        visible = List.copyOf(renderable);
+        return seeds;
     }
 
     static ResidentGround ground(ClientLevel level) {
@@ -98,17 +119,17 @@ public final class ClientResidents {
                     new ResidentRoute(points), ResidentWalker.wrapDegrees(mc.player.getYRot() + 180), false));
         }
         preview = List.copyOf(slots);
-        active.clear(); visible = List.of();
+        population.clear(); streetCrowd.clear();
         return total;
     }
 
     public static void clearPreview() {
         preview = List.of();
-        active.clear(); visible = List.of(); drawn = 0;
+        population.clear(); streetCrowd.clear(); drawn = 0;
     }
 
     public static void villageLayoutChanged() {
-        active.clear(); visible=List.of(); drawn=0;
+        population.clear(); streetCrowd.clear(); drawn=0;
     }
 
     private static void clearWorld() {
@@ -121,10 +142,10 @@ public final class ClientResidents {
 
     static List<ResidentWalker> visible() {
         // A render may occur between the level replacement and the next client tick.
-        return Minecraft.getInstance().level == lastLevel ? visible : List.of();
+        return Minecraft.getInstance().level == lastLevel ? population.visible() : List.of();
     }
     static void drawn(int value) { drawn = value; }
-    public static int activeCount() { return active.size(); }
+    public static int activeCount() { return population.size(); }
     public static int drawnCount() { return drawn; }
     public static int previewCount() { return preview.size(); }
 }

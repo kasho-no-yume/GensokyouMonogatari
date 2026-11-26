@@ -14,7 +14,7 @@ import java.util.Set;
 public record ResidentScene(String dimension, List<Slot> residents) {
     public static final int MAX_SCENE_RESIDENTS = 128;
     public static final int MAX_RESIDENTS = 512;
-    public static final int ACTIVE_LIMIT = 48;
+    public static final int ACTIVE_LIMIT = 96;
     public static final double VIEW_DISTANCE = 96;
 
     public ResidentScene {
@@ -60,9 +60,14 @@ public record ResidentScene(String dimension, List<Slot> residents) {
     }
 
     public static List<Slot> nearest(List<Slot> slots, ResidentRoute.Point viewer) {
+        return candidates(slots,viewer).stream().limit(ACTIVE_LIMIT).toList();
+    }
+
+    /** Keep spare candidates so unavailable ground cannot consume the active population budget. */
+    public static List<Slot> candidates(List<Slot> slots, ResidentRoute.Point viewer) {
         return slots.stream().filter(s -> s.route.distanceSquared(viewer) <= VIEW_DISTANCE * VIEW_DISTANCE)
                 .sorted(Comparator.comparingDouble((Slot s) -> s.route.distanceSquared(viewer)).thenComparing(Slot::identity))
-                .limit(ACTIVE_LIMIT).toList();
+                .limit(MAX_RESIDENTS).toList();
     }
 
     public record Slot(String identity, ResidentRoute route, float facing, boolean protectedGround) {

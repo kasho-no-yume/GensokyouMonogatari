@@ -43,8 +43,26 @@ class VillageResidentAnchorsTest {
         VillageResidentAnchors.install(new HumanVillageLayoutSyncPayload(2,entries));
         var slots=VillageResidentAnchors.near(610,79,410,60);
         assertEquals(60,slots.size());
-        assertEquals(ResidentScene.ACTIVE_LIMIT,ResidentScene.nearest(slots,new ResidentRoute.Point(610,79,410)).size());
+        assertEquals(60,ResidentScene.nearest(slots,new ResidentRoute.Point(610,79,410)).size());
         assertTrue(VillageResidentAnchors.near(-1000,79,-1000,512).isEmpty());
         assertTrue(VillageResidentAnchors.near(610,79,410,0).isEmpty());
+    }
+
+    @Test void interestsAlsoFillTheCoreAndOnlyPublicGroundCanBecomeStreetCrowds() {
+        var house=new HumanVillageLayoutSyncPayload.InstanceEntry(ResourceLocation.parse("gensokyou:hv_machiya_v02"),
+                -180,71,80,11,12,10,(byte)0,(byte)0);
+        var plaza=new HumanVillageLayoutSyncPayload.InstanceEntry(ResourceLocation.parse("gensokyou:hv_dragon_plaza"),
+                -214,70,86,29,16,29,(byte)0,(byte)-1);
+        VillageResidentAnchors.install(new HumanVillageLayoutSyncPayload(2,List.of(house,plaza)));
+        var seeds=VillageResidentAnchors.interests(new ResidentRoute.Point(-185,72,100));
+        assertTrue(seeds.size()>20,"core no longer has a 240-block exclusion");
+        assertEquals(seeds.size(),seeds.stream().map(s->s.identity()).distinct().count());
+        assertFalse(VillageResidentAnchors.publicGround(-175,85,72));
+        assertFalse(VillageResidentAnchors.publicGround(-175,85,84));
+        assertTrue(VillageResidentAnchors.publicGround(-200,100,72));
+        assertFalse(VillageResidentAnchors.publicGround(-200,100,86));
+        assertTrue(VillageResidentAnchors.interests(new ResidentRoute.Point(2000,72,2000)).isEmpty());
+        VillageResidentAnchors.clear();
+        assertFalse(VillageResidentAnchors.publicGround(-185,100,72));
     }
 }

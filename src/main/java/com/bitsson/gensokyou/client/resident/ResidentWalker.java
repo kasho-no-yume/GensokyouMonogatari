@@ -6,6 +6,7 @@ import org.jetbrains.annotations.Nullable;
 public final class ResidentWalker {
     private final ResidentScene.Slot slot;
     private final ResidentAppearance appearance;
+    private final boolean streetPedestrian;
     private double time;
     private Frame previous;
     private Frame current;
@@ -14,6 +15,7 @@ public final class ResidentWalker {
     public ResidentWalker(ResidentScene.Slot slot) {
         this.slot = slot;
         appearance = ResidentAppearance.of(slot.identity());
+        streetPedestrian=slot.identity().startsWith("gensokyou:street/");
         time = appearance.phaseTicks();
     }
 
@@ -24,7 +26,7 @@ public final class ResidentWalker {
     public void tick(Surface surface) {
         previous = current;
         ResidentRoute.Sample next = slot.route().sample(time + (current == null ? 0 : 1),
-                appearance.speed(), appearance.pauseTicks(), slot.facing());
+                appearance.speed()*(streetPedestrian?1.25:1), streetPedestrian?Math.min(12,appearance.pauseTicks()*.2):appearance.pauseTicks(), slot.facing());
         ResidentRoute.Point ground = surface.resolve(next.position(), appearance.scale(), slot.protectedGround());
         if (ground != null && (current == null || (Math.abs(ground.y() - current.position.y()) <= 0.6
                 && surface.clear(current.position, ground, appearance.scale())))) {

@@ -82,7 +82,7 @@ class ResidentDataTest {
                     new ResidentRoute(List.of(new ResidentRoute.Point(i, 72, 0))), 0, true));
         }
         var near = ResidentScene.nearest(slots, new ResidentRoute.Point(0, 72, 0));
-        assertEquals(48, near.size()); assertEquals("slot/0", near.getFirst().identity());
+        assertEquals(96, near.size()); assertEquals("slot/0", near.getFirst().identity());
         assertTrue(ResidentScene.nearest(slots, new ResidentRoute.Point(1000, 72, 0)).isEmpty());
         ResidentRoute route = new ResidentRoute(List.of(new ResidentRoute.Point(0, 72, 0), new ResidentRoute.Point(64, 72, 0)));
         assertEquals(0, route.distanceSquared(new ResidentRoute.Point(63, 72, 0)));
