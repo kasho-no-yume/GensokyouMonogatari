@@ -1,34 +1,38 @@
-"""Check v3 real-runtime preview births, including public fields and one stub's personal shots."""
+"""Check Rumia v4 real-runtime preview exports (no rejected batches, T2 density bounds, metadata)."""
 import json
-from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def peak_alive(members):
+    ev = {}
+    for m in members:
+        s = m.get("s") or []
+        if not s:
+            continue
+        ev[s[0][0]] = ev.get(s[0][0], 0) + 1
+        ev[s[-1][0] + 1] = ev.get(s[-1][0] + 1, 0) - 1
+    cur = peak = 0
+    for t in sorted(ev):
+        cur += ev[t]
+        if cur > peak:
+            peak = cur
+    return peak
+
+
 def main():
-    schedules = {
-        1: [(40, 47), (60, 47)],
-        2: [(40 + wave * 80 + delay, 47) for wave in range(4) for delay in (0, 24)],
-        3: [(40 + axis * 20, 94) for axis in range(3)],
-        4: [(40, 141)],
-        5: [(40 + wave * 80, 47) for wave in range(4)],
-    }
-    for index, fields in schedules.items():
+    for index in range(1, 6):
         data = json.loads((ROOT / f"preview/data/rumia_{index}.json").read_text(encoding="utf-8"))
-        expected = Counter()
-        for tick, count in fields:
-            expected[tick] += count
-        period = {1: 50, 2: 32, 3: 40, 4: 40, 5: 24}[index]
-        for tick in range(0, 320, period):
-            expected[tick + 30] += 9 if index in (2, 5) else 1
-        # Compare the first cycle before any next-cycle request can give birth.
-        expected = Counter({t: n for t, n in expected.items() if t < 320})
-        actual = Counter(m["born"] - 1 for m in data["members"] if m["born"] - 1 < 320)
-        assert actual == expected, (index, actual, expected)
+        members = data["members"]
+        assert members, f"rumia_{index}: empty members"
         assert not data["events"], (index, data["events"])
-        assert len(data["notes"]) == 5 and len(data["checkpoints"]) == 4
-        print(f"rumia_{index}: v3 births verified; no rejected batches")
+        assert len(data["notes"]) == 5 and len(data["checkpoints"]) == 4, (index, len(data["notes"]), len(data["checkpoints"]))
+        peak = peak_alive(members)
+        assert 10 <= peak <= 160, f"rumia_{index}: peak_alive={peak} outside T2 target band"
+        lasers = sum(1 for m in members if m.get("laser"))
+        bullets = len(members) - lasers
+        print(f"rumia_{index}: OK (members={len(members)}, lasers={lasers}, bullets={bullets}, peak_alive={peak})")
 
 
 if __name__ == "__main__":

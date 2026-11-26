@@ -130,6 +130,27 @@ Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
 - 用编辑工具（Edit / Write）改文件
 - 必须脚本化改文件时，用 **Python**（显式 `encoding='utf-8'`），或先 `python tools/strip_java_bom.py` 兜底
 
+## 大体积烘焙数据：禁止整文件读取
+
+**硬性规则：不要直接读 `preview/data/*.json`，也不要对这类文件做整文件读取/搜索。**
+
+这些文件是 Java 真 runtime 逐 tick 烘焙出的客户端渲染投影基准，单卡数 MB
+（`yamame_3` 约 6.35 MB，全目录 17.86 MB），一次 `read` 就是几万 token。
+它们是**回归基准，不是设计源文件**：同一份输入逐字节相同，`checkDanmakuPreview` 负责比对，
+肉眼读它们没有意义。想知道卡是怎么设计的，去看定义文件：
+
+- 弹幕卡的意图与参数 → `src/main/java/com/bitsson/gensokyou/danmaku/program/content/<owner>Programs.java`
+  （如 `RumiaPrograms.java`）；DSL 语义见同包 `author/`、`ops/`、`math/`。
+- 卡的整体编排与谱面 → `docs/danmaku-program/`（`rumia-score.md`、`design.md` 等）。
+- 预览站的行为边界 → `openspec/specs/danmaku-preview/spec.md`、`preview/README.md`。
+
+确实要核对导出内容时，只做**限定查询**：用 desktop-commander 搜索指定字段/tick，
+或 `jq` 抽单个成员/采样点，绝不整文件读入上下文。要验证基准是否过期，
+跑 `.\tools\gradle_task.ps1 checkDanmakuPreview`，不要靠读文件肉眼比对。
+
+**不在本禁令内**：`data/gensokyou/rituals/*.json`（仪式 pattern 定义本身就是源文件）、
+`src/main/resources/assets/**/lang/*.json` 及其它小型配置 JSON——这些该读就读。
+
 ## 其他
 
 - 本地 JDK 21 在 `F:/application/jdk-21`（见 `gradle.properties` 的 `org.gradle.java.home`）

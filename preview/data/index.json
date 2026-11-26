@@ -15,10 +15,10 @@
     {"owner": "yakumo_ran", "index": 6, "card": "spellcard.gensokyou.yakumo_ran.6", "ticks": 602, "members": 288, "samples": 2220, "bytes": 198886, "file": "yakumo_ran_6.json"},
     {"owner": "yakumo_ran", "index": 7, "card": "spellcard.gensokyou.yakumo_ran.7", "ticks": 602, "members": 411, "samples": 2355, "bytes": 146929, "file": "yakumo_ran_7.json"},
     {"owner": "yakumo_ran", "index": 8, "card": "spellcard.gensokyou.yakumo_ran.8", "ticks": 602, "members": 456, "samples": 2670, "bytes": 166924, "file": "yakumo_ran_8.json"},
-    {"owner": "rumia", "index": 1, "card": "spellcard.gensokyou.rumia.1", "ticks": 922, "members": 302, "samples": 5787, "bytes": 447730, "file": "rumia_1.json"},
-    {"owner": "rumia", "index": 2, "card": "spellcard.gensokyou.rumia.2", "ticks": 762, "members": 1100, "samples": 18492, "bytes": 1406096, "file": "rumia_2.json"},
-    {"owner": "rumia", "index": 3, "card": "spellcard.gensokyou.rumia.3", "ticks": 882, "members": 868, "samples": 10196, "bytes": 817456, "file": "rumia_3.json"},
-    {"owner": "rumia", "index": 4, "card": "spellcard.gensokyou.rumia.4", "ticks": 922, "members": 446, "samples": 10297, "bytes": 784458, "file": "rumia_4.json"},
-    {"owner": "rumia", "index": 5, "card": "spellcard.gensokyou.rumia.5", "ticks": 802, "members": 776, "samples": 7504, "bytes": 577275, "file": "rumia_5.json"}
+    {"owner": "rumia", "index": 1, "card": "spellcard.gensokyou.rumia.1", "ticks": 592, "members": 140, "samples": 623, "bytes": 53522, "file": "rumia_1.json"},
+    {"owner": "rumia", "index": 2, "card": "spellcard.gensokyou.rumia.2", "ticks": 612, "members": 691, "samples": 5782, "bytes": 325377, "file": "rumia_2.json"},
+    {"owner": "rumia", "index": 3, "card": "spellcard.gensokyou.rumia.3", "ticks": 642, "members": 411, "samples": 3225, "bytes": 186405, "file": "rumia_3.json"},
+    {"owner": "rumia", "index": 4, "card": "spellcard.gensokyou.rumia.4", "ticks": 697, "members": 378, "samples": 5082, "bytes": 263701, "file": "rumia_4.json"},
+    {"owner": "rumia", "index": 5, "card": "spellcard.gensokyou.rumia.5", "ticks": 632, "members": 298, "samples": 2532, "bytes": 143164, "file": "rumia_5.json"}
   ]
 }
