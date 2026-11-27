@@ -222,23 +222,34 @@ class DanmakuVisualProfileTest {
     }
 
     @Test
-    void arrowheadTipPointsForwardAlongPositiveZ() {
+    void curvedConeHasForwardTipAndTranslucentRimWithoutExcessiveSubdivision() {
         DanmakuGeometry.ArrowheadSection[] sections = DanmakuGeometry.arrowheadSections();
-        assertTrue(sections.length <= 5, "鳞弹只保留轮廓与主要内纹需要的截面，避免高面数曲面");
+        assertTrue(sections.length <= 4, "弧面短锥体最多四个截面，避免高面数曲面");
+        double previousSlope = 0.0D;
         for (int i = 1; i < sections.length; i++) {
             assertTrue(sections[i].z() > sections[i - 1].z(), "截面应从尾端连续排向尖端");
+            assertTrue(sections[i].radius() < sections[i - 1].radius(), "锥体应从宽底向前尖收束");
+            double slope = (sections[i].radius() - sections[i - 1].radius())
+                    / (sections[i].z() - sections[i - 1].z());
+            assertTrue(slope < previousSlope, "弧线应从宽底平缓过渡到前尖，不能重新变成直锥");
+            previousSlope = slope;
         }
         var tail = sections[0];
         var tip = sections[sections.length - 1];
         assertEquals(-1.0D, tail.z(), EPS);
         assertEquals(1.0D, tip.z(), EPS);
-        assertEquals(0.0D, tip.outerWidth(), EPS,
+        assertEquals(1.0D, tail.radius(), EPS, "后缘应为宽底，不能出现杆状尾柄");
+        assertEquals(0.0D, tip.radius(), EPS,
                 "局部 +Z 前端必须收束为尖端");
-        assertTrue(tail.wingInnerWidth() > tail.coreWidth() && tail.outerWidth() > 0.8D,
-                "后缘必须是分叉的鳞翼，不能是带圆杆尾柄的箭矢");
-        for (var section : sections) {
-            assertTrue(section.coreWidth() <= section.wingInnerWidth(), "中央亮瓣不能跨过分叉缺口");
-            assertTrue(section.wingInnerWidth() <= section.outerWidth(), "双翼宽度不能倒置");
+        assertTrue(tail.alpha() > 0.0D && tail.alpha() < 1.0D, "外缘应略微半透明");
+        assertEquals(1.0D, tip.alpha(), EPS, "前尖应保留实体感");
+        for (int i = 0; i < sections.length; i++) {
+            var section = sections[i];
+            if (i > 0 && i < sections.length - 1) {
+                assertTrue(section.radius() > (1.0D - section.z()) * 0.5D,
+                        "中段应较直锥略微外鼓，以保留原作的弧线");
+            }
+            assertTrue(section.alpha() > 0.0D && section.alpha() <= 1.0D);
         }
     }
 

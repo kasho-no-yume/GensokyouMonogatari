@@ -14,22 +14,21 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 /**
- * 鳞形弹幕渲染器：原作的拱形双翼、白色内纹与中央亮瓣，局部 +Z 为飞行方向。
+ * 鳞形弹幕渲染器：略带弧度的低面数短锥体，局部 +Z 为尖端与飞行方向。
  *
- * <p>鳞片沿 X-Z 平面展开，Y 方向为真实厚度。前尖、后缘分叉与白芯均由同一模型
- * 提供，不把鳞弹做成带尾柄的箭矢或金属锥体。
+ * <p>X、Y 采用相同半径形成八边截面，背面白芯向彩色边缘过渡，外缘略微半透明。
+ * 主体沿飞行轴收尖，避免平面鳞片或带尾柄的箭矢造型。
  */
 public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
 
     private static final ResourceLocation TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/entity/arrowhead_danmaku.png");
 
+    private static final int SIDES = 8;
     private static final float BODY_RADIUS = 0.15F;
     private static final float HALF_LENGTH = 0.17F;
-    private static final float HALF_THICKNESS = 0.035F;
+    private static final float CORE_RADIUS = 0.58F;
     private static final DanmakuGeometry.ArrowheadSection[] SECTIONS = DanmakuGeometry.arrowheadSections();
-    // Two strips retain the white ridge without subdividing the model for smooth curvature.
-    private static final float[] FACE_STEPS = {0.0F, 0.50F, 1.0F};
 
     private static final float GLOW_SCALE = 1.08F;
     private static final int GLOW_ALPHA = 40;
@@ -106,71 +105,58 @@ public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
     protected void renderShape(ConeDanmaku entity, PoseStack poseStack, VertexConsumer consumer,
                                 int r, int g, int b, int a, int light) {
         PoseStack.Pose pose = poseStack.last();
-        for (int part = -1; part <= 1; part++) {
-            for (int ring = 0; ring < SECTIONS.length - 1; ring++) {
-                var first = SECTIONS[ring];
-                var second = SECTIONS[ring + 1];
-                for (int step = 0; step < FACE_STEPS.length - 1; step++) {
-                    float t0 = FACE_STEPS[step];
-                    float t1 = FACE_STEPS[step + 1];
-                    this.arrowFace(consumer, pose, first, second, part, t0, t1, true, r, g, b, a, light);
-                    this.arrowFace(consumer, pose, first, second, part, t0, t1, false, r, g, b, a, light);
-                }
-                for (int edge = 0; edge <= 1; edge++) {
-                    boolean joined = first.coreWidth() == first.wingInnerWidth()
-                            && second.coreWidth() == second.wingInnerWidth();
-                    if (joined && (part == 0 || edge == 0)) continue;
-                    this.arrowVertex(consumer, pose, first, part, edge, true, 0.72F, r, g, b, a, light);
-                    this.arrowVertex(consumer, pose, first, part, edge, false, 0.72F, r, g, b, a, light);
-                    this.arrowVertex(consumer, pose, second, part, edge, false, 0.72F, r, g, b, a, light);
-                    this.arrowVertex(consumer, pose, second, part, edge, true, 0.72F, r, g, b, a, light);
-                }
+        for (int ring = 0; ring < SECTIONS.length - 1; ring++) {
+            var first = SECTIONS[ring];
+            var second = SECTIONS[ring + 1];
+            for (int side = 0; side < SIDES; side++) {
+                this.coneVertex(consumer, pose, first, side, r, g, b, a, light);
+                this.coneVertex(consumer, pose, first, side + 1, r, g, b, a, light);
+                this.coneVertex(consumer, pose, second, side + 1, r, g, b, a, light);
+                this.coneVertex(consumer, pose, second, side, r, g, b, a, light);
             }
-            // The two rear wings have visible end faces; the forward end closes at one point.
-            this.arrowVertex(consumer, pose, SECTIONS[0], part, 0.0F, true, 0.78F, r, g, b, a, light);
-            this.arrowVertex(consumer, pose, SECTIONS[0], part, 1.0F, true, 0.78F, r, g, b, a, light);
-            this.arrowVertex(consumer, pose, SECTIONS[0], part, 1.0F, false, 0.78F, r, g, b, a, light);
-            this.arrowVertex(consumer, pose, SECTIONS[0], part, 0.0F, false, 0.78F, r, g, b, a, light);
+        }
+        // A white central fan and a colored, translucent rim close the rear of the cone.
+        for (int side = 0; side < SIDES; side++) {
+            this.capVertex(consumer, pose, 0.0F, side, r, g, b, a, light);
+            this.capVertex(consumer, pose, CORE_RADIUS, side + 1, r, g, b, a, light);
+            this.capVertex(consumer, pose, CORE_RADIUS, side, r, g, b, a, light);
+            this.capVertex(consumer, pose, CORE_RADIUS, side, r, g, b, a, light);
+            this.capVertex(consumer, pose, CORE_RADIUS, side, r, g, b, a, light);
+            this.capVertex(consumer, pose, CORE_RADIUS, side + 1, r, g, b, a, light);
+            this.capVertex(consumer, pose, 1.0F, side + 1, r, g, b, a, light);
+            this.capVertex(consumer, pose, 1.0F, side, r, g, b, a, light);
         }
     }
 
-    private void arrowFace(VertexConsumer consumer, PoseStack.Pose pose,
-                           DanmakuGeometry.ArrowheadSection first, DanmakuGeometry.ArrowheadSection second,
-                           int part, float t0, float t1, boolean top,
-                           int r, int g, int b, int a, int light) {
-        if ((part < 0) != !top) {
-            float swap = t0;
-            t0 = t1;
-            t1 = swap;
-        }
-        float shade = top ? 1.0F : 0.94F;
-        this.arrowVertex(consumer, pose, first, part, t0, top, shade, r, g, b, a, light);
-        this.arrowVertex(consumer, pose, second, part, t0, top, shade, r, g, b, a, light);
-        this.arrowVertex(consumer, pose, second, part, t1, top, shade, r, g, b, a, light);
-        this.arrowVertex(consumer, pose, first, part, t1, top, shade, r, g, b, a, light);
-    }
-
-    private void arrowVertex(VertexConsumer consumer, PoseStack.Pose pose,
-                             DanmakuGeometry.ArrowheadSection section, int part, float t, boolean top,
-                             float shade, int r, int g, int b, int a, int light) {
-        float x = part == 0 ? (float) section.coreWidth() * (t * 2.0F - 1.0F)
-                : part * (float) (section.wingInnerWidth() + (section.outerWidth() - section.wingInnerWidth()) * t);
-        float y = (top ? 1.0F : -1.0F) * HALF_THICKNESS * (float) section.height();
-        float white = part == 0
-                ? Math.min(1.0F, Math.max(0.0F, (0.30F - (float) section.z()) / 0.35F))
-                        * Math.min(1.0F, (1.0F - Math.abs(t * 2.0F - 1.0F)) / 0.35F)
-                : Math.max(0.0F, 1.0F - Math.abs(t - 0.50F) / 0.50F) * 0.94F
-                        * Math.min(1.0F, Math.max(0.0F, (0.98F - (float) section.z()) / 0.18F));
-        // The source sprite has a pale arch below the colored nose, separate from its lower white core.
-        float arch = Math.max(0.0F, 1.0F - Math.abs((float) section.z() - 0.62F) / 0.24F)
-                * (part == 0 ? 1.0F : 1.0F - t);
-        white = Math.max(white, arch * 0.96F);
-        shade *= 1.0F - arch * 0.35F;
+    private void coneVertex(VertexConsumer consumer, PoseStack.Pose pose,
+                            DanmakuGeometry.ArrowheadSection section, int side,
+                            int r, int g, int b, int a, int light) {
+        float angle = (float) (Math.PI * 0.5D + Math.PI * 2.0D * side / SIDES);
+        float cos = (float) Math.cos(angle);
+        float sin = (float) Math.sin(angle);
+        float radius = BODY_RADIUS * (float) section.radius();
+        float shade = 0.86F + 0.14F * Math.max(0.0F, sin);
+        float white = (float) section.white();
         int brightness = Math.max(r, Math.max(g, b));
-        this.vertex(consumer, pose, x * BODY_RADIUS, y, (float) section.z() * HALF_LENGTH,
-                0.5F + x * 0.5F, 0.5F - (float) section.z() * 0.5F,
+        this.vertex(consumer, pose, cos * radius, sin * radius, (float) section.z() * HALF_LENGTH,
+                side / (float) SIDES, 0.5F - (float) section.z() * 0.5F,
                 highlight(r, brightness, shade, white), highlight(g, brightness, shade, white),
-                highlight(b, brightness, shade, white), a, light);
+                highlight(b, brightness, shade, white), Math.round(a * (float) section.alpha()), light);
+    }
+
+    private void capVertex(VertexConsumer consumer, PoseStack.Pose pose, float radius, int side,
+                           int r, int g, int b, int a, int light) {
+        float angle = (float) (Math.PI * 0.5D + Math.PI * 2.0D * side / SIDES);
+        float x = (float) Math.cos(angle) * radius;
+        float y = (float) Math.sin(angle) * radius;
+        var tail = SECTIONS[0];
+        boolean rim = radius > CORE_RADIUS;
+        float white = rim ? (float) tail.white() : 1.0F;
+        int brightness = Math.max(r, Math.max(g, b));
+        this.vertex(consumer, pose, x * BODY_RADIUS, y * BODY_RADIUS, (float) tail.z() * HALF_LENGTH,
+                0.5F + x * 0.5F, 0.5F - y * 0.5F,
+                highlight(r, brightness, 0.98F, white), highlight(g, brightness, 0.98F, white),
+                highlight(b, brightness, 0.98F, white), rim ? Math.round(a * (float) tail.alpha()) : a, light);
     }
 
     private static int highlight(int tint, int brightness, float shade, float white) {

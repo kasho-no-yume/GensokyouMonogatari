@@ -4,17 +4,17 @@
 TBD - created by archiving change rework-danmaku-weapon-orb. Update Purpose after archive.
 ## Requirements
 ### Requirement: 鳞形箭头弹幕的生成与建模
-系统 SHALL 提供实体 ID 为 `cone_danmaku` 的鳞形弹幕，参照原作的拱形双翼、白色内纹和中央亮瓣建模：鳞片 SHALL 沿局部 X-Z 平面展开，前尖沿 +Z 指向飞行方向，后缘保留双翼与中央鳞瓣之间的分叉。横向宽度约为 0.30 格、纵向长度约为 0.34 格、最大厚度约为 0.07 格。白色内纹 SHALL 由本体顶点色提供，外缘保留实体色相与收敛的辉光，MUST NOT 改成带杆尾的箭矢或金属锥体。该实体 SHALL 继承既有弹幕实体的伤害、命中消亡与同步机制，MUST NOT 引入与 `AbstractDanmakuProjectile` 并行的第二套弹幕基类。
+系统 SHALL 提供实体 ID 为 `cone_danmaku` 的鳞形弹幕，以略带弧度的低面数短锥体呈现：X/Y SHALL 共用半径形成八边截面，沿局部 +Z 收束为朝飞行方向的前尖，中段半径较直锥略微外鼓，向前尖逐渐加速收束，以保留原作的弧线。底径约为 0.30 格、轴向长度约为 0.34 格。背面 SHALL 保留白芯与彩色外缘，外缘 alpha SHALL 从约 0.55 向中段和前尖的 1.0 渐变，保留轻微半透明观感。模型 MUST NOT 退化成平面鳞片或带杆尾的箭矢。该实体 SHALL 继承既有弹幕实体的伤害、命中消亡与同步机制，MUST NOT 引入与 `AbstractDanmakuProjectile` 并行的第二套弹幕基类。
 
-轮廓与色带参考：[原作鳞弹 sprite](https://maribelhearn.com/assets/games/faq/bullets/arrowhead.png)。原始 sprite 仅用于对照，不作为发布资源复制；三维模型与高清中性材质由项目维护。
+白芯、彩色外缘与透明边缘参考：[原作鳞弹 sprite](https://maribelhearn.com/assets/games/faq/bullets/arrowhead.png)。原始 sprite 仅用于对照，不作为发布资源复制；三维形体按飞行方向重建为锥体。
 
 箭头弹体 SHALL 使用 3D 几何渲染，MUST NOT 使用朝向相机的 billboard 四边形——弹体具有明确朝向，billboard 会使其失去立体感与方向可读性。
 
-鳞弹 SHALL 使用低面数模型：最多五个纵向截面，每个鳞瓣横向只分两条色带，尾端以单面封闭；本体每遍最多提交 70 个四边形。曲面平滑度 MUST NOT 依赖密集横纵细分，主要保留轮廓、分叉与白芯。
+鳞弹 SHALL 使用低面数模型：八个侧向分段、最多四个纵向截面近似弧线，背面使用白芯扇片与透明彩边封闭；本体每遍最多提交 40 个四边形。外缘半透明 MUST 使用真实 alpha 混合并叠乘近相机淡出，不得仅以加法辉光代替透明度。
 
 #### Scenario: 生成鳞形弹幕
 - **WHEN** 鳞形弹幕以伤害值生成
-- **THEN** 生成一枚前尖朝前、后缘分叉的薄型鳞片弹幕实体，命中实体或方块时消亡并结算伤害
+- **THEN** 生成一枚前尖朝前、截面饱满且外缘略微半透明的短锥形弹幕实体，命中实体或方块时消亡并结算伤害
 
 #### Scenario: 几何为三维
 - **WHEN** 玩家从侧面观察飞行中的鳞形弹幕

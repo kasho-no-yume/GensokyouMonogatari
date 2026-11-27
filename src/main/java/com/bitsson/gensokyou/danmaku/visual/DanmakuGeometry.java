@@ -56,22 +56,19 @@ public enum DanmakuGeometry {
         return radius * 0.20D;
     }
 
-    /** 鳞片横截面：外翼、翼内缘、中央鳞瓣的半宽及厚度，均为归一化尺寸。 */
-    public record ArrowheadSection(double z, double outerWidth, double wingInnerWidth,
-                                   double coreWidth, double height) {}
+    /** 鳞弹锥体截面：轴向位置、统一半径、透明度与白色混合比例，均为归一化数值。 */
+    public record ArrowheadSection(double z, double radius, double alpha, double white) {}
 
     /**
-     * 原作鳞弹的拱形双翼和中央亮瓣，沿 X-Z 平面展开，尖端在 +Z。
-     * 后缘分为三瓣，没有圆杆状尾柄；前半段的中央鳞瓣与双翼相连。
-     * 只保留尾缘、白芯、内纹和前尖所需的五个截面，避免为平滑弧度过度细分。
+     * 四道截面近似原作略带弧度的收尖轮廓，中段半径略大于直锥，向前尖逐渐加速收束。
+     * X/Y 共用半径，后缘略微半透明；只增加一道截面，保持低面数。
      */
     public static ArrowheadSection[] arrowheadSections() {
         return new ArrowheadSection[]{
-                new ArrowheadSection(-1.00D, 1.00D, 0.80D, 0.02D, 0.30D),
-                new ArrowheadSection(-0.22D, 0.72D, 0.42D, 0.40D, 0.96D),
-                new ArrowheadSection( 0.34D, 0.46D, 0.18D, 0.18D, 0.88D),
-                new ArrowheadSection( 0.62D, 0.34D, 0.13D, 0.13D, 0.65D),
-                new ArrowheadSection( 1.00D, 0.00D, 0.00D, 0.00D, 0.00D)
+                new ArrowheadSection(-1.00D, 1.00D, 0.55D, 0.04D),
+                new ArrowheadSection( 0.00D, 0.60D, 1.00D, 0.10D),
+                new ArrowheadSection( 0.60D, 0.28D, 1.00D, 0.18D),
+                new ArrowheadSection( 1.00D, 0.00D, 1.00D, 0.28D)
         };
     }
 }
