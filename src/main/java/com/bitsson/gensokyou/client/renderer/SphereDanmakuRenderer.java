@@ -11,6 +11,7 @@ import com.mojang.math.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.util.Mth;
 
 /**
  * 球型弹幕渲染器。
@@ -27,8 +28,7 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
  * 而那张贴图把球换成了一个<b>环</b>（实心核只有 43.75% 宽，核外是透明环缝 +
  * 三档硬边台阶）。本渲染器把球与光<b>一起</b>拿回来，且仍然只有一层。
  *
- * <p>星弹档案使用一遍绘制的专用五角星贴图，并通过网格顶点色保留白色亮芯；保留
- * {@code STAR_PRISM} 几何分支以兼容已有的模型类调用方。
+ * <p>星弹使用沿速度方向旋转的立体五角星模型；宽白芯、彩色外缘和实体侧壁由一遍本体绘制完成。
  *
  * <p><b>深度</b>：本体层用写深度的常规 alpha 混合（渐变贴图的柔边必须真混合才能表现，
  * cutout 会把抗锯齿边缘切成锯齿；写深度则保证后画的半透明地形（水）与云层
@@ -80,13 +80,12 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
      *   <li><b>四边形几何</b>：走<b>当前球弹贴图变体</b>（{@link DanmakuBulletTextures}），
      *       并使用<b>线性过滤 + mipmap</b> 的渲染类型——软渐变在最近邻 + 无 mipmap 下
      *       会碎成方块并持续闪烁。</li>
-     *   <li><b>模型类几何</b>：走档案自己的贴图与常规档（其形体是 3D 柱体，
-     *       不适用球弹的径向贴图）。</li>
+     *   <li><b>五角星模型</b>：走档案自己的高清贴图与线性过滤，不适用球弹的径向贴图。</li>
      * </ul>
      */
     private RenderType bodyRenderType(DanmakuVisualProfile.Profile profile) {
-        if (profile.geometry() == DanmakuGeometry.STAR_SPRITE) {
-            return DanmakuRenderTypes.translucentDepth(profile.texture());
+        if (profile.geometry() == DanmakuGeometry.STAR_PRISM) {
+            return DanmakuRenderTypes.translucentDepthFiltered(profile.texture());
         }
         if (profile.geometry() == DanmakuGeometry.QUAD) {
             return DanmakuRenderTypes.translucentDepthFiltered(DanmakuBulletTextures.currentLocation());
@@ -110,12 +109,15 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         float size = entity.getSize() * profile.visualScale();
         poseStack.translate(0.0D, size * 0.5D, 0.0D);
         if (profile.geometry() == DanmakuGeometry.STAR_PRISM) {
-            // 兼容旧五角星柱档案：偏航锁相机方位，俯仰摆动以显示厚度。
-            // 完全 billboard 会让厚度永远不可见，故刻意不复用 cameraOrientation()。
-            poseStack.mulPose(this.entityRenderDispatcher.cameraOrientation());
-            poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
-            poseStack.mulPose(Axis.XP.rotationDegrees(
-                    tumblePitch(entity.age(), profile)));
+            // Treat local +Z as the prism's forward axis. Its orientation follows the projectile,
+            // never the camera; spin about its travel axis and rock slightly to expose the bevel.
+            float yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
+            float pitch = Mth.lerp(partialTick, entity.xRotO, entity.getXRot());
+            poseStack.mulPose(Axis.YP.rotationDegrees(yaw));
+            poseStack.mulPose(Axis.XP.rotationDegrees(-pitch));
+            float age = entity.age() + partialTick;
+            poseStack.mulPose(Axis.ZP.rotationDegrees(age * 3.0F));
+            poseStack.mulPose(Axis.XP.rotationDegrees(tumblePitch(age, profile)));
         } else {
             poseStack.mulPose(this.entityRenderDispatcher.cameraOrientation());
             poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
@@ -172,9 +174,9 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         //
         // **四边形几何 MUST NOT 画这一层**：它的辉光已经在贴图里。再叠一层加法辉光
         // 等于把填率翻倍（历史实测：双加法未排序后单体负载仍不可控，只能靠减遍数）。
-        // 模型类几何（五角星柱）不在单通约束内，继续走分层实现。
+        // 模型类几何可使用档案分层；星柱把高光烘焙在模型贴图中以保持单通绘制。
         if (profile.geometry() != DanmakuGeometry.QUAD
-                && profile.geometry() != DanmakuGeometry.STAR_SPRITE) {
+                && profile.geometry() != DanmakuGeometry.STAR_PRISM) {
             this.renderGlow(entity, poseStack, profile, color, dim, bufferSource);
         }
 
@@ -212,21 +214,18 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
     }
 
     /**
-     * 俯仰摆动角（度）。摆动式（硬币旋转）而非整周翻滚：转到 90° 时五角星投影
-     * 退化成一条线，玩家会读作「弹消失」。
+     * 俯仰摆动角（度）。在飞行姿态上小幅摇摆，显露模型厚度与倒角。
      *
      * <p>纯客户端表现，由<b>年龄</b>推导，故零同步。
      *
-     * <p>参数名保留 {@code tickCount} 是因为本方法与年龄无关地通用；调用方 MUST 传
-     * {@code entity.age()}——传 {@code entity.tickCount} 会让客户端在重新拿到该实体时
-     * 翻滚相位归零跳变。
+     * <p>调用方传入 {@code entity.age() + partialTick}，保证帧间平滑且重新追踪实体后相位连续。
      */
-    private static float tumblePitch(int tickCount, DanmakuVisualProfile.Profile profile) {
+    private static float tumblePitch(float age, DanmakuVisualProfile.Profile profile) {
         if (!profile.hasTumble()) {
             return 0.0F;
         }
         return (float) (profile.tumbleAmpDeg() * Math.sin(
-                2.0D * Math.PI * tickCount / profile.tumblePeriod()));
+                2.0D * Math.PI * age / profile.tumblePeriod()));
     }
 
     /** 把单个颜色分量按 {@code factor} 向白推（截到 255）。{@code factor <= 1} 时原样返回。 */
@@ -245,17 +244,13 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
 
     /**
      * 按档案的几何输出形状。本体层与亮核层复用同一实现，仅颜色/透明度不同。
-     *
-     * @param radius 几何外接半径
      */
     private void renderShape(SphereDanmaku entity, DanmakuVisualProfile.Profile profile,
                              PoseStack poseStack, VertexConsumer consumer,
                              int r, int g, int b, int a, int light) {
-        float half = entity.getSize() * 0.5F;
+        float half = entity.getSize() * 0.5F * profile.visualScale();
         switch (profile.geometry()) {
-            case STAR_PRISM -> this.renderStarPrism(profile, poseStack, consumer, r, g, b, a, light);
-            case STAR_SPRITE -> DanmakuMeshes.starSprite(poseStack.last(), consumer, half,
-                    r, g, b, 1.0F, a, light);
+            case STAR_PRISM -> DanmakuMeshes.star(poseStack.last(), consumer, half, r, g, b, a, light);
             default -> this.renderQuad(poseStack, consumer, half, r, g, b, a, light);
         }
     }
@@ -270,17 +265,4 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         this.vertex(consumer, pose, -half, half, 0.0F, 0.0F, 0.0F, r, g, b, a, light);
     }
 
-    /**
-     * 五角星柱：前面盖 + 后面盖 + 侧面，共 30 quad = 120 顶点。
-     *
-     * <p>几何取自 {@link DanmakuGeometry#starPrismOutline}——纯函数，故可单测。
-     * 前面盖从中心扇出三角化：五角星是非凸的，但<b>对中心可见</b>（星形多边形），
-     * 故扇形三角化合法。
-     *
-     * <p>法线朝 +Z 与贴图一致；亮核层会等比缩放同一份几何，故两者天然同心。
-     */
-    private void renderStarPrism(DanmakuVisualProfile.Profile profile, PoseStack poseStack,
-                                 VertexConsumer consumer, int r, int g, int b, int a, int light) {
-        DanmakuMeshes.star(poseStack.last(),consumer,profile.visualScale(),r,g,b,a,light);
-    }
 }

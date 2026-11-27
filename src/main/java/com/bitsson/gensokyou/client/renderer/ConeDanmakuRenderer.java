@@ -14,42 +14,39 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 /**
- * 鳞形弹幕渲染器：将经典箭头轮廓做成立体、带亮芯的短弹头；弹体正面沿局部 +Z 朝向飞行方向。
+ * 鳞形弹幕渲染器：原作的拱形双翼、白色内纹与中央亮瓣，局部 +Z 为飞行方向。
  *
- * <p>与细长的锥体不同，该弹头两肩宽、头部圆钝、下缘收成短尖。灰阶贴图提供红壳的
- * 明暗与白色纹理，实体颜色继续决定外壳色相。
+ * <p>鳞片沿 X-Z 平面展开，Y 方向为真实厚度。前尖、后缘分叉与白芯均由同一模型
+ * 提供，不把鳞弹做成带尾柄的箭矢或金属锥体。
  */
 public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
 
     private static final ResourceLocation TEXTURE =
             ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/entity/arrowhead_danmaku.png");
 
-    private static final int SIDES = 18;
     private static final float BODY_RADIUS = 0.15F;
-    private static final float REAR_Z = -0.105F;
-    private static final float BEVEL_Z = -0.018F;
-    private static final float FRONT_Z = 0.075F;
-    private static final float REAR_SCALE = 0.46F;
-    private static final float BEVEL_SCALE = 0.82F;
+    private static final float HALF_LENGTH = 0.17F;
+    private static final float HALF_THICKNESS = 0.035F;
+    private static final DanmakuGeometry.ArrowheadSection[] SECTIONS = DanmakuGeometry.arrowheadSections();
+    // Two strips retain the white ridge without subdividing the model for smooth curvature.
+    private static final float[] FACE_STEPS = {0.0F, 0.50F, 1.0F};
 
-    private static final float GLOW_SCALE = 1.17F;
-    private static final int GLOW_ALPHA = 72;
-    private static final int CORE_ALPHA = 235;
+    private static final float GLOW_SCALE = 1.08F;
+    private static final int GLOW_ALPHA = 40;
 
     public ConeDanmakuRenderer(EntityRendererProvider.Context context) {
         super(context, TEXTURE);
     }
 
     /**
-     * 本体用 alpha 混合而非 cutout。
+     * 本体用带 mipmap 的 alpha 混合以保留高清纹理与近相机淡出。
      *
      * <p>cutout 只做"alpha &lt; 0.1 就丢弃"，**没有半透明**——近相机淡出需要真正的
-     * alpha 衰减，故走 {@link DanmakuRenderTypes#translucent}（alpha 混合 + 不裁背面，
-     * 弹头面与侧面的绕序不必纠结正反面）。
+     * alpha 衰减，故走带深度缓冲的平滑纹理档；实体完全不透明时仍按通常弹体遮挡。
      */
     @Override
     protected RenderType baseRenderType() {
-        return DanmakuRenderTypes.translucent(this.texture);
+        return DanmakuRenderTypes.translucentDepthFiltered(this.texture);
     }
 
     @Override
@@ -57,7 +54,7 @@ public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
                        PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
         poseStack.pushPose();
 
-        // 用插值朝向，避免低同步频率下的抖动；箭头壳的正面朝向局部 +Z。
+        // 用插值朝向，避免低同步频率下的抖动；局部 +Z 的尖端对准速度方向。
         float yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
         float pitch = Mth.lerp(partialTick, entity.xRotO, entity.getXRot());
 
@@ -89,28 +86,12 @@ public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
             poseStack.pushPose();
             poseStack.translate(0.0F, 0.0F, GLOW_OFFSET);
             poseStack.scale(GLOW_SCALE, GLOW_SCALE, GLOW_SCALE);
-            VertexConsumer glow = this.getBuffer(bufferSource, DanmakuRenderTypes.additiveGlow(TEXTURE));
+            VertexConsumer glow = this.getBuffer(bufferSource, DanmakuRenderTypes.additiveGlowFiltered(TEXTURE));
             DanmakuRenderProbe.countGlow();
             DanmakuRenderProbe.pushGlow();
             try {
                 this.renderShape(entity, poseStack, glow,
                         red(color), green(color), blue(color), glowAlpha, FULL_BRIGHT);
-            } finally {
-                DanmakuRenderProbe.pop();
-            }
-            poseStack.popPose();
-        }
-
-        // 中心亮芯独立发光，与箭头外缘形成明暗反差。
-        if (bodyAlpha > 0) {
-            poseStack.pushPose();
-            poseStack.translate(0.0F, 0.0F, FRONT_Z + GLOW_OFFSET * 2.0F);
-            VertexConsumer core = this.getBuffer(bufferSource, DanmakuRenderTypes.additiveGlow(TEXTURE));
-            DanmakuRenderProbe.countCore();
-            DanmakuRenderProbe.pushCore();
-            try {
-                this.renderBrightCore(poseStack.last(), core,
-                        Math.round(CORE_ALPHA * fade), FULL_BRIGHT);
             } finally {
                 DanmakuRenderProbe.pop();
             }
@@ -125,102 +106,74 @@ public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
     protected void renderShape(ConeDanmaku entity, PoseStack poseStack, VertexConsumer consumer,
                                 int r, int g, int b, int a, int light) {
         PoseStack.Pose pose = poseStack.last();
-
-        double[] outline = DanmakuGeometry.arrowheadOutline(BODY_RADIUS);
-        this.renderSideBand(consumer, pose, outline, REAR_SCALE, REAR_Z,
-                BEVEL_SCALE, BEVEL_Z, r, g, b, a, light);
-        this.renderSideBand(consumer, pose, outline, BEVEL_SCALE, BEVEL_Z,
-                1.0F, FRONT_Z, r, g, b, a, light);
-        this.renderFrontFace(pose, consumer, BODY_RADIUS, FRONT_Z, r, g, b, a, light);
-        this.renderBackFace(pose, consumer, outline, REAR_SCALE, REAR_Z, r, g, b, a, light);
-    }
-
-    private void renderSideBand(VertexConsumer consumer, PoseStack.Pose pose, double[] outline,
-                                float scale0, float z0, float scale1, float z1,
-                                int r, int g, int b, int a, int light) {
-        for (int i = 0; i < SIDES; i++) {
-            int next = (i + 1) % SIDES;
-            double x0 = outline[i * 2];
-            double y0 = outline[i * 2 + 1];
-            double x1 = outline[next * 2];
-            double y1 = outline[next * 2 + 1];
-            int shade = (i % 3 == 0) ? 168 : 205;
-            this.vertex(consumer, pose, (float) (x0 * scale0), (float) (y0 * scale0), z0, 0.5F, 0.5F,
-                    r * shade / 255, g * shade / 255, b * shade / 255, a, light);
-            this.vertex(consumer, pose, (float) (x1 * scale0), (float) (y1 * scale0), z0, 0.5F, 0.5F,
-                    r * shade / 255, g * shade / 255, b * shade / 255, a, light);
-            this.vertex(consumer, pose, (float) (x1 * scale1), (float) (y1 * scale1), z1, 0.5F, 0.5F,
-                    r * shade / 255, g * shade / 255, b * shade / 255, a, light);
-            this.vertex(consumer, pose, (float) (x0 * scale1), (float) (y0 * scale1), z1, 0.5F, 0.5F,
-                    r * shade / 255, g * shade / 255, b * shade / 255, a, light);
+        for (int part = -1; part <= 1; part++) {
+            for (int ring = 0; ring < SECTIONS.length - 1; ring++) {
+                var first = SECTIONS[ring];
+                var second = SECTIONS[ring + 1];
+                for (int step = 0; step < FACE_STEPS.length - 1; step++) {
+                    float t0 = FACE_STEPS[step];
+                    float t1 = FACE_STEPS[step + 1];
+                    this.arrowFace(consumer, pose, first, second, part, t0, t1, true, r, g, b, a, light);
+                    this.arrowFace(consumer, pose, first, second, part, t0, t1, false, r, g, b, a, light);
+                }
+                for (int edge = 0; edge <= 1; edge++) {
+                    boolean joined = first.coreWidth() == first.wingInnerWidth()
+                            && second.coreWidth() == second.wingInnerWidth();
+                    if (joined && (part == 0 || edge == 0)) continue;
+                    this.arrowVertex(consumer, pose, first, part, edge, true, 0.72F, r, g, b, a, light);
+                    this.arrowVertex(consumer, pose, first, part, edge, false, 0.72F, r, g, b, a, light);
+                    this.arrowVertex(consumer, pose, second, part, edge, false, 0.72F, r, g, b, a, light);
+                    this.arrowVertex(consumer, pose, second, part, edge, true, 0.72F, r, g, b, a, light);
+                }
+            }
+            // The two rear wings have visible end faces; the forward end closes at one point.
+            this.arrowVertex(consumer, pose, SECTIONS[0], part, 0.0F, true, 0.78F, r, g, b, a, light);
+            this.arrowVertex(consumer, pose, SECTIONS[0], part, 1.0F, true, 0.78F, r, g, b, a, light);
+            this.arrowVertex(consumer, pose, SECTIONS[0], part, 1.0F, false, 0.78F, r, g, b, a, light);
+            this.arrowVertex(consumer, pose, SECTIONS[0], part, 0.0F, false, 0.78F, r, g, b, a, light);
         }
     }
 
-    private void renderFrontFace(PoseStack.Pose pose, VertexConsumer consumer, float radius, float z,
-                                 int r, int g, int b, int a, int light) {
-        double[] outline = DanmakuGeometry.arrowheadOutline(radius);
-        for (int i = 0; i < SIDES; i++) {
-            int next = (i + 1) % SIDES;
-            this.vertex(consumer, pose, 0.0F, 0.0F, z, 0.5F, 0.5F, r, g, b, a, light);
-            this.faceVertex(consumer, pose, outline[i * 2], outline[i * 2 + 1], radius, z, r, g, b, a, light);
-            this.faceVertex(consumer, pose, outline[next * 2], outline[next * 2 + 1], radius, z, r, g, b, a, light);
-            // RenderType uses QUADS; repeat the final point to encode this triangle as a degenerate quad.
-            this.faceVertex(consumer, pose, outline[next * 2], outline[next * 2 + 1], radius, z, r, g, b, a, light);
+    private void arrowFace(VertexConsumer consumer, PoseStack.Pose pose,
+                           DanmakuGeometry.ArrowheadSection first, DanmakuGeometry.ArrowheadSection second,
+                           int part, float t0, float t1, boolean top,
+                           int r, int g, int b, int a, int light) {
+        if ((part < 0) != !top) {
+            float swap = t0;
+            t0 = t1;
+            t1 = swap;
         }
+        float shade = top ? 1.0F : 0.94F;
+        this.arrowVertex(consumer, pose, first, part, t0, top, shade, r, g, b, a, light);
+        this.arrowVertex(consumer, pose, second, part, t0, top, shade, r, g, b, a, light);
+        this.arrowVertex(consumer, pose, second, part, t1, top, shade, r, g, b, a, light);
+        this.arrowVertex(consumer, pose, first, part, t1, top, shade, r, g, b, a, light);
     }
 
-    private void renderBackFace(PoseStack.Pose pose, VertexConsumer consumer, double[] outline,
-                                float scale, float z, int r, int g, int b, int a, int light) {
-        for (int i = 0; i < SIDES; i++) {
-            int next = (i + 1) % SIDES;
-            this.vertex(consumer, pose, 0.0F, 0.0F, z, 0.5F, 0.5F, r, g, b, a, light);
-            this.vertex(consumer, pose, (float) (outline[next * 2] * scale),
-                    (float) (outline[next * 2 + 1] * scale), z,
-                    0.5F, 0.5F, r, g, b, a, light);
-            this.vertex(consumer, pose, (float) (outline[i * 2] * scale),
-                    (float) (outline[i * 2 + 1] * scale), z,
-                    0.5F, 0.5F, r, g, b, a, light);
-            // Keep each triangle fan wedge on the QUADS vertex boundary.
-            this.vertex(consumer, pose, (float) (outline[i * 2] * scale),
-                    (float) (outline[i * 2 + 1] * scale), z,
-                    0.5F, 0.5F, r, g, b, a, light);
-        }
+    private void arrowVertex(VertexConsumer consumer, PoseStack.Pose pose,
+                             DanmakuGeometry.ArrowheadSection section, int part, float t, boolean top,
+                             float shade, int r, int g, int b, int a, int light) {
+        float x = part == 0 ? (float) section.coreWidth() * (t * 2.0F - 1.0F)
+                : part * (float) (section.wingInnerWidth() + (section.outerWidth() - section.wingInnerWidth()) * t);
+        float y = (top ? 1.0F : -1.0F) * HALF_THICKNESS * (float) section.height();
+        float white = part == 0
+                ? Math.min(1.0F, Math.max(0.0F, (0.30F - (float) section.z()) / 0.35F))
+                        * Math.min(1.0F, (1.0F - Math.abs(t * 2.0F - 1.0F)) / 0.35F)
+                : Math.max(0.0F, 1.0F - Math.abs(t - 0.50F) / 0.50F) * 0.94F
+                        * Math.min(1.0F, Math.max(0.0F, (0.98F - (float) section.z()) / 0.18F));
+        // The source sprite has a pale arch below the colored nose, separate from its lower white core.
+        float arch = Math.max(0.0F, 1.0F - Math.abs((float) section.z() - 0.62F) / 0.24F)
+                * (part == 0 ? 1.0F : 1.0F - t);
+        white = Math.max(white, arch * 0.96F);
+        shade *= 1.0F - arch * 0.35F;
+        int brightness = Math.max(r, Math.max(g, b));
+        this.vertex(consumer, pose, x * BODY_RADIUS, y, (float) section.z() * HALF_LENGTH,
+                0.5F + x * 0.5F, 0.5F - (float) section.z() * 0.5F,
+                highlight(r, brightness, shade, white), highlight(g, brightness, shade, white),
+                highlight(b, brightness, shade, white), a, light);
     }
 
-    private void faceVertex(VertexConsumer consumer, PoseStack.Pose pose, double x, double y, float radius,
-                            float z, int r, int g, int b, int a, int light) {
-        float u = (float) (0.5D + x / (2.0D * radius));
-        float v = (float) (0.5D - y / (2.0D * radius));
-        this.vertex(consumer, pose, (float) x, (float) y, z, u, v, r, g, b, a, light);
-    }
-
-    /** A cropped white inset follows the source sprite's central highlight without whitening its red edge. */
-    private void renderBrightCore(PoseStack.Pose pose, VertexConsumer consumer, int alpha, int light) {
-        float halfWidth = BODY_RADIUS * 0.50F;
-        float halfHeight = BODY_RADIUS * 0.25F;
-        float centerU = 0.5F;
-        float centerV = 11.0F / 16.0F;
-        for (int i = 0; i < 8; i++) {
-            int next = (i + 1) % 8;
-            double angle0 = 2.0D * Math.PI * i / 8.0D;
-            double angle1 = 2.0D * Math.PI * next / 8.0D;
-            float x0 = (float) Math.cos(angle0);
-            float y0 = (float) Math.sin(angle0);
-            float x1 = (float) Math.cos(angle1);
-            float y1 = (float) Math.sin(angle1);
-            float u0 = centerU + x0 * 0.25F;
-            float v0 = centerV - y0 * 2.0F / 16.0F;
-            float u1 = centerU + x1 * 0.25F;
-            float v1 = centerV - y1 * 2.0F / 16.0F;
-            this.vertex(consumer, pose, 0.0F, 0.0F, 0.0F, centerU, centerV,
-                    255, 255, 255, alpha, light);
-            this.vertex(consumer, pose, x0 * halfWidth, y0 * halfHeight, 0.0F, u0, v0,
-                    255, 255, 255, alpha, light);
-            this.vertex(consumer, pose, x1 * halfWidth, y1 * halfHeight, 0.0F, u1, v1,
-                    255, 255, 255, alpha, light);
-            // The translucent entity render type consumes quads; duplicate the last vertex for this fan wedge.
-            this.vertex(consumer, pose, x1 * halfWidth, y1 * halfHeight, 0.0F, u1, v1,
-                    255, 255, 255, alpha, light);
-        }
+    private static int highlight(int tint, int brightness, float shade, float white) {
+        return Math.max(0, Math.min(255, Math.round((tint + (brightness - tint) * white) * shade)));
     }
 }

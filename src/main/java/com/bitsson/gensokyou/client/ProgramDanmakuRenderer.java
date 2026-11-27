@@ -97,24 +97,29 @@ public final class ProgramDanmakuRenderer {
                 } else {
                     var profile=ProgramVisuals.profile(member.style());
                     boolean starPrism=profile.geometry()==DanmakuGeometry.STAR_PRISM;
-                    boolean starSprite=profile.geometry()==DanmakuGeometry.STAR_SPRITE;
                     RenderType type=profile==com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile.DEFAULT
-                            ? bodyType : DanmakuRenderTypes.translucentDepth(profile.texture());
+                            ? bodyType : starPrism
+                                    ? DanmakuRenderTypes.translucentDepthFiltered(profile.texture())
+                                    : DanmakuRenderTypes.translucentDepth(profile.texture());
                     usedTypes.add(type);
                     VertexConsumer body=buffers.getBuffer(type);
-                    pose.mulPose(minecraft.gameRenderer.getMainCamera().rotation());
-                    pose.mulPose(Axis.YP.rotationDegrees(180));
+                    if (starPrism) align(pose,member.direction());
+                    else {
+                        pose.mulPose(minecraft.gameRenderer.getMainCamera().rotation());
+                        pose.mulPose(Axis.YP.rotationDegrees(180));
+                    }
                     float half=(float)(member.style().visualRadius()*profile.visualScale()*member.sizeMultiplier());
                     // 球弹贴图把本体与外辉光烧在同一张 alpha 层里。
                     // Keep a saturated body color; a second additive copy washes it out.
                     int tint=ProgramVisuals.tint(member.style());
                     int r=channel(tint,16,member.brightness()),g=channel(tint,8,member.brightness()),b=channel(tint,0,member.brightness());
                     if (starPrism) {
-                        pose.mulPose(Axis.XP.rotationDegrees((float)(profile.tumbleAmpDeg()*Math.sin(2*Math.PI*member.age()/profile.tumblePeriod()))));
+                        pose.mulPose(Axis.ZP.rotationDegrees((float)member.age()*3.0F));
+                        if (profile.hasTumble()) {
+                            pose.mulPose(Axis.XP.rotationDegrees((float)(profile.tumbleAmpDeg()*Math.sin(2*Math.PI*member.age()/profile.tumblePeriod()))));
+                        }
                         DanmakuMeshes.star(pose.last(),body,half,r,g,b,alpha,LIGHT);
-                    } else if (starSprite) DanmakuMeshes.starSprite(pose.last(),body,half,r,g,b,
-                            (float)member.brightness(),alpha,LIGHT);
-                    else quad(pose.last(),body,half,r,g,b,alpha);
+                    } else quad(pose.last(),body,half,r,g,b,alpha);
                 }
                 pose.popPose();
             }

@@ -3,6 +3,7 @@
 # laser_cap:     径向渐变圆斑（中心白边缘透明）
 # talisman_danmaku: 竖长符纸（billboard 0.34x0.52）
 # knife_danmaku: 竖直细刀，刀尖朝图下方（V=1 = 飞行方向前端）
+# 星弹与鳞弹模型的高清灰阶材质由 tools/gen_danmaku_textures.py 维护，避免被像素图覆盖。
 
 TEXES = {}
 
@@ -60,48 +61,6 @@ TEXES["entity/knife_danmaku"] = [
     _blade + _fill,
 ] * 4
 
-# ---- 星弹：16×16 五角星（灰阶遮罩，亮芯和星芒轮廓再由实体分层发光）----
-# 星形轮廓、中心亮区和透明星芒来自经典东方小星弹的比例；色相由顶点色决定。
-TEXES["entity/star_danmaku"] = [
-    ".......DD.......",
-    ".......CC.......",
-    "......DCCD......",
-    "......CCCCD.....",
-    "...DDCCGGCCDD...",
-    "DCCCCCGHHCCCCCCD",
-    "DCCCGHHHHHGCCCCD",
-    ".DCCHHHHHHHGCCD.",
-    "..DCGHHHHHHCCD..",
-    "...CCHHHHHHCC...",
-    "...DCHHHHHHCD...",
-    "...DCHGGGHHCC...",
-    "...CCCCCCCCCC...",
-    "...CCCCDDDCCC...",
-    "...CDD....DDC...",
-    "................",
-]
-
-# ---- 鳞形箭头弹：16×16 宽肩、短尖、白色内纹 ----
-# 贴图按朝向观察者的一面展开，实体的箭头轮廓负责 3D 厚度，色相由实体顶点色决定。
-TEXES["entity/arrowhead_danmaku"] = [
-    "................",
-    ".....DDCCDD.....",
-    "....DCCMMCCD....",
-    "....DCMMMMCD....",
-    "...DCMHMMHMCD...",
-    "...DCMMCCMMCD...",
-    "...CMMCCCCMMC...",
-    "..DMMCCMMCCMMD..",
-    "..DHCCMHHMCCMD..",
-    "D.MMCCHHHHCCCM..",
-    "D.HCCCHHHHCCCH..",
-    ".DHCDDHHHHDCCHD.",
-    ".DHCDCHHHHCDCMD.",
-    ".DMCDCMHHMCDCMD.",
-    "DDMD.DCHHCDDDMDD",
-    "...D..DCCD..D...",
-]
-
 PAL_entity_laser_danmaku = {
     '.': None,
     'A': (255, 255, 255, 255),
@@ -132,18 +91,4 @@ PAL_entity_knife_danmaku = {
     'G': (95, 98, 108),     # 护手/柄尾
     'd': (70, 72, 80),      # 缠绳亮
     'D': (58, 56, 64),      # 柄暗
-}
-PAL_entity_star_danmaku = {
-    '.': None,
-    'D': (205, 205, 205, 96),   # 半透明星芒外缘
-    'C': (160, 160, 160, 235),  # 星芒色带
-    'G': (225, 225, 225, 255),  # 过渡高光
-    'H': (255, 255, 255, 255),  # 亮芯
-}
-PAL_entity_arrowhead_danmaku = {
-    '.': None,
-    'D': (78, 78, 78, 225),     # 深色轮廓
-    'C': (148, 148, 148, 245),  # 内侧红壳色带
-    'M': (194, 194, 194, 255),  # 壳面高光
-    'H': (255, 255, 255, 255),  # 弹头内芯
 }

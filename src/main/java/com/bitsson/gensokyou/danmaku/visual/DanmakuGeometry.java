@@ -16,31 +16,29 @@ public enum DanmakuGeometry {
     QUAD,
 
     /**
-     * 有厚度的五角星（五角星柱）。
+     * 原作风格的立体五角星：宽白芯、彩色星角、柔和面缘与实体侧壁。
      *
-     * <p><b>刻意不做完全 billboard。</b>完全朝向相机会让厚度永远不可见，这个几何
-     * 就没有存在意义。它的朝向是「偏航锁相机方位以保证轮廓可读，俯仰在有限幅度内
-     * 摆动以使厚度成为可见信息」——摆动幅度由档案的 {@code tumbleAmpDeg} / 
-     * {@code tumblePeriod} 给出。
+     * <p>局部 +Z 轴沿弹道方向，不读取相机朝向；按年龄自转并小幅摆动以显露棱边。
+     * 摆动幅度由档案的 {@code tumbleAmpDeg} / {@code tumblePeriod} 给出。
      *
-     * <p>成本特征与 {@link #QUAD} <b>相反</b>：30 quad = 120 顶点/层（顶点重），
-     * 但屏幕覆盖只有同尺寸四边形的四成左右（填充轻）。密集弹幕下填充率因此下降。
+     * <p>前后弧面与侧边在单次本体绘制中完成，不叠加金属刻纹或 billboard。
      */
-    STAR_PRISM,
+    STAR_PRISM;
 
-    /** 面向相机的五角星弹幕贴图。 */
-    STAR_SPRITE;
+    /** 游戏星弹的凹角较浅；它不是绘制法阵时使用的正五芒星。 */
+    public static final double STAR_INNER_RATIO = 0.50D;
+    public static final double STAR_WHITE_CORE_RADIUS = 0.42D;
 
     /**
-     * 正五角星柱的轮廓顶点。
+     * 星弹的五角轮廓顶点。
      *
-     * <p>10 个顶点凸凹交替，间隔 36°：奇数下标为凸（外接圆半径 R），偶数下标为凹
-     * （内半径 {@code r = R·(3−√5)/2}）。
+     * <p>10 个顶点凸凹交替，间隔 36°：偶数下标为凸（外接圆半径 R），奇数下标为凹
+     * （内半径 {@code r = R·0.5}），保留原作较饱满的星角。
      *
-     * @return 长度 20 的数组 {@code [x0,y0, x1,y1, …]}，逆时针（极角递增）
+     * @return 长度 20 的数组 {@code [x0,y0, x1,y1, …]}，顺时针（极角递减）
      */
     public static double[] starPrismOutline(double radius) {
-        double inner = radius * DanmakuVisualProfile.PENTAGRAM_INNER_RATIO;
+        double inner = radius * STAR_INNER_RATIO;
         double[] out = new double[20];
         for (int i = 0; i < 10; i++) {
             double r = (i % 2 == 0) ? radius : inner;
@@ -53,28 +51,27 @@ public enum DanmakuGeometry {
         return out;
     }
 
-    /** 五角星柱的总厚度（半厚的一半）。厚度 = 半径的一半，故半厚 = 半径的四分之一。 */
+    /** 五角星模型的半厚度；侧壁保持实体体积，正面轮廓与碰撞尺寸独立。 */
     public static double starPrismHalfThickness(double radius) {
-        return radius * 0.25D;
+        return radius * 0.20D;
     }
 
+    /** 鳞片横截面：外翼、翼内缘、中央鳞瓣的半宽及厚度，均为归一化尺寸。 */
+    public record ArrowheadSection(double z, double outerWidth, double wingInnerWidth,
+                                   double coreWidth, double height) {}
+
     /**
-     * 鳞形箭头弹体朝向观察者一侧的轮廓。外侧圆钝、两肩张开，底缘收成短尖，
-     * 与细长锥尖区分开来。
-     *
-     * @return 长度 36 的数组 {@code [x0,y0, ...]}，顺时针排列
+     * 原作鳞弹的拱形双翼和中央亮瓣，沿 X-Z 平面展开，尖端在 +Z。
+     * 后缘分为三瓣，没有圆杆状尾柄；前半段的中央鳞瓣与双翼相连。
+     * 只保留尾缘、白芯、内纹和前尖所需的五个截面，避免为平滑弧度过度细分。
      */
-    public static double[] arrowheadOutline(double radius) {
-        double[] unit = {
-                0.00D, 1.00D, 0.30D, 0.96D, 0.58D, 0.82D, 0.86D, 0.58D,
-                0.96D, 0.28D, 0.92D, 0.00D, 0.76D, -0.28D, 0.47D, -0.56D,
-                0.23D, -0.80D, 0.00D, -1.00D, -0.23D, -0.80D, -0.47D, -0.56D,
-                -0.76D, -0.28D, -0.92D, 0.00D, -0.96D, 0.28D, -0.86D, 0.58D,
-                -0.58D, 0.82D, -0.30D, 0.96D
+    public static ArrowheadSection[] arrowheadSections() {
+        return new ArrowheadSection[]{
+                new ArrowheadSection(-1.00D, 1.00D, 0.80D, 0.02D, 0.30D),
+                new ArrowheadSection(-0.22D, 0.72D, 0.42D, 0.40D, 0.96D),
+                new ArrowheadSection( 0.34D, 0.46D, 0.18D, 0.18D, 0.88D),
+                new ArrowheadSection( 0.62D, 0.34D, 0.13D, 0.13D, 0.65D),
+                new ArrowheadSection( 1.00D, 0.00D, 0.00D, 0.00D, 0.00D)
         };
-        for (int i = 0; i < unit.length; i++) {
-            unit[i] *= radius;
-        }
-        return unit;
     }
 }

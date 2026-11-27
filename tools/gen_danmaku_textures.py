@@ -1,17 +1,18 @@
 # -*- coding: utf-8 -*-
-"""弹幕高清贴图程序化生成（球弹径向渐变 / 符纸 / 激光五芒星法阵）。
+"""弹幕高清贴图生成（球弹渐变 / 星弹与鳞弹模型材质 / 符纸 / 激光法阵）。
 
 非像素画：矢量几何 + 超采样抗锯齿，所有贴图去色（白/灰 + 透明底），
 运行时颜色完全由顶点色提供。用法：
 
     python tools/gen_danmaku_textures.py             # 预览 → tools/textures/_preview/
     python tools/gen_danmaku_textures.py --write-assets
+    python tools/gen_danmaku_textures.py --only star_prism_danmaku arrowhead_danmaku
 """
+import argparse
 import math
-import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 PREVIEW_DIR = Path("tools/textures/_preview")
 ASSET_DIR = Path("src/main/resources/assets/gensokyou/textures/entity")
@@ -115,6 +116,22 @@ def make_sphere_glow(size=128):
             px[x, y] = (v, v, v, int(round(alpha)))
     return img
 
+
+def make_star_prism(size=128, ss=4):
+    """Smooth, unengraved emissive surface; the mesh supplies the white core and colored rim."""
+    big = size * ss
+    gradient = Image.radial_gradient("L").resize((big, big), Image.Resampling.BICUBIC)
+    return ImageOps.colorize(gradient, (255, 255, 255), (242, 242, 242)).convert("RGBA").resize(
+        (size, size), Image.Resampling.LANCZOS)
+
+
+def make_arrowhead_danmaku(size=128, ss=4):
+    """Neutral, softly lit scale surface (V=0 forward tip); no metallic strips or engraving."""
+    big = size * ss
+    gradient = Image.linear_gradient("L").resize((big, big), Image.Resampling.BICUBIC)
+    return ImageOps.colorize(gradient, (252, 252, 252), (238, 238, 238)).convert("RGBA").resize(
+        (size, size), Image.Resampling.LANCZOS)
+
 # ---------------------------------------------------------------- 符纸
 
 def make_talisman(size=64, ss=4):
@@ -201,19 +218,25 @@ def make_magic_circle(size=256, ss=4):
 # ---------------------------------------------------------------- 入口
 
 def main():
-    write_assets = "--write-assets" in sys.argv
-    images = {
-        "sphere_danmaku.png": make_sphere(),
-        "sphere_danmaku_glow.png": make_sphere_glow(),
-        "talisman_danmaku.png": make_talisman(),
-        "laser_magic_circle.png": make_magic_circle(),
+    generators = {
+        "sphere_danmaku": make_sphere,
+        "sphere_danmaku_glow": make_sphere_glow,
+        "star_prism_danmaku": make_star_prism,
+        "arrowhead_danmaku": make_arrowhead_danmaku,
+        "talisman_danmaku": make_talisman,
+        "laser_magic_circle": make_magic_circle,
     }
-    out_dir = ASSET_DIR if write_assets else PREVIEW_DIR
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--write-assets", action="store_true")
+    parser.add_argument("--only", nargs="+", choices=generators, help="只生成指定贴图")
+    args = parser.parse_args()
+    out_dir = ASSET_DIR if args.write_assets else PREVIEW_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
-    for name, img in images.items():
-        path = out_dir / name
+    for name in args.only or generators:
+        img = generators[name]()
+        path = out_dir / (name + ".png")
         img.save(path)
-        print(("written" if write_assets else "preview"), path)
+        print(("written" if args.write_assets else "preview"), path)
 
 if __name__ == "__main__":
     main()

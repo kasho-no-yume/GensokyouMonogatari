@@ -128,23 +128,23 @@ public final class DanmakuVisualProfile {
             0.0F, 0);             // 不摆动
 
     /**
-     * 五角星弹幕。保留原视觉档案名以兼容已有弹幕内容，实际使用经典的面向相机星形贴图。
+     * 五角星弹幕。沿弹道朝向的实体模型，采用原作的大白芯、彩色星角和柔和外缘。
      *
      * <p>视觉和碰撞尺寸分开：五角星有透明的凹角，碰撞尺寸继续使用圆形半径的约 60%。
      *
-     * <p>专用贴图保留星形轮廓与柔和色带；渲染网格把中心顶点推向白色，在单次本体绘制中
-     * 形成亮芯，避免额外叠层把星形糊成一团或增加密集弹幕开销。
+     * <p>高清灰阶贴图仅提供平滑明暗；白芯和彩色外缘由同一网格的渐变顶点色提供。
+     * 整体只绘制一次，不使用相机朝向的 billboard，也不叠加独立发光层。
      */
     public static final Profile STAR_PRISM = new Profile(
-            texture("star_danmaku"),
+            texture("star_prism_danmaku"),
             1.0F, 0.60F,
-            0.55F, 0,               // 亮芯由单通网格顶点色实现
-            1.0F, 0,                // 柔和星芒已在专用贴图中
+            0.55F, 0,               // 宽白芯由本体网格的内圈提供
+            1.0F, 0,                // 单通五角星模型不另画辉光层
             96,
-            DanmakuGeometry.STAR_SPRITE,
+            DanmakuGeometry.STAR_PRISM,
             DanmakuColorMode.FIXED,
             0,
-            0.0F, 0);
+            18.0F, 40);
 
     /** 全部档案，顺序即 id。id 逐弹同步，故<b>顺序 MUST NOT 变动</b>。 */
     private static final List<Profile> ALL = List.of(DEFAULT, STAR_PRISM);

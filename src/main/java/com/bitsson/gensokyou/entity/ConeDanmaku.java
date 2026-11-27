@@ -14,17 +14,18 @@ import net.minecraft.world.phys.EntityHitResult;
 import java.util.Set;
 
 /**
- * 鳞形箭头弹幕（箭头状的 3D 弹体）。
+ * 鳞形弹幕（前尖朝前、后缘分叉的薄型 3D 鳞片）。
  *
- * <p>特性：正面法线恒指速度方向、命中实体或方块即消失、<b>不产生尾迹</b>
+ * <p>特性：弹头尖端恒指速度方向、命中实体或方块即消失、<b>不产生尾迹</b>
  * ——10 发/秒的射速下尾迹会让同时在飞的弹幕实体数翻倍。
  *
  * <p><b>朝向</b>：由父类的 {@code updateRotationFromVelocity()} 每 tick 由速度写入
- * {@code yRot/xRot}，渲染器据此把弹头正面对准局部 +Z。速度为零时该方法直接返回，
+ * {@code yRot/xRot}，渲染器据此把弹头尖端对准局部 +Z。速度为零时该方法直接返回，
  * 故静止时保持最后朝向（"静止时方向任意"天然满足）。
  *
- * <p><b>判定箱与视觉尺寸解耦</b>：视觉轮廓宽约 0.29 格（见 {@code ConeDanmakuRenderer} 的几何常量），
- * 判定箱为实体注册尺寸 0.32 格。二者是<b>各自独立的参数</b>，不是同一个值——
+ * <p><b>判定箱与视觉尺寸解耦</b>：薄型鳞片沿飞行方向长约 0.34 格、横宽约 0.30 格
+ * （见 {@code ConeDanmakuRenderer} 的几何常量），判定箱为实体注册尺寸 0.32 格。
+ * 二者是<b>各自独立的参数</b>，不是同一个值——
  * 共用同一个值会让弹体在 BOSS 面前"看着擦过却没伤害"。
  */
 public class ConeDanmaku extends AbstractDanmakuProjectile {

@@ -22,6 +22,7 @@ public final class DanmakuRenderTypes extends RenderStateShard {
 
     /** 按纹理缓存渲染类型，避免同帧内重复构建，也保证 BufferSource 的缓冲复用稳定。 */
     private static final Map<ResourceLocation, RenderType> GLOW_CACHE = new ConcurrentHashMap<>();
+    private static final Map<ResourceLocation, RenderType> FILTERED_GLOW_CACHE = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, RenderType> SOLID_CACHE = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, RenderType> TRANSLUCENT_CACHE = new ConcurrentHashMap<>();
     private static final Map<ResourceLocation, RenderType> TRANSLUCENT_DEPTH_CACHE = new ConcurrentHashMap<>();
@@ -36,8 +37,17 @@ public final class DanmakuRenderTypes extends RenderStateShard {
      * 深度测试仍开启，因此发光不会穿透墙体。
      */
     public static RenderType additiveGlow(ResourceLocation texture) {
-        return GLOW_CACHE.computeIfAbsent(texture, loc -> RenderType.create(
-                "gensokyou_danmaku_additive_glow",
+        return GLOW_CACHE.computeIfAbsent(texture, loc -> createAdditiveGlow(loc, false));
+    }
+
+    /** 高清模型的发光层与本体保持相同过滤方式，避免共享贴图的采样状态互相覆盖。 */
+    public static RenderType additiveGlowFiltered(ResourceLocation texture) {
+        return FILTERED_GLOW_CACHE.computeIfAbsent(texture, loc -> createAdditiveGlow(loc, true));
+    }
+
+    private static RenderType createAdditiveGlow(ResourceLocation texture, boolean filtered) {
+        return RenderType.create(
+                filtered ? "gensokyou_danmaku_additive_glow_filtered" : "gensokyou_danmaku_additive_glow",
                 DefaultVertexFormat.NEW_ENTITY,
                 VertexFormat.Mode.QUADS,
                 1024,
@@ -45,14 +55,14 @@ public final class DanmakuRenderTypes extends RenderStateShard {
                 false,  // sortOnUpload：加法混合与绘制顺序无关，无需排序
                 RenderType.CompositeState.builder()
                         .setShaderState(RENDERTYPE_ENTITY_TRANSLUCENT_EMISSIVE_SHADER)
-                        .setTextureState(new TextureStateShard(loc, false, false))
+                        .setTextureState(new TextureStateShard(texture, filtered, filtered))
                         .setTransparencyState(ADDITIVE_TRANSPARENCY)
                         .setWriteMaskState(COLOR_WRITE)
                         .setCullState(NO_CULL)
                         .setLightmapState(LIGHTMAP)
                         .setOverlayState(NO_OVERLAY)
                         .createCompositeState(false)
-        ));
+        );
     }
 
     /**

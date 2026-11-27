@@ -56,20 +56,21 @@ class DanmakuVisualProfileTest {
     }
 
     /**
-     * 星弹使用专用剪影和单通网格亮芯，不添加额外的分层绘制。
+     * 星弹采用沿弹道朝向的薄型模型，宽白芯与彩色星角由同一网格提供。
      */
     @Test
-    void starSpriteHasDedicatedTextureAndSinglePassBrightCenter() {
+    void starPrismUsesDedicatedHighResolutionTextureWithoutExtraLayers() {
         DanmakuVisualProfile.Profile star = DanmakuVisualProfile.STAR_PRISM;
-        assertEquals(DanmakuGeometry.STAR_SPRITE, star.geometry());
-        assertFalse(star.hasCore(), "星形亮芯与外缘由单次绘制完成");
-        assertEquals(0, star.glowAlpha(), "星芒不应增加额外的加法绘制层");
-        assertEquals("star_danmaku", star.texture().getPath());
+        assertEquals(DanmakuGeometry.STAR_PRISM, star.geometry());
+        assertFalse(star.hasCore(), "星形宽白芯由同一模型的内圈绘制，不另叠亮核副本");
+        assertEquals(0, star.glowAlpha(), "单通星棱柱不应增加额外的加法绘制层");
+        assertEquals("textures/entity/star_prism_danmaku.png", star.texture().getPath());
+        assertTrue(star.hasTumble(), "3D 星弹应有小幅摇摆以显露棱边");
     }
 
     /** 星弹使用内嵌星芒，避免额外叠层。 */
     @Test
-    void starSpriteDoesNotAddASeparateGlowPass() {
+    void starPrismDoesNotAddASeparateGlowPass() {
         DanmakuVisualProfile.Profile s = DanmakuVisualProfile.STAR_PRISM;
         assertEquals(1.0F, s.glowScale(), EPS);
         assertEquals(0, s.glowAlpha());
@@ -151,7 +152,7 @@ class DanmakuVisualProfileTest {
     // 五角星柱几何
     // ------------------------------------------------------------------
 
-    /** 轮廓 MUST 是 10 点凸凹交替：奇数下标凸（=R），偶数下标凹（=r）。 */
+    /** 轮廓 MUST 是 10 点凸凹交替：偶数下标凸（=R），奇数下标凹（=r）。 */
     @Test
     void starPrismOutlineAlternatesFiveTimes() {
         double radius = 1.0D;
@@ -165,8 +166,8 @@ class DanmakuVisualProfileTest {
                 assertEquals(radius, r, EPS, "凸点半径 MUST 等于 " + radius);
                 convex++;
             } else {
-                assertEquals(radius * DanmakuVisualProfile.PENTAGRAM_INNER_RATIO, r, EPS,
-                        "凹点半径 MUST 等于 r = R·(3−√5)/2");
+                assertEquals(radius * DanmakuGeometry.STAR_INNER_RATIO, r, EPS,
+                        "游戏星弹使用较浅的凹角，不是刻纹法阵的正五芒星");
                 concave++;
             }
         }
@@ -199,11 +200,15 @@ class DanmakuVisualProfileTest {
         }
     }
 
-    /** 厚度 MUST 是半径的一半 ⇒ 半厚是半径的四分之一。 */
+    /** 星弹保留实体厚度，避免从侧面观察时退化成薄纸。 */
     @Test
-    void starPrismThicknessIsHalfRadius() {
-        assertEquals(0.25D, DanmakuGeometry.starPrismHalfThickness(1.0D), EPS);
-        assertEquals(1.0D, DanmakuGeometry.starPrismHalfThickness(4.0D), EPS);
+    void starPrismHasVisibleSolidDepth() {
+        assertEquals(0.20D, DanmakuGeometry.starPrismHalfThickness(1.0D), EPS);
+        assertEquals(0.80D, DanmakuGeometry.starPrismHalfThickness(4.0D), EPS);
+        assertTrue(DanmakuGeometry.STAR_WHITE_CORE_RADIUS >= 0.40D,
+                "原作星弹以大白芯为主，不能缩成一个金属高光点");
+        assertTrue(DanmakuGeometry.STAR_WHITE_CORE_RADIUS < DanmakuGeometry.STAR_INNER_RATIO,
+                "白芯必须完整包含在星形轮廓内");
     }
 
     /** 透明凹角对应较小的碰撞缩放，避免按完整外接圆判中。 */
@@ -217,21 +222,24 @@ class DanmakuVisualProfileTest {
     }
 
     @Test
-    void arrowheadOutlineHasSymmetricBroadShouldersAndShortTip() {
-        double[] outline = DanmakuGeometry.arrowheadOutline(1.0D);
-        assertEquals(36, outline.length, "箭头截面应由 18 个点组成");
-        for (int i = 1; i < 9; i++) {
-            assertEquals(outline[i * 2], -outline[(18 - i) * 2], EPS,
-                    "箭头轮廓应左右对称");
-            assertEquals(outline[i * 2 + 1], outline[(18 - i) * 2 + 1], EPS,
-                    "箭头轮廓两侧高度应匹配");
+    void arrowheadTipPointsForwardAlongPositiveZ() {
+        DanmakuGeometry.ArrowheadSection[] sections = DanmakuGeometry.arrowheadSections();
+        assertTrue(sections.length <= 5, "鳞弹只保留轮廓与主要内纹需要的截面，避免高面数曲面");
+        for (int i = 1; i < sections.length; i++) {
+            assertTrue(sections[i].z() > sections[i - 1].z(), "截面应从尾端连续排向尖端");
         }
-        assertEquals(0.0D, outline[0], EPS);
-        assertEquals(1.0D, outline[1], EPS);
-        assertEquals(0.0D, outline[18], EPS);
-        assertEquals(-1.0D, outline[19], EPS);
-        assertEquals(0.96D, Math.abs(outline[8]), EPS,
-                "箭头肩部应明显宽于头尾");
+        var tail = sections[0];
+        var tip = sections[sections.length - 1];
+        assertEquals(-1.0D, tail.z(), EPS);
+        assertEquals(1.0D, tip.z(), EPS);
+        assertEquals(0.0D, tip.outerWidth(), EPS,
+                "局部 +Z 前端必须收束为尖端");
+        assertTrue(tail.wingInnerWidth() > tail.coreWidth() && tail.outerWidth() > 0.8D,
+                "后缘必须是分叉的鳞翼，不能是带圆杆尾柄的箭矢");
+        for (var section : sections) {
+            assertTrue(section.coreWidth() <= section.wingInnerWidth(), "中央亮瓣不能跨过分叉缺口");
+            assertTrue(section.wingInnerWidth() <= section.outerWidth(), "双翼宽度不能倒置");
+        }
     }
 
     // ------------------------------------------------------------------

@@ -4,33 +4,37 @@
 TBD - created by archiving change rework-danmaku-weapon-orb. Update Purpose after archive.
 ## Requirements
 ### Requirement: 鳞形箭头弹幕的生成与建模
-系统 SHALL 提供实体 ID 为 `cone_danmaku` 的鳞形箭头弹幕，以短而宽的 3D 弹头呈现：朝向速度的正面 SHALL 采用左右对称的箭头轮廓，头部圆钝、两肩宽展、下缘短尖，平面外接尺寸约为 0.29 × 0.30 格、厚度约 0.18 格。弹体 SHALL 使用红色系外壳、清晰亮芯与收敛的外辉光，MUST NOT 呈现为细长的多段锥体。该实体 SHALL 继承既有弹幕实体的伤害、命中消亡与同步机制，MUST NOT 引入与 `AbstractDanmakuProjectile` 并行的第二套弹幕基类。
+系统 SHALL 提供实体 ID 为 `cone_danmaku` 的鳞形弹幕，参照原作的拱形双翼、白色内纹和中央亮瓣建模：鳞片 SHALL 沿局部 X-Z 平面展开，前尖沿 +Z 指向飞行方向，后缘保留双翼与中央鳞瓣之间的分叉。横向宽度约为 0.30 格、纵向长度约为 0.34 格、最大厚度约为 0.07 格。白色内纹 SHALL 由本体顶点色提供，外缘保留实体色相与收敛的辉光，MUST NOT 改成带杆尾的箭矢或金属锥体。该实体 SHALL 继承既有弹幕实体的伤害、命中消亡与同步机制，MUST NOT 引入与 `AbstractDanmakuProjectile` 并行的第二套弹幕基类。
+
+轮廓与色带参考：[原作鳞弹 sprite](https://maribelhearn.com/assets/games/faq/bullets/arrowhead.png)。原始 sprite 仅用于对照，不作为发布资源复制；三维模型与高清中性材质由项目维护。
 
 箭头弹体 SHALL 使用 3D 几何渲染，MUST NOT 使用朝向相机的 billboard 四边形——弹体具有明确朝向，billboard 会使其失去立体感与方向可读性。
 
+鳞弹 SHALL 使用低面数模型：最多五个纵向截面，每个鳞瓣横向只分两条色带，尾端以单面封闭；本体每遍最多提交 70 个四边形。曲面平滑度 MUST NOT 依赖密集横纵细分，主要保留轮廓、分叉与白芯。
+
 #### Scenario: 生成鳞形弹幕
 - **WHEN** 鳞形弹幕以伤害值生成
-- **THEN** 生成一枚短宽的箭头状弹幕实体，命中实体或方块时消亡并结算伤害
+- **THEN** 生成一枚前尖朝前、后缘分叉的薄型鳞片弹幕实体，命中实体或方块时消亡并结算伤害
 
 #### Scenario: 几何为三维
 - **WHEN** 玩家从侧面观察飞行中的鳞形弹幕
 - **THEN** 弹体呈现可见的截面厚度与立体轮廓，MUST NOT 始终正对相机
 
-### Requirement: 正面恒朝速度方向
-鳞形弹幕的正面法线 SHALL 恒与自身速度方向对齐：飞行方向改变时，弹体朝向 MUST 立即跟随。静止（速度为零）时朝向不作要求，SHALL 保持最后一次的有效朝向。
+### Requirement: 尖端恒朝速度方向
+鳞形弹幕的尖端 SHALL 沿自身速度方向朝前：飞行方向改变时，弹体朝向 MUST 跟随，并在渲染帧间插值。静止（速度为零）时朝向不作要求，SHALL 保持最后一次的有效朝向。
 
 朝向 MUST 由既有弹幕基类的"由速度写朝向"机制承载（`updateRotationFromVelocity`），MUST NOT 另建一套姿态同步逻辑。
 
-#### Scenario: 正面跟随速度
+#### Scenario: 尖端跟随速度
 - **WHEN** 鳞形弹幕的速度方向改变
-- **THEN** 箭头状弹头的正面立即朝向新的速度方向
+- **THEN** 立体弹头的尖端朝向新的速度方向，MUST NOT 仍朝向模型下方
 
 #### Scenario: 静止时朝向任意
 - **WHEN** 鳞形弹幕的速度为零
 - **THEN** 弹体保持最后一次有效朝向，MUST NOT 出现朝向跳变或模型翻转
 
 ### Requirement: 判定箱与视觉尺寸解耦
-鳞形弹幕的判定箱 SHALL 与其视觉尺寸**解耦**：视觉宽度约为 0.29 格，判定宽度 SHALL 略大于视觉宽度（约 0.32 格），使弹体仍可被可靠命中。碰撞缩放 MUST 复用弹幕视觉档案既有的"视觉缩放与碰撞缩放分离"机制，MUST NOT 让判定箱与视觉宽度共用同一个参数。
+鳞形弹幕的判定箱 SHALL 与其视觉尺寸**解耦**：视觉宽度约为 0.30 格，判定宽度 SHALL 略大于视觉宽度（约 0.32 格），使弹体仍可被可靠命中。碰撞缩放 MUST 复用弹幕视觉档案既有的“视觉缩放与碰撞缩放分离”机制，MUST NOT 让判定箱与视觉宽度共用同一个参数。
 
 #### Scenario: 细弹可被命中
 - **WHEN** 玩家以鳞形弹幕射击一个横向移动的目标
