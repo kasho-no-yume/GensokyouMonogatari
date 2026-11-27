@@ -1,6 +1,7 @@
 package com.bitsson.gensokyou.client.renderer;
 
 import com.bitsson.gensokyou.Gensokyou;
+import com.bitsson.gensokyou.danmaku.visual.DanmakuGeometry;
 import com.bitsson.gensokyou.danmaku.render.DanmakuRenderProbe;
 import com.bitsson.gensokyou.entity.ConeDanmaku;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -13,57 +14,27 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 /**
- * 锥形弹幕渲染器：手搓 3D 锥体（菱形截面 × 3 段收束），局部 <b>+Z = 尖端 = 飞行方向</b>。
+ * 鳞形弹幕渲染器：将经典箭头轮廓做成立体、带亮芯的短弹头；弹体正面沿局部 +Z 朝向飞行方向。
  *
- * <p>与 {@code KnifeDanmakuRenderer} 同一范式：朝向取实体的 yaw/pitch
- * （由父类每 tick 由速度写入），故锥体永远指向运动方向；静止时保持最后朝向。
- *
- * <p><b>为什么 MUST 3D 而非 billboard</b>：弹体有明确朝向，billboard 会让它永远正对相机，
- * 于是"这一发朝哪飞"这一信息丢失，锥尖与速度方向的关系也读不出来。
- *
- * <p>几何（总长 0.45 格、总宽 0.2 格）：
- * <pre>
- *   环0 尾端  z = -0.225  半宽 0.055   钝
- *   环1 腰身  z = -0.025  半宽 0.100   最宽 → 总宽 0.2 格
- *   环2 收束  z = +0.140  半宽 0.055
- *   环3 尖端  z = +0.225  半宽 0.008   平滑尖，不留死面
- * </pre>
- *
- * <p>贴图 {@code textures/entity/cone_danmaku.png} 为 16×16 灰度图集：
- * 横向 4 组（每组 4 列）分别对应 4 个侧面，纵向是"尖端亮 → 尾端暗"的长度渐变；
- * 色相由实体顶点色给出（贴图只提供明暗）。
+ * <p>与细长的锥体不同，该弹头两肩宽、头部圆钝、下缘收成短尖。灰阶贴图提供红壳的
+ * 明暗与白色纹理，实体颜色继续决定外壳色相。
  */
 public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
 
     private static final ResourceLocation TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/entity/cone_danmaku.png");
+            ResourceLocation.fromNamespaceAndPath(Gensokyou.MODID, "textures/entity/arrowhead_danmaku.png");
 
-    // ---------------- 几何（局部 +Z = 尖端） ----------------
+    private static final int SIDES = 18;
+    private static final float BODY_RADIUS = 0.15F;
+    private static final float REAR_Z = -0.105F;
+    private static final float BEVEL_Z = -0.018F;
+    private static final float FRONT_Z = 0.075F;
+    private static final float REAR_SCALE = 0.46F;
+    private static final float BEVEL_SCALE = 0.82F;
 
-    /** 尾端环 z（钝）。 */
-    private static final float TAIL_Z = -0.225F;
-    /** 腰身环 z（最宽）。 */
-    private static final float WAIST_Z = -0.025F;
-    /** 收束环 z。 */
-    private static final float CONE_Z = 0.140F;
-    /** 尖端环 z（平滑尖）。 */
-    private static final float TIP_Z = 0.225F;
-
-    private static final float TAIL_HW = 0.055F;
-    private static final float WAIST_HW = 0.100F;
-    private static final float CONE_HW = 0.055F;
-    private static final float TIP_HW = 0.008F;
-
-    // ---------------- 发光 ----------------
-
-    /**
-     * 外发光：放大的加法副本。
-     *
-     * <p>东方弹幕普遍"自带亮度"——要么本体高亮，要么外圈发光。锥弹是锐利的 3D 多面体，
-     * 单靠顶点色不够亮，故补一层加法发光：本体给轮廓，发光给"亮起来"的观感。
-     */
-    private static final float GLOW_SCALE = 1.7F;
-    private static final int GLOW_ALPHA = 95;
+    private static final float GLOW_SCALE = 1.17F;
+    private static final int GLOW_ALPHA = 72;
+    private static final int CORE_ALPHA = 235;
 
     public ConeDanmakuRenderer(EntityRendererProvider.Context context) {
         super(context, TEXTURE);
@@ -74,7 +45,7 @@ public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
      *
      * <p>cutout 只做"alpha &lt; 0.1 就丢弃"，**没有半透明**——近相机淡出需要真正的
      * alpha 衰减，故走 {@link DanmakuRenderTypes#translucent}（alpha 混合 + 不裁背面，
-     * 锥体的绕序不必纠结正反面）。
+     * 弹头面与侧面的绕序不必纠结正反面）。
      */
     @Override
     protected RenderType baseRenderType() {
@@ -86,7 +57,7 @@ public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
                        PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
         poseStack.pushPose();
 
-        // 用插值朝向，避免低同步频率下的抖动；yaw 取正值使局部 Z+ 对准速度方向
+        // 用插值朝向，避免低同步频率下的抖动；箭头壳的正面朝向局部 +Z。
         float yaw = Mth.rotLerp(partialTick, entity.yRotO, entity.getYRot());
         float pitch = Mth.lerp(partialTick, entity.xRotO, entity.getXRot());
 
@@ -94,8 +65,8 @@ public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
         poseStack.mulPose(Axis.XP.rotationDegrees(-pitch));
 
         int color = entity.getColor();
-        // 近相机淡出：弹丸生成在眼睛 = 相机位置，第一帧就贴在镜头上；1.7 倍的加法
-        // 外发光叠上去就是一次整屏白闪，而麟弹 10 发/秒 = 10 Hz 频闪。
+        // 近相机淡出：弹丸生成在眼睛 = 相机位置，第一帧就贴在镜头上；本体与加法外发光
+        // 叠加会造成整屏白闪，而麟弹 10 发/秒 = 10 Hz 频闪。
         // **只改渲染**：判定、轨迹、生成点一个都不动 ⇒ 对准度零影响。
         float fade = this.nearCameraFade(entity, partialTick);
         int bodyAlpha = Math.round(255.0F * fade);
@@ -113,14 +84,36 @@ public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
             }
         }
 
-        // 外发光：放大的加法副本（东方弹幕的"亮"主要来自这一层）
+        // 外发光：略放大的加法副本，强化红色外缘而不把弹丸吹成一整团光球。
         if (glowAlpha > 0) {
             poseStack.pushPose();
             poseStack.translate(0.0F, 0.0F, GLOW_OFFSET);
             poseStack.scale(GLOW_SCALE, GLOW_SCALE, GLOW_SCALE);
             VertexConsumer glow = this.getBuffer(bufferSource, DanmakuRenderTypes.additiveGlow(TEXTURE));
-            this.renderShape(entity, poseStack, glow,
-                    red(color), green(color), blue(color), glowAlpha, FULL_BRIGHT);
+            DanmakuRenderProbe.countGlow();
+            DanmakuRenderProbe.pushGlow();
+            try {
+                this.renderShape(entity, poseStack, glow,
+                        red(color), green(color), blue(color), glowAlpha, FULL_BRIGHT);
+            } finally {
+                DanmakuRenderProbe.pop();
+            }
+            poseStack.popPose();
+        }
+
+        // 中心亮芯独立发光，与箭头外缘形成明暗反差。
+        if (bodyAlpha > 0) {
+            poseStack.pushPose();
+            poseStack.translate(0.0F, 0.0F, FRONT_Z + GLOW_OFFSET * 2.0F);
+            VertexConsumer core = this.getBuffer(bufferSource, DanmakuRenderTypes.additiveGlow(TEXTURE));
+            DanmakuRenderProbe.countCore();
+            DanmakuRenderProbe.pushCore();
+            try {
+                this.renderBrightCore(poseStack.last(), core,
+                        Math.round(CORE_ALPHA * fade), FULL_BRIGHT);
+            } finally {
+                DanmakuRenderProbe.pop();
+            }
             poseStack.popPose();
         }
 
@@ -133,55 +126,101 @@ public class ConeDanmakuRenderer extends AbstractDanmakuRenderer<ConeDanmaku> {
                                 int r, int g, int b, int a, int light) {
         PoseStack.Pose pose = poseStack.last();
 
-        float[] zs = {TAIL_Z, WAIST_Z, CONE_Z, TIP_Z};
-        float[] hws = {TAIL_HW, WAIST_HW, CONE_HW, TIP_HW};
+        double[] outline = DanmakuGeometry.arrowheadOutline(BODY_RADIUS);
+        this.renderSideBand(consumer, pose, outline, REAR_SCALE, REAR_Z,
+                BEVEL_SCALE, BEVEL_Z, r, g, b, a, light);
+        this.renderSideBand(consumer, pose, outline, BEVEL_SCALE, BEVEL_Z,
+                1.0F, FRONT_Z, r, g, b, a, light);
+        this.renderFrontFace(pose, consumer, BODY_RADIUS, FRONT_Z, r, g, b, a, light);
+        this.renderBackFace(pose, consumer, outline, REAR_SCALE, REAR_Z, r, g, b, a, light);
+    }
 
-        // 3 段收束 × 4 个侧面
-        for (int seg = 0; seg < 3; seg++) {
-            float z0 = zs[seg];
-            float z1 = zs[seg + 1];
-            float h0 = hws[seg];
-            float h1 = hws[seg + 1];
-            float v0 = vOf(z0);
-            float v1 = vOf(z1);
-            for (int face = 0; face < 4; face++) {
-                int next = (face + 1) % 4;
-                float u0 = face * 0.25F;
-                float u1 = (face + 1) * 0.25F;
-                this.vertex(consumer, pose, edgeX(face, h0), edgeY(face, h0), z0, u0, v0, r, g, b, a, light);
-                this.vertex(consumer, pose, edgeX(next, h0), edgeY(next, h0), z0, u1, v0, r, g, b, a, light);
-                this.vertex(consumer, pose, edgeX(next, h1), edgeY(next, h1), z1, u1, v1, r, g, b, a, light);
-                this.vertex(consumer, pose, edgeX(face, h1), edgeY(face, h1), z1, u0, v1, r, g, b, a, light);
-            }
+    private void renderSideBand(VertexConsumer consumer, PoseStack.Pose pose, double[] outline,
+                                float scale0, float z0, float scale1, float z1,
+                                int r, int g, int b, int a, int light) {
+        for (int i = 0; i < SIDES; i++) {
+            int next = (i + 1) % SIDES;
+            double x0 = outline[i * 2];
+            double y0 = outline[i * 2 + 1];
+            double x1 = outline[next * 2];
+            double y1 = outline[next * 2 + 1];
+            int shade = (i % 3 == 0) ? 168 : 205;
+            this.vertex(consumer, pose, (float) (x0 * scale0), (float) (y0 * scale0), z0, 0.5F, 0.5F,
+                    r * shade / 255, g * shade / 255, b * shade / 255, a, light);
+            this.vertex(consumer, pose, (float) (x1 * scale0), (float) (y1 * scale0), z0, 0.5F, 0.5F,
+                    r * shade / 255, g * shade / 255, b * shade / 255, a, light);
+            this.vertex(consumer, pose, (float) (x1 * scale1), (float) (y1 * scale1), z1, 0.5F, 0.5F,
+                    r * shade / 255, g * shade / 255, b * shade / 255, a, light);
+            this.vertex(consumer, pose, (float) (x0 * scale1), (float) (y0 * scale1), z1, 0.5F, 0.5F,
+                    r * shade / 255, g * shade / 255, b * shade / 255, a, light);
         }
-
-        // 尾端封盖（菱形，取最暗的一档）
-        this.vertex(consumer, pose, 0.0F, TAIL_HW, TAIL_Z, 0.0F, 1.0F, r, g, b, a, light);
-        this.vertex(consumer, pose, TAIL_HW, 0.0F, TAIL_Z, 0.25F, 1.0F, r, g, b, a, light);
-        this.vertex(consumer, pose, 0.0F, -TAIL_HW, TAIL_Z, 0.5F, 1.0F, r, g, b, a, light);
-        this.vertex(consumer, pose, -TAIL_HW, 0.0F, TAIL_Z, 0.75F, 1.0F, r, g, b, a, light);
     }
 
-    /** 菱形截面的第 i 条棱（0 上、1 右、2 下、3 左）的横坐标。 */
-    private static float edgeX(int i, float halfWidth) {
-        return switch (i) {
-            case 1 -> halfWidth;
-            case 3 -> -halfWidth;
-            default -> 0.0F;
-        };
+    private void renderFrontFace(PoseStack.Pose pose, VertexConsumer consumer, float radius, float z,
+                                 int r, int g, int b, int a, int light) {
+        double[] outline = DanmakuGeometry.arrowheadOutline(radius);
+        for (int i = 0; i < SIDES; i++) {
+            int next = (i + 1) % SIDES;
+            this.vertex(consumer, pose, 0.0F, 0.0F, z, 0.5F, 0.5F, r, g, b, a, light);
+            this.faceVertex(consumer, pose, outline[i * 2], outline[i * 2 + 1], radius, z, r, g, b, a, light);
+            this.faceVertex(consumer, pose, outline[next * 2], outline[next * 2 + 1], radius, z, r, g, b, a, light);
+            // RenderType uses QUADS; repeat the final point to encode this triangle as a degenerate quad.
+            this.faceVertex(consumer, pose, outline[next * 2], outline[next * 2 + 1], radius, z, r, g, b, a, light);
+        }
     }
 
-    /** 菱形截面的第 i 条棱的纵坐标。 */
-    private static float edgeY(int i, float halfWidth) {
-        return switch (i) {
-            case 0 -> halfWidth;
-            case 2 -> -halfWidth;
-            default -> 0.0F;
-        };
+    private void renderBackFace(PoseStack.Pose pose, VertexConsumer consumer, double[] outline,
+                                float scale, float z, int r, int g, int b, int a, int light) {
+        for (int i = 0; i < SIDES; i++) {
+            int next = (i + 1) % SIDES;
+            this.vertex(consumer, pose, 0.0F, 0.0F, z, 0.5F, 0.5F, r, g, b, a, light);
+            this.vertex(consumer, pose, (float) (outline[next * 2] * scale),
+                    (float) (outline[next * 2 + 1] * scale), z,
+                    0.5F, 0.5F, r, g, b, a, light);
+            this.vertex(consumer, pose, (float) (outline[i * 2] * scale),
+                    (float) (outline[i * 2 + 1] * scale), z,
+                    0.5F, 0.5F, r, g, b, a, light);
+            // Keep each triangle fan wedge on the QUADS vertex boundary.
+            this.vertex(consumer, pose, (float) (outline[i * 2] * scale),
+                    (float) (outline[i * 2 + 1] * scale), z,
+                    0.5F, 0.5F, r, g, b, a, light);
+        }
     }
 
-    /** 长度方向的贴图 V：尖端 v=0（亮），尾端 v=1（暗）。 */
-    private static float vOf(float z) {
-        return (TIP_Z - z) / (TIP_Z - TAIL_Z);
+    private void faceVertex(VertexConsumer consumer, PoseStack.Pose pose, double x, double y, float radius,
+                            float z, int r, int g, int b, int a, int light) {
+        float u = (float) (0.5D + x / (2.0D * radius));
+        float v = (float) (0.5D - y / (2.0D * radius));
+        this.vertex(consumer, pose, (float) x, (float) y, z, u, v, r, g, b, a, light);
+    }
+
+    /** A cropped white inset follows the source sprite's central highlight without whitening its red edge. */
+    private void renderBrightCore(PoseStack.Pose pose, VertexConsumer consumer, int alpha, int light) {
+        float halfWidth = BODY_RADIUS * 0.50F;
+        float halfHeight = BODY_RADIUS * 0.25F;
+        float centerU = 0.5F;
+        float centerV = 11.0F / 16.0F;
+        for (int i = 0; i < 8; i++) {
+            int next = (i + 1) % 8;
+            double angle0 = 2.0D * Math.PI * i / 8.0D;
+            double angle1 = 2.0D * Math.PI * next / 8.0D;
+            float x0 = (float) Math.cos(angle0);
+            float y0 = (float) Math.sin(angle0);
+            float x1 = (float) Math.cos(angle1);
+            float y1 = (float) Math.sin(angle1);
+            float u0 = centerU + x0 * 0.25F;
+            float v0 = centerV - y0 * 2.0F / 16.0F;
+            float u1 = centerU + x1 * 0.25F;
+            float v1 = centerV - y1 * 2.0F / 16.0F;
+            this.vertex(consumer, pose, 0.0F, 0.0F, 0.0F, centerU, centerV,
+                    255, 255, 255, alpha, light);
+            this.vertex(consumer, pose, x0 * halfWidth, y0 * halfHeight, 0.0F, u0, v0,
+                    255, 255, 255, alpha, light);
+            this.vertex(consumer, pose, x1 * halfWidth, y1 * halfHeight, 0.0F, u1, v1,
+                    255, 255, 255, alpha, light);
+            // The translucent entity render type consumes quads; duplicate the last vertex for this fan wedge.
+            this.vertex(consumer, pose, x1 * halfWidth, y1 * halfHeight, 0.0F, u1, v1,
+                    255, 255, 255, alpha, light);
+        }
     }
 }

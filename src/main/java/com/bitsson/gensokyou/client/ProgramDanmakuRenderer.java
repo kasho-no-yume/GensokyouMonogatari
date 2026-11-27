@@ -96,8 +96,10 @@ public final class ProgramDanmakuRenderer {
                     renderLaser(pose,buffers,member,usedTypes);
                 } else {
                     var profile=ProgramVisuals.profile(member.style());
-                    boolean star=profile.geometry()==DanmakuGeometry.STAR_PRISM;
-                    RenderType type=profile==com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile.DEFAULT ? bodyType : DanmakuRenderTypes.translucentDepth(profile.texture());
+                    boolean starPrism=profile.geometry()==DanmakuGeometry.STAR_PRISM;
+                    boolean starSprite=profile.geometry()==DanmakuGeometry.STAR_SPRITE;
+                    RenderType type=profile==com.bitsson.gensokyou.danmaku.visual.DanmakuVisualProfile.DEFAULT
+                            ? bodyType : DanmakuRenderTypes.translucentDepth(profile.texture());
                     usedTypes.add(type);
                     VertexConsumer body=buffers.getBuffer(type);
                     pose.mulPose(minecraft.gameRenderer.getMainCamera().rotation());
@@ -107,10 +109,12 @@ public final class ProgramDanmakuRenderer {
                     // Keep a saturated body color; a second additive copy washes it out.
                     int tint=ProgramVisuals.tint(member.style());
                     int r=channel(tint,16,member.brightness()),g=channel(tint,8,member.brightness()),b=channel(tint,0,member.brightness());
-                    if (star) {
+                    if (starPrism) {
                         pose.mulPose(Axis.XP.rotationDegrees((float)(profile.tumbleAmpDeg()*Math.sin(2*Math.PI*member.age()/profile.tumblePeriod()))));
                         DanmakuMeshes.star(pose.last(),body,half,r,g,b,alpha,LIGHT);
-                    } else quad(pose.last(),body,half,r,g,b,alpha);
+                    } else if (starSprite) DanmakuMeshes.starSprite(pose.last(),body,half,r,g,b,
+                            (float)member.brightness(),alpha,LIGHT);
+                    else quad(pose.last(),body,half,r,g,b,alpha);
                 }
                 pose.popPose();
             }

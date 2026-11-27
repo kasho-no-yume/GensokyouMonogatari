@@ -60,17 +60,46 @@ TEXES["entity/knife_danmaku"] = [
     _blade + _fill,
 ] * 4
 
-# ---- 锥形弹：16×16 图集（配合 ConeDanmakuRenderer 的锥体模型）----
-# 横向 4 组（每组 4 列）对应 4 个侧面：组0=上右面、组1=下右面、组2=下左面、组3=上左面
-# 组内 4 列同值；纵向是"尖端亮 → 尾端暗"的长度渐变（V=0 是尖端，V=1 是尾端）
-# 上两面（组0/组3）用亮档、下两面（组1/组2）用暗档：光来自上方，下侧自然更暗。
-# 整张图保持高明度——东方弹幕普遍自带很强的亮度，锥弹的"亮"主要靠这张图 + 外发光层。
-_CONE_TOP = "WWLLMMMmmmDDDDDD"    # 上方面（组 0 与组 3）：尖端接近纯白
-_CONE_BOT = "PPQQRRSSTTTTTTUU"      # 下方面（组 1 与组 2）：整体暗一档
-TEXES["entity/cone_danmaku"] = [
-    _CONE_TOP[_y] * 4 + _CONE_BOT[_y] * 4
-    + _CONE_BOT[_y] * 4 + _CONE_TOP[_y] * 4
-    for _y in range(16)
+# ---- 星弹：16×16 五角星（灰阶遮罩，亮芯和星芒轮廓再由实体分层发光）----
+# 星形轮廓、中心亮区和透明星芒来自经典东方小星弹的比例；色相由顶点色决定。
+TEXES["entity/star_danmaku"] = [
+    ".......DD.......",
+    ".......CC.......",
+    "......DCCD......",
+    "......CCCCD.....",
+    "...DDCCGGCCDD...",
+    "DCCCCCGHHCCCCCCD",
+    "DCCCGHHHHHGCCCCD",
+    ".DCCHHHHHHHGCCD.",
+    "..DCGHHHHHHCCD..",
+    "...CCHHHHHHCC...",
+    "...DCHHHHHHCD...",
+    "...DCHGGGHHCC...",
+    "...CCCCCCCCCC...",
+    "...CCCCDDDCCC...",
+    "...CDD....DDC...",
+    "................",
+]
+
+# ---- 鳞形箭头弹：16×16 宽肩、短尖、白色内纹 ----
+# 贴图按朝向观察者的一面展开，实体的箭头轮廓负责 3D 厚度，色相由实体顶点色决定。
+TEXES["entity/arrowhead_danmaku"] = [
+    "................",
+    ".....DDCCDD.....",
+    "....DCCMMCCD....",
+    "....DCMMMMCD....",
+    "...DCMHMMHMCD...",
+    "...DCMMCCMMCD...",
+    "...CMMCCCCMMC...",
+    "..DMMCCMMCCMMD..",
+    "..DHCCMHHMCCMD..",
+    "D.MMCCHHHHCCCM..",
+    "D.HCCCHHHHCCCH..",
+    ".DHCDDHHHHDCCHD.",
+    ".DHCDCHHHHCDCMD.",
+    ".DMCDCMHHMCDCMD.",
+    "DDMD.DCHHCDDDMDD",
+    "...D..DCCD..D...",
 ]
 
 PAL_entity_laser_danmaku = {
@@ -104,18 +133,17 @@ PAL_entity_knife_danmaku = {
     'd': (70, 72, 80),      # 缠绳亮
     'D': (58, 56, 64),      # 柄暗
 }
-PAL_entity_cone_danmaku = {
+PAL_entity_star_danmaku = {
     '.': None,
-    'W': (255, 255, 255, 255),   # 尖端最亮
-    'L': (246, 246, 246, 255),
-    'M': (234, 234, 234, 255),
-    'm': (220, 220, 220, 255),
-    'D': (204, 204, 204, 255),
-    'd': (188, 188, 188, 255),   # 尾端（上方面）
-    'P': (225, 225, 225, 255),   # 下方面：整体暗一档
-    'Q': (212, 212, 212, 255),
-    'R': (198, 198, 198, 255),
-    'S': (184, 184, 184, 255),
-    'T': (170, 170, 170, 255),
-    'U': (156, 156, 156, 255),   # 尾端（下方面）
+    'D': (205, 205, 205, 96),   # 半透明星芒外缘
+    'C': (160, 160, 160, 235),  # 星芒色带
+    'G': (225, 225, 225, 255),  # 过渡高光
+    'H': (255, 255, 255, 255),  # 亮芯
+}
+PAL_entity_arrowhead_danmaku = {
+    '.': None,
+    'D': (78, 78, 78, 225),     # 深色轮廓
+    'C': (148, 148, 148, 245),  # 内侧红壳色带
+    'M': (194, 194, 194, 255),  # 壳面高光
+    'H': (255, 255, 255, 255),  # 弹头内芯
 }

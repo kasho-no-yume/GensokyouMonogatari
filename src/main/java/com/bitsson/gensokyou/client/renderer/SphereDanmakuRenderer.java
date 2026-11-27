@@ -27,8 +27,8 @@ import net.minecraft.client.renderer.entity.EntityRendererProvider;
  * 而那张贴图把球换成了一个<b>环</b>（实心核只有 43.75% 宽，核外是透明环缝 +
  * 三档硬边台阶）。本渲染器把球与光<b>一起</b>拿回来，且仍然只有一层。
  *
- * <p><b>模型类几何</b>（五角星柱 {@code STAR_PRISM}）不在单通约束内：
- * 它沿用既有的分层实现（外发光 / 亮核），其发光半径由档案给出。
+ * <p>星弹档案使用一遍绘制的专用五角星贴图，并通过网格顶点色保留白色亮芯；保留
+ * {@code STAR_PRISM} 几何分支以兼容已有的模型类调用方。
  *
  * <p><b>深度</b>：本体层用写深度的常规 alpha 混合（渐变贴图的柔边必须真混合才能表现，
  * cutout 会把抗锯齿边缘切成锯齿；写深度则保证后画的半透明地形（水）与云层
@@ -85,6 +85,9 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
      * </ul>
      */
     private RenderType bodyRenderType(DanmakuVisualProfile.Profile profile) {
+        if (profile.geometry() == DanmakuGeometry.STAR_SPRITE) {
+            return DanmakuRenderTypes.translucentDepth(profile.texture());
+        }
         if (profile.geometry() == DanmakuGeometry.QUAD) {
             return DanmakuRenderTypes.translucentDepthFiltered(DanmakuBulletTextures.currentLocation());
         }
@@ -107,7 +110,7 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         float size = entity.getSize() * profile.visualScale();
         poseStack.translate(0.0D, size * 0.5D, 0.0D);
         if (profile.geometry() == DanmakuGeometry.STAR_PRISM) {
-            // 偏航锁相机方位（保证五角星轮廓恒可读），俯仰摆动（使厚度成为可见信息）。
+            // 兼容旧五角星柱档案：偏航锁相机方位，俯仰摆动以显示厚度。
             // 完全 billboard 会让厚度永远不可见，故刻意不复用 cameraOrientation()。
             poseStack.mulPose(this.entityRenderDispatcher.cameraOrientation());
             poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
@@ -170,7 +173,8 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         // **四边形几何 MUST NOT 画这一层**：它的辉光已经在贴图里。再叠一层加法辉光
         // 等于把填率翻倍（历史实测：双加法未排序后单体负载仍不可控，只能靠减遍数）。
         // 模型类几何（五角星柱）不在单通约束内，继续走分层实现。
-        if (profile.geometry() != DanmakuGeometry.QUAD) {
+        if (profile.geometry() != DanmakuGeometry.QUAD
+                && profile.geometry() != DanmakuGeometry.STAR_SPRITE) {
             this.renderGlow(entity, poseStack, profile, color, dim, bufferSource);
         }
 
@@ -250,6 +254,8 @@ public class SphereDanmakuRenderer extends AbstractDanmakuRenderer<SphereDanmaku
         float half = entity.getSize() * 0.5F;
         switch (profile.geometry()) {
             case STAR_PRISM -> this.renderStarPrism(profile, poseStack, consumer, r, g, b, a, light);
+            case STAR_SPRITE -> DanmakuMeshes.starSprite(poseStack.last(), consumer, half,
+                    r, g, b, 1.0F, a, light);
             default -> this.renderQuad(poseStack, consumer, half, r, g, b, a, light);
         }
     }

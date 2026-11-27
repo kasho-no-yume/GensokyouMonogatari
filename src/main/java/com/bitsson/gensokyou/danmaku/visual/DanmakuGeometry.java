@@ -26,7 +26,10 @@ public enum DanmakuGeometry {
      * <p>成本特征与 {@link #QUAD} <b>相反</b>：30 quad = 120 顶点/层（顶点重），
      * 但屏幕覆盖只有同尺寸四边形的四成左右（填充轻）。密集弹幕下填充率因此下降。
      */
-    STAR_PRISM;
+    STAR_PRISM,
+
+    /** 面向相机的五角星弹幕贴图。 */
+    STAR_SPRITE;
 
     /**
      * 正五角星柱的轮廓顶点。
@@ -53,5 +56,25 @@ public enum DanmakuGeometry {
     /** 五角星柱的总厚度（半厚的一半）。厚度 = 半径的一半，故半厚 = 半径的四分之一。 */
     public static double starPrismHalfThickness(double radius) {
         return radius * 0.25D;
+    }
+
+    /**
+     * 鳞形箭头弹体朝向观察者一侧的轮廓。外侧圆钝、两肩张开，底缘收成短尖，
+     * 与细长锥尖区分开来。
+     *
+     * @return 长度 36 的数组 {@code [x0,y0, ...]}，顺时针排列
+     */
+    public static double[] arrowheadOutline(double radius) {
+        double[] unit = {
+                0.00D, 1.00D, 0.30D, 0.96D, 0.58D, 0.82D, 0.86D, 0.58D,
+                0.96D, 0.28D, 0.92D, 0.00D, 0.76D, -0.28D, 0.47D, -0.56D,
+                0.23D, -0.80D, 0.00D, -1.00D, -0.23D, -0.80D, -0.47D, -0.56D,
+                -0.76D, -0.28D, -0.92D, 0.00D, -0.96D, 0.28D, -0.86D, 0.58D,
+                -0.58D, 0.82D, -0.30D, 0.96D
+        };
+        for (int i = 0; i < unit.length; i++) {
+            unit[i] *= radius;
+        }
+        return unit;
     }
 }

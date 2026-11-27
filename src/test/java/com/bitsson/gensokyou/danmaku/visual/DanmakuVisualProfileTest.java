@@ -56,26 +56,23 @@ class DanmakuVisualProfileTest {
     }
 
     /**
-     * 五角星柱 MUST 关闭亮核层。
-     *
-     * <p>球弹的「0.55× 纯白亮核 + 1.35× 加法发光」是为柔和的圆形渐变贴图设计的；
-     * 拿到锐利多边形上会把星糊成一坨光球。这条锁的是实机调出来的观感结论，
-     * 不是推导——日后给该造型配专用贴图时可以改，但改之前 MUST 先摘掉本断言。
+     * 星弹使用专用剪影和单通网格亮芯，不添加额外的分层绘制。
      */
     @Test
-    void starPrismHasNoCore() {
-        assertFalse(DanmakuVisualProfile.STAR_PRISM.hasCore(),
-                "锐利多边形上亮核会把造型糊成光球，MUST 关闭");
+    void starSpriteHasDedicatedTextureAndSinglePassBrightCenter() {
+        DanmakuVisualProfile.Profile star = DanmakuVisualProfile.STAR_PRISM;
+        assertEquals(DanmakuGeometry.STAR_SPRITE, star.geometry());
+        assertFalse(star.hasCore(), "星形亮芯与外缘由单次绘制完成");
+        assertEquals(0, star.glowAlpha(), "星芒不应增加额外的加法绘制层");
+        assertEquals("star_danmaku", star.texture().getPath());
     }
 
-    /** 五角星柱的辉光 MUST 收得比球弹紧（倍率与 alpha 都更小）。 */
+    /** 星弹使用内嵌星芒，避免额外叠层。 */
     @Test
-    void starPrismGlowIsTighterThanDefault() {
+    void starSpriteDoesNotAddASeparateGlowPass() {
         DanmakuVisualProfile.Profile s = DanmakuVisualProfile.STAR_PRISM;
-        assertTrue(s.glowScale() < DanmakuVisualProfile.DEFAULT.glowScale(),
-                "五角星柱的发光倍率应小于球弹");
-        assertTrue(s.glowAlpha() < DanmakuVisualProfile.DEFAULT.glowAlpha(),
-                "五角星柱的发光 alpha 应小于球弹");
+        assertEquals(1.0F, s.glowScale(), EPS);
+        assertEquals(0, s.glowAlpha());
     }
 
     // ------------------------------------------------------------------
@@ -209,19 +206,32 @@ class DanmakuVisualProfileTest {
         assertEquals(1.0D, DanmakuGeometry.starPrismHalfThickness(4.0D), EPS);
     }
 
-    /**
-     * 五角星柱的碰撞缩放 MUST 小于视觉缩放。
-     *
-     * <p>依据是实体面积：五角星面积 ≈ 1.1225 R²，外接圆 = πR² ≈ 3.1416 R²，
-     * 面积比 0.357。取满外接圆作碰撞会复现「看着没碰到却掉血」。
-     */
+    /** 透明凹角对应较小的碰撞缩放，避免按完整外接圆判中。 */
     @Test
     void starPrismHitboxIsTighterThanVisual() {
         DanmakuVisualProfile.Profile s = DanmakuVisualProfile.STAR_PRISM;
         assertTrue(s.hitboxScale() < s.visualScale(),
-                "五角星柱的碰撞缩放 MUST 小于视觉缩放");
+                "星形弹幕的碰撞缩放 MUST 小于视觉缩放");
         assertTrue(Math.abs(s.hitboxScale() - 0.60F) < 0.02F,
-                "0.60 是等面积当量（等效半径 0.598R），偏差过大: " + s.hitboxScale());
+                "星形碰撞缩放应接近当前设定值 0.60: " + s.hitboxScale());
+    }
+
+    @Test
+    void arrowheadOutlineHasSymmetricBroadShouldersAndShortTip() {
+        double[] outline = DanmakuGeometry.arrowheadOutline(1.0D);
+        assertEquals(36, outline.length, "箭头截面应由 18 个点组成");
+        for (int i = 1; i < 9; i++) {
+            assertEquals(outline[i * 2], -outline[(18 - i) * 2], EPS,
+                    "箭头轮廓应左右对称");
+            assertEquals(outline[i * 2 + 1], outline[(18 - i) * 2 + 1], EPS,
+                    "箭头轮廓两侧高度应匹配");
+        }
+        assertEquals(0.0D, outline[0], EPS);
+        assertEquals(1.0D, outline[1], EPS);
+        assertEquals(0.0D, outline[18], EPS);
+        assertEquals(-1.0D, outline[19], EPS);
+        assertEquals(0.96D, Math.abs(outline[8]), EPS,
+                "箭头肩部应明显宽于头尾");
     }
 
     // ------------------------------------------------------------------
